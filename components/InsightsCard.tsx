@@ -1,146 +1,102 @@
 "use client";
 
+import Link from "next/link";
 import { fmtPct, fmtSignedUSD } from "@/lib/portfolio";
-import type { Range, RangeAnalysis } from "@/lib/types";
-import { TICKER_NAMES, USERS } from "@/lib/picks";
+import type { RangeAnalysis, RangeMover } from "@/lib/types";
+import { TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
 
-const RANGE_LABEL: Record<Range, string> = {
-  "1W": "this week",
-  "1M": "this month",
-  "3M": "this quarter",
-  "1YR": "this year",
-  ALL: "since Feb 5",
-};
-
-const MIN_BIG_MOVE_PCT = 0.08;
+const MAX_PER_LIST = 3;
 
 export function InsightsCard({ analysis }: { analysis: RangeAnalysis }) {
-  const { brianPct, kevinPct, brianMovers, kevinMovers, topGainers, topLosers, range } = analysis;
-
-  const leaderId = brianPct >= kevinPct ? "brian" : "kevin";
-  const trailerId = leaderId === "brian" ? "kevin" : "brian";
-  const leaderMovers = leaderId === "brian" ? brianMovers : kevinMovers;
-  const trailerMovers = leaderId === "brian" ? kevinMovers : brianMovers;
-
-  const leaderTop = leaderMovers[0];
-  const trailerWorst = trailerMovers[trailerMovers.length - 1];
-  const overallWinner = topGainers[0];
-  const overallLoser = topLosers[0];
-
-  const bullets: { tone: "good" | "bad" | "info"; node: React.ReactNode; key: string }[] = [];
-
-  if (leaderTop && leaderTop.pct > 0) {
-    bullets.push({
-      tone: "good",
-      key: `lead-${leaderTop.ticker}`,
-      node: (
-        <>
-          <Tk t={leaderTop.ticker} /> <Pct n={leaderTop.pct} /> — {USERS[leaderId].name}'s
-          top contributor ({fmtSignedUSD(leaderTop.dollars, 0)})
-        </>
-      ),
-    });
-  }
-
-  if (trailerWorst && trailerWorst.pct < 0) {
-    bullets.push({
-      tone: "bad",
-      key: `worst-${trailerWorst.ticker}`,
-      node: (
-        <>
-          <Tk t={trailerWorst.ticker} /> <Pct n={trailerWorst.pct} /> — {USERS[trailerId].name}'s
-          biggest drag ({fmtSignedUSD(trailerWorst.dollars, 0)})
-        </>
-      ),
-    });
-  }
-
-  if (
-    overallWinner &&
-    overallWinner.pct >= MIN_BIG_MOVE_PCT &&
-    overallWinner.ticker !== leaderTop?.ticker
-  ) {
-    bullets.push({
-      tone: "good",
-      key: `top-${overallWinner.ticker}`,
-      node: (
-        <>
-          <Tk t={overallWinner.ticker} /> <Pct n={overallWinner.pct} /> — biggest mover{" "}
-          {RANGE_LABEL[range]}
-        </>
-      ),
-    });
-  }
-
-  if (
-    overallLoser &&
-    overallLoser.pct <= -MIN_BIG_MOVE_PCT &&
-    overallLoser.ticker !== trailerWorst?.ticker
-  ) {
-    bullets.push({
-      tone: "bad",
-      key: `low-${overallLoser.ticker}`,
-      node: (
-        <>
-          <Tk t={overallLoser.ticker} /> <Pct n={overallLoser.pct} /> — worst drop{" "}
-          {RANGE_LABEL[range]}
-        </>
-      ),
-    });
-  }
-
-  if (bullets.length === 0) {
-    bullets.push({
-      tone: "info",
-      key: "quiet",
-      node: <>Pretty quiet {RANGE_LABEL[range]} — no holding moved more than {fmtPct(MIN_BIG_MOVE_PCT, 0)}.</>,
-    });
-  }
+  const { brianMovers, kevinMovers } = analysis;
 
   return (
     <div className="px-4 mt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">
-        What's driving it
-      </h2>
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4 space-y-2.5">
-        {bullets.map((b) => (
-          <div key={b.key} className="flex items-start gap-2.5 text-[13px] leading-snug text-zinc-200">
-            <Dot tone={b.tone} />
-            <span className="flex-1">{b.node}</span>
-          </div>
+      <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">What's driving it</h2>
+      <div className="space-y-3">
+        <UserPerformersCard userId="brian" movers={brianMovers} />
+        <UserPerformersCard userId="kevin" movers={kevinMovers} />
+      </div>
+    </div>
+  );
+}
+
+function UserPerformersCard({
+  userId,
+  movers,
+}: {
+  userId: UserId;
+  movers: RangeMover[];
+}) {
+  const user = USERS[userId];
+  const top = [...movers]
+    .filter((m) => m.pct > 0)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, MAX_PER_LIST);
+  const bottom = [...movers]
+    .filter((m) => m.pct < 0)
+    .sort((a, b) => a.pct - b.pct)
+    .slice(0, MAX_PER_LIST);
+
+  return (
+    <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ backgroundColor: user.color }}
+        />
+        <span className="font-semibold text-[14px] text-white">{user.name}</span>
+      </div>
+
+      {top.length === 0 && bottom.length === 0 ? (
+        <p className="text-[12px] text-zinc-500">Flat across the board this range.</p>
+      ) : (
+        <div className="space-y-3">
+          {top.length > 0 && <Section label="Top performers" items={top} />}
+          {bottom.length > 0 && <Section label="Bottom performers" items={bottom} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Section({ label, items }: { label: string; items: RangeMover[] }) {
+  return (
+    <div>
+      <h3 className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1.5">
+        {label}
+      </h3>
+      <div className="divide-y divide-zinc-800/70">
+        {items.map((m) => (
+          <MoverRow key={m.ticker} mover={m} />
         ))}
       </div>
     </div>
   );
 }
 
-function Dot({ tone }: { tone: "good" | "bad" | "info" }) {
-  const color =
-    tone === "good" ? "#00C805" : tone === "bad" ? "#FF453A" : "#999";
+function MoverRow({ mover }: { mover: RangeMover }) {
+  const positive = mover.pct >= 0;
+  const color = positive ? "#00C805" : "#FF453A";
   return (
-    <span
-      className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
-      style={{ backgroundColor: color }}
-    />
-  );
-}
-
-function Tk({ t }: { t: string }) {
-  return (
-    <span className="font-semibold text-white">
-      {t}
-      <span className="text-zinc-500 font-normal text-[12px] ml-1">
-        {TICKER_NAMES[t] ?? ""}
-      </span>
-    </span>
-  );
-}
-
-function Pct({ n }: { n: number }) {
-  const color = n >= 0 ? "#00C805" : "#FF453A";
-  return (
-    <span style={{ color }} className="font-semibold tabular-nums">
-      {fmtPct(n)}
-    </span>
+    <Link
+      href={`/stock/${mover.ticker}`}
+      className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors -mx-1 px-1 rounded-md"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-semibold text-white">{mover.ticker}</div>
+        <div className="text-[11px] text-zinc-500 truncate">
+          {TICKER_NAMES[mover.ticker] ?? ""}
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        <div className="text-[13px] font-semibold tabular-nums" style={{ color }}>
+          {fmtPct(mover.pct)}
+        </div>
+        <div className="text-[11px] text-zinc-500 tabular-nums">
+          {fmtSignedUSD(mover.dollars, 0)}
+        </div>
+      </div>
+    </Link>
   );
 }
