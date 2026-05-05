@@ -9,6 +9,8 @@ W, H = 1200, 630
 BG = (0, 0, 0)
 BRIAN = (0, 200, 5)
 KEVIN = (90, 200, 250)
+RICK = (255, 159, 10)
+LEE = (191, 90, 242)
 FG = (255, 255, 255)
 DIM = (160, 160, 165)
 
@@ -55,26 +57,26 @@ def main():
                   for p in pts]
         draw.line(scaled, fill=color, width=width, joint="curve")
 
+    # 4 diverging lines — winner most upward, others varied
+    line([(0.00, 0.85), (0.08, 0.74), (0.18, 0.70), (0.30, 0.55), (0.42, 0.48),
+          (0.55, 0.36), (0.68, 0.28), (0.82, 0.18), (1.00, 0.08)], RICK)
     line([(0.00, 0.85), (0.10, 0.78), (0.20, 0.82), (0.32, 0.62), (0.45, 0.70),
-          (0.58, 0.50), (0.70, 0.40), (0.85, 0.22), (1.00, 0.15)], KEVIN)
-    line([(0.00, 0.85), (0.12, 0.74), (0.22, 0.78), (0.36, 0.68), (0.48, 0.72),
-          (0.60, 0.62), (0.72, 0.66), (0.85, 0.58), (1.00, 0.55)], BRIAN)
+          (0.58, 0.50), (0.70, 0.40), (0.85, 0.26), (1.00, 0.18)], KEVIN)
+    line([(0.00, 0.85), (0.12, 0.82), (0.24, 0.78), (0.36, 0.74), (0.48, 0.70),
+          (0.60, 0.66), (0.72, 0.62), (0.85, 0.58), (1.00, 0.54)], LEE)
+    line([(0.00, 0.85), (0.12, 0.74), (0.22, 0.78), (0.36, 0.72), (0.48, 0.78),
+          (0.60, 0.74), (0.72, 0.78), (0.85, 0.74), (1.00, 0.72)], BRIAN)
 
-    # Top-left mini-mark (two dots = the icon motif)
-    draw.ellipse((90, 88, 110, 108), fill=BRIAN)
-    draw.ellipse((118, 88, 138, 108), fill=KEVIN)
-    draw.text((150, 80), "STOCK GAME", fill=DIM, font=font(28, bold=True))
+    # Top-left mini-mark (four dots = the icon motif)
+    for i, c in enumerate([BRIAN, KEVIN, RICK, LEE]):
+        x = 90 + i * 24
+        draw.ellipse((x, 88, x + 16, 104), fill=c)
+    draw.text((90 + 4 * 24 + 12, 80), "STOCK GAME", fill=DIM, font=font(26, bold=True))
 
     # Headline
-    draw.text((90, 150), "Brian vs Kevin", fill=FG, font=font(96, bold=True))
-    draw.text((90, 260), "Portfolio showdown,", fill=DIM, font=font(38))
-    draw.text((90, 308), "tracked since Feb 5, 2026.", fill=DIM, font=font(38))
-
-    # Bottom-right legend
-    draw.ellipse((W - 280, H - 70, W - 264, H - 54), fill=BRIAN)
-    draw.text((W - 254, H - 78), "Brian", fill=FG, font=font(28, bold=True))
-    draw.ellipse((W - 170, H - 70, W - 154, H - 54), fill=KEVIN)
-    draw.text((W - 144, H - 78), "Kevin", fill=FG, font=font(28, bold=True))
+    draw.text((90, 150), "Portfolio Showdown", fill=FG, font=font(80, bold=True))
+    draw.text((90, 260), "Friendly competition,", fill=DIM, font=font(36))
+    draw.text((90, 304), "tracked daily since Feb 5, 2026.", fill=DIM, font=font(36))
 
     img.save(OUT, format="PNG", optimize=True)
     print(f"Wrote {OUT} ({W}x{H})")

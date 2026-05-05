@@ -18,9 +18,9 @@ const SITE_URL = siteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Stock Game — Brian vs Kevin",
+  title: "Stock Game — Portfolio Showdown",
   description:
-    "A friendly portfolio showdown between Brian and Kevin, tracked daily since Feb 5, 2026.",
+    "A friendly stock-picking competition tracked daily since Feb 5, 2026.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -33,23 +33,23 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Stock Game",
-    title: "Stock Game — Brian vs Kevin",
+    title: "Stock Game — Portfolio Showdown",
     description:
-      "Portfolio showdown, tracked daily since Feb 5, 2026. Robinhood-style charts, who's winning, what's driving it.",
+      "A friendly stock-picking competition tracked daily since Feb 5, 2026. Robinhood-style charts, who's winning, what's driving it.",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Stock Game — Brian vs Kevin",
+        alt: "Stock Game — Portfolio Showdown",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stock Game — Brian vs Kevin",
+    title: "Stock Game — Portfolio Showdown",
     description:
-      "Portfolio showdown, tracked daily since Feb 5, 2026.",
+      "A friendly stock-picking competition tracked daily since Feb 5, 2026.",
     images: ["/og.png"],
   },
   icons: {
