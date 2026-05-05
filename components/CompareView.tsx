@@ -113,7 +113,7 @@ export function CompareView({ series, intraday, intradayDate, analyses }: Props)
           Compare
         </div>
         <h1 className="text-[22px] leading-tight font-semibold text-white">
-          {leader.user.name} {gapPct === 0 ? "is tied with" : "leads"} {second.user.name}
+          {gapPct === 0 ? "It's a tie" : `${leader.user.name} leads`}
         </h1>
         <div
           className="text-[34px] font-semibold tracking-tight mt-1"
