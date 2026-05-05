@@ -41,3 +41,22 @@ export interface HoldingRow {
   pl: number;
   plPct: number;
 }
+
+export interface RangeMover {
+  ticker: string;
+  pct: number;
+  dollars: number;
+  ownerId: "brian" | "kevin";
+}
+
+export interface RangeAnalysis {
+  range: Range;
+  startDate: string;
+  endDate: string;
+  brianPct: number;
+  kevinPct: number;
+  brianMovers: RangeMover[];
+  kevinMovers: RangeMover[];
+  topGainers: RangeMover[];
+  topLosers: RangeMover[];
+}

@@ -4,16 +4,18 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ScrubChart, type ChartSeries, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
+import { InsightsCard } from "./InsightsCard";
 import { fmtPct, fmtSignedUSD, fmtUSD, filterRange, fmtDateLong } from "@/lib/portfolio";
-import type { PortfolioPoint, Range } from "@/lib/types";
+import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { USERS } from "@/lib/picks";
 
 interface Props {
   brian: PortfolioPoint[];
   kevin: PortfolioPoint[];
+  analyses: Record<Range, RangeAnalysis>;
 }
 
-export function CompareView({ brian, kevin }: Props) {
+export function CompareView({ brian, kevin, analyses }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
@@ -91,6 +93,8 @@ export function CompareView({ brian, kevin }: Props) {
           isLeader={leader.id === "kevin"}
         />
       </div>
+
+      <InsightsCard analysis={analyses[range]} />
 
       <div className="px-4 mt-6">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Game rules</h2>

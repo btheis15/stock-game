@@ -1,4 +1,12 @@
-import type { HoldingRow, PortfolioPoint, PriceData, Range, TickerSeries } from "./types";
+import type {
+  HoldingRow,
+  PortfolioPoint,
+  PriceData,
+  Range,
+  RangeAnalysis,
+  RangeMover,
+  TickerSeries,
+} from "./types";
 import { PER_HOLDING_DOLLARS, USERS, type UserId } from "./picks";
 
 export const STARTING_PORTFOLIO_VALUE = PER_HOLDING_DOLLARS * 10;
@@ -95,6 +103,65 @@ export function fmtDateShort(iso: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+export function rangeBounds(
+  tradingDates: string[],
+  range: Range
+): { startDate: string; endDate: string } {
+  if (tradingDates.length === 0) return { startDate: "", endDate: "" };
+  const endDate = tradingDates[tradingDates.length - 1];
+  if (range === "ALL") return { startDate: tradingDates[0], endDate };
+  const days = RANGE_DAYS[range] as number;
+  const last = new Date(endDate + "T00:00:00Z");
+  const cutoff = new Date(last);
+  cutoff.setUTCDate(cutoff.getUTCDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const startIdx = tradingDates.findIndex((d) => d >= cutoffStr);
+  const startDate = startIdx <= 0 ? tradingDates[0] : tradingDates[startIdx];
+  return { startDate, endDate };
+}
+
+export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
+  const { startDate, endDate } = rangeBounds(data.tradingDates, range);
+
+  const movers: RangeMover[] = [];
+  for (const userId of ["brian", "kevin"] as const) {
+    for (const ticker of USERS[userId].tickers) {
+      const s = data.tickers[ticker];
+      const startClose = lastKnownClose(s, startDate);
+      const endClose = lastKnownClose(s, endDate);
+      const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
+      const dollars = s.shares * (endClose - startClose);
+      movers.push({ ticker, pct, dollars, ownerId: userId });
+    }
+  }
+
+  const brianMovers = movers.filter((m) => m.ownerId === "brian");
+  const kevinMovers = movers.filter((m) => m.ownerId === "kevin");
+
+  const portfolioPct = (userMovers: RangeMover[], userId: UserId): number => {
+    let startTotal = 0;
+    let endTotal = 0;
+    for (const t of USERS[userId].tickers) {
+      const s = data.tickers[t];
+      startTotal += s.shares * lastKnownClose(s, startDate);
+      endTotal += s.shares * lastKnownClose(s, endDate);
+    }
+    return startTotal === 0 ? 0 : (endTotal - startTotal) / startTotal;
+  };
+
+  return {
+    range,
+    startDate,
+    endDate,
+    brianPct: portfolioPct(brianMovers, "brian"),
+    kevinPct: portfolioPct(kevinMovers, "kevin"),
+    brianMovers: [...brianMovers].sort((a, b) => b.dollars - a.dollars),
+    kevinMovers: [...kevinMovers].sort((a, b) => b.dollars - a.dollars),
+    topGainers: [...movers].sort((a, b) => b.pct - a.pct).slice(0, 3),
+    topLosers: [...movers].sort((a, b) => a.pct - b.pct).slice(0, 3),
+  };
 }
 
 export function buildHoldingRows(
