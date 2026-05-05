@@ -158,7 +158,7 @@ function ScrubChartInner({
       ref={containerRef}
       width={width}
       height={height}
-      style={{ touchAction: "pan-y", overflow: "visible" }}
+      style={{ touchAction: "none", overflow: "visible" }}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         handlePointer(e.clientX);
