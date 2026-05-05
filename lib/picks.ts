@@ -1,4 +1,4 @@
-export type UserId = "brian" | "kevin";
+export type UserId = "brian" | "kevin" | "rick" | "lee";
 
 export interface User {
   id: UserId;
@@ -9,7 +9,7 @@ export interface User {
 }
 
 export const START_DATE = "2026-02-05";
-export const PER_HOLDING_DOLLARS = 10_000;
+export const STARTING_PORTFOLIO_DOLLARS = 100_000;
 
 export const USERS: Record<UserId, User> = {
   brian: {
@@ -26,17 +26,43 @@ export const USERS: Record<UserId, User> = {
     colorRgb: "90, 200, 250",
     tickers: ["TSLA", "NVDA", "AVGO", "MRVL", "CRDO", "PLTR", "ORCL", "ZS", "VST", "VRT"],
   },
+  rick: {
+    id: "rick",
+    name: "Rick",
+    color: "#FF9F0A",
+    colorRgb: "255, 159, 10",
+    tickers: ["COHR", "CRWV", "GFS", "GOOGL", "NBIS", "QBTS", "NVDA", "RKLB", "S", "TSLA"],
+  },
+  lee: {
+    id: "lee",
+    name: "Lee",
+    color: "#BF5AF2",
+    colorRgb: "191, 90, 242",
+    tickers: ["SPY"],
+  },
 };
 
-export const USER_LIST: User[] = [USERS.brian, USERS.kevin];
+export const USER_LIST: User[] = [USERS.brian, USERS.kevin, USERS.rick, USERS.lee];
 
-export const TICKER_OWNER: Record<string, UserId> = (() => {
-  const out: Record<string, UserId> = {};
-  for (const u of USER_LIST) for (const t of u.tickers) out[t] = u.id;
+export function perHoldingDollars(userId: UserId): number {
+  const u = USERS[userId];
+  return STARTING_PORTFOLIO_DOLLARS / u.tickers.length;
+}
+
+export const TICKER_OWNERS: Record<string, UserId[]> = (() => {
+  const out: Record<string, UserId[]> = {};
+  for (const u of USER_LIST) {
+    for (const t of u.tickers) {
+      if (!out[t]) out[t] = [];
+      out[t].push(u.id);
+    }
+  }
   return out;
 })();
 
-export const ALL_TICKERS: string[] = USER_LIST.flatMap((u) => u.tickers);
+export const ALL_TICKERS: string[] = [
+  ...new Set(USER_LIST.flatMap((u) => u.tickers)),
+];
 
 export const TICKER_NAMES: Record<string, string> = {
   ASTS: "AST SpaceMobile",
@@ -59,4 +85,13 @@ export const TICKER_NAMES: Record<string, string> = {
   ZS: "Zscaler",
   VST: "Vistra",
   VRT: "Vertiv",
+  COHR: "Coherent",
+  CRWV: "CoreWeave",
+  GFS: "GlobalFoundries",
+  GOOGL: "Alphabet",
+  NBIS: "Nebius Group",
+  QBTS: "D-Wave Quantum",
+  RKLB: "Rocket Lab",
+  S: "SentinelOne",
+  SPY: "S&P 500 ETF",
 };

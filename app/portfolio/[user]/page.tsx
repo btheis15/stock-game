@@ -3,11 +3,13 @@ import { HeaderBack } from "@/components/HeaderBack";
 import { PortfolioView } from "@/components/PortfolioView";
 import { loadPriceData } from "@/lib/data";
 import { buildHoldingRows, portfolioSeries } from "@/lib/portfolio";
-import { USERS, type UserId } from "@/lib/picks";
+import { USER_LIST, USERS, type UserId } from "@/lib/picks";
 
 export function generateStaticParams() {
-  return [{ user: "brian" }, { user: "kevin" }];
+  return USER_LIST.map((u) => ({ user: u.id }));
 }
+
+const VALID_USERS = new Set(USER_LIST.map((u) => u.id as string));
 
 export const dynamic = "force-static";
 
@@ -17,11 +19,11 @@ export default async function Page({
   params: Promise<{ user: string }>;
 }) {
   const { user } = await params;
-  if (user !== "brian" && user !== "kevin") notFound();
+  if (!VALID_USERS.has(user)) notFound();
   const userId = user as UserId;
   const data = await loadPriceData();
   const series = portfolioSeries(data, userId);
-  const holdings = buildHoldingRows(USERS[userId].tickers, data);
+  const holdings = buildHoldingRows(userId, data);
   return (
     <>
       <HeaderBack title="Compare" />

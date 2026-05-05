@@ -1,3 +1,5 @@
+import type { UserId } from "./picks";
+
 export type Range = "1W" | "1M" | "3M" | "1YR" | "ALL";
 
 export interface DailyClose {
@@ -14,7 +16,6 @@ export interface TickerSeries {
   ticker: string;
   name: string;
   startClose: number;
-  shares: number;
   closes: DailyClose[];
   dividends?: DividendEvent[];
 }
@@ -52,17 +53,14 @@ export interface RangeMover {
   ticker: string;
   pct: number;
   dollars: number;
-  ownerId: "brian" | "kevin";
+  ownerId: UserId;
 }
 
 export interface RangeAnalysis {
   range: Range;
   startDate: string;
   endDate: string;
-  brianPct: number;
-  kevinPct: number;
-  brianMovers: RangeMover[];
-  kevinMovers: RangeMover[];
+  perUser: Record<UserId, { pct: number; movers: RangeMover[] }>;
   topGainers: RangeMover[];
   topLosers: RangeMover[];
 }

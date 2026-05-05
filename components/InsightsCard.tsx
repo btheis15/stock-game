@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { fmtPct, fmtSignedUSD } from "@/lib/portfolio";
 import type { RangeAnalysis, RangeMover } from "@/lib/types";
-import { TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
+import { TICKER_NAMES, USER_LIST, USERS, type UserId } from "@/lib/picks";
 
 const MAX_PER_LIST = 3;
 
 export function InsightsCard({ analysis }: { analysis: RangeAnalysis }) {
-  const { brianMovers, kevinMovers } = analysis;
-
   return (
     <div className="px-4 mt-5">
       <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">What's driving it</h2>
       <div className="space-y-3">
-        <UserPerformersCard userId="brian" movers={brianMovers} />
-        <UserPerformersCard userId="kevin" movers={kevinMovers} />
+        {USER_LIST.map((u) => (
+          <UserPerformersCard
+            key={u.id}
+            userId={u.id}
+            movers={analysis.perUser[u.id]?.movers ?? []}
+          />
+        ))}
       </div>
     </div>
   );
@@ -52,15 +55,25 @@ function UserPerformersCard({
         <p className="text-[12px] text-zinc-500">Flat across the board this range.</p>
       ) : (
         <div className="space-y-3">
-          {top.length > 0 && <Section label="Top performers" items={top} />}
-          {bottom.length > 0 && <Section label="Bottom performers" items={bottom} />}
+          {top.length > 0 && <Section label="Top performers" items={top} ownerId={userId} />}
+          {bottom.length > 0 && (
+            <Section label="Bottom performers" items={bottom} ownerId={userId} />
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function Section({ label, items }: { label: string; items: RangeMover[] }) {
+function Section({
+  label,
+  items,
+  ownerId,
+}: {
+  label: string;
+  items: RangeMover[];
+  ownerId: UserId;
+}) {
   return (
     <div>
       <h3 className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1.5">
@@ -68,19 +81,19 @@ function Section({ label, items }: { label: string; items: RangeMover[] }) {
       </h3>
       <div className="divide-y divide-zinc-800/70">
         {items.map((m) => (
-          <MoverRow key={m.ticker} mover={m} />
+          <MoverRow key={m.ticker} mover={m} ownerId={ownerId} />
         ))}
       </div>
     </div>
   );
 }
 
-function MoverRow({ mover }: { mover: RangeMover }) {
+function MoverRow({ mover, ownerId }: { mover: RangeMover; ownerId: UserId }) {
   const positive = mover.pct >= 0;
   const color = positive ? "#00C805" : "#FF453A";
   return (
     <Link
-      href={`/portfolio/${mover.ownerId}#${mover.ticker}`}
+      href={`/portfolio/${ownerId}#${mover.ticker}`}
       className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors -mx-1 px-1 rounded-md"
     >
       <div className="flex-1 min-w-0">

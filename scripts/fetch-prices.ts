@@ -15,7 +15,7 @@
 import YahooFinance from "yahoo-finance2";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ALL_TICKERS, PER_HOLDING_DOLLARS, START_DATE, TICKER_NAMES } from "../lib/picks";
+import { ALL_TICKERS, START_DATE, TICKER_NAMES } from "../lib/picks";
 import { getSpinoffTickers, SPINOFFS } from "../lib/events";
 import type { DailyClose, DividendEvent, PriceData, TickerSeries } from "../lib/types";
 
@@ -85,7 +85,6 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
 
   let merged: DailyClose[];
   let startClose: number;
-  let shares: number;
 
   if (plan.prevSeries) {
     const map = new Map<string, number>();
@@ -95,15 +94,11 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
       .map(([date, close]) => ({ date, close }))
       .sort((a, b) => a.date.localeCompare(b.date));
     startClose = plan.prevSeries.startClose;
-    shares = plan.prevSeries.shares;
   } else {
     if (fresh.length === 0)
       throw new Error(`No price data on or after ${plan.period1.toISOString().slice(0, 10)} for ${plan.ticker}`);
     merged = fresh;
     startClose = merged[0].close;
-    shares = isSpinoffChild(plan.ticker)
-      ? 0 // spin-off shares are computed from parent's shares × ratio at runtime
-      : PER_HOLDING_DOLLARS / startClose;
   }
 
   const divMap = new Map<string, number>();
@@ -117,7 +112,6 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     ticker: plan.ticker,
     name: TICKER_NAMES[plan.ticker] ?? plan.ticker,
     startClose,
-    shares,
     closes: merged,
     dividends,
   };

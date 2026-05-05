@@ -7,10 +7,16 @@ import type {
   RangeMover,
   TickerSeries,
 } from "./types";
-import { PER_HOLDING_DOLLARS, USERS, type UserId } from "./picks";
+import {
+  STARTING_PORTFOLIO_DOLLARS,
+  USER_LIST,
+  USERS,
+  perHoldingDollars,
+  type UserId,
+} from "./picks";
 import { SPINOFFS } from "./events";
 
-export const STARTING_PORTFOLIO_VALUE = PER_HOLDING_DOLLARS * 10;
+export const STARTING_PORTFOLIO_VALUE = STARTING_PORTFOLIO_DOLLARS;
 
 export function getCloseMap(series: TickerSeries): Map<string, number> {
   const m = new Map<string, number>();
@@ -25,6 +31,10 @@ export function lastKnownClose(series: TickerSeries, date: string): number {
     val = c.close;
   }
   return val;
+}
+
+export function sharesFor(userId: UserId, series: TickerSeries): number {
+  return perHoldingDollars(userId) / series.startClose;
 }
 
 export function dividendsReceived(
@@ -49,28 +59,22 @@ export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint
   return data.tradingDates.map((date) => {
     let total = 0;
     for (const s of seriesByTicker) {
-      total += s.shares * lastKnownClose(s, date);
-      total += dividendsReceived(s, s.shares, date);
+      const shares = sharesFor(userId, s);
+      total += shares * lastKnownClose(s, date);
+      total += dividendsReceived(s, shares, date);
     }
     for (const so of userSpinoffs) {
       if (so.effectiveDate > date) continue;
       const parent = data.tickers[so.parentTicker];
       const child = data.tickers[so.childTicker];
       if (!parent || !child) continue;
-      const childShares = parent.shares * so.sharesPerParentShare;
+      const parentShares = sharesFor(userId, parent);
+      const childShares = parentShares * so.sharesPerParentShare;
       total += childShares * lastKnownClose(child, date);
       total += dividendsReceived(child, childShares, date);
     }
     return { date, value: total };
   });
-}
-
-export function tickerSeriesPortfolio(data: PriceData, ticker: string): PortfolioPoint[] {
-  const s = data.tickers[ticker];
-  return data.tradingDates.map((date) => ({
-    date,
-    value: s.shares * lastKnownClose(s, date),
-  }));
 }
 
 export const RANGE_DAYS: Record<Range, number | "all"> = {
@@ -154,61 +158,59 @@ export function rangeBounds(
 export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
   const { startDate, endDate } = rangeBounds(data.tradingDates, range);
 
-  const movers: RangeMover[] = [];
-  for (const userId of ["brian", "kevin"] as const) {
-    for (const ticker of USERS[userId].tickers) {
-      const s = data.tickers[ticker];
+  const allMovers: RangeMover[] = [];
+  const perUser = {} as RangeAnalysis["perUser"];
+
+  for (const u of USER_LIST) {
+    const userMovers: RangeMover[] = [];
+    let startTotal = 0;
+    let endTotal = 0;
+    for (const t of u.tickers) {
+      const s = data.tickers[t];
+      const shares = sharesFor(u.id, s);
       const startClose = lastKnownClose(s, startDate);
       const endClose = lastKnownClose(s, endDate);
       const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
-      const dollars = s.shares * (endClose - startClose);
-      movers.push({ ticker, pct, dollars, ownerId: userId });
+      const dollars = shares * (endClose - startClose);
+      const mover: RangeMover = { ticker: t, pct, dollars, ownerId: u.id };
+      userMovers.push(mover);
+      allMovers.push(mover);
+      startTotal += shares * startClose;
+      endTotal += shares * endClose;
     }
+    perUser[u.id] = {
+      pct: startTotal === 0 ? 0 : (endTotal - startTotal) / startTotal,
+      movers: userMovers,
+    };
   }
-
-  const brianMovers = movers.filter((m) => m.ownerId === "brian");
-  const kevinMovers = movers.filter((m) => m.ownerId === "kevin");
-
-  const portfolioPct = (userMovers: RangeMover[], userId: UserId): number => {
-    let startTotal = 0;
-    let endTotal = 0;
-    for (const t of USERS[userId].tickers) {
-      const s = data.tickers[t];
-      startTotal += s.shares * lastKnownClose(s, startDate);
-      endTotal += s.shares * lastKnownClose(s, endDate);
-    }
-    return startTotal === 0 ? 0 : (endTotal - startTotal) / startTotal;
-  };
 
   return {
     range,
     startDate,
     endDate,
-    brianPct: portfolioPct(brianMovers, "brian"),
-    kevinPct: portfolioPct(kevinMovers, "kevin"),
-    brianMovers: [...brianMovers].sort((a, b) => b.dollars - a.dollars),
-    kevinMovers: [...kevinMovers].sort((a, b) => b.dollars - a.dollars),
-    topGainers: [...movers].sort((a, b) => b.pct - a.pct).slice(0, 3),
-    topLosers: [...movers].sort((a, b) => a.pct - b.pct).slice(0, 3),
+    perUser,
+    topGainers: [...allMovers].sort((a, b) => b.pct - a.pct).slice(0, 3),
+    topLosers: [...allMovers].sort((a, b) => a.pct - b.pct).slice(0, 3),
   };
 }
 
 export function buildHoldingRows(
-  tickers: string[],
+  userId: UserId,
   data: PriceData
 ): HoldingRow[] {
-  return tickers.map((t) => {
+  return USERS[userId].tickers.map((t) => {
     const s = data.tickers[t];
     const last = s.closes[s.closes.length - 1];
     const currentClose = last.close;
-    const divCash = dividendsReceived(s, s.shares, last.date);
-    const currentValue = s.shares * currentClose + divCash;
-    const costBasis = s.shares * s.startClose;
+    const shares = sharesFor(userId, s);
+    const divCash = dividendsReceived(s, shares, last.date);
+    const currentValue = shares * currentClose + divCash;
+    const costBasis = shares * s.startClose;
     const pl = currentValue - costBasis;
     const plPct = costBasis === 0 ? 0 : pl / costBasis;
     return {
       ticker: t,
-      shares: s.shares,
+      shares,
       startClose: s.startClose,
       currentClose,
       costBasis,

@@ -15,24 +15,18 @@ const TABS: Tab[] = [
   {
     href: "/",
     label: "Compare",
-    match: (p) => p === "/",
+    match: (p) => p === "/" || p.startsWith("/portfolio"),
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
-        <path d="M3 17l5-6 4 5 4-7 5 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M3 17l5-6 4 5 4-7 5 9"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     ),
-  },
-  {
-    href: "/portfolio/brian",
-    label: "Brian",
-    match: (p) => p.startsWith("/portfolio/brian"),
-    icon: <Avatar letter="B" />,
-  },
-  {
-    href: "/portfolio/kevin",
-    label: "Kevin",
-    match: (p) => p.startsWith("/portfolio/kevin"),
-    icon: <Avatar letter="K" />,
   },
   {
     href: "/stocks",
@@ -46,14 +40,6 @@ const TABS: Tab[] = [
     ),
   },
 ];
-
-function Avatar({ letter }: { letter: string }) {
-  return (
-    <div className="w-6 h-6 rounded-full bg-zinc-800 text-[11px] font-bold flex items-center justify-center">
-      {letter}
-    </div>
-  );
-}
 
 export function TabBar() {
   const pathname = usePathname();
@@ -71,7 +57,7 @@ export function TabBar() {
               href={t.href}
               prefetch
               className={clsx(
-                "flex flex-col items-center gap-1 transition-colors",
+                "flex flex-col items-center gap-1 transition-colors w-32",
                 active ? "text-white" : "text-zinc-500"
               )}
             >
