@@ -3,6 +3,7 @@ import "./globals.css";
 import { TabBar } from "@/components/TabBar";
 import { Footer } from "@/components/Footer";
 import { InstallHint } from "@/components/InstallHint";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { loadPriceData } from "@/lib/data";
 
 function siteUrl(): string {
@@ -75,6 +76,7 @@ export default async function RootLayout({
     <html lang="en" className="h-full">
       <body className="min-h-full bg-black text-white antialiased">
         <InstallHint />
+        <PullToRefresh />
         <main
           className="max-w-md mx-auto pb-20"
           style={{ paddingTop: "env(safe-area-inset-top)" }}
