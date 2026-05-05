@@ -58,7 +58,9 @@ export function PortfolioView({ userId, series, holdings }: Props) {
             <Link
               key={h.ticker}
               href={`/stock/${h.ticker}`}
-              className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors"
+              id={h.ticker}
+              className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
+              style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
             >
               <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
                 {h.ticker}

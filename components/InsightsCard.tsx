@@ -80,7 +80,7 @@ function MoverRow({ mover }: { mover: RangeMover }) {
   const color = positive ? "#00C805" : "#FF453A";
   return (
     <Link
-      href={`/stock/${mover.ticker}`}
+      href={`/portfolio/${mover.ownerId}#${mover.ticker}`}
       className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors -mx-1 px-1 rounded-md"
     >
       <div className="flex-1 min-w-0">
