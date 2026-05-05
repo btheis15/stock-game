@@ -8,6 +8,7 @@ import type {
   TickerSeries,
 } from "./types";
 import { PER_HOLDING_DOLLARS, USERS, type UserId } from "./picks";
+import { SPINOFFS } from "./events";
 
 export const STARTING_PORTFOLIO_VALUE = PER_HOLDING_DOLLARS * 10;
 
@@ -26,12 +27,40 @@ export function lastKnownClose(series: TickerSeries, date: string): number {
   return val;
 }
 
+export function dividendsReceived(
+  series: TickerSeries,
+  shares: number,
+  asOf: string
+): number {
+  let cash = 0;
+  for (const d of series.dividends ?? []) {
+    if (d.date <= asOf) cash += shares * d.amount;
+  }
+  return cash;
+}
+
 export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint[] {
   const tickers = USERS[userId].tickers;
   const seriesByTicker = tickers.map((t) => data.tickers[t]);
+  const userSpinoffs = SPINOFFS.filter((s) =>
+    USERS[userId].tickers.includes(s.parentTicker)
+  );
+
   return data.tradingDates.map((date) => {
     let total = 0;
-    for (const s of seriesByTicker) total += s.shares * lastKnownClose(s, date);
+    for (const s of seriesByTicker) {
+      total += s.shares * lastKnownClose(s, date);
+      total += dividendsReceived(s, s.shares, date);
+    }
+    for (const so of userSpinoffs) {
+      if (so.effectiveDate > date) continue;
+      const parent = data.tickers[so.parentTicker];
+      const child = data.tickers[so.childTicker];
+      if (!parent || !child) continue;
+      const childShares = parent.shares * so.sharesPerParentShare;
+      total += childShares * lastKnownClose(child, date);
+      total += dividendsReceived(child, childShares, date);
+    }
     return { date, value: total };
   });
 }
@@ -172,7 +201,8 @@ export function buildHoldingRows(
     const s = data.tickers[t];
     const last = s.closes[s.closes.length - 1];
     const currentClose = last.close;
-    const currentValue = s.shares * currentClose;
+    const divCash = dividendsReceived(s, s.shares, last.date);
+    const currentValue = s.shares * currentClose + divCash;
     const costBasis = s.shares * s.startClose;
     const pl = currentValue - costBasis;
     const plPct = costBasis === 0 ? 0 : pl / costBasis;

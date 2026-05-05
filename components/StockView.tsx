@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { PriceHeader } from "./PriceHeader";
-import { filterRange, fmtDateLong, fmtPct, fmtUSD } from "@/lib/portfolio";
+import { dividendsReceived, filterRange, fmtDateLong, fmtPct, fmtUSD, fmtDateShort } from "@/lib/portfolio";
 import type { Range, TickerSeries } from "@/lib/types";
 import { TICKER_OWNER, USERS } from "@/lib/picks";
 
@@ -30,10 +30,13 @@ export function StockView({ series }: Props) {
   const price = scrubVal ?? last;
   const scrubDate = scrub ? fmtDateLong(scrub.date) : null;
 
-  const positionValue = series.shares * price;
+  const lastDate = series.closes[series.closes.length - 1].date;
+  const divCash = dividendsReceived(series, series.shares, lastDate);
+  const positionValue = series.shares * price + divCash;
   const costBasis = series.shares * series.startClose;
   const pl = positionValue - costBasis;
   const plPct = costBasis === 0 ? 0 : pl / costBasis;
+  const dividends = series.dividends ?? [];
 
   return (
     <div className="pb-24">
@@ -67,6 +70,16 @@ export function StockView({ series }: Props) {
           <Row label="Cost basis" value={fmtUSD(costBasis)} />
           <Row label="Bought at" value={fmtUSD(series.startClose, 2)} />
           <Row label="Last close" value={fmtUSD(series.closes[series.closes.length - 1].close, 2)} />
+          {divCash > 0 && (
+            <Row
+              label="Dividends received"
+              valueNode={
+                <span className="text-white tabular-nums font-semibold">
+                  {fmtUSD(divCash)}
+                </span>
+              }
+            />
+          )}
           <Row label="Current value" value={fmtUSD(positionValue)} bold />
           <Row
             label="Total return"
@@ -78,6 +91,25 @@ export function StockView({ series }: Props) {
           />
         </div>
       </div>
+
+      {dividends.length > 0 && (
+        <div className="px-4 mt-5">
+          <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Dividends</h2>
+          <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800">
+            {dividends.map((d) => (
+              <div
+                key={d.date}
+                className="flex items-center justify-between px-4 py-3"
+              >
+                <span className="text-[13px] text-zinc-400">{fmtDateShort(d.date)}</span>
+                <span className="text-[14px] tabular-nums text-white">
+                  {fmtUSD(d.amount, 4)}/sh · {fmtUSD(series.shares * d.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

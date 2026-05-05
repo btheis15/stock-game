@@ -16,7 +16,8 @@ import YahooFinance from "yahoo-finance2";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ALL_TICKERS, PER_HOLDING_DOLLARS, START_DATE, TICKER_NAMES } from "../lib/picks";
-import type { DailyClose, PriceData, TickerSeries } from "../lib/types";
+import { getSpinoffTickers, SPINOFFS } from "../lib/events";
+import type { DailyClose, DividendEvent, PriceData, TickerSeries } from "../lib/types";
 
 const yahooFinance = new YahooFinance();
 
@@ -43,10 +44,10 @@ interface FetchPlan {
   prevSeries: TickerSeries | null;
 }
 
-function planFor(ticker: string, existing: PriceData | null): FetchPlan {
+function planFor(ticker: string, existing: PriceData | null, anchorDate: string): FetchPlan {
   const prev = existing?.tickers[ticker] ?? null;
   if (!prev || prev.closes.length === 0) {
-    const p1 = new Date(START_DATE + "T00:00:00Z");
+    const p1 = new Date(anchorDate + "T00:00:00Z");
     p1.setUTCDate(p1.getUTCDate() - 5);
     return { ticker, period1: p1, prevSeries: null };
   }
@@ -64,6 +65,7 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     period1: plan.period1,
     period2,
     interval: "1d",
+    events: "div",
   });
 
   const fresh = (result.quotes ?? [])
@@ -73,6 +75,13 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
       close: q.close as number,
     }))
     .filter((c) => c.date >= START_DATE);
+
+  const freshDivs: DividendEvent[] = (result.events?.dividends ?? [])
+    .map((d) => ({
+      date: fmtDate(new Date(d.date as Date)),
+      amount: d.amount as number,
+    }))
+    .filter((d) => d.date >= START_DATE);
 
   let merged: DailyClose[];
   let startClose: number;
@@ -89,11 +98,20 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     shares = plan.prevSeries.shares;
   } else {
     if (fresh.length === 0)
-      throw new Error(`No price data on or after ${START_DATE} for ${plan.ticker}`);
+      throw new Error(`No price data on or after ${plan.period1.toISOString().slice(0, 10)} for ${plan.ticker}`);
     merged = fresh;
     startClose = merged[0].close;
-    shares = PER_HOLDING_DOLLARS / startClose;
+    shares = isSpinoffChild(plan.ticker)
+      ? 0 // spin-off shares are computed from parent's shares × ratio at runtime
+      : PER_HOLDING_DOLLARS / startClose;
   }
+
+  const divMap = new Map<string, number>();
+  for (const d of plan.prevSeries?.dividends ?? []) divMap.set(d.date, d.amount);
+  for (const d of freshDivs) divMap.set(d.date, d.amount);
+  const dividends = [...divMap.entries()]
+    .map(([date, amount]) => ({ date, amount }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     ticker: plan.ticker,
@@ -101,18 +119,34 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     startClose,
     shares,
     closes: merged,
+    dividends,
   };
+}
+
+function isSpinoffChild(ticker: string): boolean {
+  return getSpinoffTickers().includes(ticker);
+}
+
+function spinoffEffectiveDate(ticker: string): string {
+  const so = SPINOFFS.find((s) => s.childTicker === ticker);
+  return so ? so.effectiveDate : START_DATE;
 }
 
 async function main() {
   const existing = loadExisting();
   const mode = existing ? "incremental" : FULL ? "full (forced)" : "full (no prior data)";
-  console.log(`Fetching prices for ${ALL_TICKERS.length} tickers — mode: ${mode}`);
+  const spinoffChildren = getSpinoffTickers();
+  const tickersToFetch = [...ALL_TICKERS, ...spinoffChildren];
+  console.log(
+    `Fetching prices for ${tickersToFetch.length} tickers — mode: ${mode}` +
+      (spinoffChildren.length ? ` (incl. ${spinoffChildren.length} spin-off)` : "")
+  );
 
   const out: Record<string, TickerSeries> = {};
-  for (const ticker of ALL_TICKERS) {
+  for (const ticker of tickersToFetch) {
     process.stdout.write(`  ${ticker}... `);
-    const plan = planFor(ticker, existing);
+    const anchor = isSpinoffChild(ticker) ? spinoffEffectiveDate(ticker) : START_DATE;
+    const plan = planFor(ticker, existing, anchor);
     try {
       const s = await fetchTicker(plan);
       out[ticker] = s;

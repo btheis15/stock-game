@@ -5,12 +5,18 @@ export interface DailyClose {
   close: number;
 }
 
+export interface DividendEvent {
+  date: string;
+  amount: number;
+}
+
 export interface TickerSeries {
   ticker: string;
   name: string;
   startClose: number;
   shares: number;
   closes: DailyClose[];
+  dividends?: DividendEvent[];
 }
 
 export interface PriceData {
