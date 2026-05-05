@@ -19,8 +19,7 @@ const SITE_URL = siteUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Stock Game — Portfolio Showdown",
-  description:
-    "A friendly stock-picking competition tracked daily since Feb 5, 2026.",
+  description: "Loser pays for golf — tracked since Feb 5, 2026.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -34,8 +33,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Stock Game",
     title: "Stock Game — Portfolio Showdown",
-    description:
-      "A friendly stock-picking competition tracked daily since Feb 5, 2026. Robinhood-style charts, who's winning, what's driving it.",
+    description: "Loser pays for golf — tracked since Feb 5, 2026.",
     images: [
       {
         url: "/og.png",
@@ -48,8 +46,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Stock Game — Portfolio Showdown",
-    description:
-      "A friendly stock-picking competition tracked daily since Feb 5, 2026.",
+    description: "Loser pays for golf — tracked since Feb 5, 2026.",
     images: ["/og.png"],
   },
   icons: {

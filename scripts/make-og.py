@@ -75,8 +75,8 @@ def main():
 
     # Headline
     draw.text((90, 150), "Portfolio Showdown", fill=FG, font=font(80, bold=True))
-    draw.text((90, 260), "Friendly competition,", fill=DIM, font=font(36))
-    draw.text((90, 304), "tracked daily since Feb 5, 2026.", fill=DIM, font=font(36))
+    draw.text((90, 260), "Loser pays for golf —", fill=DIM, font=font(36))
+    draw.text((90, 304), "tracked since Feb 5, 2026", fill=DIM, font=font(36))
 
     img.save(OUT, format="PNG", optimize=True)
     print(f"Wrote {OUT} ({W}x{H})")
