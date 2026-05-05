@@ -74,7 +74,7 @@ def main():
     draw.text((90 + 4 * 24 + 12, 80), "STOCK GAME", fill=DIM, font=font(26, bold=True))
 
     # Headline
-    draw.text((90, 150), "Portfolio Showdown", fill=FG, font=font(80, bold=True))
+    draw.text((90, 150), "5-Year Portfolio Showdown", fill=FG, font=font(68, bold=True))
     draw.text((90, 260), "Loser pays for golf —", fill=DIM, font=font(36))
     draw.text((90, 304), "tracked since Feb 5, 2026", fill=DIM, font=font(36))
 

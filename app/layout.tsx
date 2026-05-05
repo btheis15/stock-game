@@ -18,7 +18,7 @@ const SITE_URL = siteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Stock Game — Portfolio Showdown",
+  title: "Stock Game — 5-Year Portfolio Showdown",
   description: "Loser pays for golf — tracked since Feb 5, 2026.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -32,20 +32,20 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Stock Game",
-    title: "Stock Game — Portfolio Showdown",
+    title: "Stock Game — 5-Year Portfolio Showdown",
     description: "Loser pays for golf — tracked since Feb 5, 2026.",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Stock Game — Portfolio Showdown",
+        alt: "Stock Game — 5-Year Portfolio Showdown",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stock Game — Portfolio Showdown",
+    title: "Stock Game — 5-Year Portfolio Showdown",
     description: "Loser pays for golf — tracked since Feb 5, 2026.",
     images: ["/og.png"],
   },
