@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "fetch-prices": "tsx scripts/fetch-prices.ts"
+    "fetch-prices": "tsx scripts/fetch-prices.ts",
+    "refresh": "bash scripts/cron-update.sh",
+    "scheduler": "node tools/scheduler.mjs"
   },
   "dependencies": {
     "@types/d3-array": "^3.2.2",
