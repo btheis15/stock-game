@@ -103,7 +103,7 @@ export function StockView({ series }: Props) {
               >
                 <span className="text-[13px] text-zinc-400">{fmtDateShort(d.date)}</span>
                 <span className="text-[14px] tabular-nums text-white">
-                  {fmtUSD(d.amount, 4)}/sh · {fmtUSD(series.shares * d.amount)}
+                  {fmtUSD(d.amount, 4)} per share · {fmtUSD(series.shares * d.amount)}
                 </span>
               </div>
             ))}

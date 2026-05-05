@@ -70,7 +70,7 @@ export function PortfolioView({ userId, series, holdings }: Props) {
                   {TICKER_NAMES[h.ticker] ?? h.ticker}
                 </div>
                 <div className="text-[11px] text-zinc-500 tabular-nums">
-                  {h.shares.toFixed(2)} sh • {fmtUSD(h.currentClose, 2)}
+                  {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
                 </div>
               </div>
               <div className="text-right">
