@@ -1,9 +1,15 @@
 import type { UserId } from "./picks";
 
-export type Range = "1W" | "1M" | "3M" | "1YR" | "ALL";
+export type Range = "1D" | "1W" | "1M" | "3M" | "1YR" | "ALL";
 
 export interface DailyClose {
   date: string;
+  close: number;
+}
+
+export interface IntradayBar {
+  // ISO timestamp in UTC for the bar's start
+  t: string;
   close: number;
 }
 
@@ -18,11 +24,14 @@ export interface TickerSeries {
   startClose: number;
   closes: DailyClose[];
   dividends?: DividendEvent[];
+  intraday?: IntradayBar[];
 }
 
 export interface PriceData {
   startDate: string;
   generatedAt: string;
+  intradayDate?: string;
+  intradayInterval?: string;
   tickers: Record<string, TickerSeries>;
   tradingDates: string[];
 }

@@ -23,7 +23,10 @@ export default async function Page({
   return (
     <>
       <HeaderBack />
-      <StockView series={series} />
+      <StockView
+        series={series}
+        intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
+      />
     </>
   );
 }

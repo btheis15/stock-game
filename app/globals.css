@@ -32,6 +32,16 @@ html {
   }
 }
 
+@keyframes livePulseRing {
+  0% { r: 4; opacity: 0.7; }
+  100% { r: 14; opacity: 0; }
+}
+
+@keyframes livePulseFill {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 body {
   overscroll-behavior-y: none;
 }

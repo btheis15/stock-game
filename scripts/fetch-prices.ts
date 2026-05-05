@@ -17,7 +17,13 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ALL_TICKERS, START_DATE, TICKER_NAMES } from "../lib/picks";
 import { getSpinoffTickers, SPINOFFS } from "../lib/events";
-import type { DailyClose, DividendEvent, PriceData, TickerSeries } from "../lib/types";
+import type {
+  DailyClose,
+  DividendEvent,
+  IntradayBar,
+  PriceData,
+  TickerSeries,
+} from "../lib/types";
 
 const yahooFinance = new YahooFinance();
 
@@ -126,6 +132,39 @@ function spinoffEffectiveDate(ticker: string): string {
   return so ? so.effectiveDate : START_DATE;
 }
 
+const INTRADAY_INTERVAL = "15m";
+
+async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
+  // Pull today's intraday 15-min bars. range:'1d' is a Yahoo shortcut that
+  // returns the current trading session (or the most recent one if closed).
+  try {
+    const result = await yahooFinance.chart(ticker, {
+      period1: new Date(Date.now() - 26 * 60 * 60 * 1000),
+      period2: new Date(Date.now() + 60 * 1000),
+      interval: INTRADAY_INTERVAL,
+    });
+    const quotes = result.quotes ?? [];
+    return quotes
+      .filter((q) => q.close != null && q.date != null)
+      .map<IntradayBar>((q) => ({
+        t: new Date(q.date as Date).toISOString(),
+        close: q.close as number,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function todayInETDate(): string {
+  // Approximate "today in Eastern Time" as a YYYY-MM-DD string.
+  // Used to mark the intradayDate field; close enough for daily rollover.
+  const now = new Date();
+  // Convert to ET-ish by shifting -5 hours (good enough for our purposes; we
+  // only need to know "did the day roll over from the user's perspective").
+  const et = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+  return et.toISOString().slice(0, 10);
+}
+
 async function main() {
   const existing = loadExisting();
   const mode = existing ? "incremental" : FULL ? "full (forced)" : "full (no prior data)";
@@ -152,6 +191,22 @@ async function main() {
     }
   }
 
+  // Fetch today's intraday 15-min bars (best-effort; failures are silent so
+  // a single ticker hiccup doesn't kill the whole refresh)
+  console.log(`Fetching intraday ${INTRADAY_INTERVAL} bars for today...`);
+  for (const ticker of tickersToFetch) {
+    process.stdout.write(`  ${ticker}... `);
+    const bars = await fetchIntraday(ticker);
+    if (bars.length > 0) {
+      const todayPrefix = todayInETDate();
+      const today = bars.filter((b) => b.t.slice(0, 10) === todayPrefix);
+      out[ticker].intraday = today.length > 0 ? today : bars.slice(-26); // fallback: last session
+      console.log(`${out[ticker].intraday?.length ?? 0} bars`);
+    } else {
+      console.log("none");
+    }
+  }
+
   const dateSet = new Set<string>();
   for (const s of Object.values(out)) for (const c of s.closes) dateSet.add(c.date);
   const tradingDates = [...dateSet].sort();
@@ -159,6 +214,8 @@ async function main() {
   const data: PriceData = {
     startDate: START_DATE,
     generatedAt: new Date().toISOString(),
+    intradayDate: todayInETDate(),
+    intradayInterval: INTRADAY_INTERVAL,
     tickers: out,
     tradingDates,
   };

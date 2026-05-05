@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import type { Range } from "@/lib/types";
 
-const RANGES: Range[] = ["1W", "1M", "3M", "1YR", "ALL"];
+const RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
 
 export function RangeTabs({
   value,

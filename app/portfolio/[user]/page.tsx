@@ -2,8 +2,12 @@ import { notFound } from "next/navigation";
 import { HeaderBack } from "@/components/HeaderBack";
 import { PortfolioView } from "@/components/PortfolioView";
 import { loadPriceData } from "@/lib/data";
-import { buildHoldingRows, portfolioSeries } from "@/lib/portfolio";
-import { USER_LIST, USERS, type UserId } from "@/lib/picks";
+import {
+  buildHoldingRows,
+  intradayPortfolioSeries,
+  portfolioSeries,
+} from "@/lib/portfolio";
+import { USER_LIST, type UserId } from "@/lib/picks";
 
 export function generateStaticParams() {
   return USER_LIST.map((u) => ({ user: u.id }));
@@ -23,11 +27,18 @@ export default async function Page({
   const userId = user as UserId;
   const data = await loadPriceData();
   const series = portfolioSeries(data, userId);
+  const intraday = intradayPortfolioSeries(data, userId);
   const holdings = buildHoldingRows(userId, data);
   return (
     <>
       <HeaderBack title="Compare" />
-      <PortfolioView userId={userId} series={series} holdings={holdings} />
+      <PortfolioView
+        userId={userId}
+        series={series}
+        intraday={intraday}
+        intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
+        holdings={holdings}
+      />
     </>
   );
 }

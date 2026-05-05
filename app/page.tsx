@@ -1,6 +1,6 @@
 import { CompareView } from "@/components/CompareView";
 import { loadPriceData } from "@/lib/data";
-import { analyzeRange, portfolioSeries } from "@/lib/portfolio";
+import { analyzeRange, intradayPortfolioSeries, portfolioSeries } from "@/lib/portfolio";
 import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { USER_LIST, type UserId } from "@/lib/picks";
 
@@ -13,8 +13,18 @@ export default async function Page() {
   const series = Object.fromEntries(
     USER_LIST.map((u) => [u.id, portfolioSeries(data, u.id)])
   ) as Record<UserId, PortfolioPoint[]>;
+  const intraday = Object.fromEntries(
+    USER_LIST.map((u) => [u.id, intradayPortfolioSeries(data, u.id)])
+  ) as Record<UserId, { points: PortfolioPoint[]; previousClose: number }>;
   const analyses = Object.fromEntries(
     ALL_RANGES.map((r) => [r, analyzeRange(data, r)])
   ) as Record<Range, RangeAnalysis>;
-  return <CompareView series={series} analyses={analyses} />;
+  return (
+    <CompareView
+      series={series}
+      intraday={intraday}
+      intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
+      analyses={analyses}
+    />
+  );
 }

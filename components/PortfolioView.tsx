@@ -2,31 +2,75 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ScrubChart, type ChartSeries, type ScrubState } from "./ScrubChart";
+import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { PriceHeader } from "./PriceHeader";
-import { filterRange, fmtDateLong, fmtPct, fmtUSD } from "@/lib/portfolio";
+import {
+  filterRange,
+  fmtDateLong,
+  fmtPct,
+  fmtTimeOfDay,
+  fmtUSD,
+  sessionBoundsForDate,
+} from "@/lib/portfolio";
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
 import { TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
+import { MarketStateBadge } from "./MarketStateBadge";
+
+const LIVE_LAG_MS = 30 * 60 * 1000;
+function lastPointIsLive(points: { date: string }[]): boolean {
+  const last = points[points.length - 1];
+  if (!last || last.date.length <= 10) return false;
+  return Date.now() - new Date(last.date).getTime() < LIVE_LAG_MS;
+}
+
+interface IntradayResult {
+  points: PortfolioPoint[];
+  previousClose: number;
+}
 
 interface Props {
   userId: UserId;
   series: PortfolioPoint[];
+  intraday: IntradayResult;
+  intradayDate: string;
   holdings: HoldingRow[];
 }
 
-export function PortfolioView({ userId, series, holdings }: Props) {
+export function PortfolioView({
+  userId,
+  series,
+  intraday,
+  intradayDate,
+  holdings,
+}: Props) {
   const user = USERS[userId];
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
-  const ranged = useMemo(() => filterRange(series, range), [series, range]);
+  const isIntraday = range === "1D";
+  const live = useMemo(
+    () => isIntraday && lastPointIsLive(intraday.points),
+    [isIntraday, intraday]
+  );
 
-  const baselineValue = ranged[0]?.value ?? 0;
-  const lastValue = ranged[ranged.length - 1]?.value ?? 0;
+  const ranged = useMemo(() => {
+    return isIntraday ? intraday.points : filterRange(series, range);
+  }, [series, intraday, range, isIntraday]);
+
+  const baselineValue = isIntraday
+    ? intraday.previousClose
+    : ranged[0]?.value ?? 0;
+  const lastValue = ranged[ranged.length - 1]?.value ?? baselineValue;
   const scrubVal = scrub?.values.find((v) => v.id === userId)?.value;
   const value = scrubVal ?? lastValue;
-  const scrubDate = scrub ? fmtDateLong(scrub.date) : null;
+  const scrubLabel = scrub
+    ? scrub.date.length > 10
+      ? fmtTimeOfDay(scrub.date)
+      : fmtDateLong(scrub.date)
+    : null;
+
+  const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
   const sorted = useMemo(
     () => [...holdings].sort((a, b) => b.plPct - a.plPct),
@@ -40,13 +84,18 @@ export function PortfolioView({ userId, series, holdings }: Props) {
         title={`${user.name}'s portfolio`}
         value={value}
         baseline={baselineValue}
-        scrubDate={scrubDate}
+        scrubDate={scrubLabel}
       />
+
+      {isIntraday && <MarketStateBadge live={live} />}
 
       <ScrubChart
         series={[{ id: userId, color: user.color, data: ranged }]}
         onScrub={setScrub}
         height={260}
+        xDomain={xDomain}
+        liveEndpoint={live}
+        baseline={baselineValue}
       />
 
       <RangeTabs value={range} onChange={setRange} accent={user.color} />
@@ -91,4 +140,3 @@ export function PortfolioView({ userId, series, holdings }: Props) {
     </div>
   );
 }
-

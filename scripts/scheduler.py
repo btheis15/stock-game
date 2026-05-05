@@ -58,7 +58,7 @@ class SchedulerApp:
         ).grid(row=0, column=0, columnspan=4, padx=5, pady=(8, 4), sticky="w")
 
         tk.Label(self.root, text="Select Start Time:").grid(row=1, column=0, padx=5, pady=5)
-        self.hour_var = tk.StringVar(value="9")
+        self.hour_var = tk.StringVar(value="8")
         tk.OptionMenu(self.root, self.hour_var, *range(1, 13)).grid(row=1, column=1)
         self.minute_var = tk.StringVar(value="30")
         tk.OptionMenu(
@@ -90,8 +90,9 @@ class SchedulerApp:
             row=2, column=1, columnspan=2, sticky="w"
         )
 
+        # Defaults assume Central Time host (US market hours 9:30am-4:00pm ET = 8:30am-3:00pm CT)
         tk.Label(self.root, text="Run Time Range:").grid(row=3, column=0, padx=5, pady=5)
-        self.start_hour_var = tk.StringVar(value="9")
+        self.start_hour_var = tk.StringVar(value="8")
         tk.OptionMenu(self.root, self.start_hour_var, *range(1, 13)).grid(row=3, column=1)
         self.start_minute_var = tk.StringVar(value="30")
         tk.OptionMenu(
@@ -102,7 +103,7 @@ class SchedulerApp:
         self.start_ampm_var = tk.StringVar(value="AM")
         tk.OptionMenu(self.root, self.start_ampm_var, "AM", "PM").grid(row=3, column=3)
 
-        self.end_hour_var = tk.StringVar(value="5")
+        self.end_hour_var = tk.StringVar(value="3")
         tk.OptionMenu(self.root, self.end_hour_var, *range(1, 13)).grid(row=4, column=1)
         self.end_minute_var = tk.StringVar(value="00")
         tk.OptionMenu(

@@ -1,5 +1,6 @@
 import type {
   HoldingRow,
+  IntradayBar,
   PortfolioPoint,
   PriceData,
   Range,
@@ -77,7 +78,8 @@ export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint
   });
 }
 
-export const RANGE_DAYS: Record<Range, number | "all"> = {
+export const RANGE_DAYS: Record<Range, number | "all" | "intraday"> = {
+  "1D": "intraday",
   "1W": 7,
   "1M": 30,
   "3M": 90,
@@ -86,7 +88,7 @@ export const RANGE_DAYS: Record<Range, number | "all"> = {
 };
 
 export function filterRange<T extends { date: string }>(points: T[], range: Range): T[] {
-  if (range === "ALL" || points.length === 0) return points;
+  if (range === "ALL" || range === "1D" || points.length === 0) return points;
   const days = RANGE_DAYS[range] as number;
   const last = new Date(points[points.length - 1].date + "T00:00:00Z");
   const cutoff = new Date(last);
@@ -94,6 +96,91 @@ export function filterRange<T extends { date: string }>(points: T[], range: Rang
   const cutoffStr = cutoff.toISOString().slice(0, 10);
   const idx = points.findIndex((p) => p.date >= cutoffStr);
   return idx <= 0 ? points : points.slice(idx);
+}
+
+// Regular US trading session in UTC (9:30 AM ET = 14:30 UTC, 4:00 PM ET = 21:00 UTC).
+// DST shifts this by 1 hour but for visual axis it's close enough.
+export const SESSION_START_UTC_HOURS = 14.5;
+export const SESSION_END_UTC_HOURS = 21;
+
+export function intradayPortfolioSeries(
+  data: PriceData,
+  userId: UserId
+): { points: PortfolioPoint[]; previousClose: number } {
+  const tickers = USERS[userId].tickers;
+  const seriesByTicker = tickers.map((t) => data.tickers[t]);
+
+  // Find previous trading day (last entry in tradingDates that's before today's intraday date)
+  const intradayDate = data.intradayDate ?? "";
+  const prevDates = data.tradingDates.filter((d) => d < intradayDate);
+  const prevDate = prevDates[prevDates.length - 1] ?? data.tradingDates[data.tradingDates.length - 1];
+
+  const previousClose = seriesByTicker.reduce((sum, s) => {
+    return sum + sharesFor(userId, s) * lastKnownClose(s, prevDate);
+  }, 0);
+
+  // Collect all unique intraday timestamps across this user's tickers
+  const tsSet = new Set<string>();
+  for (const s of seriesByTicker) {
+    for (const b of s.intraday ?? []) tsSet.add(b.t);
+  }
+  const timestamps = [...tsSet].sort();
+  if (timestamps.length === 0) return { points: [], previousClose };
+
+  // Build per-ticker quick lookups
+  const lookups = seriesByTicker.map((s) => {
+    const m = new Map<string, number>();
+    for (const b of s.intraday ?? []) m.set(b.t, b.close);
+    return { series: s, m };
+  });
+
+  const points: PortfolioPoint[] = [];
+  // Track most-recent intraday price per ticker (carry-forward fill)
+  const lastSeen = new Map<string, number>();
+  for (const { series } of lookups) {
+    lastSeen.set(series.ticker, lastKnownClose(series, prevDate));
+  }
+
+  for (const t of timestamps) {
+    let total = 0;
+    for (const { series, m } of lookups) {
+      const fresh = m.get(t);
+      if (fresh != null) lastSeen.set(series.ticker, fresh);
+      const price = lastSeen.get(series.ticker)!;
+      total += sharesFor(userId, series) * price;
+    }
+    points.push({ date: t, value: total });
+  }
+
+  return { points, previousClose };
+}
+
+export function intradayTickerSeries(
+  series: TickerSeries,
+  intradayDate: string
+): { points: PortfolioPoint[]; previousClose: number } {
+  let previousClose = 0;
+  for (const c of series.closes) {
+    if (c.date >= intradayDate) break;
+    previousClose = c.close;
+  }
+  if (previousClose === 0) previousClose = series.closes[0]?.close ?? 0;
+  const points = (series.intraday ?? []).map((b) => ({ date: b.t, value: b.close }));
+  return { points, previousClose };
+}
+
+const LIVE_MAX_LAG_MS = 30 * 60 * 1000;
+
+/**
+ * Returns true if the market appears to be currently active for these
+ * intraday bars: last bar arrived within the last 30 minutes. Naturally
+ * handles weekends, holidays, and pre/post market without a calendar.
+ */
+export function isMarketLive(intraday: IntradayBar[] | undefined): boolean {
+  if (!intraday || intraday.length === 0) return false;
+  const lastBar = new Date(intraday[intraday.length - 1].t);
+  const now = Date.now();
+  return now - lastBar.getTime() < LIVE_MAX_LAG_MS;
 }
 
 export function pctChange(start: number, end: number): number {
@@ -136,6 +223,34 @@ export function fmtDateShort(iso: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+export function fmtTimeOfDay(iso: string): string {
+  // Render an ISO-UTC timestamp (intraday bar) in the user's local clock,
+  // hour:minute AM/PM. Ignore seconds.
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/**
+ * Returns today's regular US trading session bounds as a [start, end] tuple
+ * in UTC. Uses today's date for the data's intraday timestamps (or the most
+ * recent intraday date in the snapshot).
+ */
+export function sessionBoundsForDate(intradayDateUTC: string): [Date, Date] {
+  // Eastern Time market hours: 9:30 AM - 4:00 PM ET. ET is UTC-5 (winter)
+  // or UTC-4 (summer). Use UTC-4 May-Oct, UTC-5 Nov-Apr as a rough heuristic.
+  const dt = new Date(intradayDateUTC + "T00:00:00Z");
+  const month = dt.getUTCMonth(); // 0-indexed
+  const isEDT = month >= 2 && month <= 10; // Mar-Nov is mostly EDT
+  const offset = isEDT ? 4 : 5; // hours behind UTC
+  const open = new Date(`${intradayDateUTC}T${String(9 + offset).padStart(2, "0")}:30:00Z`);
+  const close = new Date(`${intradayDateUTC}T${String(16 + offset).padStart(2, "0")}:00:00Z`);
+  return [open, close];
 }
 
 export function rangeBounds(

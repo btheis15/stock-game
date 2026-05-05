@@ -25,9 +25,20 @@ interface Props {
   baseline?: number;
   height?: number;
   onScrub?: (s: ScrubState | null) => void;
+  /** When set, force the x-axis to span this date range (used by 1D view). */
+  xDomain?: [Date, Date];
+  /** When true, draw a pulsing ring at the most recent data point. */
+  liveEndpoint?: boolean;
 }
 
-export function ScrubChart({ series, baseline, height = 260, onScrub }: Props) {
+export function ScrubChart({
+  series,
+  baseline,
+  height = 260,
+  onScrub,
+  xDomain,
+  liveEndpoint,
+}: Props) {
   return (
     <div style={{ height }} className="relative w-full select-none">
       <ParentSize debounceTime={20}>
@@ -39,6 +50,8 @@ export function ScrubChart({ series, baseline, height = 260, onScrub }: Props) {
               series={series}
               baseline={baseline}
               onScrub={onScrub}
+              xDomain={xDomain}
+              liveEndpoint={liveEndpoint}
             />
           ) : null
         }
@@ -56,28 +69,36 @@ function ScrubChartInner({
   series,
   baseline,
   onScrub,
+  xDomain,
+  liveEndpoint,
 }: {
   width: number;
   height: number;
   series: ChartSeries[];
   baseline?: number;
   onScrub?: (s: ScrubState | null) => void;
+  xDomain?: [Date, Date];
+  liveEndpoint?: boolean;
 }) {
   const dates = useMemo(() => {
     const longest = series.reduce(
       (acc, s) => (s.data.length > acc.data.length ? s : acc),
       series[0]
     );
-    return longest?.data.map((d) => new Date(d.date + "T00:00:00Z")) ?? [];
+    // Date strings here can be either "YYYY-MM-DD" (daily) or full ISO (intraday).
+    return longest?.data.map((d) => new Date(d.date.length > 10 ? d.date : d.date + "T00:00:00Z")) ?? [];
   }, [series]);
 
   const xScale = useMemo(() => {
+    if (xDomain) {
+      return scaleTime({ domain: xDomain, range: [0, width] });
+    }
     if (dates.length === 0) return null;
     return scaleTime({
       domain: [dates[0], dates[dates.length - 1]],
       range: [0, width],
     });
-  }, [dates, width]);
+  }, [dates, width, xDomain]);
 
   const yScale = useMemo(() => {
     if (series.length === 0) return null;
@@ -226,6 +247,35 @@ function ScrubChartInner({
           curve={curveMonotoneX}
         />
       ))}
+
+      {liveEndpoint && scrubIdx == null &&
+        series.map((s) => {
+          const last = s.data[s.data.length - 1];
+          if (!last) return null;
+          const cx = xScale(dates[s.data.length - 1]);
+          const cy = yScale(last.value);
+          return (
+            <g key={`live-${s.id}`} pointerEvents="none">
+              <circle
+                cx={cx}
+                cy={cy}
+                r={4}
+                fill={s.color}
+                style={{ animation: "livePulseFill 1.6s ease-out infinite" }}
+              />
+              <circle
+                cx={cx}
+                cy={cy}
+                r={4}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={2}
+                style={{ animation: "livePulseRing 1.6s ease-out infinite" }}
+                opacity={0.7}
+              />
+            </g>
+          );
+        })}
 
       {scrubIdx != null && (
         <g pointerEvents="none">

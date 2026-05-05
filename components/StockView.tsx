@@ -10,17 +10,23 @@ import {
   fmtDateLong,
   fmtDateShort,
   fmtPct,
+  fmtTimeOfDay,
   fmtUSD,
+  intradayTickerSeries,
+  isMarketLive,
+  sessionBoundsForDate,
   sharesFor,
 } from "@/lib/portfolio";
 import type { Range, TickerSeries } from "@/lib/types";
 import { TICKER_OWNERS, USERS, type UserId } from "@/lib/picks";
+import { MarketStateBadge } from "./MarketStateBadge";
 
 interface Props {
   series: TickerSeries;
+  intradayDate: string;
 }
 
-export function StockView({ series }: Props) {
+export function StockView({ series, intradayDate }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
@@ -32,12 +38,28 @@ export function StockView({ series }: Props) {
     [series]
   );
 
-  const ranged = useMemo(() => filterRange(closesAsPoints, range), [closesAsPoints, range]);
-  const baseline = ranged[0]?.value ?? 0;
-  const last = ranged[ranged.length - 1]?.value ?? 0;
+  const isIntraday = range === "1D";
+  const intraday = useMemo(
+    () => intradayTickerSeries(series, intradayDate),
+    [series, intradayDate]
+  );
+  const live = useMemo(() => isMarketLive(series.intraday), [series.intraday]);
+
+  const ranged = useMemo(
+    () => (isIntraday ? intraday.points : filterRange(closesAsPoints, range)),
+    [isIntraday, intraday, closesAsPoints, range]
+  );
+  const baseline = isIntraday ? intraday.previousClose : ranged[0]?.value ?? 0;
+  const last = ranged[ranged.length - 1]?.value ?? baseline;
   const scrubVal = scrub?.values.find((v) => v.id === series.ticker)?.value;
   const price = scrubVal ?? last;
-  const scrubDate = scrub ? fmtDateLong(scrub.date) : null;
+  const scrubLabel = scrub
+    ? scrub.date.length > 10
+      ? fmtTimeOfDay(scrub.date)
+      : fmtDateLong(scrub.date)
+    : null;
+
+  const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
   const lastDate = series.closes[series.closes.length - 1].date;
   const dividends = series.dividends ?? [];
 
@@ -48,14 +70,19 @@ export function StockView({ series }: Props) {
         title={series.name}
         value={price}
         baseline={baseline}
-        scrubDate={scrubDate}
+        scrubDate={scrubLabel}
         fractionDigits={2}
       />
+
+      {isIntraday && <MarketStateBadge live={live} />}
 
       <ScrubChart
         series={[{ id: series.ticker, color: accentColor, data: ranged }]}
         onScrub={setScrub}
         height={260}
+        xDomain={xDomain}
+        liveEndpoint={isIntraday && live}
+        baseline={baseline}
       />
 
       <RangeTabs value={range} onChange={setRange} accent={accentColor} />
@@ -80,7 +107,9 @@ export function StockView({ series }: Props) {
 
       {dividends.length > 0 && (
         <div className="px-4 mt-5">
-          <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Dividends per share</h2>
+          <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">
+            Dividends per share
+          </h2>
           <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800">
             {dividends.map((d) => (
               <div

@@ -5,48 +5,106 @@ import Link from "next/link";
 import { ScrubChart, type ChartSeries, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { InsightsCard } from "./InsightsCard";
-import { fmtPct, fmtSignedUSD, fmtUSD, filterRange, fmtDateLong } from "@/lib/portfolio";
+import {
+  filterRange,
+  fmtDateLong,
+  fmtPct,
+  fmtSignedUSD,
+  fmtTimeOfDay,
+  fmtUSD,
+  sessionBoundsForDate,
+} from "@/lib/portfolio";
 import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
-import { USER_LIST, USERS, type UserId } from "@/lib/picks";
+import { USER_LIST, type UserId } from "@/lib/picks";
+import { MarketStateBadge } from "./MarketStateBadge";
+
+const LIVE_LAG_MS = 30 * 60 * 1000;
+function lastPointIsLive(points: { date: string }[]): boolean {
+  const last = points[points.length - 1];
+  if (!last || last.date.length <= 10) return false;
+  return Date.now() - new Date(last.date).getTime() < LIVE_LAG_MS;
+}
+
+interface IntradayResult {
+  points: PortfolioPoint[];
+  previousClose: number;
+}
 
 interface Props {
   series: Record<UserId, PortfolioPoint[]>;
+  intraday: Record<UserId, IntradayResult>;
+  intradayDate: string;
   analyses: Record<Range, RangeAnalysis>;
 }
 
-export function CompareView({ series, analyses }: Props) {
+export function CompareView({ series, intraday, intradayDate, analyses }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
+  const isIntraday = range === "1D";
+  const live = useMemo(
+    () => isIntraday && lastPointIsLive(intraday[USER_LIST[0].id].points),
+    [isIntraday, intraday]
+  );
+
   const ranged = useMemo(() => {
     const out = {} as Record<UserId, PortfolioPoint[]>;
-    for (const u of USER_LIST) out[u.id] = filterRange(series[u.id], range);
+    if (isIntraday) {
+      for (const u of USER_LIST) out[u.id] = intraday[u.id].points;
+    } else {
+      for (const u of USER_LIST) out[u.id] = filterRange(series[u.id], range);
+    }
     return out;
-  }, [series, range]);
+  }, [series, intraday, range, isIntraday]);
 
   const stats = useMemo(() => {
     return USER_LIST.map((u) => {
       const pts = ranged[u.id];
-      const startVal = pts[0]?.value ?? 0;
-      const lastVal = pts[pts.length - 1]?.value ?? 0;
-      const scrubVal = scrub?.values.find((v) => v.id === u.id)?.value;
-      const value = scrubVal ?? lastVal;
-      const pct = startVal === 0 ? 0 : (value - startVal) / startVal;
-      return { user: u, value, pct, startVal };
+      const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
+      const lastVal = pts[pts.length - 1]?.value ?? baseline;
+      // In 1D the chart plots % change so scrub.values are pct fractions, not
+      // dollar values. Rehydrate by indexing into the underlying $ points.
+      const scrubIdx = scrub?.index;
+      const scrubDollar =
+        scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
+      const value =
+        scrubDollar ??
+        (!isIntraday
+          ? scrub?.values.find((v) => v.id === u.id)?.value ?? lastVal
+          : lastVal);
+      const pct = baseline === 0 ? 0 : (value - baseline) / baseline;
+      return { user: u, value, pct, baseline };
     }).sort((a, b) => b.pct - a.pct);
-  }, [ranged, scrub]);
+  }, [ranged, scrub, intraday, isIntraday]);
 
   const leader = stats[0];
   const second = stats[1];
   const gapPct = leader.pct - second.pct;
-  const gapDollars = leader.value - second.value;
-  const scrubDate = scrub ? fmtDateLong(scrub.date) : null;
+  // Gap in dollars = difference in gain over the active range (not total
+  // portfolio diff), so it's consistent with the % comparison.
+  const gapDollars =
+    (leader.value - leader.baseline) - (second.value - second.baseline);
+  const scrubLabel = scrub
+    ? scrub.date.length > 10
+      ? fmtTimeOfDay(scrub.date)
+      : fmtDateLong(scrub.date)
+    : null;
 
-  const chartSeries: ChartSeries[] = USER_LIST.map((u) => ({
-    id: u.id,
-    color: u.color,
-    data: ranged[u.id],
-  }));
+  const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
+
+  const chartSeries: ChartSeries[] = USER_LIST.map((u) => {
+    const baseline = isIntraday ? intraday[u.id].previousClose : 0;
+    return {
+      id: u.id,
+      color: u.color,
+      data: isIntraday
+        ? ranged[u.id].map((p) => ({
+            date: p.date,
+            value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
+          }))
+        : ranged[u.id],
+    };
+  });
 
   return (
     <div className="pb-24">
@@ -65,11 +123,20 @@ export function CompareView({ series, analyses }: Props) {
         </div>
         <div className="text-[14px] font-medium text-zinc-400 mt-0.5">
           {fmtSignedUSD(gapDollars)} gap
-          {scrubDate && <span className="text-zinc-500"> • {scrubDate}</span>}
+          {scrubLabel && <span className="text-zinc-500"> • {scrubLabel}</span>}
         </div>
       </div>
 
-      <ScrubChart series={chartSeries} onScrub={setScrub} height={280} />
+      {isIntraday && <MarketStateBadge live={live} />}
+
+      <ScrubChart
+        series={chartSeries}
+        onScrub={setScrub}
+        height={280}
+        xDomain={xDomain}
+        liveEndpoint={live}
+        baseline={isIntraday ? 0 : undefined}
+      />
 
       <RangeTabs value={range} onChange={setRange} accent={leader.user.color} />
 
@@ -87,7 +154,7 @@ export function CompareView({ series, analyses }: Props) {
         ))}
       </div>
 
-      <InsightsCard analysis={analyses[range]} />
+      {!isIntraday && <InsightsCard analysis={analyses[range]} />}
 
       <div className="px-4 mt-6">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Game rules</h2>
