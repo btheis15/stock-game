@@ -31,7 +31,7 @@ class SchedulerApp:
 
         self.refresh_timer = None
         self.refresh_scheduled_time = None
-        self.interval = None
+        self.interval_minutes = None
         self.run_start_minutes = None
         self.run_end_minutes = None
         self.window_wraps_midnight = False
@@ -67,13 +67,27 @@ class SchedulerApp:
         self.ampm_var = tk.StringVar(value="AM")
         tk.OptionMenu(self.root, self.ampm_var, "AM", "PM").grid(row=1, column=3)
 
-        tk.Label(self.root, text="Select Interval (hours):").grid(
+        tk.Label(self.root, text="Select Interval:").grid(
             row=2, column=0, padx=5, pady=5
         )
-        self.interval_var = tk.StringVar(value="1")
-        interval_options = ["None"] + [str(i) for i in range(1, 25)]
+        self.interval_var = tk.StringVar(value="15 min")
+        interval_options = [
+            "None",
+            "5 min",
+            "10 min",
+            "15 min",
+            "30 min",
+            "1 hr",
+            "2 hr",
+            "3 hr",
+            "4 hr",
+            "6 hr",
+            "8 hr",
+            "12 hr",
+            "24 hr",
+        ]
         tk.OptionMenu(self.root, self.interval_var, *interval_options).grid(
-            row=2, column=1
+            row=2, column=1, columnspan=2, sticky="w"
         )
 
         tk.Label(self.root, text="Run Time Range:").grid(row=3, column=0, padx=5, pady=5)
@@ -147,10 +161,7 @@ class SchedulerApp:
 
         try:
             now = datetime.now()
-            interval_value = self.interval_var.get().strip()
-            self.interval = None if interval_value == "None" else int(interval_value)
-            if self.interval is not None and self.interval <= 0:
-                raise ValueError("Interval must be greater than 0 hours.")
+            self.interval_minutes = self._parse_interval(self.interval_var.get())
 
             self.run_start_minutes = self._parse_minutes(
                 self.start_hour_var, self.start_minute_var, self.start_ampm_var
@@ -165,12 +176,14 @@ class SchedulerApp:
             target_time = self._parse_time(
                 self.hour_var, self.minute_var, self.ampm_var
             )
-            if target_time <= now:
-                target_time += timedelta(days=1)
-            if self.interval:
+            if self.interval_minutes:
+                # If interval is set, anchor first run from now (within window),
+                # not from the literal start-time field.
                 target_time = self._next_valid_run_time(
-                    target_time, self.interval, now
+                    target_time, self.interval_minutes, now
                 )
+            elif target_time <= now:
+                target_time += timedelta(days=1)
             self._schedule_refresh_at(target_time)
 
             self.update_next_run_label()
@@ -197,10 +210,10 @@ class SchedulerApp:
         else:
             print("Skipped scheduled refresh: another task held the lock.")
 
-        if self.interval:
+        if self.interval_minutes:
             next_run = self._next_valid_run_time(
-                scheduled_for + timedelta(hours=self.interval),
-                self.interval,
+                scheduled_for + timedelta(minutes=self.interval_minutes),
+                self.interval_minutes,
                 datetime.now(),
             )
             self._schedule_refresh_at(next_run)
@@ -217,7 +230,7 @@ class SchedulerApp:
         self.refresh_timer.cancel()
         self.refresh_timer = None
         self.refresh_scheduled_time = None
-        self.interval = None
+        self.interval_minutes = None
         self.run_start_minutes = None
         self.run_end_minutes = None
         self.window_wraps_midnight = False
@@ -329,20 +342,33 @@ class SchedulerApp:
             return start_today
         return start_today + timedelta(days=1)
 
-    def _next_valid_run_time(self, candidate, interval_hours, now):
-        step = timedelta(hours=interval_hours)
-        if interval_hours == 1:
-            candidate = candidate.replace(minute=candidate.minute, second=0, microsecond=0)
-            if candidate < now:
-                base = now.replace(second=0, microsecond=0)
-                # bump to next interval boundary aligned with the chosen minute
-                delta_min = (candidate.minute - base.minute) % 60
-                candidate = base + timedelta(minutes=delta_min or 60)
-        elif candidate < now:
+    def _parse_interval(self, raw):
+        raw = (raw or "").strip()
+        if raw in ("", "None"):
+            return None
+        parts = raw.split()
+        if len(parts) != 2:
+            raise ValueError(f"Could not parse interval '{raw}'.")
+        n = int(parts[0])
+        unit = parts[1].lower()
+        if unit.startswith("min"):
+            mins = n
+        elif unit.startswith("hr") or unit.startswith("hour"):
+            mins = n * 60
+        else:
+            raise ValueError(f"Unknown interval unit '{unit}'.")
+        if mins <= 0:
+            raise ValueError("Interval must be greater than 0.")
+        return mins
+
+    def _next_valid_run_time(self, candidate, interval_minutes, now):
+        step = timedelta(minutes=interval_minutes)
+        candidate = candidate.replace(second=0, microsecond=0)
+        if candidate < now:
             elapsed = now - candidate
             missed = int(elapsed.total_seconds() // step.total_seconds()) + 1
             candidate += step * missed
-        search_limit = int((7 * 24) / max(interval_hours, 1)) + 8
+        search_limit = int((7 * 24 * 60) / max(interval_minutes, 1)) + 8
         for _ in range(search_limit):
             if self._is_within_window(candidate):
                 return candidate
