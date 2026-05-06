@@ -5,8 +5,8 @@ on a threading.Timer. While open it runs `caffeinate` so the Mac mini
 doesn't sleep between scheduled runs.
 
 Run:
-    python3 scripts/scheduler.py
-or  npm run scheduler
+    python3 scripts/stockgame_schedule.py
+or  npm run stockgame
 """
 
 import os
