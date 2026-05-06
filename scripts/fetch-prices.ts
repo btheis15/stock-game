@@ -165,6 +165,20 @@ function todayInETDate(): string {
   return et.toISOString().slice(0, 10);
 }
 
+// Returns UTC [open, close] timestamps for the regular US trading session
+// (9:30 AM – 4:00 PM ET) on the given ET date. Coarse DST heuristic: months
+// 3–10 are EDT (UTC-4), else EST (UTC-5). Wrong on the 4 DST transition days
+// per year — harmless for filtering since the boundaries shift by 1 hour, but
+// the same bars are kept either way during regular session windows.
+function sessionBoundsET(dateStr: string): [Date, Date] {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const isDST = m >= 3 && m <= 10;
+  const offset = isDST ? 4 : 5;
+  const open = new Date(Date.UTC(y, m - 1, d, 9 + offset, 30, 0));
+  const close = new Date(Date.UTC(y, m - 1, d, 16 + offset, 0, 0));
+  return [open, close];
+}
+
 async function main() {
   const existing = loadExisting();
   const mode = existing ? "incremental" : FULL ? "full (forced)" : "full (no prior data)";
@@ -200,7 +214,20 @@ async function main() {
     if (bars.length > 0) {
       const todayPrefix = todayInETDate();
       const today = bars.filter((b) => b.t.slice(0, 10) === todayPrefix);
-      out[ticker].intraday = today.length > 0 ? today : bars.slice(-26); // fallback: last session
+      // Filter to regular session only (9:30 AM – 4:00 PM ET). Drops
+      // pre-market and after-hours bars so the chart's last point is the
+      // official 4:00 PM close, not an after-hours print.
+      const [sessionOpen, sessionClose] = sessionBoundsET(todayPrefix);
+      const todayRegular = today.filter((b) => {
+        const t = new Date(b.t);
+        return t >= sessionOpen && t < sessionClose;
+      });
+      out[ticker].intraday =
+        todayRegular.length > 0
+          ? todayRegular
+          : today.length > 0
+            ? today
+            : bars.slice(-26); // fallback: pre-market only, or use last session
       console.log(`${out[ticker].intraday?.length ?? 0} bars`);
     } else {
       console.log("none");

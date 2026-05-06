@@ -67,7 +67,7 @@ TickerSeries {
   startClose: number              // close on START_DATE (immutable after first fetch)
   closes: { date, close }[]       // daily, sorted ascending
   dividends?: { date, amount }[]  // per-share cash dividends since START_DATE
-  intraday?: { t (ISO UTC), close }[]  // today's 15-min bars, regular + extended hours
+  intraday?: { t (ISO UTC), close }[]  // today's 15-min bars, regular session only (9:30 AM – 4:00 PM ET)
 }
 ```
 
@@ -320,7 +320,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **Site URL is `stock-game-gamma.vercel.app`.** Vercel assigned this; we don't control it. README + OG metadata don't depend on it (dynamic).
 - **iCloud + git** can be flaky if files are placeholders. Always verify materialization before committing.
 - **DST heuristic** in `sessionBoundsForDate` is coarse (Mar–Nov = EDT). Wrong on the few transition days; harmless for the visual axis.
-- **Today's intraday bars include extended hours** when Yahoo returns them. Visual treatment doesn't filter; the line just covers more of the axis pre-market and post-close. Acceptable.
+- **Today's intraday bars are regular session only.** `scripts/fetch-prices.ts` filters bars to `9:30 AM ≤ t < 4:00 PM ET` via `sessionBoundsET()` so the chart's last point is the 4:00 PM close, not an after-hours print. The 3:00 PM CT (= 4:00 PM ET market-close) fire captures the closing bar; the optional 3:15 PM CT fire is a backup that picks it up if Yahoo's bar wasn't ready at the close. Either way, the data ends at the close.
 - **`isMarketLive`** = bar < 30 min old. Doesn't know about market holidays; relies on Yahoo not returning fresh bars on those days.
 - **No client-side polling.** All "live" feel comes from PullToRefresh's resume-reload + the scheduler's 15-min cadence. The chart's blink is purely visual; data is static between reloads.
 - **`scripts/.pause`** is the only soft-stop. The cron checks for it first thing. Use it to halt the schedule without closing the tkinter UI.
