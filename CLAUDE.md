@@ -171,7 +171,7 @@ components receive prepared series and only do range-filtering and scrub.
 5. Render `<CompareView series={...} intraday={...} analyses={...} intradayDate={...} />`.
 
 **Client side** (`components/CompareView.tsx`):
-1. `useState<Range>("ALL")` for range tab.
+1. `useState<Range>("1D")` for range tab — Compare opens on 1D.
 2. `useState<ScrubState | null>(null)` for chart scrub state.
 3. `isIntraday = range === "1D"`. Determines all special-case behavior.
 4. `live = isIntraday && lastPointIsLive(intraday[firstUser].points)` →
@@ -182,20 +182,22 @@ components receive prepared series and only do range-filtering and scrub.
 6. `stats` (useMemo): for each player, compute current value, baseline,
    pct. For 1D, baseline = previousClose. Otherwise, baseline = first
    point in `ranged`. Sort descending by pct. **Crucial scrub detail:**
-   in 1D mode, `chartSeries.data` plots normalized pct values so all
-   four lines start at y=0. But the chart's `onScrub` reports values
-   from the chart data — which would be pct fractions, not dollars. So
-   `stats` rehydrates by indexing `intraday[u.id].points[scrub.index]` to
-   get the raw $ value for the leaderboard. Don't break this — pct on
-   chart, $ in stats.
-7. `chartSeries: ChartSeries[]` — for 1D, normalized to `(value - baseline) / baseline`;
-   for other ranges, raw $ values.
+   `chartSeries.data` ALWAYS plots normalized pct values (not just in 1D).
+   The chart's `onScrub` therefore reports pct fractions, not dollars. So
+   `stats` rehydrates by indexing `ranged[u.id][scrub.index]` to get the
+   raw $ value for the leaderboard. Don't break this — pct on chart, $
+   in stats.
+7. `chartSeries: ChartSeries[]` — every range is normalized to
+   `(value - baseline) / baseline` so all four lines start at y=0 and the
+   visual order matches the leaderboard ranking. baseline=0 dashed line is
+   passed for every range as the 0% reference.
 8. `xDomain: [Date, Date] | undefined` — for 1D, `sessionBoundsForDate(intradayDate)`
    forces the axis to span the full trading session even when only part is filled.
 9. Render header (`{leader.user.name} leads` or `It's a tie`), gap pct +
    gap $, optional `<MarketStateBadge>`, `<ScrubChart>`, `<RangeTabs>`,
    2x2 leaderboard cards (`<UserCard>` with 1st/2nd/3rd/4th badges and
-   ranked-by-pct ordering), `<InsightsCard>` (hidden in 1D), Game rules.
+   ranked-by-pct ordering), `<InsightsCard>` (rendered for every range
+   including 1D — `app/page.tsx` precomputes a 1D analysis too), Game rules.
 
 ### §5.2. Portfolio drill-down (`/portfolio/[user]`)
 
@@ -207,14 +209,17 @@ components receive prepared series and only do range-filtering and scrub.
 4. Render `<HeaderBack title="Compare" />` + `<PortfolioView ... />`.
 
 **Client side** (`components/PortfolioView.tsx`):
-1. Same range/scrub/isIntraday/live machinery as Compare.
+1. Same range/scrub/isIntraday/live machinery as Compare. Defaults to 1D.
 2. **Single line**: `chartSeries = [{ id: userId, color, data: ranged }]`.
    No normalization needed (only one line).
 3. `baseline` for the chart's dashed reference line = either
    `intraday.previousClose` (1D) or `ranged[0].value` (other ranges).
-4. Holdings list below the chart, sorted by `plPct` desc. Each row has
-   `id={ticker}` so deep-links like `/portfolio/kevin#MRVL` jump-scroll
-   and trigger the green flash animation.
+4. Holdings list below the chart. Each row reads `holding.rangeStats[range]`
+   and shows that range's pct + signed $ delta (e.g., `+4.22% • +$482`).
+   The list re-sorts by the active range's pct so the top holding is
+   whoever's leading *for that range*. Each row has `id={ticker}` so
+   deep-links like `/portfolio/kevin#MRVL` jump-scroll and trigger the
+   green flash animation.
 
 ### §5.3. Stock detail (`/stock/[ticker]`)
 
@@ -333,19 +338,21 @@ report involves the 1D view, work through all 5:
    UTC dates. The line covers only the elapsed portion.
 4. **Compare-view normalization**: `chartSeries.data` plots
    `(value - baseline) / baseline` so all four players' lines start at 0%.
-   Stats use raw $ via `intraday[u.id].points[scrub.index].value`.
+   This is now done for every range, not just 1D. Stats rehydrate the
+   $ value via `ranged[u.id][scrub.index].value`.
 5. **Live state**: `isMarketLive(series.intraday)` checks if the most
    recent bar is < 30 min old. Drives `liveEndpoint` (pulsing ring) and
    the `<MarketStateBadge>` (LIVE vs MARKET CLOSED).
+6. **InsightsCard 1D analysis**: `analyzeRange(data, "1D")` is supported.
+   It uses `rangeCloses` which scores each ticker as
+   (prev-day-close → latest intraday bar). `app/page.tsx` includes "1D"
+   in `ALL_RANGES` so the analysis is precomputed at build time.
 
 **Common 1D pitfalls:**
 - Don't pass `xDomain` outside 1D — it'll force a too-wide axis on
   daily ranges.
 - Don't enable `liveEndpoint` outside 1D — the "last point" of an ALL
   range chart is just yesterday's close, no pulse needed.
-- Don't show `<InsightsCard>` in 1D — the per-user top-performers list
-  is computed from daily ranges and doesn't reflect intraday movers.
-  CompareView already gates this.
 - Beware of timezones in `sessionBoundsForDate`. Heuristic: month 2-10
   → EDT (UTC-4), else EST (UTC-5). Wrong on the 4 DST transition days
   per year; harmless for axis rendering.

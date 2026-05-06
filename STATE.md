@@ -103,10 +103,11 @@ Functions exported:
 | `portfolioSeries(data, userId)` | Daily PortfolioPoint[] from `tradingDates`. |
 | `intradayPortfolioSeries(data, userId)` | Today's intraday portfolio curve + previous-day-close baseline. |
 | `intradayTickerSeries(series, intradayDate)` | Same shape, single ticker. |
-| `analyzeRange(data, range)` | Per-user range-pct + per-ticker movers + global top gainers/losers. |
-| `buildHoldingRows(userId, data)` | Holdings table rows for `PortfolioView`. |
+| `analyzeRange(data, range)` | Per-user range-pct + per-ticker movers + global top gainers/losers. Now handles `1D` via prev-day close → latest intraday bar. |
+| `rangeCloses(series, data, range)` | Single ticker's start/end close for a range. 1D = (prev-day close, latest intraday); other ranges = `lastKnownClose` at the range bounds. |
+| `buildHoldingRows(userId, data)` | Holdings table rows for `PortfolioView`. Now includes `rangeStats: Record<Range, {pct, dollars, endClose}>` per holding so the holdings list reflects the active range. |
 | `filterRange(points, range)` | Slice daily points to last N days; for 1D returns full set (caller substitutes intraday). |
-| `rangeBounds(tradingDates, range)` | Start/end date strings of a range. |
+| `rangeBounds(tradingDates, range)` | Start/end date strings of a range. 1D = (last-2 trading day, last trading day). |
 | `sessionBoundsForDate(intradayDateUTC)` | UTC `[open, close]` for the regular US session on that date (DST heuristic). |
 | `isMarketLive(intraday)` | True iff most-recent bar < 30 min old; naturally handles weekends/holidays. |
 | `fmtUSD / fmtSignedUSD / fmtPct / fmtDateLong / fmtDateShort / fmtTimeOfDay` | Formatters. |
@@ -154,14 +155,17 @@ components/
                       so chart scrubbing isn't hijacked.
   MarketStateBadge.tsx  Green pulsing "● LIVE" or grey "● MARKET CLOSED".
 
-  CompareView.tsx     Home view. 4 lines (or 4 normalized % lines in 1D) overlaid.
-                      Headline: "{leader} leads" or "It's a tie". Range pct + signed gain-difference
-                      gap below. 2x2 leaderboard cards with 1st/2nd/3rd/4th badges.
-                      InsightsCard below (hidden in 1D). 1D normalizes lines to (value-baseline)/baseline
-                      so all four start at y=0; baseline=0 dashed line provides the 0% reference.
-  PortfolioView.tsx   Per-user. PriceHeader + ScrubChart + RangeTabs + Holdings list.
+  CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
+                      (value - baseline) / baseline so every line starts at y=0 and the
+                      visual order matches the leaderboard ranking. baseline=0 dashed line
+                      gives the 0% reference. Headline: "{leader} leads" or "It's a tie".
+                      Range pct + signed gain-difference gap below. 2x2 leaderboard cards with
+                      1st/2nd/3rd/4th badges. InsightsCard renders for every range (1D included).
+  PortfolioView.tsx   Per-user. Defaults to 1D. PriceHeader + ScrubChart + RangeTabs + Holdings list.
                       Each holding row has id={ticker} so /portfolio/X#TICKER deep-links.
                       In 1D mode: chart is intraday $, baseline = previousClose, xDomain = session.
+                      Holding rows show pct + signed $ for the ACTIVE range (read from
+                      `holding.rangeStats[range]`) and re-sort by that range's pct.
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + N Position cards
                       (one per owner) + Dividends list (per-share, market-level).
                       In 1D: same intraday treatment as PortfolioView.
@@ -169,7 +173,9 @@ components/
                       Multi-color owner swatch when a ticker is held by 2+ users.
   InsightsCard.tsx    "What's driving it" — per-user cards showing top-3 / bottom-3 movers in
                       the active range. Cards re-sort by leaderboard rank for the active range.
-                      Each row links to /portfolio/{owner}#{ticker} (deep-link with green flash).
+                      Card header (user name + pct + place) links to /portfolio/{owner}.
+                      Mover rows link to /stock/{ticker} (jump straight to the stock detail
+                      page, not the owner's holdings list).
 ```
 
 ## 7. Chart UX details
@@ -180,7 +186,7 @@ components/
 - `touch-action: none` on the SVG. Prevents iOS Safari from stealing the gesture for page scroll mid-scrub. Page still scrolls normally above and below the chart.
 - Scrub state lifted to parent via `onScrub` callback (refs avoid the React 19 update-loop bug).
 - `liveEndpoint` draws two concentric circles at the most recent point; ring expands and fades (`livePulseRing` keyframe), fill brightness oscillates (`livePulseFill`).
-- 1D Compare: `chartSeries.data` is normalized to fractional pct; stats reads scrub.index back into raw `intraday[u.id].points` so leaderboard cards stay in dollars.
+- Compare (all ranges): `chartSeries.data` is normalized to fractional pct from the range's baseline so every line starts at 0% and the line order matches the leaderboard. Stats rehydrate the dollar value by indexing back into the raw `ranged[u.id]` points by `scrub.index`. baseline=0 is passed for the dashed reference line on every range.
 - `xDomain` overrides Visx auto-domain; for 1D we pass `sessionBoundsForDate(intradayDate)` which returns `[09:30 ET, 16:00 ET]` as UTC dates, with a coarse DST heuristic (Mar–Nov = EDT).
 
 ## 8. Data refresh pipeline

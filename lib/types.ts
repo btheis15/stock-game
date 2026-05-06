@@ -47,6 +47,12 @@ export interface ScrubPoint {
   index: number;
 }
 
+export interface HoldingRangeStat {
+  pct: number;
+  dollars: number;
+  endClose: number;
+}
+
 export interface HoldingRow {
   ticker: string;
   shares: number;
@@ -56,6 +62,7 @@ export interface HoldingRow {
   currentValue: number;
   pl: number;
   plPct: number;
+  rangeStats: Record<Range, HoldingRangeStat>;
 }
 
 export interface RangeMover {

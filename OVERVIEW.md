@@ -31,22 +31,27 @@ Three things, on a phone screen:
    it" — for each player, the top three holdings boosting them and the bottom
    three dragging them down, in the active time range.
 
-2. **Per-player drill-down.** Tap any leaderboard card or any holding row from
-   the insights cards and you land on that player's portfolio. Same big
-   chart, but only their line; below it, a list of every holding they have,
-   sorted by performance.
+2. **Per-player drill-down.** Tap a leaderboard card — or the *name* in any
+   "What's driving it" card — and you land on that player's portfolio. Same
+   big chart, but only their line; below it, a list of every holding they
+   have, sorted by performance for the active range.
 
-3. **Per-stock detail.** Tap any holding and you see that stock's price chart
-   plus a "Position" card for each player who owns it (Kevin and Rick both
-   own NVDA, for example, so NVDA's page shows both their positions). Below
-   that, a list of every dividend that stock has paid since 2/5.
+3. **Per-stock detail.** Tap any holding row, or any individual stock inside
+   a "What's driving it" card, and you see that stock's price chart plus a
+   "Position" card for each player who owns it (Kevin and Rick both own NVDA,
+   for example, so NVDA's page shows both their positions). Below that, a
+   list of every dividend that stock has paid since 2/5.
 
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
-that re-scope the data. The 1D view is special: the x-axis spans the full
-trading day (9:30 AM – 4:00 PM ET), the line shows what's happened so far,
-and the most-recent point pulses gently while the market is live. A "● LIVE"
-or "● MARKET CLOSED" badge sits just above the chart in 1D so you know which
-state you're in.
+that re-scope the data. The Compare and per-player views open on **1D** by
+default. The 1D view is special: the x-axis spans the full trading day
+(9:30 AM – 4:00 PM ET), the line shows what's happened so far, and the
+most-recent point pulses gently while the market is live. A "● LIVE" or
+"● MARKET CLOSED" badge sits just above the chart in 1D so you know which
+state you're in. The lines on the Compare chart are normalized to %-change
+from the start of the range so the visual order always matches the
+leaderboard ranking — the highest line is the player in 1st place. Each
+holding row's % return reflects the active range, not all-time.
 
 Pull down at the top of any page to refresh. If you've left the app closed
 for more than a minute and come back, it auto-refreshes too — no need to

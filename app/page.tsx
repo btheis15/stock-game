@@ -6,7 +6,7 @@ import { USER_LIST, type UserId } from "@/lib/picks";
 
 export const dynamic = "force-static";
 
-const ALL_RANGES: Range[] = ["1W", "1M", "3M", "1YR", "ALL"];
+const ALL_RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
 
 export default async function Page() {
   const data = await loadPriceData();

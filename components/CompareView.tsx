@@ -38,7 +38,7 @@ interface Props {
 }
 
 export function CompareView({ series, intraday, intradayDate, analyses }: Props) {
-  const [range, setRange] = useState<Range>("ALL");
+  const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
   const isIntraday = range === "1D";
@@ -62,16 +62,12 @@ export function CompareView({ series, intraday, intradayDate, analyses }: Props)
       const pts = ranged[u.id];
       const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
       const lastVal = pts[pts.length - 1]?.value ?? baseline;
-      // In 1D the chart plots % change so scrub.values are pct fractions, not
+      // The chart plots % change so scrub.values are pct fractions, not
       // dollar values. Rehydrate by indexing into the underlying $ points.
       const scrubIdx = scrub?.index;
       const scrubDollar =
         scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
-      const value =
-        scrubDollar ??
-        (!isIntraday
-          ? scrub?.values.find((v) => v.id === u.id)?.value ?? lastVal
-          : lastVal);
+      const value = scrubDollar ?? lastVal;
       const pct = baseline === 0 ? 0 : (value - baseline) / baseline;
       return { user: u, value, pct, baseline };
     }).sort((a, b) => b.pct - a.pct);
@@ -92,17 +88,21 @@ export function CompareView({ series, intraday, intradayDate, analyses }: Props)
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
+  // Normalize all lines to % change from the range's baseline so the chart
+  // visually matches the leaderboard ranking (highest line = 1st place).
+  // Without this, lines would plot raw $ at different starting points and a
+  // player with a lower portfolio value but higher gain would look "lowest"
+  // even though they're winning the range.
   const chartSeries: ChartSeries[] = USER_LIST.map((u) => {
-    const baseline = isIntraday ? intraday[u.id].previousClose : 0;
+    const pts = ranged[u.id];
+    const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
     return {
       id: u.id,
       color: u.color,
-      data: isIntraday
-        ? ranged[u.id].map((p) => ({
-            date: p.date,
-            value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
-          }))
-        : ranged[u.id],
+      data: pts.map((p) => ({
+        date: p.date,
+        value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
+      })),
     };
   });
 
@@ -135,7 +135,7 @@ export function CompareView({ series, intraday, intradayDate, analyses }: Props)
         height={280}
         xDomain={xDomain}
         liveEndpoint={live}
-        baseline={isIntraday ? 0 : undefined}
+        baseline={0}
       />
 
       <RangeTabs value={range} onChange={setRange} accent={leader.user.color} />
@@ -154,7 +154,7 @@ export function CompareView({ series, intraday, intradayDate, analyses }: Props)
         ))}
       </div>
 
-      {!isIntraday && <InsightsCard analysis={analyses[range]} />}
+      <InsightsCard analysis={analyses[range]} />
 
       <div className="px-4 mt-6">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Game rules</h2>

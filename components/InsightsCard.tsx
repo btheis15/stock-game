@@ -54,7 +54,10 @@ function UserPerformersCard({
 
   return (
     <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
-      <div className="flex items-center gap-2 mb-3">
+      <Link
+        href={`/portfolio/${userId}`}
+        className="flex items-center gap-2 mb-3 -mx-1 px-1 py-1 rounded-md active:bg-zinc-800/40 transition-colors"
+      >
         <span
           className="w-2.5 h-2.5 rounded-full"
           style={{ backgroundColor: user.color }}
@@ -73,15 +76,15 @@ function UserPerformersCard({
         >
           {placeLabel}
         </span>
-      </div>
+      </Link>
 
       {top.length === 0 && bottom.length === 0 ? (
         <p className="text-[12px] text-zinc-500">Flat across the board this range.</p>
       ) : (
         <div className="space-y-3">
-          {top.length > 0 && <Section label="Top performers" items={top} ownerId={userId} />}
+          {top.length > 0 && <Section label="Top performers" items={top} />}
           {bottom.length > 0 && (
-            <Section label="Bottom performers" items={bottom} ownerId={userId} />
+            <Section label="Bottom performers" items={bottom} />
           )}
         </div>
       )}
@@ -92,11 +95,9 @@ function UserPerformersCard({
 function Section({
   label,
   items,
-  ownerId,
 }: {
   label: string;
   items: RangeMover[];
-  ownerId: UserId;
 }) {
   return (
     <div>
@@ -105,19 +106,19 @@ function Section({
       </h3>
       <div className="divide-y divide-zinc-800/70">
         {items.map((m) => (
-          <MoverRow key={m.ticker} mover={m} ownerId={ownerId} />
+          <MoverRow key={m.ticker} mover={m} />
         ))}
       </div>
     </div>
   );
 }
 
-function MoverRow({ mover, ownerId }: { mover: RangeMover; ownerId: UserId }) {
+function MoverRow({ mover }: { mover: RangeMover }) {
   const positive = mover.pct >= 0;
   const color = positive ? "#00C805" : "#FF453A";
   return (
     <Link
-      href={`/portfolio/${ownerId}#${mover.ticker}`}
+      href={`/stock/${mover.ticker}`}
       className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors -mx-1 px-1 rounded-md"
     >
       <div className="flex-1 min-w-0">

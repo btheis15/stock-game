@@ -9,6 +9,7 @@ import {
   filterRange,
   fmtDateLong,
   fmtPct,
+  fmtSignedUSD,
   fmtTimeOfDay,
   fmtUSD,
   sessionBoundsForDate,
@@ -45,7 +46,7 @@ export function PortfolioView({
   holdings,
 }: Props) {
   const user = USERS[userId];
-  const [range, setRange] = useState<Range>("ALL");
+  const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
   const isIntraday = range === "1D";
@@ -73,8 +74,11 @@ export function PortfolioView({
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
   const sorted = useMemo(
-    () => [...holdings].sort((a, b) => b.plPct - a.plPct),
-    [holdings]
+    () =>
+      [...holdings].sort(
+        (a, b) => (b.rangeStats[range]?.pct ?? 0) - (a.rangeStats[range]?.pct ?? 0)
+      ),
+    [holdings, range]
   );
 
   return (
@@ -103,38 +107,43 @@ export function PortfolioView({
       <div className="px-4 mt-3">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Holdings</h2>
         <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
-          {sorted.map((h) => (
-            <Link
-              key={h.ticker}
-              href={`/stock/${h.ticker}`}
-              id={h.ticker}
-              className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
-              style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
-            >
-              <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
-                {h.ticker}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-white truncate">
-                  {TICKER_NAMES[h.ticker] ?? h.ticker}
+          {sorted.map((h) => {
+            const stat = h.rangeStats[range];
+            const rangePct = stat?.pct ?? 0;
+            const rangeDollars = stat?.dollars ?? 0;
+            return (
+              <Link
+                key={h.ticker}
+                href={`/stock/${h.ticker}`}
+                id={h.ticker}
+                className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
+                style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
+              >
+                <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+                  {h.ticker}
                 </div>
-                <div className="text-[11px] text-zinc-500 tabular-nums">
-                  {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-white truncate">
+                    {TICKER_NAMES[h.ticker] ?? h.ticker}
+                  </div>
+                  <div className="text-[11px] text-zinc-500 tabular-nums">
+                    {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[14px] font-semibold text-white tabular-nums">
-                  {fmtUSD(h.currentValue)}
+                <div className="text-right">
+                  <div className="text-[14px] font-semibold text-white tabular-nums">
+                    {fmtUSD(h.currentValue)}
+                  </div>
+                  <div
+                    className="text-[11px] font-medium tabular-nums"
+                    style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
+                  >
+                    {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
+                  </div>
                 </div>
-                <div
-                  className="text-[11px] font-medium tabular-nums"
-                  style={{ color: h.plPct >= 0 ? "#00C805" : "#FF453A" }}
-                >
-                  {fmtPct(h.plPct)}
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

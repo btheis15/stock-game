@@ -260,6 +260,12 @@ export function rangeBounds(
   if (tradingDates.length === 0) return { startDate: "", endDate: "" };
   const endDate = tradingDates[tradingDates.length - 1];
   if (range === "ALL") return { startDate: tradingDates[0], endDate };
+  if (range === "1D") {
+    // Previous trading day → today. End date is the intraday date if present;
+    // start date is the most recent earlier trading day.
+    const prev = tradingDates[tradingDates.length - 2] ?? endDate;
+    return { startDate: prev, endDate };
+  }
   const days = RANGE_DAYS[range] as number;
   const last = new Date(endDate + "T00:00:00Z");
   const cutoff = new Date(last);
@@ -268,6 +274,39 @@ export function rangeBounds(
   const startIdx = tradingDates.findIndex((d) => d >= cutoffStr);
   const startDate = startIdx <= 0 ? tradingDates[0] : tradingDates[startIdx];
   return { startDate, endDate };
+}
+
+/**
+ * For a range, return the start and end close used to score a single ticker.
+ * 1D uses (previous-day close → latest intraday bar) so it matches the live
+ * curve; other ranges use (lastKnownClose at startDate → lastKnownClose at
+ * endDate).
+ */
+export function rangeCloses(
+  series: TickerSeries,
+  data: PriceData,
+  range: Range
+): { startClose: number; endClose: number } {
+  if (range === "1D") {
+    const intradayDate =
+      data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1];
+    const prevDates = data.tradingDates.filter((d) => d < intradayDate);
+    const prevDate =
+      prevDates[prevDates.length - 1] ??
+      data.tradingDates[data.tradingDates.length - 1];
+    const startClose = lastKnownClose(series, prevDate);
+    const intraday = series.intraday ?? [];
+    const endClose =
+      intraday[intraday.length - 1]?.close ??
+      series.closes[series.closes.length - 1]?.close ??
+      startClose;
+    return { startClose, endClose };
+  }
+  const { startDate, endDate } = rangeBounds(data.tradingDates, range);
+  return {
+    startClose: lastKnownClose(series, startDate),
+    endClose: lastKnownClose(series, endDate),
+  };
 }
 
 export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
@@ -283,8 +322,7 @@ export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
     for (const t of u.tickers) {
       const s = data.tickers[t];
       const shares = sharesFor(u.id, s);
-      const startClose = lastKnownClose(s, startDate);
-      const endClose = lastKnownClose(s, endDate);
+      const { startClose, endClose } = rangeCloses(s, data, range);
       const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
       const dollars = shares * (endClose - startClose);
       const mover: RangeMover = { ticker: t, pct, dollars, ownerId: u.id };
@@ -309,6 +347,8 @@ export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
   };
 }
 
+const HOLDING_RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
+
 export function buildHoldingRows(
   userId: UserId,
   data: PriceData
@@ -323,6 +363,21 @@ export function buildHoldingRows(
     const costBasis = shares * s.startClose;
     const pl = currentValue - costBasis;
     const plPct = costBasis === 0 ? 0 : pl / costBasis;
+
+    // Per-range pct + $ delta for the underlying ticker over the range. The
+    // intraday range uses prev-day close → latest intraday bar so it tracks
+    // the live curve.
+    const rangeStats = {} as HoldingRow["rangeStats"];
+    for (const r of HOLDING_RANGES) {
+      const { startClose, endClose } = rangeCloses(s, data, r);
+      const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
+      rangeStats[r] = {
+        pct,
+        dollars: shares * (endClose - startClose),
+        endClose,
+      };
+    }
+
     return {
       ticker: t,
       shares,
@@ -332,6 +387,7 @@ export function buildHoldingRows(
       currentValue,
       pl,
       plPct,
+      rangeStats,
     };
   });
 }
