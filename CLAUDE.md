@@ -701,21 +701,32 @@ npm run refresh   # alias for cron-update.sh; safe to run any time
 
 ## §13. Pushing changes — branch model
 
-- `main` is protected. CI build must pass; PRs required for code
-  changes from the laptop.
-- The Mac mini's auto-commits ARE allowed to push to main directly
-  (bypass list = `btheis15`), so the schedule keeps working.
+The actual day-to-day workflow on the laptop is intentionally minimal:
+
+```
+git commit -am "..."
+git push                      # pre-push hook handles everything
+```
+
+The pre-push hook does both jobs automatically:
+1. **Auto-rebases** onto `origin/main` if the laptop's local main has
+   fallen behind (which it always has, because the Mac mini pushes data
+   commits every 5 min). No manual `git pull` needed.
+2. **Runs `npm run build`** to catch type errors / SSG failures.
+
+`git config pull.rebase true` and `pull.ff only` are also set in the
+local repo config, so manual `git pull` invocations rebase too.
+
+Branch protection is **not yet enabled** on `main` (per
+`docs/branch-protection.md` — solo-dev mode). When you turn it on, the
+laptop's workflow shifts to feature-branch + PR + CI + merge. Until then,
+direct push to `main` from the laptop is fine. The Mac mini's data
+commits ARE allowed to push to main directly via the bypass list when
+protection is enabled.
+
 - Don't force-push to `main`. Don't merge unreviewed code into `main`
   from shared environments.
-- Expected workflow from the laptop:
-  ```
-  git checkout -b feat/xyz
-  # ... edit, save, npm run build ...
-  git commit -am "..."
-  git push -u origin feat/xyz   # pre-push hook runs npm run build
-  gh pr create
-  # CI green → merge → webhook deploys
-  ```
+- Bypass the hook only for emergencies: `git push --no-verify`.
 
 ### §13.1. Failure modes when iterating from the laptop
 

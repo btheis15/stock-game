@@ -1,19 +1,49 @@
 #!/usr/bin/env bash
-# Pre-push: block pushes that fail `npm run build`. Skip when only
-# public/data/* changed (Mac mini's recurring price refresh).
+# Pre-push hook for the Stock Game laptop workflow.
 #
-# Install (once per clone):  git config core.hooksPath .githooks
+# Two jobs:
+#   1. Auto-rebase onto origin/main if local has diverged. The Mac mini
+#      pushes data commits every 5 min, so the laptop's local main goes
+#      "behind" origin between work sessions — this prevents non-fast-forward
+#      push rejections without the user having to remember `git pull` first.
+#   2. Run `npm run build` for any push that touches code. Skipped for
+#      data-only pushes (Mac mini's recurring price refresh stays fast).
+#
+# Install (once per clone): git config core.hooksPath .githooks
+#
+# To bypass the entire hook (rare, e.g. emergency force-push):
+#   git push --no-verify
 
 set -euo pipefail
 
 zero="0000000000000000000000000000000000000000"
+
+# ─── 1. Auto-rebase if local main isn't on top of origin/main ─────────────
+# Skips rebase silently on network failure (offline pushes still proceed and
+# will reject with the normal non-FF message if needed).
+if git fetch origin main --quiet 2>/dev/null; then
+  local_sha=$(git rev-parse HEAD)
+  remote_sha=$(git rev-parse origin/main 2>/dev/null || echo "")
+  if [ -n "$remote_sha" ] && [ "$local_sha" != "$remote_sha" ]; then
+    base=$(git merge-base HEAD origin/main 2>/dev/null || echo "")
+    if [ -n "$base" ] && [ "$base" != "$remote_sha" ]; then
+      echo "pre-push: rebasing onto origin/main (catching up with Mac mini's data commits)"
+      git pull --rebase --autostash origin main
+    fi
+  fi
+fi
+
+# ─── 2. Build check (skipped for data-only pushes) ────────────────────────
 need_build=0
 
-while read -r local_ref local_sha remote_ref remote_sha; do
+while read -r local_ref local_sha_stdin remote_ref remote_sha; do
+  # Use current local SHA (may have moved during the rebase above).
+  local_sha=$(git rev-parse "$local_ref" 2>/dev/null || echo "")
+  [ -z "$local_sha" ] && continue
   [ "$local_sha" = "$zero" ] && continue   # branch deletion — nothing to build
 
   if [ "$remote_sha" = "$zero" ]; then
-    # New branch — diff against origin/main as a sane baseline. If that fails
+    # New branch — diff against origin/main as a baseline. If that fails
     # (no main locally), just build to be safe.
     if base=$(git merge-base "$local_sha" origin/main 2>/dev/null); then
       range="$base..$local_sha"

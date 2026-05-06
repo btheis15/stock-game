@@ -254,7 +254,18 @@ rm scripts/.pause      # resumes
 
 ### .githooks/pre-push
 
-Activated per clone with `git config core.hooksPath .githooks`. Runs `npm run build` for any push that touches files outside `public/data/`. Data-only pushes (the recurring schedule) skip the build so refreshes stay fast.
+Activated per clone with `git config core.hooksPath .githooks`. Two jobs:
+
+1. **Auto-rebase onto `origin/main`** if local has fallen behind (Mac mini's
+   data commits land all day; this prevents non-fast-forward push rejections
+   on the laptop without the user having to remember `git pull` first). Uses
+   `git pull --rebase --autostash origin main`. Skipped silently on network
+   failure so offline pushes still proceed normally.
+2. **`npm run build`** for any push that touches files outside
+   `public/data/`. Data-only pushes (the recurring schedule) skip the build
+   so refreshes stay fast.
+
+Bypass either with `git push --no-verify` (rare; only for emergency force pushes).
 
 ## 9. Setup checklist (any new Mac)
 
