@@ -13,7 +13,7 @@
 | Live | https://stock-game-gamma.vercel.app |
 | Vercel project | `btheis15s-projects/stock-game` |
 | Owner / GH user | `btheis15` |
-| Primary working dir | `/Users/brian/Desktop/Stock Game App/stock-game` |
+| Primary working dir | `~/Repos/stock-game` on each machine (NOT iCloud Desktop — iCloud sync corrupts `.git/refs/` and `.next/` with `" 2"` duplicate files, breaking every cron fire). The folder at `~/Desktop/Stock Game App/` keeps absolute symlinks to the canonical docs for iCloud discovery. |
 | Inception (t=0) | **2026-02-05** (close-of-day; portfolios bought at this close) |
 | Per-portfolio start | $100,000 USD, divided evenly across each player's picks |
 | Mac mini timezone | Central Time (CT) — scheduler defaults assume CT for ET market hours |
