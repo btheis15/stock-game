@@ -14,8 +14,12 @@
    section header even if you skip the body — section names are the index.
 2. **STATE.md** — canonical state, tables, structural reference.
 3. **OVERVIEW.md** — for matching the user's mental model.
-4. **README.md** — public intro only; mostly cosmetic.
-5. The actual code in `lib/`, `components/`, `app/`, and `scripts/`.
+4. **DESIGN.md** — portable design system (the UI/UX patterns, the
+   distribution architecture, formatter library). Useful both for
+   maintaining this app's visual consistency *and* for porting the same
+   patterns to a different project.
+5. **README.md** — public intro only; mostly cosmetic.
+6. The actual code in `lib/`, `components/`, `app/`, and `scripts/`.
 
 ---
 

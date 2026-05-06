@@ -20,7 +20,8 @@ either a human or an AI session:
 |---|---|---|
 | **[STATE.md](./STATE.md)** | AI / engineer | Dense canonical technical state — data model, every component contract, the pipeline, gotchas. Read this first if you're picking up the project. |
 | **[OVERVIEW.md](./OVERVIEW.md)** | Human | Narrative walkthrough — what the app does, how players are scored, how updates flow, common tasks. |
-| **[CLAUDE.md](./CLAUDE.md)** | AI agents | Conventions for Claude/AI sessions working on this repo, including the contract to keep `STATE.md` in sync with code changes. |
+| **[CLAUDE.md](./CLAUDE.md)** | AI agents | Conventions for Claude/AI sessions working on this repo: end-to-end traces, debugging playbook, change patterns, the contract to keep `STATE.md` in sync with code changes. |
+| **[DESIGN.md](./DESIGN.md)** | Anyone reusing the look-and-feel | Portable design-system reference: visual language, layout patterns, component contracts, the GitHub→Vercel→PWA distribution architecture, formatter library. Lift it into any other project that wants the same feel. |
 
 ---
 
