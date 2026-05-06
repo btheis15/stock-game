@@ -757,6 +757,94 @@ over cleanly. Edit the cron internals more carefully (run
 `bash scripts/cron-update.sh` locally first) since their bugs persist
 until fixed.
 
+### §13.2. First-time machine setup (Mac mini OR laptop)
+
+The setup is the same on both machines. **The single most important
+rule: do NOT clone the repo into iCloud Desktop or any iCloud-synced
+folder.** Clone to `~/Repos/stock-game` instead.
+
+**Why iCloud is forbidden** (lesson learned the hard way, 2026-05-06):
+iCloud silently writes `<filename> 2` duplicates inside `.git/`,
+`.next/`, `node_modules/`, and the working tree whenever it thinks two
+devices are racing on a write. A duplicated
+`.git/refs/remotes/origin/main 2` poisons `git fetch` with
+`fatal: bad object refs/remotes/origin/main 2`, which makes every cron
+fire silently abort at the rebase step (no commit, no push, last-good
+data sticks until you notice). `.next/` corruption breaks every local
+`next build`. `package.json 2` will trip `npm install`. Whack-a-mole
+cleanup is futile; iCloud regenerates duplicates on the next sync
+event. The only durable fix is to keep the repo off iCloud.
+
+The two machines stay in sync via **GitHub** (`origin/main`), not iCloud.
+Both push/pull from the same remote. iCloud Desktop's `~/Desktop/Stock
+Game App/` folder keeps absolute symlinks to the canonical docs
+(CLAUDE.md, STATE.md, OVERVIEW.md, DESIGN.md) so the user can still
+discover the project from their iCloud Desktop view, but the repo
+itself lives outside iCloud.
+
+**Setup commands (one-time per machine):**
+
+```bash
+mkdir -p ~/Repos
+git clone https://github.com/btheis15/stock-game.git ~/Repos/stock-game
+cd ~/Repos/stock-game
+
+# Local hooks: auto-rebase before push + build-check (skipped on data-only)
+git config core.hooksPath .githooks
+
+# Identity matches the existing commit history (Mac mini's auto-commits
+# are authored as the same person)
+git config user.name "Brian Theis"
+git config user.email "brian.theis15@gmail.com"
+
+# Dependencies — the flag is required; .npmrc also pins it
+npm install --legacy-peer-deps
+
+# Verify it builds and the working tree is sane
+npm run build
+git status   # → "On branch main, your branch is up to date, working tree clean"
+```
+
+**Mac mini extras** (for running the recurring schedule):
+
+- Python 3 + tkinter — system Python on macOS includes both
+- Node 22+ via Homebrew (`brew install node`) is fine; the project
+  works on 22, 24, and 25
+- Vercel CLI is **not** required — the GitHub→Vercel webhook handles
+  deploys. The `.vercel/project.json` link in the repo is only useful
+  if you want to run `vercel deploy` manually.
+- `caffeinate` is built into macOS; the scheduler invokes it.
+
+**Laptop extras** (for development):
+
+- `gh` (GitHub CLI) for PRs: `brew install gh && gh auth login`
+- IPv6 disable if `npm install` or Yahoo Finance times out
+  (some local networks advertise IPv6 without working routing):
+  ```
+  sudo networksetup -setv6off "Wi-Fi"
+  sudo networksetup -setv6off "Ethernet"
+  ```
+
+**Launch commands:**
+
+| Action | Command |
+|---|---|
+| Mac mini: open scheduler UI | `cd ~/Repos/stock-game && npm run stockgame` |
+| Mac mini: manual one-shot refresh | `cd ~/Repos/stock-game && npm run refresh` |
+| Laptop: dev server | `cd ~/Repos/stock-game && npm run dev` |
+| Laptop: feature branch + PR | `git checkout -b feat/x && ... && git push -u origin feat/x && gh pr create` |
+
+**If you find iCloud duplicates after the fact** (`<file> 2`,
+`<file> 2.json`, etc.) inside the repo, sweep them out:
+
+```bash
+cd ~/Repos/stock-game
+find . -name "* 2" -o -name "* 2.*" | xargs rm -rf
+```
+
+If you find them and the repo IS in iCloud, that's the signal to
+relocate (`mv ~/Desktop/Stock\ Game\ App/stock-game ~/Repos/`).
+
 ---
 
 ## §14. What you don't need to worry about

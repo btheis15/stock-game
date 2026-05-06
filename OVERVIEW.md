@@ -183,11 +183,32 @@ Run `npm run fetch-prices -- --full`. The portfolio engine handles the rest:
 on the effective date, Brian gains `42.76 × 0.25 ≈ 10.69` shares of NEWCO,
 and his portfolio total includes the new position from that date forward.
 
-### Run a refresh manually
-On any machine where the repo is cloned, Node is installed, and Vercel CLI
-is logged in:
+### Set up a new machine
+Whether it's the Mac mini that runs the schedule or a laptop where you
+edit code, the setup is the same. **One rule before anything else: do
+not clone the repo into iCloud Desktop.** iCloud silently creates
+duplicate files inside `.git/` and `.next/` that corrupt the repo and
+break every cron fire. Clone to `~/Repos/stock-game` instead and let
+GitHub be the only sync mechanism between machines.
+
 ```
-cd ~/Desktop/Stock\ Game\ App/stock-game
+mkdir -p ~/Repos
+git clone https://github.com/btheis15/stock-game.git ~/Repos/stock-game
+cd ~/Repos/stock-game
+git config core.hooksPath .githooks
+git config user.name "Brian Theis"
+git config user.email "brian.theis15@gmail.com"
+npm install --legacy-peer-deps
+npm run build         # confirm it works
+```
+
+Full first-time-setup detail and the iCloud-corruption postmortem are
+in CLAUDE.md §13.2.
+
+### Run a refresh manually
+On any machine where the repo is cloned and Node is installed:
+```
+cd ~/Repos/stock-game
 npm run refresh
 ```
 That's the same thing the cron does. ~50 seconds end-to-end.
