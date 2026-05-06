@@ -34,10 +34,11 @@ interface Props {
   series: Record<UserId, PortfolioPoint[]>;
   intraday: Record<UserId, IntradayResult>;
   intradayDate: string;
+  generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
 }
 
-export function CompareView({ series, intraday, intradayDate, analyses }: Props) {
+export function CompareView({ series, intraday, intradayDate, generatedAt, analyses }: Props) {
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
@@ -127,7 +128,7 @@ export function CompareView({ series, intraday, intradayDate, analyses }: Props)
         </div>
       </div>
 
-      {isIntraday && <MarketStateBadge live={live} />}
+      {isIntraday && <MarketStateBadge live={live} generatedAt={generatedAt} />}
 
       <ScrubChart
         series={chartSeries}

@@ -24,9 +24,10 @@ import { MarketStateBadge } from "./MarketStateBadge";
 interface Props {
   series: TickerSeries;
   intradayDate: string;
+  generatedAt: string;
 }
 
-export function StockView({ series, intradayDate }: Props) {
+export function StockView({ series, intradayDate, generatedAt }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
@@ -74,7 +75,7 @@ export function StockView({ series, intradayDate }: Props) {
         fractionDigits={2}
       />
 
-      {isIntraday && <MarketStateBadge live={live} />}
+      {isIntraday && <MarketStateBadge live={live} generatedAt={generatedAt} />}
 
       <ScrubChart
         series={[{ id: series.ticker, color: accentColor, data: ranged }]}

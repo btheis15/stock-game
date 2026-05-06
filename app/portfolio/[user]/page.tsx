@@ -37,6 +37,7 @@ export default async function Page({
         series={series}
         intraday={intraday}
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
+        generatedAt={data.generatedAt}
         holdings={holdings}
       />
     </>

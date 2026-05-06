@@ -26,6 +26,7 @@ export default async function Page({
       <StockView
         series={series}
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
+        generatedAt={data.generatedAt}
       />
     </>
   );

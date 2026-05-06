@@ -35,6 +35,7 @@ interface Props {
   series: PortfolioPoint[];
   intraday: IntradayResult;
   intradayDate: string;
+  generatedAt: string;
   holdings: HoldingRow[];
 }
 
@@ -43,6 +44,7 @@ export function PortfolioView({
   series,
   intraday,
   intradayDate,
+  generatedAt,
   holdings,
 }: Props) {
   const user = USERS[userId];
@@ -91,7 +93,7 @@ export function PortfolioView({
         scrubDate={scrubLabel}
       />
 
-      {isIntraday && <MarketStateBadge live={live} />}
+      {isIntraday && <MarketStateBadge live={live} generatedAt={generatedAt} />}
 
       <ScrubChart
         series={[{ id: userId, color: user.color, data: ranged }]}
