@@ -1,0 +1,249 @@
+# Stock Game — Overview
+
+A friendly stock-picking competition between four people, tracked daily since
+**February 5, 2026**. Each player gets a $100,000 paper portfolio, divided
+evenly across their picks. The app is a mobile-first PWA that anyone can open
+in Safari and add to their iPhone home screen — it looks and behaves like
+Robinhood, except instead of one portfolio you see all four overlaid on the
+same chart with a leaderboard underneath.
+
+The point is twofold:
+1. **Bragging rights.** The "loser pays for golf" sub-headline is real.
+2. **Watch how different picking strategies play out** in a way that's actually
+   pleasant to scroll through on your phone, day to day.
+
+> **Companion docs:** if you want the dense technical state for handing off to
+> another Claude session, see [STATE.md](./STATE.md). If you're an AI session
+> picking this up cold, also read [CLAUDE.md](./CLAUDE.md) for how to keep
+> these docs in sync.
+
+---
+
+## What does the app actually do?
+
+Three things, on a phone screen:
+
+1. **Compare** (home tab). Four colored lines on one chart: Brian green, Kevin
+   blue, Rick orange, Lee purple. Drag your finger across the chart and the
+   header above updates with the gap (in dollars and percent) at that exact
+   moment. Below the chart is a 2×2 leaderboard showing 1st through 4th place
+   with each player's current portfolio value. Below that, "What's driving
+   it" — for each player, the top three holdings boosting them and the bottom
+   three dragging them down, in the active time range.
+
+2. **Per-player drill-down.** Tap any leaderboard card or any holding row from
+   the insights cards and you land on that player's portfolio. Same big
+   chart, but only their line; below it, a list of every holding they have,
+   sorted by performance.
+
+3. **Per-stock detail.** Tap any holding and you see that stock's price chart
+   plus a "Position" card for each player who owns it (Kevin and Rick both
+   own NVDA, for example, so NVDA's page shows both their positions). Below
+   that, a list of every dividend that stock has paid since 2/5.
+
+Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
+that re-scope the data. The 1D view is special: the x-axis spans the full
+trading day (9:30 AM – 4:00 PM ET), the line shows what's happened so far,
+and the most-recent point pulses gently while the market is live. A "● LIVE"
+or "● MARKET CLOSED" badge sits just above the chart in 1D so you know which
+state you're in.
+
+Pull down at the top of any page to refresh. If you've left the app closed
+for more than a minute and come back, it auto-refreshes too — no need to
+think about staleness.
+
+---
+
+## The four players
+
+| Player | Color | Picks | Per-pick allocation |
+|---|---|---|---|
+| **Brian** | green | ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD | $10,000 |
+| **Kevin** | blue | TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT | $10,000 |
+| **Rick** | orange | COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA | $10,000 |
+| **Lee** | purple | SPY | $100,000 |
+
+A few notes on this:
+- The "$10k per pick" rule comes from "$100k total ÷ 10 picks." Lee chose to
+  put the entire $100k into a single S&P 500 ETF, so his per-pick
+  allocation is $100k.
+- Kevin and Rick both own NVDA and TSLA. Even though they share prices,
+  they each have their own independent share count (because each spent
+  their own $10k buying it at the 2/5 close).
+- Buying happens at the **2026-02-05 closing price**, partial shares allowed.
+  Once a share count is set on Feb 5, it doesn't change unless a corporate
+  action (spin-off, split) modifies it.
+- Dividends are tracked. When AAPL pays $0.26/share, Brian's portfolio
+  picks up `36.24 shares × $0.26 = $9.42` in cash — added to his total.
+
+---
+
+## How updates work
+
+You don't have to do anything for the app to stay current. Here's the chain:
+
+```
+[Mac mini at home, running 24/7]
+    ↓ scheduler app fires every 15 minutes during US market hours (8:30am–3:00pm CT)
+    ↓
+[scripts/cron-update.sh runs]
+    ├── pulls the latest closing prices + intraday bars from Yahoo Finance
+    ├── if anything changed: commits + pushes to GitHub
+    └── deploys to Vercel
+    ↓
+[stock-game-gamma.vercel.app rebuilds in ~30 seconds]
+    ↓
+[Your iPhone shows the latest data the next time you open the app]
+```
+
+End-to-end, from "data changes" to "your phone shows it" is about a minute.
+The schedule is configurable from a tkinter desktop app on the Mac mini —
+launch it with `npm run stockgame`. Pick an interval (5/10/15/30 min, or
+1–24 hr), pick a window (defaults to market hours in CT), and click
+**Schedule Run**. It stays scheduled until you click **Stop** or close the app.
+
+---
+
+## The tech, in one paragraph
+
+Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, deployed
+statically on Vercel. Charts rendered with Visx (D3-powered SVG). Stock data
+pulled from Yahoo Finance via `yahoo-finance2`. The whole frontend is
+prerendered at build time — no API routes, no live database — and the only
+state that changes is the committed `public/data/prices.json` snapshot. The
+scheduler app is a Python tkinter window using `threading.Timer` to fire a
+single shell script. Sleep is held off with `caffeinate`. The whole pipeline
+is about a thousand lines of code.
+
+PWA install on iPhone: open `stock-game-gamma.vercel.app` in Safari → Share
+button → Add to Home Screen → it installs full-screen with the icon and
+launches like a native app.
+
+---
+
+## Things that look weird but are intentional
+
+- **The headline says "Rick leads" without naming who he's leading.**
+  The leaderboard right below shows the full standings. Saying "Rick leads
+  Kevin" was redundant once there were more than two players.
+- **The 1D chart looks half-empty in the morning.** That's because the line
+  only spans the time elapsed during today's session. The empty right side
+  is the rest of the trading day; it fills in as the day goes on. Robinhood
+  does the same thing.
+- **The portfolio totals go up by tiny amounts on dividend dates** even when
+  no stock moved. That's the dividend cash hitting the account.
+- **"Market closed" appears outside trading hours.** No blinking endpoint when
+  the market isn't actually moving — just a static last-known value.
+- **The OG card preview in iMessage shows old text for ~24 hours.** Apple
+  caches preview cards on their servers; nothing we can do until they
+  refresh their cache. New shares of the URL get the new card immediately.
+- **Some "tickers" are owned by multiple players** (NVDA, TSLA). The stock
+  detail page shows a Position card for each. Their charts are identical
+  (same stock = same price); the Position info differs per owner.
+
+---
+
+## How to do common things
+
+### Change my picks
+Don't, after Feb 5. The whole game depends on the share counts being fixed
+at the 2/5 close. If you really need to swap one stock for another mid-game,
+the "honest" approach is to add it as a future-dated event (you'd need to
+extend `lib/events.ts` to support trades, which it currently doesn't).
+
+### Add a new player
+Edit `lib/picks.ts`: add a new entry to `USERS` with `id`, `name`, `color`,
+`tickers`. They'll automatically:
+- Appear on the Compare leaderboard with a 5th line
+- Get a portfolio drill-down at `/portfolio/{their-id}`
+- Be filterable on the Stocks tab
+- Show in the "What's driving it" cards
+- Have shares computed at the 2/5 close
+
+If their picks include any new tickers, also add them to `TICKER_NAMES` and
+run `npm run fetch-prices -- --full` to grab those tickers' price history.
+
+### Add a spin-off (when HON announces theirs)
+Edit `lib/events.ts`. Drop in:
+```ts
+{
+  parentTicker: "HON",
+  childTicker: "NEWCO",
+  childName: "Honeywell Aerospace",
+  effectiveDate: "2026-XX-XX",
+  sharesPerParentShare: 0.25,
+}
+```
+Run `npm run fetch-prices -- --full`. The portfolio engine handles the rest:
+on the effective date, Brian gains `42.76 × 0.25 ≈ 10.69` shares of NEWCO,
+and his portfolio total includes the new position from that date forward.
+
+### Run a refresh manually
+On any machine where the repo is cloned, Node is installed, and Vercel CLI
+is logged in:
+```
+cd ~/Desktop/Stock\ Game\ App/stock-game
+npm run refresh
+```
+That's the same thing the cron does. ~50 seconds end-to-end.
+
+### Set up the recurring schedule
+Open the scheduler UI on the Mac mini:
+```
+npm run stockgame
+```
+A native window opens. Pick a time, pick an interval, pick a window, hit
+Schedule Run. Leave the app open — it has to be running for the threading
+timer to fire. `caffeinate` keeps the Mac awake while it's open.
+
+### Force-refresh on my phone
+Pull down at the top of any page. Or close the app and re-open it after a
+minute (the auto-refresh-on-resume logic kicks in).
+
+### Share the link with new players
+Just text them `stock-game-gamma.vercel.app`. The OG preview card shows the
+title, "Loser pays for golf — tracked since Feb 5, 2026," and a stylized
+mini chart with all four players' colors. They open it in Safari, tap
+Share → Add to Home Screen, and it lives on their home screen as a
+full-screen app.
+
+---
+
+## How to debug it when something looks off
+
+1. **Check the footer.** Bottom of every page: "Data through {date} /
+   Snapshot generated {time}". If those dates are old, the cron isn't
+   running — log into the Mac mini and check `/tmp/stock-game.log`.
+2. **Check the deploy.** `vercel ls` on any machine logged into Vercel CLI
+   shows the last few deploys with timestamps. If they stopped, the
+   GitHub-Vercel webhook may have lost permission again — re-grant at
+   `https://github.com/apps/vercel/installations/select_target`.
+3. **Hard refresh on iPhone.** Long-press the home screen icon → Delete →
+   re-open the URL in Safari → Add to Home Screen again. Fixes anything
+   that's stuck on a stale cached HTML.
+4. **Run `npm run refresh` directly.** If it works locally but the cron
+   doesn't, the cron environment is missing something. Check that
+   `vercel link` succeeded on the Mac mini and that `vercel login` auth
+   hasn't expired.
+
+---
+
+## Where things live
+
+- **Live app:** https://stock-game-gamma.vercel.app
+- **Code:** https://github.com/btheis15/stock-game
+- **Data snapshot:** `public/data/prices.json` (committed)
+- **Cron pipeline:** `scripts/cron-update.sh`
+- **Scheduler UI:** `scripts/stockgame_schedule.py`
+- **All math:** `lib/portfolio.ts`
+- **Players, picks, colors:** `lib/picks.ts`
+
+---
+
+## Maintenance promise
+
+Whenever code changes meaningfully — new player, new ticker, new feature,
+new pipeline step — both this file and `STATE.md` get updated in the same
+commit. That way picking the project up on a new machine, or in a new
+Claude session, is always a one-shot read. The `CLAUDE.md` in the repo
+spells this out for AI sessions.

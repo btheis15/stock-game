@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stock Game
 
-## Getting Started
+A friendly portfolio showdown between **Brian, Kevin, Rick, and Lee**, tracked
+since **Feb 5, 2026**. Each player starts with $100,000 split evenly across
+their picks at that day's close (partial shares allowed). Mobile-first PWA,
+installable to your iPhone home screen, with a Robinhood-style scrub chart.
 
-First, run the development server:
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbtheis15%2Fstock-game)
+
+**Live:** https://stock-game-gamma.vercel.app
+
+---
+
+## Documentation
+
+This repo carries its own complete context, designed to be readable cold by
+either a human or an AI session:
+
+| File | Audience | What it is |
+|---|---|---|
+| **[STATE.md](./STATE.md)** | AI / engineer | Dense canonical technical state — data model, every component contract, the pipeline, gotchas. Read this first if you're picking up the project. |
+| **[OVERVIEW.md](./OVERVIEW.md)** | Human | Narrative walkthrough — what the app does, how players are scored, how updates flow, common tasks. |
+| **[CLAUDE.md](./CLAUDE.md)** | AI agents | Conventions for Claude/AI sessions working on this repo, including the contract to keep `STATE.md` in sync with code changes. |
+
+---
+
+## Quick start (development)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install --legacy-peer-deps   # visx peer-dep workaround
+npm run fetch-prices             # populate public/data/prices.json
+npm run dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quick start (data refresh + deploy)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run refresh                  # fetch prices + commit + push + deploy
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+End-to-end ~50 seconds. Designed to be run by a cron / the scheduler app.
 
-## Learn More
+## Scheduler UI (Mac mini)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run stockgame                # native tkinter window
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Pick an interval (5/10/15/30 min, 1–24 hr) and a time window, hit "Schedule
+Run." The app stays open and fires `npm run refresh` on the timer; uses
+`caffeinate` to keep the Mac awake.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## File map (very condensed)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+app/                Next.js routes (Compare, /portfolio/[user], /stock/[ticker], /stocks)
+components/         All UI — ScrubChart, CompareView, PortfolioView, StockView, etc.
+lib/
+  picks.ts          Players, tickers, colors (source of truth for the roster)
+  portfolio.ts      All math, formatters, range filters
+  events.ts         Spin-off events (empty until HON announces)
+  types.ts          TS interfaces
+  data.ts           Loads public/data/prices.json server-side
+scripts/
+  fetch-prices.ts   Yahoo Finance fetcher (incremental + intraday + dividends)
+  cron-update.sh    Fetch + commit + push + Vercel deploy
+  stockgame_schedule.py   tkinter scheduler UI for the Mac mini
+  make-icons.py     Regenerate PWA icons
+  make-og.py        Regenerate the OG card
+public/
+  data/prices.json  The committed snapshot (Vercel reads this at build)
+  *.png             Icons, OG card
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For everything else, **see [STATE.md](./STATE.md)**.
