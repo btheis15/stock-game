@@ -423,6 +423,11 @@ Defensive ordering:
   3:00 PM CT = US market hours in ET).
 - Buttons: Schedule Run / Run Now / Stop / Open Log.
 - Status labels: "Next refresh: ..." and "Last run: ✓..." or "✗...".
+- **Edits to this Python file require closing + relaunching the tkinter
+  window** (`npm run stockgame`) — the script is loaded into memory once.
+  This is the *only* file in the pipeline where edits don't auto-flow on
+  the next fire. `cron-update.sh`, `fetch-prices.ts`, and any TS/TSX are
+  re-read every fire by their respective interpreters.
 
 ### §8.6. The webhook + deploy
 
@@ -711,6 +716,28 @@ npm run refresh   # alias for cron-update.sh; safe to run any time
   gh pr create
   # CI green → merge → webhook deploys
   ```
+
+### §13.1. Failure modes when iterating from the laptop
+
+The Mac mini fires `cron-update.sh` every 5–15 min while the schedule
+is running. Whatever's on `origin/main` gets pulled, run, and pushed
+back. Two distinct failure modes if a change you push has a bug:
+
+| Bug location | What happens on next Mac mini fire | Live site impact | Recovery |
+|---|---|---|---|
+| App code (`app/`, `components/`, `lib/`, styles) | Cron still runs to completion (fetch + commit + push succeed). Vercel build may fail. | If build fails, Vercel keeps serving the **last-good deploy** with stale data. If build succeeds with a runtime bug, users see the bug. | Push a fix → next fire's webhook redeploys. |
+| Cron internals (`scripts/fetch-prices.ts`, `scripts/cron-update.sh`) | Cron itself fails at the broken step. `set -e` aborts. **No commit, no push, no deploy.** | Last-good deploy keeps serving until you push a fix. Each subsequent fire keeps failing on the same code. | Push a fix → next fire runs cleanly. Check `/tmp/stock-game.log` on the Mac mini for the failure mode. |
+
+The pre-push hook (`.githooks/pre-push`) runs `npm run build` for any
+non-data push from the laptop. CI on PR runs the same. Both catch
+TypeScript / SSG errors. **Neither catches runtime bugs** — Yahoo
+Finance API hiccups, fetch-script logic errors, broken imports that
+only fire at request time. Those need a fix-forward push.
+
+For day-to-day: edit app code freely, push via PR, the next fire takes
+over cleanly. Edit the cron internals more carefully (run
+`bash scripts/cron-update.sh` locally first) since their bugs persist
+until fixed.
 
 ---
 

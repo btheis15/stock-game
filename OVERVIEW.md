@@ -196,6 +196,22 @@ A native window opens. Pick a time, pick an interval, pick a window, hit
 Schedule Run. Leave the app open — it has to be running for the threading
 timer to fire. `caffeinate` keeps the Mac awake while it's open.
 
+### Make changes from the laptop while the schedule is running
+Edit on a feature branch, push via PR, merge to `main`. The Mac mini's
+next scheduled fire `git pull --rebase`s, picks up your changes, and runs
+on the new code automatically.
+
+- **App code (components, pages, lib):** Safe to iterate. If you push a
+  bug, Vercel keeps serving the last-good deploy until you push a fix.
+  Cron itself keeps running.
+- **Cron internals (`scripts/fetch-prices.ts`, `scripts/cron-update.sh`):**
+  Test locally first (`bash scripts/cron-update.sh`). A bug here makes
+  every fire fail until you push a fix; live data goes stale in the
+  meantime.
+- **The scheduler UI itself (`scripts/stockgame_schedule.py`):** Edits
+  require closing + relaunching the tkinter window on the Mac mini.
+  This is the one file the running scheduler doesn't auto-pick-up.
+
 ### Force-refresh on my phone
 Pull down at the top of any page. Or close the app and re-open it after a
 minute (the auto-refresh-on-resume logic kicks in).
