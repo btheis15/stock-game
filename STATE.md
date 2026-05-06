@@ -192,17 +192,36 @@ components/
    │           default window 8:30 AM–3:00 PM CT = US market hours in ET)
    │           caffeinate prevents the Mac from sleeping while open
    ▼
-[shell]    scripts/cron-update.sh
-   ├─ npm run fetch-prices              → updates public/data/prices.json
+[shell]    scripts/cron-update.sh    (defensive — see below)
+   ├─ pause-file gate                 → exits 0 if scripts/.pause exists
+   ├─ branch guard                    → exits 0 unless current branch is main
+   ├─ git fetch + git pull --rebase   → reconciles with anything the laptop pushed
+   │     --autostash protects WIP        (post-rebase SHA captured for diff)
+   ├─ conditional npm install         → fired ONLY if package-lock.json or
+   │                                     package.json changed in the rebase, or
+   │                                     node_modules is missing
+   ├─ npm run fetch-prices            → updates public/data/prices.json
    │     - incremental: only refetches trailing 5 days per ticker
    │     - --full: re-fetches everything from START_DATE
    │     - also pulls today's 15-min intraday bars + dividend events
-   ├─ git add public/data/prices.json
-   ├─ git commit -m "data: ISO_TS"      (skipped if no diff)
-   ├─ git push                          → GitHub
-   └─ vercel deploy --prod --yes        → Vercel rebuild + alias to *-gamma.vercel.app
-                                          (also auto-fired by GitHub webhook;
-                                          duplicate triggers de-dupe at Vercel)
+   ├─ if public/data/prices.json changed:
+   │     git add public/data/prices.json   (stages ONLY the data file —
+   │                                         unrelated WIP never auto-commits)
+   │     git commit -m "data: ISO_TS"
+   │     git push                            → triggers .githooks/pre-push
+   │                                          (data-only path → skips build)
+   │                                          → triggers GitHub webhook
+   │                                          → triggers .github/workflows/build.yml
+   │
+   └─ NO direct vercel deploy        → relies on the GitHub→Vercel webhook to
+                                       redeploy. If the webhook ever breaks
+                                       again, re-add `vercel deploy --prod
+                                       --yes` to the end of cron-update.sh
+                                       (one-line restoration).
+
+[GitHub]   webhook fires Vercel rebuild
+[CI]       .github/workflows/build.yml runs `npm run build` on PRs and
+           pushes to main. Required status check for branch protection.
 
 [Vercel]   Next.js production build
    │           reads prices.json at build time → 35 static HTML pages prerendered
@@ -216,6 +235,27 @@ components/
 
 End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Vercel propagate).
 
+### Pause / resume the cron without closing the UI
+
+```bash
+touch scripts/.pause   # halts; cron-update.sh exits 0 immediately on next run
+rm scripts/.pause      # resumes
+```
+
+### Branch protection (configured in GitHub UI per `docs/branch-protection.md`)
+
+- Branch protection rule on `main`:
+  - Require PR before merging
+  - Require status check `build` to pass
+  - Require branches up-to-date before merging
+  - Bypass list: `btheis15` (so the Mac mini's data-only auto-pushes still go through)
+- Day-to-day from the laptop: feature branch → PR → CI build green → merge → webhook deploys.
+- Day-to-day on the Mac mini: the script rebases, pushes data commits, pre-push hook detects "data-only" and skips the local build for speed.
+
+### .githooks/pre-push
+
+Activated per clone with `git config core.hooksPath .githooks`. Runs `npm run build` for any push that touches files outside `public/data/`. Data-only pushes (the recurring schedule) skip the build so refreshes stay fast.
+
 ## 9. Setup checklist (any new Mac)
 
 ```
@@ -224,10 +264,14 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
 3. Python 3 + tkinter:         python3 -c "import tkinter; tkinter.Tk()"   (preinstalled on macOS)
 4. Repo:                       cd "~/Desktop/Stock Game App/stock-game" && git pull
 5. Deps:                       npm install --legacy-peer-deps
-6. Vercel CLI:                 npm install -g vercel && vercel login && vercel link
+6. Activate the pre-push hook: git config core.hooksPath .githooks
 7. Test pipeline:              npm run refresh
-8. Scheduler:                  npm run stockgame
+8. Scheduler (Mac mini only):  npm run stockgame
 ```
+
+Vercel CLI is NOT required on the Mac mini anymore — the webhook redeploys
+on push. Only install + auth `vercel` if you intend to run `vercel deploy`
+manually from this machine (e.g., as a fallback if the webhook breaks).
 
 The Mac mini's iCloud-Desktop sync may show files as `.icloud` placeholders — force-download the directory before doing anything.
 
@@ -262,6 +306,11 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **Today's intraday bars include extended hours** when Yahoo returns them. Visual treatment doesn't filter; the line just covers more of the axis pre-market and post-close. Acceptable.
 - **`isMarketLive`** = bar < 30 min old. Doesn't know about market holidays; relies on Yahoo not returning fresh bars on those days.
 - **No client-side polling.** All "live" feel comes from PullToRefresh's resume-reload + the scheduler's 15-min cadence. The chart's blink is purely visual; data is static between reloads.
+- **`scripts/.pause`** is the only soft-stop. The cron checks for it first thing. Use it to halt the schedule without closing the tkinter UI.
+- **Branch guard in `cron-update.sh`** means if anyone accidentally checks out a feature branch on the Mac mini, the recurring refresh exits 0 silently. To resume, `git checkout main` on the Mac mini.
+- **Pre-push hook is per-clone.** New clones must run `git config core.hooksPath .githooks` once or pushes will skip the local build check.
+- **`git pull --rebase --autostash`** in the cron stages any local WIP transparently. If the Mac mini ever has uncommitted edits, they survive the rebase and reappear; they're never auto-committed because we explicitly stage only `public/data/prices.json`.
+- **CI requires `npm run build` to pass on every PR.** Branch-protection-enforced. The cron's data-only pushes bypass via the pre-push hook detecting "no code changed" — they don't bypass CI itself, but `build.yml` runs anyway and passes since the build doesn't depend on data values, only the data file's existence.
 
 ## 12. Accounts / auth state
 
