@@ -108,6 +108,7 @@ export function PortfolioView({
         xDomain={xDomain}
         liveEndpoint={live}
         baseline={baselineValue}
+        compactX={isWeeklyHourly}
       />
 
       <RangeTabs value={range} onChange={setRange} accent={user.color} />

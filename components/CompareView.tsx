@@ -146,6 +146,7 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
         xDomain={xDomain}
         liveEndpoint={live}
         baseline={0}
+        compactX={isWeeklyHourly}
       />
 
       <RangeTabs value={range} onChange={setRange} accent={leader.user.color} />

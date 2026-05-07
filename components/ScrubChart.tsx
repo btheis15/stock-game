@@ -29,6 +29,13 @@ interface Props {
   xDomain?: [Date, Date];
   /** When true, draw a pulsing ring at the most recent data point. */
   liveEndpoint?: boolean;
+  /**
+   * When true, the x-axis is index-based (uniform spacing per data point)
+   * instead of time-based. Use this for ranges where the bars are intraday
+   * across multiple trading days (the 1W view) so overnight + weekend gaps
+   * collapse and the line is continuous, Robinhood-style.
+   */
+  compactX?: boolean;
 }
 
 export function ScrubChart({
@@ -38,6 +45,7 @@ export function ScrubChart({
   onScrub,
   xDomain,
   liveEndpoint,
+  compactX,
 }: Props) {
   return (
     <div style={{ height }} className="relative w-full select-none">
@@ -52,6 +60,7 @@ export function ScrubChart({
               onScrub={onScrub}
               xDomain={xDomain}
               liveEndpoint={liveEndpoint}
+              compactX={compactX}
             />
           ) : null
         }
@@ -75,6 +84,7 @@ function ScrubChartInner({
   onScrub,
   xDomain,
   liveEndpoint,
+  compactX,
 }: {
   width: number;
   height: number;
@@ -83,6 +93,7 @@ function ScrubChartInner({
   onScrub?: (s: ScrubState | null) => void;
   xDomain?: [Date, Date];
   liveEndpoint?: boolean;
+  compactX?: boolean;
 }) {
   const dates = useMemo(() => {
     const longest = series.reduce(
@@ -93,7 +104,19 @@ function ScrubChartInner({
     return longest?.data.map((d) => new Date(d.date.length > 10 ? d.date : d.date + "T00:00:00Z")) ?? [];
   }, [series]);
 
-  const xScale = useMemo(() => {
+  // In compactX mode the x-axis is index-based (one slot per data point) so
+  // overnight / weekend gaps disappear visually. Tick labels are placed at
+  // day-boundary indices and labeled with the date there.
+  const indexScale = useMemo(() => {
+    if (!compactX || dates.length === 0) return null;
+    return scaleLinear({
+      domain: [0, Math.max(1, dates.length - 1)],
+      range: [0, width],
+    });
+  }, [compactX, dates.length, width]);
+
+  const timeScale = useMemo(() => {
+    if (compactX) return null;
     if (xDomain) {
       return scaleTime({ domain: xDomain, range: [0, width] });
     }
@@ -102,7 +125,15 @@ function ScrubChartInner({
       domain: [dates[0], dates[dates.length - 1]],
       range: [0, width],
     });
-  }, [dates, width, xDomain]);
+  }, [dates, width, xDomain, compactX]);
+
+  // x-pixel for a given data-point index. Branches once at the top of the
+  // render so the rest of the SVG is identical between modes.
+  const xAt = (i: number): number => {
+    if (compactX && indexScale) return indexScale(i);
+    if (timeScale) return timeScale(dates[i]);
+    return 0;
+  };
 
   const yScale = useMemo(() => {
     if (series.length === 0) return null;
@@ -153,35 +184,52 @@ function ScrubChartInner({
 
   const handlePointer = useCallback(
     (clientX: number) => {
-      if (!containerRef.current || !xScale || dates.length === 0) return;
+      if (!containerRef.current || dates.length === 0) return;
       const rect = containerRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(width, clientX - rect.left));
-      const xDate = xScale.invert(x);
-      const idx = Math.min(
-        dates.length - 1,
-        Math.max(0, dateBisect(dates, xDate))
-      );
-      const left = dates[Math.max(0, idx - 1)];
-      const right = dates[idx];
-      const finalIdx =
-        idx > 0 &&
-        Math.abs(left.getTime() - xDate.getTime()) <
-          Math.abs(right.getTime() - xDate.getTime())
-          ? idx - 1
-          : idx;
+      let finalIdx: number;
+      if (compactX && indexScale) {
+        // Index-based: pixel → fractional index → nearest integer.
+        const fIdx = (indexScale.invert(x) as number) ?? 0;
+        finalIdx = Math.min(
+          dates.length - 1,
+          Math.max(0, Math.round(fIdx))
+        );
+      } else if (timeScale) {
+        const xDate = timeScale.invert(x);
+        const idx = Math.min(
+          dates.length - 1,
+          Math.max(0, dateBisect(dates, xDate))
+        );
+        const left = dates[Math.max(0, idx - 1)];
+        const right = dates[idx];
+        finalIdx =
+          idx > 0 &&
+          Math.abs(left.getTime() - xDate.getTime()) <
+            Math.abs(right.getTime() - xDate.getTime())
+            ? idx - 1
+            : idx;
+      } else {
+        return;
+      }
       reportScrub(finalIdx);
     },
-    [xScale, dates, width, dateBisect, reportScrub]
+    [timeScale, indexScale, compactX, dates, width, dateBisect, reportScrub]
   );
 
-  if (!xScale || !yScale || dates.length === 0) return null;
+  const haveScale = compactX ? indexScale != null : timeScale != null;
+  if (!haveScale || !yScale || dates.length === 0) return null;
 
   const baselineY = baseline !== undefined ? yScale(baseline) : null;
 
-  // 3–5 evenly distributed tick labels for the x-axis. Format adapts to the
-  // span: time-of-day for intraday, weekday for ~week, month-day for ~quarter,
-  // month for ~year, month+year for multi-year.
-  const xTicks = computeXTicks(xScale, width, dates);
+  // X-axis tick labels. Two modes:
+  //   • compactX (index-based, gap-collapsed): place a tick at each
+  //     trading-day boundary. Format = weekday short ("Mon", "Tue").
+  //   • time-based: 3–5 evenly distributed time positions. Format adapts
+  //     to span (hour/weekday/month/year).
+  const xTicks = compactX
+    ? computeXTicksCompact(dates, xAt)
+    : computeXTicksTime(timeScale!, width, dates);
 
   return (
     <svg
@@ -234,7 +282,7 @@ function ScrubChartInner({
         <g key={`area-${s.id}`}>
           <AreaClosed
             data={s.data}
-            x={(_, i) => xScale(dates[i])}
+            x={(_, i) => xAt(i)}
             y={(d) => yScale(d.value)}
             yScale={yScale}
             fill={`url(#grad-${s.id})`}
@@ -247,7 +295,7 @@ function ScrubChartInner({
         <LinePath
           key={`line-${s.id}`}
           data={s.data}
-          x={(_, i) => xScale(dates[i])}
+          x={(_, i) => xAt(i)}
           y={(d) => yScale(d.value)}
           stroke={s.color}
           strokeWidth={2}
@@ -259,7 +307,7 @@ function ScrubChartInner({
 
       {/* X-axis tick labels — subtle date / time markers along the bottom. */}
       {xTicks.map((tick, i) => {
-        const cx = xScale(tick.date);
+        const cx = tick.x;
         // Edge alignment: anchor end-text at the right edge for the last tick,
         // start-text at the left edge for the first tick — keeps labels from
         // clipping at the chart bounds.
@@ -285,7 +333,7 @@ function ScrubChartInner({
         series.map((s) => {
           const last = s.data[s.data.length - 1];
           if (!last) return null;
-          const cx = xScale(dates[s.data.length - 1]);
+          const cx = xAt(s.data.length - 1);
           const cy = yScale(last.value);
           return (
             <g key={`live-${s.id}`} pointerEvents="none">
@@ -313,8 +361,8 @@ function ScrubChartInner({
       {scrubIdx != null && (
         <g pointerEvents="none">
           <Line
-            from={{ x: xScale(dates[scrubIdx]), y: PAD_TOP - 8 }}
-            to={{ x: xScale(dates[scrubIdx]), y: height - PAD_BOTTOM }}
+            from={{ x: xAt(scrubIdx), y: PAD_TOP - 8 }}
+            to={{ x: xAt(scrubIdx), y: height - PAD_BOTTOM }}
             stroke="var(--chart-scrub-line)"
             strokeWidth={1}
           />
@@ -324,14 +372,14 @@ function ScrubChartInner({
             return (
               <g key={`pt-${s.id}`}>
                 <circle
-                  cx={xScale(dates[scrubIdx])}
+                  cx={xAt(scrubIdx)}
                   cy={yScale(v)}
                   r={6}
                   fill={s.color}
                   opacity={0.25}
                 />
                 <circle
-                  cx={xScale(dates[scrubIdx])}
+                  cx={xAt(scrubIdx)}
                   cy={yScale(v)}
                   r={3.5}
                   fill={s.color}
@@ -348,28 +396,22 @@ function ScrubChartInner({
 }
 
 interface XTick {
-  date: Date;
+  /** Pre-resolved x-pixel position. */
+  x: number;
   label: string;
 }
 
 /**
- * Compute 3–5 evenly distributed x-axis ticks. Format adapts to the span:
- *
- *   < 1 day:        time of day      "10am", "2pm"
- *   < 14 days:      weekday          "Mon", "Wed", "Fri"
- *   < 100 days:     month + day      "May 7", "Jun 1"
- *   < 366 days:     month            "May", "Jun", "Jul"
- *   else:           month + year     "May '26"
- *
- * Tick count adapts to chart width: ~80px per label so they don't overlap.
+ * Time-mode ticks: 3–5 evenly distributed positions across the time domain.
+ * Format adapts to the span (hour / weekday / month / year).
  */
-function computeXTicks(
-  xScale: ReturnType<typeof scaleTime>,
+function computeXTicksTime(
+  timeScale: ReturnType<typeof scaleTime>,
   width: number,
   dates: Date[]
 ): XTick[] {
   if (dates.length === 0) return [];
-  const domain = xScale.domain();
+  const domain = timeScale.domain();
   const start = domain[0] as Date;
   const end = domain[1] as Date;
   const spanMs = end.getTime() - start.getTime();
@@ -379,13 +421,46 @@ function computeXTicks(
 
   // Generate evenly spaced positions across [start, end]. Using xScale.ticks()
   // would also work but produces non-uniform spacing for sub-day domains.
-  const ticks: Date[] = [];
+  const ticks: { date: Date; x: number }[] = [];
   for (let i = 0; i < targetCount; i++) {
     const t = start.getTime() + (spanMs * i) / (targetCount - 1);
-    ticks.push(new Date(t));
+    const date = new Date(t);
+    ticks.push({ date, x: Number(timeScale(date)) });
   }
 
-  return ticks.map((d) => ({ date: d, label: formatXTick(d, spanDays) }));
+  return ticks.map((tk) => ({ x: tk.x, label: formatXTick(tk.date, spanDays) }));
+}
+
+/**
+ * Compact-mode ticks: place a label at each trading-day boundary in the
+ * data-point array. Used when the x-axis is index-based (overnight + weekend
+ * gaps are collapsed) so the labels still tell you which day each segment
+ * of the line belongs to.
+ */
+function computeXTicksCompact(
+  dates: Date[],
+  xAt: (i: number) => number
+): XTick[] {
+  if (dates.length === 0) return [];
+  // Find the index of every distinct trading day's first bar.
+  const dayBoundaries: number[] = [0];
+  for (let i = 1; i < dates.length; i++) {
+    const prev = dates[i - 1];
+    const cur = dates[i];
+    if (
+      prev.getUTCFullYear() !== cur.getUTCFullYear() ||
+      prev.getUTCMonth() !== cur.getUTCMonth() ||
+      prev.getUTCDate() !== cur.getUTCDate()
+    ) {
+      dayBoundaries.push(i);
+    }
+  }
+  // Place the tick a hair to the right of the boundary (i.e., at the first
+  // bar of that day) so labels don't visually clip with the previous day.
+  return dayBoundaries.map((i) => ({
+    x: xAt(i),
+    label: dates[i].toLocaleDateString("en-US", { weekday: "short" }),
+  }));
 }
 
 function formatXTick(d: Date, spanDays: number): string {

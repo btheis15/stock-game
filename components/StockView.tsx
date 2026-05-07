@@ -99,6 +99,7 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
         xDomain={xDomain}
         liveEndpoint={isIntraday && live}
         baseline={baseline}
+        compactX={isWeeklyHourly}
       />
 
       <RangeTabs value={range} onChange={setRange} accent={accentColor} />
