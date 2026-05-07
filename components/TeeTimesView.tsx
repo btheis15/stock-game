@@ -16,6 +16,19 @@ const FOREUP_BASE = `https://stage.foreupsoftware.com/index.php/booking/${COURSE
 const INSHALLA_PHONE_DISPLAY = "(715) 453-3130";
 const INSHALLA_PHONE_TEL = "+17154533130"; // E.164 for tel: links
 
+// Sagacity Golf's "Daily Deals" embed widget for Inshalla. The /widget/ path
+// + Access-Control-Allow-Origin: * + no X-Frame-Options + UTM-tagged partner
+// referrals from foreUP itself together signal this is an explicit
+// embed-on-partner-sites product. Different from the foreUP situation: this
+// one is meant to be iframed.
+const DAILY_DEALS_EMBED = new URL(
+  "https://inshalla.dailydeals.golf/widget/layout/2/times"
+);
+DAILY_DEALS_EMBED.searchParams.set("utm_source", "stockgame-app");
+DAILY_DEALS_EMBED.searchParams.set("utm_medium", "tee-times-tab");
+DAILY_DEALS_EMBED.searchParams.set("utm_campaign", "daily-deals");
+const DAILY_DEALS_URL = DAILY_DEALS_EMBED.toString();
+
 /**
  * Builds a foreUP booking URL that skips the booking-class chooser. Discovered
  * in the SPA bundle:
@@ -101,7 +114,44 @@ export function TeeTimesView() {
             {INSHALLA_PHONE_DISPLAY}
           </span>
         </a>
+      </div>
 
+      <div className="px-4 mt-6">
+        <div className="flex items-baseline justify-between mb-2">
+          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+            Daily Deals
+          </div>
+          <a
+            href={DAILY_DEALS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] font-semibold text-zinc-400 active:text-white"
+          >
+            Open ↗
+          </a>
+        </div>
+        {/*
+          Inshalla's Daily Deals widget, served by Sagacity Golf. This is an
+          official embed product — the /widget/ path, CORS=*, lack of any
+          X-Frame-Options or CSP frame-ancestors, plus the inline GA event
+          firing 'page_location: /embed/times' all confirm it's meant to be
+          iframed on partner sites. We attach our own utm_source so Inshalla's
+          analytics show traffic from this app distinctly.
+        */}
+        <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-white">
+          <iframe
+            src={DAILY_DEALS_URL}
+            title="Inshalla CC Daily Deals"
+            className="w-full block border-0"
+            // Tall enough to show ~6 deals before the user has to scroll
+            // inside the iframe. The widget is responsive so it'll adapt to
+            // narrower screens automatically.
+            style={{ height: "640px" }}
+          />
+        </div>
+      </div>
+
+      <div className="px-4">
         <div className="mt-5 text-[11px] text-zinc-500 leading-relaxed">
           Tee times, pricing, and booking are managed by Inshalla Country Club
           via foreUP. Tapping a day above opens foreUP's secure booking page

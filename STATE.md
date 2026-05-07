@@ -164,29 +164,29 @@ components/
                         (last intraday bar < 30 min old, mirroring `isMarketLive`); clears it
                         otherwise. Re-evaluates every 60 seconds so the page flips themes when
                         the market crosses open/close without needing a manual reload.
-  TeeTimesView.tsx      Deep-link landing for Inshalla CC's foreUP booking page. Renders a
-                        small header + three "Quick book" rows (Today / Tomorrow / day-after,
-                        each showing the full date) + a primary "View all available times"
-                        CTA. Every link opens foreUP in a new tab, pre-filtered to Daily Golf
-                        for the chosen date so the user lands on the time list immediately
-                        (no booking-class chooser).
+  TeeTimesView.tsx      Tee Times tab. Three sections:
 
-                        We deliberately do NOT fetch foreUP's API or scrape its HTML. The
-                        SPA-bundle research in §5.5 / docs/embedding-third-party-booking.md
-                        is preserved for future use, but is not exercised here — foreUP's
-                        Terms (§3.2.v) prohibit programmatic crawling/scraping, and their
-                        robots.txt disallows all automated agents. Schedule visibility,
-                        pricing, auth, captcha, and payment all live on foreUP. Our role is
-                        a smart bookmark that pre-fills query params they support
-                        (booking_class_id=2431, schedule_id=2251, date=MM-DD-YYYY) so the
-                        hand-off feels seamless.
+                        1. Deep-link landing for foreUP booking. Quick Book card (Today /
+                           Tomorrow / day-after) + "View all available times" CTA + "Call pro
+                           shop" tel: link. Every booking link is a deep link with
+                           ?booking_class_id=2431&schedule_id=2251&date=MM-DD-YYYY so users
+                           land directly on Daily Golf without the chooser. We do NOT scrape
+                           foreUP's API or HTML — their TOS §3.2.v prohibits crawling and
+                           their robots.txt disallows automated agents. URL crafting against
+                           query params their SPA itself respects is normal browser behavior.
 
-                        If the relationship with the course operator advances and you get
-                        written permission to display schedule data in-app, the proxy +
-                        native-list pattern is documented in
-                        docs/embedding-third-party-booking.md §1–§7 (and in the project's
-                        git history at commit 360e810/3326d72). Restoring it is a 1-hour
-                        change.
+                        2. Daily Deals iframe (Sagacity Golf). Embedded widget at
+                           https://inshalla.dailydeals.golf/widget/layout/2/times. This is an
+                           explicit partner-embed product (CORS=*, no X-Frame-Options, the
+                           widget itself promotes "Add Daily Deals to your website"). Sized
+                           at 640px height with our utm_source=stockgame-app for attribution.
+
+                        3. Disclosure + bare foreUP shortcut.
+
+                        If you ever get written permission from Inshalla's pro shop or foreUP
+                        to display schedule data natively, the proxy + native-list pattern
+                        is preserved in git history at commits 360e810..3326d72 and
+                        documented in docs/embedding-third-party-booking.md §1–§7.
 
   CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
                       (value - baseline) / baseline so every line starts at y=0 and the

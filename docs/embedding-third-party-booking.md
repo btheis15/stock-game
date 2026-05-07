@@ -5,20 +5,30 @@
 > own app — written from doing exactly this for the Stock Game app's
 > Tee Times tab (Inshalla CC).
 >
-> **There are two patterns in this doc and they're not interchangeable:**
+> **Three patterns in this doc, ordered from most to least
+> compliant. They are not interchangeable:**
 >
-> **Pattern A — Deep-link landing** (§§1, 2, 6 only). What we ship by
-> default. You don't read the SaaS's data; you provide pre-filtered
-> deep links that open the SaaS's own page in a new tab with the
-> chooser screens skipped. Works without permission. **TOS-clean.**
+> **Pattern A — Deep-link landing** (§§1, 2, 6). What we ship by default
+> when the SaaS doesn't publish an embed widget. You don't read the
+> SaaS's data; you provide pre-filtered deep links that open the SaaS's
+> own page in a new tab with chooser screens skipped. Works without
+> permission. **TOS-clean.**
+>
+> **Pattern C — Explicit embed widget** (§1.6 below). When the SaaS
+> publishes a widget *designed* for partner sites, iframe it. Spotting
+> a sanctioned embed widget: `/widget/...` URL path, `Access-Control-
+> Allow-Origin: *`, no X-Frame-Options, the widget's own page promotes
+> "Add this to your site," UTM-tagged referrals from partner sites.
+> **TOS-clean — that's literally what these widgets are for.**
 >
 > **Pattern B — Native list backed by an API proxy** (§§1, 3, 4, 5, 7,
 > 8, 9). You scrape/proxy the SaaS's JSON to render their schedule in
-> your own UI. Better UX, but most booking SaaS terms forbid scraping
+> your own UI. Best UX, but most booking SaaS terms forbid scraping
 > their service (foreUP §3.2.v, robots.txt `Disallow: /`). **Don't ship
-> this without written permission from the SaaS or the operator.**
+> without written permission from the SaaS or the operator.**
 >
-> Always start with Pattern A. Move to Pattern B only with consent.
+> Always check Pattern C first (does the SaaS publish a widget?), fall
+> back to Pattern A if not. Pattern B only with consent.
 
 ---
 
@@ -147,6 +157,115 @@ What you keep:
 tab. The rest of this doc (§§2–13) describes Pattern B, which we built
 and reverted once we audited foreUP's terms. Reference for if/when
 permission is in hand.
+
+---
+
+## 1.6. Pattern C — Explicit embed widget (when the SaaS publishes one)
+
+Some booking SaaS publish a widget specifically designed to be embedded
+on partner websites. When you spot one, this is the simplest, cleanest,
+and most-permitted integration there is — just iframe it. No API
+research, no proxy, no scraping concern.
+
+**How to recognize a sanctioned embed widget**:
+
+1. **URL path is literally `/widget/...`** (or `/embed/...`)
+2. **`Access-Control-Allow-Origin: *`** in the response headers — they
+   actively want cross-origin requests
+3. **No `X-Frame-Options`** and no `frame-ancestors` clause in the CSP
+4. **The widget page itself markets the embed product**, often with a
+   "Powered by [Vendor]" footer + "Add [Product] to your website" link
+5. **UTM-tagged referrals from partner sites in the wild** — search the
+   widget URL pattern in source code of golf course / studio /
+   restaurant websites; if you find UTM params like
+   `utm_source=foreup-booking-engine` it's confirmation other partners
+   embed it
+6. **Server-rendered HTML** that fits comfortably inside an iframe
+   (mobile-responsive layout, reasonable height, no full-screen
+   modals)
+
+If you find all of these, you have an explicit embed product. iframe
+it.
+
+**The integration is one component:**
+
+```tsx
+// components/PartnerWidgetCard.tsx
+const WIDGET_URL = (() => {
+  const u = new URL("https://partner.example.com/widget/embed/layout/2/times");
+  u.searchParams.set("utm_source", "your-app-name");
+  u.searchParams.set("utm_medium", "your-tab-name");
+  u.searchParams.set("utm_campaign", "partner-widget");
+  return u.toString();
+})();
+
+export function PartnerWidgetCard() {
+  return (
+    <div className="px-4 mt-6">
+      <div className="flex items-baseline justify-between mb-2">
+        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+          Daily Deals
+        </div>
+        <a href={WIDGET_URL} target="_blank" rel="noopener noreferrer"
+           className="text-[11px] font-semibold text-zinc-400 active:text-white">
+          Open ↗
+        </a>
+      </div>
+      <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-white">
+        <iframe
+          src={WIDGET_URL}
+          title="Daily Deals"
+          className="w-full block border-0"
+          style={{ height: "640px" }}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+**Things to do right**:
+
+- **Always set your own UTM params**. Use `utm_source=your-app-name`
+  so the partner's analytics show traffic from your app distinctly.
+  Don't reuse UTM strings you saw on other partners' sites.
+- **Use a fixed iframe height** that fits ~5–6 rows of the widget on
+  mobile. The widget will scroll internally if there's more content.
+  640–700px is a good default for tee-time / class-time widgets;
+  adjust to match the widget's typical row height.
+- **Add a fallback link** ("Open ↗") in the section header so users
+  can pop the widget out to a full tab if they want a bigger view or
+  if the iframe ever has issues.
+- **`bg-white` on the iframe wrapper** — most embed widgets are
+  designed for white backgrounds, so wrap the iframe in a white card
+  even if your app is dark-themed. The widget renders its own UI; you
+  just provide the canvas.
+
+**Things to NOT do**:
+
+- **Don't apply your theme** to the widget contents. They're served
+  by the partner; restyling them isn't allowed and would feel
+  jarring anyway.
+- **Don't try to read into the iframe** via JavaScript. Cross-origin
+  policy will block you and there's no reason to peek inside.
+- **Don't auto-resize the iframe** based on content. iOS Safari has
+  bugs with this and the widget may post-message height events on its
+  own anyway. Fixed height is fine.
+
+**The Stock Game app's Daily Deals**:
+
+| | |
+|---|---|
+| Vendor | Sagacity Golf |
+| Course | Inshalla CC |
+| Embed URL | `https://inshalla.dailydeals.golf/widget/layout/2/times` |
+| Component | `components/TeeTimesView.tsx` (Daily Deals section) |
+| Height | 640px |
+| Our UTM | `utm_source=stockgame-app&utm_medium=tee-times-tab&utm_campaign=daily-deals` |
+
+The widget's own footer includes "Powered by Sagacity Golf · Add Daily
+Deals to your website" — explicit partner-embed marketing. We just
+took them up on it.
 
 ---
 
@@ -772,22 +891,30 @@ SaaS flows in the same app; not worth doing for the first one.
 
 ## 12. Specific to Stock Game's Tee Times tab
 
-**Currently ships Pattern A (deep-link landing).** Pattern B was built,
-verified, and reverted when foreUP's TOS audit flagged §3.2(v) and the
-robots.txt `Disallow: /` directive. The Pattern B implementation is
-preserved in git history at commits `360e810` → `3326d72` for reference;
-restore only with written permission from Inshalla CC's pro shop or
-foreUP support.
+**Ships Pattern A (deep-link landing) for foreUP + Pattern C (embed
+widget) for Sagacity Daily Deals.** Pattern B (proxy + native list)
+was built, verified, and reverted when foreUP's TOS audit flagged
+§3.2(v) and the robots.txt `Disallow: /`. The Pattern B implementation
+is preserved in git history at commits `360e810` → `3326d72` for
+reference; restore only with written permission from Inshalla CC's
+pro shop or foreUP support.
 
 | | |
 |---|---|
 | Course | Inshalla Country Club, Tomahawk WI |
+| **foreUP (Pattern A)** | |
 | `COURSE_ID` | `19715` |
 | `SCHEDULE_ID` | `2251` |
-| `DAILY_GOLF_BOOKING_CLASS_ID` | `2431` (the public class; the other is `49668` Members) |
+| `DAILY_GOLF_BOOKING_CLASS_ID` | `2431` (public class; the other is `49668` Members) |
 | SaaS base | `https://stage.foreupsoftware.com/` (note `stage.`) |
 | Deep-link template | `https://stage.foreupsoftware.com/index.php/booking/19715/2251?booking_class_id=2431&schedule_id=2251&date=MM-DD-YYYY#/teetimes` |
-| View component | `components/TeeTimesView.tsx` (Pattern A landing) |
+| **Sagacity Daily Deals (Pattern C)** | |
+| Vendor | Sagacity Golf (foreUP partner; markets a "Daily Deals" widget for embedding) |
+| Embed URL | `https://inshalla.dailydeals.golf/widget/layout/2/times` |
+| iframe height | 640px |
+| Our UTM | `utm_source=stockgame-app&utm_medium=tee-times-tab&utm_campaign=daily-deals` |
+| **Both** | |
+| View component | `components/TeeTimesView.tsx` |
 | Tab definition | `components/TabBar.tsx` (golf-ball-on-tee SVG icon) |
 | Page route | `app/tee-times/page.tsx` |
 | Pattern B reference | `git log --oneline 360e810..3326d72` |

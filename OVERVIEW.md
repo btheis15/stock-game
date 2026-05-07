@@ -49,9 +49,13 @@ Four things, on a phone screen:
    Tomorrow, and the day after, plus a primary "View all available
    times" button. Tapping any of them opens foreUP in a new tab
    pre-filtered to Daily Golf for the chosen date, so you skip the
-   "pick a category" screen and land on the time list immediately.
-   foreUP handles the actual schedule view, prices, account, and
-   payment.
+   "pick a category" screen and land on the time list immediately. A
+   "Call pro shop" button below opens the iPhone dialer with the
+   number pre-filled. Below that, a **Daily Deals** card embeds
+   Inshalla's Sagacity Golf discount widget right inside the app —
+   today's discounted tee times visible in-place, tap one to book.
+   foreUP and Sagacity both handle the actual schedule view, account,
+   and payment.
 
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
 that re-scope the data. The Compare and per-player views open on **1D** by

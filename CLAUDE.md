@@ -323,10 +323,34 @@ commits 360e810 → 3326d72 has the full working implementation
 booking-window-aware date picker, holes-aware fee selection). Restoring
 it is a 1-hour change. Don't restore without permission.
 
+**Daily Deals widget (Sagacity Golf)**: There's a third pattern at
+play on this tab — an explicit embed widget. Inshalla's "Daily Deals"
+discounted-tee-times product is built by Sagacity Golf and served
+from `https://inshalla.dailydeals.golf/widget/layout/2/times`. Three
+signals confirm it's an official partner-embed product:
+
+1. The path is literally `/widget/...`
+2. `Access-Control-Allow-Origin: *` — they want cross-origin requests
+3. No `X-Frame-Options`, no `frame-ancestors` CSP
+4. The widget itself promotes "Add Daily Deals to your website" at the
+   bottom of its own page
+5. UTM-tagged referrals from foreUP's booking engine show partners are
+   expected to embed it (`utm_source=foreup-booking-engine&...`)
+
+We embed it directly via `<iframe>` in `TeeTimesView`, sized at 640px
+height. We attach `utm_source=stockgame-app&utm_medium=tee-times-tab&
+utm_campaign=daily-deals` so Inshalla's analytics can attribute traffic
+distinctly from this app vs. their other partner integrations. **This
+is fundamentally different from the foreUP situation** — Sagacity's
+widget is a sanctioned embed product where foreUP's booking page is
+the primary user-facing site that doesn't license embedding.
+
 **Reusable playbook**: `docs/embedding-third-party-booking.md` is a
-field guide covering both the deep-link-only pattern (compliant
-default) and the proxy + native-list pattern (when permission is in
-hand). Read that file before adding the next SaaS-embed feature.
+field guide covering all three patterns: deep-link-only (compliant
+default for un-licensed SaaS, what we use for foreUP), proxy +
+native-list (when permission is in hand), and explicit-embed-widget
+(when the SaaS publishes one, what we use for Sagacity Daily Deals).
+Read that file before adding the next SaaS-embed feature.
 
 ### §5.6. Theme system
 
