@@ -6,6 +6,7 @@ import {
   buildHoldingRows,
   intradayPortfolioSeries,
   portfolioSeries,
+  weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import { USER_LIST, type UserId } from "@/lib/picks";
 
@@ -28,6 +29,7 @@ export default async function Page({
   const data = await loadPriceData();
   const series = portfolioSeries(data, userId);
   const intraday = intradayPortfolioSeries(data, userId);
+  const weekly = weeklyPortfolioSeries(data, userId);
   const holdings = buildHoldingRows(userId, data);
   return (
     <>
@@ -36,6 +38,7 @@ export default async function Page({
         userId={userId}
         series={series}
         intraday={intraday}
+        weekly={weekly}
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
         generatedAt={data.generatedAt}
         holdings={holdings}

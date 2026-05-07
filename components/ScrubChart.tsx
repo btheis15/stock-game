@@ -61,7 +61,11 @@ export function ScrubChart({
 }
 
 const PAD_TOP = 24;
-const PAD_BOTTOM = 8;
+// Bottom padding now reserves room for x-axis tick labels (date / time markers).
+// The line itself draws within yScale's range = [height - PAD_BOTTOM, PAD_TOP];
+// labels render in the strip below at y = height - LABEL_BASELINE_OFFSET.
+const PAD_BOTTOM = 28;
+const LABEL_BASELINE_OFFSET = 8;
 
 function ScrubChartInner({
   width,
@@ -174,6 +178,11 @@ function ScrubChartInner({
 
   const baselineY = baseline !== undefined ? yScale(baseline) : null;
 
+  // 3–5 evenly distributed tick labels for the x-axis. Format adapts to the
+  // span: time-of-day for intraday, weekday for ~week, month-day for ~quarter,
+  // month for ~year, month+year for multi-year.
+  const xTicks = computeXTicks(xScale, width, dates);
+
   return (
     <svg
       ref={containerRef}
@@ -248,6 +257,30 @@ function ScrubChartInner({
         />
       ))}
 
+      {/* X-axis tick labels — subtle date / time markers along the bottom. */}
+      {xTicks.map((tick, i) => {
+        const cx = xScale(tick.date);
+        // Edge alignment: anchor end-text at the right edge for the last tick,
+        // start-text at the left edge for the first tick — keeps labels from
+        // clipping at the chart bounds.
+        const anchor =
+          i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle";
+        return (
+          <text
+            key={`tick-${i}`}
+            x={cx}
+            y={height - LABEL_BASELINE_OFFSET}
+            textAnchor={anchor}
+            fontSize={10}
+            fontWeight={500}
+            fill="var(--chart-axis-label)"
+            pointerEvents="none"
+          >
+            {tick.label}
+          </text>
+        );
+      })}
+
       {liveEndpoint && scrubIdx == null &&
         series.map((s) => {
           const last = s.data[s.data.length - 1];
@@ -312,4 +345,72 @@ function ScrubChartInner({
       )}
     </svg>
   );
+}
+
+interface XTick {
+  date: Date;
+  label: string;
+}
+
+/**
+ * Compute 3–5 evenly distributed x-axis ticks. Format adapts to the span:
+ *
+ *   < 1 day:        time of day      "10am", "2pm"
+ *   < 14 days:      weekday          "Mon", "Wed", "Fri"
+ *   < 100 days:     month + day      "May 7", "Jun 1"
+ *   < 366 days:     month            "May", "Jun", "Jul"
+ *   else:           month + year     "May '26"
+ *
+ * Tick count adapts to chart width: ~80px per label so they don't overlap.
+ */
+function computeXTicks(
+  xScale: ReturnType<typeof scaleTime>,
+  width: number,
+  dates: Date[]
+): XTick[] {
+  if (dates.length === 0) return [];
+  const domain = xScale.domain();
+  const start = domain[0] as Date;
+  const end = domain[1] as Date;
+  const spanMs = end.getTime() - start.getTime();
+  const spanDays = spanMs / 86_400_000;
+
+  const targetCount = Math.max(2, Math.min(5, Math.floor(width / 90)));
+
+  // Generate evenly spaced positions across [start, end]. Using xScale.ticks()
+  // would also work but produces non-uniform spacing for sub-day domains.
+  const ticks: Date[] = [];
+  for (let i = 0; i < targetCount; i++) {
+    const t = start.getTime() + (spanMs * i) / (targetCount - 1);
+    ticks.push(new Date(t));
+  }
+
+  return ticks.map((d) => ({ date: d, label: formatXTick(d, spanDays) }));
+}
+
+function formatXTick(d: Date, spanDays: number): string {
+  if (spanDays < 1) {
+    // Intraday: "10am" / "2:30pm"
+    return d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: d.getMinutes() === 0 ? undefined : "2-digit",
+      hour12: true,
+    }).toLowerCase().replace(/\s+/g, "");
+  }
+  if (spanDays < 14) {
+    // ~Week: weekday short
+    return d.toLocaleDateString("en-US", { weekday: "short" });
+  }
+  if (spanDays < 100) {
+    // ~Month / quarter: "May 7"
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+  if (spanDays < 366) {
+    // ~Year: "May"
+    return d.toLocaleDateString("en-US", { month: "short" });
+  }
+  // Multi-year: "May '26"
+  const m = d.toLocaleDateString("en-US", { month: "short" });
+  const y = String(d.getFullYear()).slice(-2);
+  return `${m} '${y}`;
 }

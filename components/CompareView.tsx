@@ -33,16 +33,23 @@ interface IntradayResult {
 interface Props {
   series: Record<UserId, PortfolioPoint[]>;
   intraday: Record<UserId, IntradayResult>;
+  /** Past-week hourly bars per user; null falls back to filtered daily closes. */
+  weekly: Record<UserId, PortfolioPoint[] | null>;
   intradayDate: string;
   generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
 }
 
-export function CompareView({ series, intraday, intradayDate, generatedAt, analyses }: Props) {
+export function CompareView({ series, intraday, weekly, intradayDate, generatedAt, analyses }: Props) {
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
   const isIntraday = range === "1D";
+  // Use the hourly weekly series for 1W when we have it. Falls back to
+  // filtered daily closes when no weekly data is present (older snapshots
+  // pre-dating the weekly-fetch addition).
+  const isWeeklyHourly =
+    range === "1W" && USER_LIST.every((u) => weekly[u.id] != null);
   const live = useMemo(
     () => isIntraday && lastPointIsLive(intraday[USER_LIST[0].id].points),
     [isIntraday, intraday]
@@ -52,11 +59,13 @@ export function CompareView({ series, intraday, intradayDate, generatedAt, analy
     const out = {} as Record<UserId, PortfolioPoint[]>;
     if (isIntraday) {
       for (const u of USER_LIST) out[u.id] = intraday[u.id].points;
+    } else if (isWeeklyHourly) {
+      for (const u of USER_LIST) out[u.id] = weekly[u.id]!;
     } else {
       for (const u of USER_LIST) out[u.id] = filterRange(series[u.id], range);
     }
     return out;
-  }, [series, intraday, range, isIntraday]);
+  }, [series, intraday, weekly, range, isIntraday, isWeeklyHourly]);
 
   const stats = useMemo(() => {
     return USER_LIST.map((u) => {

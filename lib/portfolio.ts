@@ -155,6 +155,87 @@ export function intradayPortfolioSeries(
   return { points, previousClose };
 }
 
+/**
+ * Builds a portfolio-level series from per-ticker hourly bars covering roughly
+ * the past 7–8 days. Used by the 1W view so the chart line has proper density.
+ *
+ * Strategy mirrors `intradayPortfolioSeries`: collect every unique timestamp
+ * across the user's tickers, walk forward, and at each timestamp sum
+ * (sharesFor(ticker) × most-recent-known-close-of-that-ticker). Tickers with no
+ * weekly data fall back to the most recent daily close as their value.
+ *
+ * Returns `null` if no ticker has weekly data — caller should fall back to the
+ * existing daily-closes path.
+ */
+export function weeklyPortfolioSeries(
+  data: PriceData,
+  userId: UserId
+): PortfolioPoint[] | null {
+  const tickers = USERS[userId].tickers;
+  const seriesByTicker = tickers.map((t) => data.tickers[t]);
+  const haveWeekly = seriesByTicker.some((s) => (s.weekly?.length ?? 0) > 0);
+  if (!haveWeekly) return null;
+
+  // Cutoff: last 7 calendar days inclusive. A bar older than this gets dropped
+  // from the chart (it's still useful as carry-forward for tickers that
+  // lack newer data).
+  const now = Date.now();
+  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+
+  const tsSet = new Set<string>();
+  for (const s of seriesByTicker) {
+    for (const b of s.weekly ?? []) {
+      if (new Date(b.t).getTime() >= cutoff) tsSet.add(b.t);
+    }
+  }
+  const timestamps = [...tsSet].sort();
+  if (timestamps.length === 0) return null;
+
+  // Carry-forward last-seen close per ticker. Initialize with the daily close
+  // from just before the first timestamp so a missing first bar doesn't drag
+  // the value to zero.
+  const firstDate = timestamps[0].slice(0, 10);
+  const lookups = seriesByTicker.map((s) => {
+    const m = new Map<string, number>();
+    for (const b of s.weekly ?? []) m.set(b.t, b.close);
+    return { series: s, m };
+  });
+  const lastSeen = new Map<string, number>();
+  for (const { series } of lookups) {
+    lastSeen.set(series.ticker, lastKnownClose(series, firstDate));
+  }
+
+  const points: PortfolioPoint[] = [];
+  for (const t of timestamps) {
+    let total = 0;
+    for (const { series, m } of lookups) {
+      const fresh = m.get(t);
+      if (fresh != null) lastSeen.set(series.ticker, fresh);
+      const price = lastSeen.get(series.ticker)!;
+      total += sharesFor(userId, series) * price;
+    }
+    points.push({ date: t, value: total });
+  }
+  return points;
+}
+
+/**
+ * Past-week hourly bars for a single ticker. Returns `null` if the ticker has
+ * no weekly data — caller should fall back to daily-close range filtering.
+ */
+export function weeklyTickerSeries(
+  series: TickerSeries
+): PortfolioPoint[] | null {
+  const bars = series.weekly ?? [];
+  if (bars.length === 0) return null;
+  const now = Date.now();
+  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+  const points = bars
+    .filter((b) => new Date(b.t).getTime() >= cutoff)
+    .map((b) => ({ date: b.t, value: b.close }));
+  return points.length > 0 ? points : null;
+}
+
 export function intradayTickerSeries(
   series: TickerSeries,
   intradayDate: string

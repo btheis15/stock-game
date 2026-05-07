@@ -133,6 +133,8 @@ function spinoffEffectiveDate(ticker: string): string {
 }
 
 const INTRADAY_INTERVAL = "15m";
+const WEEKLY_INTERVAL = "1h";
+const WEEKLY_LOOKBACK_DAYS = 8; // covers a 5-day trading week + weekend buffer
 
 async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
   // Pull today's intraday 15-min bars. range:'1d' is a Yahoo shortcut that
@@ -153,6 +155,54 @@ async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
   } catch {
     return [];
   }
+}
+
+async function fetchWeeklyHourly(ticker: string): Promise<IntradayBar[]> {
+  // 1-hour bars over the past ~8 days. Used by the 1W view so the chart line
+  // has 35–45 points instead of 5–7 daily closes. Yahoo accepts interval=1h
+  // for ranges up to 730 days, so this is a normal request.
+  try {
+    const period1 = new Date(Date.now() - WEEKLY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const period2 = new Date(Date.now() + 60 * 1000);
+    const result = await yahooFinance.chart(ticker, {
+      period1,
+      period2,
+      interval: WEEKLY_INTERVAL,
+    });
+    const quotes = result.quotes ?? [];
+    return quotes
+      .filter((q) => q.close != null && q.date != null)
+      .map<IntradayBar>((q) => ({
+        t: new Date(q.date as Date).toISOString(),
+        close: q.close as number,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+// Filter hourly bars to regular session only (9:30 AM – 4:00 PM ET) for each
+// trading day in the input. Drops pre-market, after-hours, and weekend bars
+// that Yahoo sometimes returns. Uses the same DST heuristic as
+// sessionBoundsET (months 3–10 = EDT, else EST).
+function filterToRegularSession(bars: IntradayBar[]): IntradayBar[] {
+  return bars.filter((b) => {
+    const t = new Date(b.t);
+    // ET hour-of-day. The DST shift between EST/EDT is 1 hour; pick the offset
+    // by month so we get it right ~99% of the year.
+    const month = t.getUTCMonth() + 1;
+    const isDST = month >= 3 && month <= 10;
+    const offset = isDST ? 4 : 5;
+    const etHour = (t.getUTCHours() - offset + 24) % 24;
+    const etMin = t.getUTCMinutes();
+    const etTime = etHour + etMin / 60;
+    // Regular session: 9:30 AM (9.5) ≤ t < 4:00 PM (16.0)
+    if (etTime < 9.5 || etTime >= 16) return false;
+    // Weekday only (US markets closed Sat/Sun)
+    const dow = t.getUTCDay();
+    if (dow === 0 || dow === 6) return false;
+    return true;
+  });
 }
 
 function todayInETDate(): string {
@@ -229,6 +279,22 @@ async function main() {
             ? today
             : bars.slice(-26); // fallback: pre-market only, or use last session
       console.log(`${out[ticker].intraday?.length ?? 0} bars`);
+    } else {
+      console.log("none");
+    }
+  }
+
+  // Fetch past-week hourly bars (1h interval, ~8 day lookback). Used by the
+  // 1W view to give the chart line proper density (~35–45 points instead of
+  // 5–7 daily closes).
+  console.log(`Fetching weekly ${WEEKLY_INTERVAL} bars for the past ${WEEKLY_LOOKBACK_DAYS} days...`);
+  for (const ticker of tickersToFetch) {
+    process.stdout.write(`  ${ticker}... `);
+    const bars = await fetchWeeklyHourly(ticker);
+    if (bars.length > 0) {
+      const regular = filterToRegularSession(bars);
+      out[ticker].weekly = regular.length > 0 ? regular : bars;
+      console.log(`${out[ticker].weekly?.length ?? 0} bars`);
     } else {
       console.log("none");
     }

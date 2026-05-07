@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { PriceHeader } from "./PriceHeader";
@@ -16,6 +16,7 @@ import {
   isMarketLive,
   sessionBoundsForDate,
   sharesFor,
+  weeklyTickerSeries,
 } from "@/lib/portfolio";
 import type { Range, TickerSeries } from "@/lib/types";
 import { TICKER_OWNERS, USERS, type UserId } from "@/lib/picks";
@@ -31,6 +32,17 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
+  // Force scroll-to-top on mount. Without this, Next.js's scroll restoration
+  // can land the user mid-page when they tap a holding from a scrolled
+  // portfolio view — they expect to start at the stock's chart, not at
+  // wherever the portfolio scroll position was. Skip if there's a hash so
+  // we don't break any future deep-link-to-section behavior.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash) return;
+    window.scrollTo(0, 0);
+  }, []);
+
   const owners: UserId[] = TICKER_OWNERS[series.ticker] ?? [];
   const accentColor = owners.length > 0 ? USERS[owners[0]].color : "#888";
 
@@ -44,12 +56,15 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
     () => intradayTickerSeries(series, intradayDate),
     [series, intradayDate]
   );
+  const weekly = useMemo(() => weeklyTickerSeries(series), [series]);
+  const isWeeklyHourly = range === "1W" && weekly != null;
   const live = useMemo(() => isMarketLive(series.intraday), [series.intraday]);
 
-  const ranged = useMemo(
-    () => (isIntraday ? intraday.points : filterRange(closesAsPoints, range)),
-    [isIntraday, intraday, closesAsPoints, range]
-  );
+  const ranged = useMemo(() => {
+    if (isIntraday) return intraday.points;
+    if (isWeeklyHourly) return weekly!;
+    return filterRange(closesAsPoints, range);
+  }, [isIntraday, isWeeklyHourly, intraday, weekly, closesAsPoints, range]);
   const baseline = isIntraday ? intraday.previousClose : ranged[0]?.value ?? 0;
   const last = ranged[ranged.length - 1]?.value ?? baseline;
   const scrubVal = scrub?.values.find((v) => v.id === series.ticker)?.value;

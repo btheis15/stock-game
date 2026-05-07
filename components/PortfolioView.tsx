@@ -34,6 +34,8 @@ interface Props {
   userId: UserId;
   series: PortfolioPoint[];
   intraday: IntradayResult;
+  /** Past-week hourly bars; null falls back to filtered daily closes for 1W. */
+  weekly: PortfolioPoint[] | null;
   intradayDate: string;
   generatedAt: string;
   holdings: HoldingRow[];
@@ -43,6 +45,7 @@ export function PortfolioView({
   userId,
   series,
   intraday,
+  weekly,
   intradayDate,
   generatedAt,
   holdings,
@@ -52,14 +55,17 @@ export function PortfolioView({
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
   const isIntraday = range === "1D";
+  const isWeeklyHourly = range === "1W" && weekly != null;
   const live = useMemo(
     () => isIntraday && lastPointIsLive(intraday.points),
     [isIntraday, intraday]
   );
 
   const ranged = useMemo(() => {
-    return isIntraday ? intraday.points : filterRange(series, range);
-  }, [series, intraday, range, isIntraday]);
+    if (isIntraday) return intraday.points;
+    if (isWeeklyHourly) return weekly!;
+    return filterRange(series, range);
+  }, [series, intraday, weekly, range, isIntraday, isWeeklyHourly]);
 
   const baselineValue = isIntraday
     ? intraday.previousClose

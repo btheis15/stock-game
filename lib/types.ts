@@ -25,6 +25,12 @@ export interface TickerSeries {
   closes: DailyClose[];
   dividends?: DividendEvent[];
   intraday?: IntradayBar[];
+  /**
+   * 1-hour bars covering roughly the past 7–8 trading days (regular session only).
+   * Used by the 1W chart so the line has 35–45 hourly points instead of just 5–7
+   * daily closes. Distinct from `intraday` (15-min bars for today only).
+   */
+  weekly?: IntradayBar[];
 }
 
 export interface PriceData {
