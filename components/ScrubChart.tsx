@@ -75,11 +75,10 @@ const PAD_TOP = 24;
 // labels render in the strip below at y = height - LABEL_BASELINE_OFFSET.
 const PAD_BOTTOM = 28;
 const LABEL_BASELINE_OFFSET = 8;
-// Horizontal padding so the first / last x-axis tick labels (e.g. "Fri", "Thu"
-// in the 1W view) don't hug the screen edges. Data line + area are also
-// inset by this amount so the chart breathes against its container.
-const PAD_LEFT = 12;
-const PAD_RIGHT = 12;
+// Inset for tick labels at the very edges of the chart so "Fri" and "Thu"
+// don't hug the screen border. Applied only to label positioning — the data
+// line / area / scrub still extend edge-to-edge.
+const LABEL_EDGE_PAD = 12;
 
 function ScrubChartInner({
   width,
@@ -112,30 +111,25 @@ function ScrubChartInner({
   // In compactX mode the x-axis is index-based (one slot per data point) so
   // overnight / weekend gaps disappear visually. Tick labels are placed at
   // day-boundary indices and labeled with the date there.
-  const xRange = useMemo<[number, number]>(
-    () => [PAD_LEFT, Math.max(PAD_LEFT, width - PAD_RIGHT)],
-    [width]
-  );
-
   const indexScale = useMemo(() => {
     if (!compactX || dates.length === 0) return null;
     return scaleLinear({
       domain: [0, Math.max(1, dates.length - 1)],
-      range: xRange,
+      range: [0, width],
     });
-  }, [compactX, dates.length, xRange]);
+  }, [compactX, dates.length, width]);
 
   const timeScale = useMemo(() => {
     if (compactX) return null;
     if (xDomain) {
-      return scaleTime({ domain: xDomain, range: xRange });
+      return scaleTime({ domain: xDomain, range: [0, width] });
     }
     if (dates.length === 0) return null;
     return scaleTime({
       domain: [dates[0], dates[dates.length - 1]],
-      range: xRange,
+      range: [0, width],
     });
-  }, [dates, xRange, xDomain, compactX]);
+  }, [dates, width, xDomain, compactX]);
 
   // x-pixel for a given data-point index. Branches once at the top of the
   // render so the rest of the SVG is identical between modes.
@@ -196,9 +190,7 @@ function ScrubChartInner({
     (clientX: number) => {
       if (!containerRef.current || dates.length === 0) return;
       const rect = containerRef.current.getBoundingClientRect();
-      // Clamp to the chart's data area (inside the L/R padding) so taps in
-      // the padding strip still snap cleanly to the first / last data point.
-      const x = Math.max(xRange[0], Math.min(xRange[1], clientX - rect.left));
+      const x = Math.max(0, Math.min(width, clientX - rect.left));
       let finalIdx: number;
       if (compactX && indexScale) {
         // Index-based: pixel → fractional index → nearest integer.
@@ -226,7 +218,7 @@ function ScrubChartInner({
       }
       reportScrub(finalIdx);
     },
-    [timeScale, indexScale, compactX, dates, xRange, dateBisect, reportScrub]
+    [timeScale, indexScale, compactX, dates, width, dateBisect, reportScrub]
   );
 
   const haveScale = compactX ? indexScale != null : timeScale != null;
@@ -317,14 +309,18 @@ function ScrubChartInner({
         />
       ))}
 
-      {/* X-axis tick labels — subtle date / time markers along the bottom. */}
+      {/* X-axis tick labels — subtle date / time markers along the bottom.
+          Edge labels are nudged inward by LABEL_EDGE_PAD so the text doesn't
+          hug the screen border. The data line / area still extend full-width. */}
       {xTicks.map((tick, i) => {
-        const cx = tick.x;
-        // Edge alignment: anchor end-text at the right edge for the last tick,
-        // start-text at the left edge for the first tick — keeps labels from
-        // clipping at the chart bounds.
-        const anchor =
-          i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle";
+        const isFirst = i === 0;
+        const isLast = i === xTicks.length - 1;
+        const anchor = isFirst ? "start" : isLast ? "end" : "middle";
+        const cx = isFirst
+          ? Math.max(tick.x, LABEL_EDGE_PAD)
+          : isLast
+            ? Math.min(tick.x, width - LABEL_EDGE_PAD)
+            : tick.x;
         return (
           <text
             key={`tick-${i}`}
