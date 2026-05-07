@@ -150,8 +150,13 @@ button {
   border-color: #e4e4e7 !important; /* zinc-200 */
 }
 
-:root[data-theme="light"] .divide-zinc-800 > :not([hidden]) ~ :not([hidden]),
-:root[data-theme="light"] .divide-zinc-800\/70 > :not([hidden]) ~ :not([hidden]) {
+/* Tailwind v4 implements divide-y with `border-bottom: 1px` on every child
+   except :last-child. The previous Tailwind v3 selector used `~` (every
+   child except :first-child). Match BOTH patterns so the override is
+   future-proof against either implementation, and use `> *` as a fallback
+   to catch any child that has a border set on it. */
+:root[data-theme="light"] .divide-zinc-800 > *,
+:root[data-theme="light"] .divide-zinc-800\/70 > * {
   border-color: #e4e4e7 !important; /* zinc-200 */
 }
 
