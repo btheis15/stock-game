@@ -109,6 +109,7 @@ understand the codebase.
                          │
                          ├─ portfolioSeries(data, userId)         → PortfolioPoint[]
                          ├─ intradayPortfolioSeries(data, userId) → { points, previousClose }
+                         ├─ weeklyPortfolioSeries(data, userId)   → PortfolioPoint[] | null  (1W view, hourly bars)
                          ├─ analyzeRange(data, range)             → RangeAnalysis
                          └─ buildHoldingRows(userId, data)        → HoldingRow[]
                                   │
@@ -136,7 +137,8 @@ Key types (full defs in `lib/types.ts`):
 
 ```ts
 PriceData      = { startDate, generatedAt, intradayDate?, intradayInterval?, tickers, tradingDates }
-TickerSeries   = { ticker, name, startClose, closes[], dividends?[], intraday?[] }
+TickerSeries   = { ticker, name, startClose, closes[], dividends?[], intraday?[], weekly?[] }
+                  // intraday[] = today's 15-min bars; weekly[] = past 8 days of 1h bars (1W view)
 DailyClose     = { date: "YYYY-MM-DD", close: number }
 IntradayBar    = { t: ISO_UTC, close: number }
 DividendEvent  = { date: "YYYY-MM-DD", amount: number }
@@ -166,9 +168,13 @@ components receive prepared series and only do range-filtering and scrub.
    `{ points, previousClose }`. Points are today's intraday curve;
    previousClose is the close of the most recent trading day strictly
    *before* today's intraday date.
-4. For each non-1D range, call `analyzeRange(data, r)` → per-user range pct
+4. For each player, call `weeklyPortfolioSeries(data, u.id)` → past
+   5-trading-day hourly portfolio curve (or `null` if no ticker has
+   weekly data). Used by the 1W view; non-null path lets CompareView
+   set `compactX` on the chart.
+5. For each non-1D range, call `analyzeRange(data, r)` → per-user range pct
    + per-ticker movers. Build `analyses: Record<Range, RangeAnalysis>`.
-5. Render `<CompareView series={...} intraday={...} analyses={...} intradayDate={...} />`.
+6. Render `<CompareView series={...} intraday={...} weekly={...} analyses={...} intradayDate={...} />`.
 
 **Client side** (`components/CompareView.tsx`):
 1. `useState<Range>("1D")` for range tab — Compare opens on 1D.
@@ -177,8 +183,12 @@ components receive prepared series and only do range-filtering and scrub.
 4. `live = isIntraday && lastPointIsLive(intraday[firstUser].points)` →
    true if the most recent intraday timestamp is < 30 min ago. Drives the
    pulsing endpoint and the LIVE/MARKET CLOSED badge.
-5. `ranged: Record<UserId, PortfolioPoint[]>` — for 1D, the intraday points;
-   for other ranges, `filterRange(series[u.id], range)`.
+5. `ranged: Record<UserId, PortfolioPoint[]>` — three branches:
+   - 1D: `intraday[u.id].points` (15-min bars, today's session)
+   - 1W: `weekly[u.id]` if all users have weekly data (hourly bars over
+     the last 5 trading days). `isWeeklyHourly` flips on; ScrubChart
+     receives `compactX={true}` so overnight + weekend gaps collapse.
+   - else: `filterRange(series[u.id], range)` (daily closes, calendar-time axis)
 6. `stats` (useMemo): for each player, compute current value, baseline,
    pct. For 1D, baseline = previousClose. Otherwise, baseline = first
    point in `ranged`. Sort descending by pct. **Crucial scrub detail:**
@@ -205,7 +215,8 @@ components receive prepared series and only do range-filtering and scrub.
 1. `generateStaticParams()` returns `{user: 'brian'|'kevin'|'rick'|'lee'}`
    for SSG.
 2. Validate the param is a valid UserId, else 404.
-3. Compute `series`, `intraday`, `holdings` (via `buildHoldingRows`).
+3. Compute `series`, `intraday`, `weekly` (`weeklyPortfolioSeries`), and
+   `holdings` (via `buildHoldingRows`).
 4. Render `<HeaderBack title="Compare" />` + `<PortfolioView ... />`.
 
 **Client side** (`components/PortfolioView.tsx`):
@@ -389,6 +400,7 @@ modifying it.
   onScrub?: (s: ScrubState | null) => void
   xDomain?: [Date, Date]               // override auto-domain (for 1D full-day axis)
   liveEndpoint?: boolean               // pulsing concentric ring at last point
+  compactX?: boolean                   // 1W: index-based x-axis (gap collapse)
 }
 ```
 
@@ -397,7 +409,12 @@ modifying it.
 2. `dates`: from `series[longest].data`, parsed as Dates. Date strings can
    be `YYYY-MM-DD` (daily) or full ISO (intraday) — distinguish by
    `s.date.length > 10`.
-3. `xScale`: `scaleTime` from `xDomain` if provided, else `[dates[0], dates[last]]`.
+3. `xScale`: branches on `compactX`. `indexScale = scaleLinear over
+   [0, dates.length-1]` when compactX is true (one slot per data point —
+   used by 1W to collapse overnight + weekend gaps); otherwise
+   `timeScale = scaleTime` from `xDomain` if provided, else
+   `[dates[0], dates[last]]`. Helper `xAt(i)` abstracts the difference at
+   every callsite (line, area, scrub, live endpoint).
 4. `yScale`: `scaleLinear` over the data's y range (with `baseline`
    included if set, then ±8% pad).
 5. Pointer events on the SVG:
@@ -406,9 +423,10 @@ modifying it.
    - `pointermove` → if pointer is captured (touch) or mouse is moving,
      `handlePointer`.
    - `pointerup`/`cancel`/`leave` → `reportScrub(null)`.
-6. `handlePointer(clientX)`: invert via `xScale`, bisect against `dates`
-   (using d3-array's `bisector`), pick nearest neighbor index, call
-   `reportScrub(idx)`.
+6. `handlePointer(clientX)`: branches on `compactX`. In compactX mode the
+   inverted x is rounded to the nearest integer index. In time mode the
+   d3-array bisector logic runs (invert → bisect dates → nearest neighbor).
+   Either way, `reportScrub(idx)` fires with the resolved data-point index.
 7. `reportScrub(idx)`:
    - Sets local `scrubIdx` state for cursor rendering.
    - Synchronously calls `onScrub` callback via stable `seriesRef` /
@@ -420,13 +438,23 @@ modifying it.
 **Render:**
 1. `<defs>` linear gradients per series (more transparent if multi-line).
 2. Dashed `<Line>` at `yScale(baseline)` if baseline is set.
-3. `<AreaClosed>` per series (gradient fill).
-4. `<LinePath>` per series (curve = `monotoneX`).
-5. If `liveEndpoint && !scrubbing`, two concentric `<circle>`s at the
+3. `<AreaClosed>` per series (gradient fill, x-positions via `xAt(i)`).
+4. `<LinePath>` per series (curve = `monotoneX`, x via `xAt(i)`).
+5. **X-axis tick labels** along the bottom strip (`PAD_BOTTOM=28` reserves
+   the room). Two helpers compute positions:
+   - `computeXTicksTime(timeScale, width, dates)` — 3–5 evenly distributed
+     time positions; format adapts to span (hour / weekday / month-day /
+     month / month-year).
+   - `computeXTicksCompact(dates, xAt)` — one tick per trading-day boundary
+     (UTC y/m/d transition); weekday-short label ("Fri", "Mon").
+   First and last labels are clamped inward by `LABEL_EDGE_PAD` (12px) so
+   the text doesn't hug the screen edges. Color via `--chart-axis-label`
+   CSS var (theme-aware).
+6. If `liveEndpoint && !scrubbing`, two concentric `<circle>`s at the
    most recent point, animated by `livePulseRing` and `livePulseFill`
    keyframes in `globals.css`. **Note:** `r` is animated via CSS, not
    `style`, so it works inside `<svg>`.
-6. If scrubbing, vertical line + filled circle + glow circle at the
+7. If scrubbing, vertical line + filled circle + glow circle at the
    scrubbed point on each line.
 
 **Critical behavior:**
@@ -434,8 +462,8 @@ modifying it.
   during a horizontal scrub causes iOS Safari to steal the gesture for
   page scroll, releasing pointer capture and firing `pointercancel`. The
   scrub feels like it "lets go." Don't change this.
-- Chart fills the parent's full width (no internal padding) — gives
-  Robinhood-style edge-to-edge feel.
+- Chart line / area / scrub fill the parent's full width edge-to-edge.
+  Only the first / last tick labels are inset (cosmetic, see render step 5).
 - Date strings of length > 10 (full ISO) are parsed as-is; otherwise
   appended `T00:00:00Z` to anchor at UTC midnight.
 
@@ -474,6 +502,49 @@ report involves the 1D view, work through all 5:
 - Beware of timezones in `sessionBoundsForDate`. Heuristic: month 2-10
   → EDT (UTC-4), else EST (UTC-5). Wrong on the 4 DST transition days
   per year; harmless for axis rendering.
+
+---
+
+## §7.5. The 1W special case (sibling of §7)
+
+1W has its own quirks distinct from 1D — different data source, different
+x-scale, but the same "this range is special" energy.
+
+1. **Data source**: `series.weekly[]` (1h bars over the past ~8 days,
+   regular session only). Helpers: `weeklyPortfolioSeries(data, userId)`
+   and `weeklyTickerSeries(series)` — both return `null` if the ticker
+   has no `weekly` field, and the views fall back to
+   `filterRange(daily, "1W")` in that case.
+2. **Trim to last 5 trading days**. The fetch grabs an 8-day window so
+   we always have enough headroom even if Yahoo's bars start mid-day at
+   the edge. `trimToLastNTradingDays(bars, 5)` then keeps only the most
+   recent 5 distinct trading days so the chart shows a clean Mon–Fri
+   week without the partial-first-day stub.
+3. **Filter the live partial bar**. Yahoo's hourly endpoint adds a
+   "current quote" bar with the actual second-of-now timestamp (e.g.
+   `19:29:33.000Z`) when the market is mid-hour. That bar makes the
+   spacing between the last two points uneven (~59 min instead of 60).
+   `isHourBoundaryBar(b)` (in `lib/portfolio.ts`) drops anything whose
+   timestamp doesn't end with `:00.000Z`. All plotted points sit at
+   clean hourly boundaries.
+4. **compactX x-axis**. The chart switches from `scaleTime` to
+   `scaleLinear` over `[0, dates.length-1]` so every data point gets one
+   equal-width slot. Overnight + weekend gaps disappear. The line stays
+   continuous across day boundaries. CompareView / PortfolioView /
+   StockView all pass `compactX={isWeeklyHourly}` to ScrubChart.
+5. **Day-boundary tick labels**. `computeXTicksCompact` walks the dates
+   array finding y/m/d transitions and labels each first-bar-of-day with
+   weekday short ("Fri", "Mon", "Tue"). Edge labels clamped inward.
+
+**Common 1W pitfalls:**
+- Don't pass `compactX` outside 1W — daily-close ranges need calendar
+  time spacing because their points really are days apart.
+- Don't try to use `xDomain` with `compactX` — they're mutually
+  exclusive; `compactX` short-circuits the time scale entirely.
+- If the 1W chart looks weird and you suspect data, check three things:
+  (a) is `weekly` populated on every ticker? (b) does the trimmed
+  window have all hourly intervals? (c) did `isHourBoundaryBar` drop
+  the live partial?
 
 ---
 

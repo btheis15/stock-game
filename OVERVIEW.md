@@ -51,23 +51,37 @@ Four things, on a phone screen:
    pre-filtered to Daily Golf for the chosen date, so you skip the
    "pick a category" screen and land on the time list immediately. A
    "Call pro shop" button below opens the iPhone dialer with the
-   number pre-filled. Below that, a **Daily Deals** card embeds
-   Inshalla's Sagacity Golf discount widget right inside the app —
-   today's discounted tee times visible in-place, tap one to book.
-   foreUP and Sagacity both handle the actual schedule view, account,
-   and payment.
+   number pre-filled. Below that, a **Daily Deals** card hands off to
+   Inshalla's Sagacity Golf discount widget so you can browse
+   discounted tee times. foreUP and Sagacity both handle the actual
+   schedule view, account, and payment.
 
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
 that re-scope the data. The Compare and per-player views open on **1D** by
-default. The 1D view is special: the x-axis spans the full trading day
+default.
+
+The **1D view** is special: the x-axis spans the full trading day
 (9:30 AM – 4:00 PM ET), the line shows what's happened so far, and the
 most-recent point pulses gently while the market is live. A "● Market open"
 or "● Market closed" badge sits just above the chart in 1D so you know
-which state you're in, with a "Last updated" timestamp next to it. The
-lines on the Compare chart are normalized to %-change from the start of
-the range so the visual order always matches the leaderboard ranking —
-the highest line is the player in 1st place. Each holding row's % return
-reflects the active range, not all-time.
+which state you're in, with a "Last updated" timestamp next to it.
+
+The **1W view** is special too: it uses 1-hour bars over the past 5
+trading days (~35 points instead of 5) so the line shows real intra-day
+texture instead of just five daily closes. The x-axis collapses
+overnight and weekend gaps so the line stays continuous Mon–Fri, with
+small weekday labels along the bottom telling you which segment belongs
+to which day.
+
+Every chart's x-axis has subtle date / time tick labels that adapt to
+the range — hours on 1D, weekdays on 1W, month-day on 1M/3M, months on
+1YR/ALL. The lines on the Compare chart are normalized to %-change from
+the start of the range so the visual order always matches the
+leaderboard ranking — the highest line is the player in 1st place. Each
+holding row's % return reflects the active range, not all-time.
+
+Tapping a holding from a portfolio view always lands you at the **top**
+of that stock's page (no mid-page scroll).
 
 **The whole app flips to a clean light theme while the market is open**
 and switches back to dark when it closes. Robinhood-style: white cards

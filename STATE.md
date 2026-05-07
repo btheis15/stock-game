@@ -68,13 +68,15 @@ TickerSeries {
   closes: { date, close }[]       // daily, sorted ascending
   dividends?: { date, amount }[]  // per-share cash dividends since START_DATE
   intraday?: { t (ISO UTC), close }[]  // today's 15-min bars, regular session only (9:30 AM – 4:00 PM ET)
+  weekly?:   { t (ISO UTC), close }[]  // 1-hour bars over past ~8 days, regular session only (used by 1W view)
 }
 ```
 
 Notes:
 - `startClose` is set on first fetch and **never overwritten** — incremental refetches preserve it. If you re-pick after Feb 5, you'd need `--full` and a code change.
 - `closes[i].close` is **unadjusted close** (not adjusted-close) — matches what Robinhood-style charts show.
-- `intraday[].t` is full ISO UTC (`2026-05-05T19:30:00.000Z`); `closes[].date` is `YYYY-MM-DD`. The chart distinguishes by `date.length > 10`.
+- `intraday[].t` and `weekly[].t` are full ISO UTC (`2026-05-05T19:30:00.000Z`); `closes[].date` is `YYYY-MM-DD`. The chart distinguishes by `date.length > 10`.
+- `weekly` bars come at hour boundaries (`:30:00.000Z` for US-market alignment). Yahoo also returns a "live current-quote" bar with the actual second-of-now timestamp when fetched mid-hour — the render-time `isHourBoundaryBar` filter in `lib/portfolio.ts` drops these so all 1W plot points are at consistent hourly intervals.
 - Spin-offs go in `lib/events.ts` (currently empty list). When populated, a child ticker is fetched as if it had a START_DATE of its `effectiveDate`.
 
 ## 4. Portfolio math (`lib/portfolio.ts`)
@@ -103,6 +105,8 @@ Functions exported:
 | `portfolioSeries(data, userId)` | Daily PortfolioPoint[] from `tradingDates`. |
 | `intradayPortfolioSeries(data, userId)` | Today's intraday portfolio curve + previous-day-close baseline. |
 | `intradayTickerSeries(series, intradayDate)` | Same shape, single ticker. |
+| `weeklyPortfolioSeries(data, userId)` | Past 5-trading-day hourly portfolio curve (1W view). Returns `null` if no ticker has weekly data — caller falls back to filtered daily closes. Filters out Yahoo's live partial bar via `isHourBoundaryBar` so all points sit at clean hourly intervals. Trims to last 5 distinct trading days. |
+| `weeklyTickerSeries(series)` | Single-ticker weekly hourly series; same filtering + trimming. |
 | `analyzeRange(data, range)` | Per-user range-pct + per-ticker movers + global top gainers/losers. Now handles `1D` via prev-day close → latest intraday bar. |
 | `rangeCloses(series, data, range)` | Single ticker's start/end close for a range. 1D = (prev-day close, latest intraday); other ranges = `lastKnownClose` at the range bounds. |
 | `buildHoldingRows(userId, data)` | Holdings table rows for `PortfolioView`. Now includes `rangeStats: Record<Range, {pct, dollars, endClose}>` per holding so the holdings list reflects the active range. |
@@ -141,9 +145,28 @@ components/
                         baseline?: number                   (dashed reference line)
                         xDomain?: [Date, Date]              (force full-day axis for 1D)
                         liveEndpoint?: boolean              (pulsing concentric ring on last point)
+                        compactX?: boolean                  (1W: index-based x-axis, gap-collapse)
                         onScrub?: (state | null) => void
                       `touch-action: none` on the SVG so vertical drift doesn't kill the gesture.
                       Reports scrub via parent-stable refs (no useEffect loop).
+                      Two x-scale modes:
+                        • time (default): `scaleTime` over the data's date range. Used by 1D
+                          (with xDomain forcing the full session) and by daily-close ranges
+                          (1M/3M/1YR/ALL).
+                        • compactX: `scaleLinear` over [0, dates.length-1] — every data point
+                          gets one equal-width slot regardless of timestamp. Used by 1W so
+                          overnight + weekend gaps collapse and the line stays continuous,
+                          Robinhood-style.
+                      X-axis tick labels render along the bottom strip (PAD_BOTTOM=28 reserves
+                      the space). `computeXTicksTime` picks 3–5 evenly distributed positions
+                      with span-aware formatting (hour / weekday / month-day / month / month-year).
+                      `computeXTicksCompact` places one label per trading-day boundary using
+                      weekday-short ("Fri", "Mon"). The first and last labels are clamped
+                      inward by `LABEL_EDGE_PAD` (12px) so the text doesn't hug the screen
+                      edges. The data line / area / scrub still fill edge-to-edge.
+                      Theme-aware colors via CSS vars: `--chart-baseline` (dashed 0% line),
+                      `--chart-scrub-line` (vertical scrub crosshair), `--chart-axis-label`
+                      (tick text). All flip with `data-theme` on `<html>`.
   RangeTabs.tsx       1D / 1W / 1M / 3M / 1YR / ALL. 1D is the leftmost.
   TabBar.tsx          Bottom nav, fixed. Three tabs: Compare, Stocks, Tee Times. Each tab uses
                       flex-1 so they distribute evenly. Tee Times icon is a golf ball on a tee.
@@ -175,13 +198,22 @@ components/
                            their robots.txt disallows automated agents. URL crafting against
                            query params their SPA itself respects is normal browser behavior.
 
-                        2. Daily Deals iframe (Sagacity Golf). Embedded widget at
-                           https://inshalla.dailydeals.golf/widget/layout/2/times. This is an
-                           explicit partner-embed product (CORS=*, no X-Frame-Options, the
-                           widget itself promotes "Add Daily Deals to your website"). Sized
-                           at 640px height with our utm_source=stockgame-app for attribution.
+                        2. Daily Deals tap-through card. Single tap target → opens Sagacity
+                           Golf's official Daily Deals widget for Inshalla
+                           (https://inshalla.dailydeals.golf/widget/layout/2/times) in a new
+                           tab. Earlier tried embedding the widget inline as an iframe (it's
+                           an explicit partner-embed product — CORS=*, no X-Frame-Options,
+                           the widget's footer literally markets "Add Daily Deals to your
+                           website"), but the fixed-height iframe didn't size cleanly inside
+                           our card chrome. Hand-off matches the rest of the page's pattern
+                           and stays visually consistent. utm_source=stockgame-app stays in
+                           the URL for analytics attribution.
 
-                        3. Disclosure + bare foreUP shortcut.
+                        3. Phone tap-through. `tel:+17154533130` → iOS dialer with the pro
+                           shop number pre-filled. Number sourced from Inshalla's profile in
+                           the foreUP booking page (public info; published on inshallacc.com).
+
+                        4. Disclosure + bare foreUP shortcut.
 
                         If you ever get written permission from Inshalla's pro shop or foreUP
                         to display schedule data natively, the proxy + native-list pattern
@@ -194,14 +226,24 @@ components/
                       gives the 0% reference. Headline: "{leader} leads" or "It's a tie".
                       Range pct + signed gain-difference gap below. 2x2 leaderboard cards with
                       1st/2nd/3rd/4th badges. InsightsCard renders for every range (1D included).
+                      Three data-source paths in `ranged`:
+                        • 1D → intraday[u.id].points (15-min bars, today's session)
+                        • 1W → weekly[u.id] (hourly bars, past 5 trading days; compactX=true)
+                        • else → filterRange(series[u.id], range) (daily closes)
   PortfolioView.tsx   Per-user. Defaults to 1D. PriceHeader + ScrubChart + RangeTabs + Holdings list.
                       Each holding row has id={ticker} so /portfolio/X#TICKER deep-links.
                       In 1D mode: chart is intraday $, baseline = previousClose, xDomain = session.
+                      In 1W mode: chart is weekly hourly $; compactX=true collapses overnight
+                      + weekend gaps; weekly series falls back to filtered daily closes if no
+                      weekly data is present (older snapshots).
                       Holding rows show pct + signed $ for the ACTIVE range (read from
                       `holding.rangeStats[range]`) and re-sort by that range's pct.
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + N Position cards
                       (one per owner) + Dividends list (per-share, market-level).
                       In 1D: same intraday treatment as PortfolioView.
+                      In 1W: same weekly hourly + compactX treatment as PortfolioView.
+                      Force-scrolls to top on mount (skips on hash) so tapping a holding
+                      from a scrolled portfolio view doesn't land mid-page.
   StocksListView.tsx  All picks sorted by % return. Filter chips: All / Brian / Kevin / Rick / Lee.
                       Multi-color owner swatch when a ticker is held by 2+ users.
   InsightsCard.tsx    "What's driving it" — per-user cards showing top-3 / bottom-3 movers in
@@ -222,6 +264,8 @@ components/
 - `liveEndpoint` draws two concentric circles at the most recent point; ring expands and fades (`livePulseRing` keyframe), fill brightness oscillates (`livePulseFill`).
 - Compare (all ranges): `chartSeries.data` is normalized to fractional pct from the range's baseline so every line starts at 0% and the line order matches the leaderboard. Stats rehydrate the dollar value by indexing back into the raw `ranged[u.id]` points by `scrub.index`. baseline=0 is passed for the dashed reference line on every range.
 - `xDomain` overrides Visx auto-domain; for 1D we pass `sessionBoundsForDate(intradayDate)` which returns `[09:30 ET, 16:00 ET]` as UTC dates, with a coarse DST heuristic (Mar–Nov = EDT).
+- `compactX` switches to an index-based x-scale (one slot per data point) so the 1W view's overnight + weekend gaps disappear. Pointer-handler branches: in compactX mode the inverted x is rounded to the nearest data slot; in time mode the existing bisector logic runs. Tick computation also branches (`computeXTicksTime` vs `computeXTicksCompact`).
+- X-axis tick labels: `--chart-axis-label` CSS var (rgba(255,255,255,0.4) dark / rgba(24,24,27,0.55) light). First and last labels are clamped inward by `LABEL_EDGE_PAD` (12px) so the text doesn't hug the screen edges. The data line / area / scrub still extend edge-to-edge.
 
 ## 8. Data refresh pipeline
 
@@ -243,7 +287,8 @@ components/
    ├─ npm run fetch-prices            → updates public/data/prices.json
    │     - incremental: only refetches trailing 5 days per ticker
    │     - --full: re-fetches everything from START_DATE
-   │     - also pulls today's 15-min intraday bars + dividend events
+   │     - also pulls today's 15-min intraday bars + past 8 days of 1h
+   │       hourly bars (for the 1W view) + dividend events
    ├─ if public/data/prices.json changed:
    │     git add public/data/prices.json   (stages ONLY the data file —
    │                                         unrelated WIP never auto-commits)
@@ -356,6 +401,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **Theme system.** `globals.css` keeps the dark palette as the default `:root` and overrides a handful of zinc/black/white utility classes under `:root[data-theme="light"]` (Robinhood-light: zinc-50 page bg, white cards, zinc-200 borders, zinc-900 text). `<ThemeController>` mounts in the layout and toggles `<html data-theme="light">` whenever `isMarketLive` is true (re-evaluated every 60s). Player accents and gain/loss greens are unchanged across themes. If you add a new component, reuse the existing zinc utility classes — those flip automatically. New hex literals (e.g. `bg-[#xxx]`) won't.
 - **DST heuristic** in `sessionBoundsForDate` is coarse (Mar–Nov = EDT). Wrong on the few transition days; harmless for the visual axis.
 - **Today's intraday bars are regular session only.** `scripts/fetch-prices.ts` filters bars to `9:30 AM ≤ t < 4:00 PM ET` via `sessionBoundsET()` so the chart's last point is the 4:00 PM close, not an after-hours print. The 3:00 PM CT (= 4:00 PM ET market-close) fire captures the closing bar; the optional 3:15 PM CT fire is a backup that picks it up if Yahoo's bar wasn't ready at the close. Either way, the data ends at the close.
+- **Weekly hourly bars are also regular-session-only.** `fetchWeeklyHourly()` pulls 1h bars for the past 8 days, then `filterToRegularSession()` drops pre-market, after-hours, and weekend bars (DST-aware ET hour-of-day check). At render time `lib/portfolio.ts` further drops Yahoo's "live partial" bars (any bar whose timestamp doesn't end with `:00.000Z`) so 1W plot points all sit at clean hourly intervals.
 - **`isMarketLive`** = bar < 30 min old. Doesn't know about market holidays; relies on Yahoo not returning fresh bars on those days.
 - **No client-side polling.** All "live" feel comes from PullToRefresh's resume-reload + the scheduler's 15-min cadence. The chart's blink is purely visual; data is static between reloads.
 - **`scripts/.pause`** is the only soft-stop. The cron checks for it first thing. Use it to halt the schedule without closing the tkinter UI.
@@ -414,7 +460,7 @@ lib/                           Pure logic, no React
   data.ts                      Server-side loader of public/data/prices.json.
 
 scripts/
-  fetch-prices.ts              Yahoo Finance fetcher. Incremental + intraday + dividends + spin-off children.
+  fetch-prices.ts              Yahoo Finance fetcher. Incremental + today's 15-min intraday + past-week 1h hourly + dividends + spin-off children.
   cron-update.sh               One-shot: fetch + commit + push + vercel deploy.
   stockgame_schedule.py        tkinter scheduler. threading.Timer + caffeinate.
   make-icons.py                Regenerate PWA icons (icon-192/512, apple-touch, favicon).
