@@ -162,6 +162,22 @@ export function intradayPortfolioSeries(
 // consider "1W."
 const WEEKLY_TRADING_DAYS = 5;
 
+/**
+ * Yahoo's 1h bars normally arrive at clean hour boundaries (minute=30,
+ * second=0 in UTC for US market alignment). When the market is mid-hour
+ * Yahoo also returns a "live current-quote" bar with the actual
+ * second-of-now timestamp (e.g. `19:29:33`). That bar makes the spacing
+ * between the last two points uneven (~59 min vs the consistent 60 min
+ * elsewhere). Drop those non-aligned bars from the 1W view so every
+ * plotted point sits at the same hourly interval.
+ */
+function isHourBoundaryBar(b: { t: string }): boolean {
+  // Cheap and exact: regular hourly bars end with ":30:00.000Z" (or
+  // ":00:00.000Z" if Yahoo aligns differently for some markets). The live
+  // bar always has a non-zero seconds component — `19:29:33.000Z` etc.
+  return b.t.endsWith(":00.000Z");
+}
+
 /** Group bars by their trading day (UTC YYYY-MM-DD prefix), keep the last N
  *  groups, return the bars belonging to those days. Bars within each kept day
  *  remain in their original order. */
@@ -203,7 +219,12 @@ export function weeklyPortfolioSeries(
 
   const tsSet = new Set<string>();
   for (const s of seriesByTicker) {
-    for (const b of s.weekly ?? []) tsSet.add(b.t);
+    for (const b of s.weekly ?? []) {
+      // Skip Yahoo's live partial bar so all plotted points sit on hour
+      // boundaries (consistent intervals, no stray sub-hour spacing).
+      if (!isHourBoundaryBar(b)) continue;
+      tsSet.add(b.t);
+    }
   }
   // Trim union of timestamps to the last 5 distinct trading days.
   const allTs = [...tsSet].sort().map((t) => ({ t }));
@@ -246,7 +267,7 @@ export function weeklyPortfolioSeries(
 export function weeklyTickerSeries(
   series: TickerSeries
 ): PortfolioPoint[] | null {
-  const bars = series.weekly ?? [];
+  const bars = (series.weekly ?? []).filter(isHourBoundaryBar);
   if (bars.length === 0) return null;
   const trimmed = trimToLastNTradingDays(bars, WEEKLY_TRADING_DAYS);
   if (trimmed.length === 0) return null;
