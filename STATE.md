@@ -182,6 +182,16 @@ components/
                         even though no `X-Frame-Options` is set — possibly a JS frame-detection
                         check; replaced with the native list.)
 
+                        Tap-through deep-links foreUP straight into "Daily Golf" for the
+                        chosen date, skipping the booking-class chooser. The SPA's router
+                        reads ?booking_class_id=2431 + ?schedule_id=2251 + ?date=MM-DD-YYYY
+                        from the query string on mount and pre-applies them. See CLAUDE.md
+                        §5.5 for the deep-link format.
+
+                        Cron-independent: /api/tee-times is a runtime edge function — every
+                        load hits foreUP fresh (60s edge cache). Pausing the data cron does
+                        NOT freeze tee-time inventory. Tee times update whenever foreUP does.
+
   CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
                       (value - baseline) / baseline so every line starts at y=0 and the
                       visual order matches the leaderboard ranking. baseline=0 dashed line

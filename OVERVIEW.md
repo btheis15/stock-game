@@ -48,8 +48,15 @@ Four things, on a phone screen:
    available tee times for the next two weeks — pulled live from foreUP
    in the app's own style. Pick a day with the date arrows, tap a time
    to hand off to foreUP for the actual booking (auth and payment live
-   there). Each row shows the time, open spots, allowed group sizes,
-   green fee, and cart fee at a glance.
+   there). The hand-off deep-links straight into the Daily Golf booking
+   class with the date pre-selected, so you land on the time list
+   immediately — no extra "select Daily Golf" tap. Each row shows the
+   time, open spots, allowed group sizes, green fee, and cart fee.
+
+   Tee-time availability **always reflects foreUP's current state**, no
+   matter what the stock-data refresh is doing. The list is fetched on
+   the spot every time you open the tab — paused cron, overnight
+   market, weekend, doesn't matter; the times are live.
 
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
 that re-scope the data. The Compare and per-player views open on **1D** by

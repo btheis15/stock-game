@@ -4,7 +4,34 @@ import { useEffect, useMemo, useState } from "react";
 
 const COURSE_ID = 19715;
 const SCHEDULE_ID = 2251;
-const FOREUP_BOOKING_URL = `https://stage.foreupsoftware.com/index.php/booking/${COURSE_ID}/${SCHEDULE_ID}#/teetimes`;
+// "Daily Golf" booking class on schedule 2251. The schedule has two classes
+// (Daily Golf + Members); without specifying one, foreUP shows a chooser
+// before the time list. We pre-select Daily Golf in the deep link.
+const DAILY_GOLF_BOOKING_CLASS_ID = 2431;
+const FOREUP_BASE = `https://stage.foreupsoftware.com/index.php/booking/${COURSE_ID}/${SCHEDULE_ID}`;
+
+/**
+ * Builds a foreUP booking URL that skips the booking-class chooser.
+ * Discovered in the SPA bundle:
+ *
+ *   if (urlParams.get('booking_class_id') && urlParams.get('schedule_id')) {
+ *     filters.set('booking_class', urlParams.get('booking_class_id'));
+ *     filters.set('schedule_id',   urlParams.get('schedule_id'));
+ *     // also reads: date, players, time_of_day, holes
+ *   }
+ *
+ * Date format is MM-DD-YYYY (foreUP's UI convention, not ISO).
+ */
+function buildForeUpUrl(opts: { dateMdY?: string; players?: number; holes?: "9" | "18" } = {}) {
+  const params = new URLSearchParams({
+    booking_class_id: String(DAILY_GOLF_BOOKING_CLASS_ID),
+    schedule_id: String(SCHEDULE_ID),
+  });
+  if (opts.dateMdY) params.set("date", opts.dateMdY);
+  if (opts.players) params.set("players", String(opts.players));
+  if (opts.holes) params.set("holes", opts.holes);
+  return `${FOREUP_BASE}?${params.toString()}#/teetimes`;
+}
 
 interface TeeTime {
   time: string; // "2026-05-08 08:00"
@@ -77,7 +104,7 @@ export function TeeTimesView() {
             </h1>
           </div>
           <a
-            href={FOREUP_BOOKING_URL}
+            href={buildForeUpUrl({ dateMdY: toForeUpDate(date) })}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] font-semibold text-zinc-400 active:text-white"
@@ -101,7 +128,7 @@ export function TeeTimesView() {
             </div>
             <div className="text-[11px] text-zinc-500 mb-3">{error}</div>
             <a
-              href={FOREUP_BOOKING_URL}
+              href={buildForeUpUrl({ dateMdY: toForeUpDate(date) })}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block text-[12px] font-semibold text-white bg-zinc-800 active:bg-zinc-700 px-3 py-1.5 rounded-md"
@@ -133,10 +160,11 @@ export function TeeTimesView() {
 function TeeTimeRow({ t }: { t: TeeTime }) {
   const tod = parseTeeTime(t.time); // local-time-of-day display
   const groupRange = formatGroupSizes(t.allowed_group_sizes);
-  // foreUP doesn't expose a clean per-time deep link, so the row hands off
-  // to the day-level booking URL — the user will see their time still
-  // available at the top of the list.
-  const href = `${FOREUP_BOOKING_URL}?date=${encodeURIComponent(t.time.slice(0, 10))}`;
+  // foreUP doesn't expose a per-time deep link, but it does honor
+  // booking_class_id + schedule_id + date in the query string (parsed by the
+  // SPA on mount), so the row deep-links straight into Daily Golf for that
+  // date and the user lands on the time list with their time near the top.
+  const href = buildForeUpUrl({ dateMdY: isoToForeUpDate(t.time.slice(0, 10)) });
 
   return (
     <a
@@ -155,14 +183,17 @@ function TeeTimeRow({ t }: { t: TeeTime }) {
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[12px] text-zinc-300">
-          {t.available_spots} open · {groupRange} · {t.holes} holes
+        <div className="text-[12px] font-semibold text-white">
+          {t.available_spots} open
+          {t.has_special && (
+            <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wider text-[#00C805] align-middle">
+              Special
+            </span>
+          )}
         </div>
-        {t.has_special && (
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[#00C805] mt-0.5">
-            Special
-          </div>
-        )}
+        <div className="text-[11px] text-zinc-500 truncate">
+          {groupRange} · {t.holes} holes
+        </div>
       </div>
       <div className="text-right shrink-0">
         <div className="text-[14px] font-semibold text-white tabular-nums">
@@ -227,6 +258,19 @@ function toIsoDate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function toForeUpDate(d: Date): string {
+  // foreUP's URL date is MM-DD-YYYY.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${m}-${day}-${y}`;
+}
+
+function isoToForeUpDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${m}-${d}-${y}`;
 }
 
 function parseTeeTime(s: string): { hour: string; min: string; ampm: string } {

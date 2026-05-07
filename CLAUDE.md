@@ -300,13 +300,32 @@ Vercel.
   middle column shows `N open · group sizes · holes`, right column
   shows green-fee and `+ $cart` cart-fee. "Special" badge in green when
   `has_special` is true.
-- Tap a row → opens foreUP's `/booking/19715/2251?date=YYYY-MM-DD#/teetimes`
-  in a new tab. (foreUP doesn't expose a clean per-time deep link, so
-  the day-level URL is the closest hand-off.)
+- Tap a row → opens foreUP at the **Daily Golf** booking class with the
+  date pre-selected, skipping the chooser screen. The deep-link format
+  was found by reading the SPA source (`online-booking.min.js`):
+
+  ```
+  https://stage.foreupsoftware.com/index.php/booking/19715/2251
+    ?booking_class_id=2431
+    &schedule_id=2251
+    &date=MM-DD-YYYY
+    #/teetimes
+  ```
+
+  The SPA's router checks `urlParams.get('booking_class_id') &&
+  urlParams.get('schedule_id')` and, if both are present, calls
+  `filters.set('booking_class', ...)` + `filters.set('schedule_id', ...)`
+  before rendering tee times. It also reads `date`, `players`,
+  `time_of_day`, `holes` from the same query string (we only set `date`
+  for now; the others can be wired up if we ever surface group-size /
+  hole filters in our UI).
 
 **Constants in the codebase**:
 - `COURSE_ID = 19715` — Inshalla Country Club
 - `SCHEDULE_ID = 2251`
+- `DAILY_GOLF_BOOKING_CLASS_ID = 2431` (the schedule's other class is
+  "Members" id 49668; we always link to Daily Golf since that's the
+  public class)
 - foreUP base URL: `https://stage.foreupsoftware.com/`. Note `stage.`;
   foreUP's production endpoint is presumably `app.foreupsoftware.com`
   but the user's URL pointed at stage and that's what works.
@@ -324,6 +343,21 @@ Vercel.
 **The Footer is hidden on this route** (see `Footer.tsx`). Snapshot
 timestamps are about stock data; they'd be misleading on a tee-times
 page.
+
+**Cron / refresh independence**: Tee-time freshness is decoupled from
+the data cron entirely. The cron exists to update `prices.json` (stock
+data) and pushes a new build to Vercel. The Tee Times tab does NOT
+depend on the build — `/api/tee-times` is a runtime edge function that
+hits foreUP every time the user opens the tab (60s edge cache to be
+polite, plus 120s stale-while-revalidate). So:
+
+- Cron paused → tee times still update live ✓
+- Market closed (overnight) → tee times still update live ✓
+- App not rebuilt for hours → tee times still update live ✓
+
+The user can pause the schedule for stock data without breaking tee
+times; the only thing that would break tee times is foreUP changing
+their API or going down.
 
 ### §5.6. Theme system
 
