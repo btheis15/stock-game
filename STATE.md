@@ -121,10 +121,11 @@ Functions exported:
 /portfolio/{brian|kevin|rick|lee}  → PortfolioView (per-user drill-down)
 /stock/{ticker}            → StockView (per-stock detail; one Position card per owner)
 /stocks                    → StocksListView (all picks, filterable)
-/tee-times                 → TeeTimesView (embedded foreUP booking iframe for Inshalla CC)
+/tee-times                 → TeeTimesView (native list of Inshalla CC tee times)
+/api/tee-times             → Edge route handler; proxies foreUP /api/booking/times JSON
 ```
 
-All marked `dynamic = "force-static"`. `generateStaticParams` enumerates the 4 players and ALL_TICKERS for SSG. **38 static pages total** (35 stock-game pages + tee-times + 2 generated routes).
+All page routes are marked `dynamic = "force-static"` so they SSG. The `/api/tee-times` route is `dynamic = "force-dynamic"` (edge runtime) since it must hit foreUP per request, but it edge-caches the response for 60s with SWR so a popular day costs us at most one upstream call per minute. **38 static pages + 1 dynamic API route.**
 
 ## 6. Components
 
@@ -166,13 +167,20 @@ components/
                         (last intraday bar < 30 min old, mirroring `isMarketLive`); clears it
                         otherwise. Re-evaluates every 60 seconds so the page flips themes when
                         the market crosses open/close without needing a manual reload.
-  TeeTimesView.tsx      Renders the small "Tee Times — Inshalla CC · Tomahawk, WI" header plus
-                        a fullscreen iframe of the foreUP booking page
-                        (https://stage.foreupsoftware.com/index.php/booking/19715/2251#/teetimes).
-                        Uses `-mb-20` to cancel the layout's pb-20 so the iframe sits flush with
-                        the TabBar; height = 100dvh − header − tabbar − safe-areas. The "Open ↗"
-                        link in the header is the fallback if the iframe ever blanks out
-                        (we tested foreUP doesn't set X-Frame-Options or a CSP frame-ancestors).
+  TeeTimesView.tsx      Native list of available tee times for Inshalla CC. Header + day
+                        picker (today through +14 days) + list of times rendered in the app's
+                        own style (time on the left, "N open · group sizes · holes" middle,
+                        green-fee + cart-fee right). Tap-through opens foreUP's booking page
+                        for that day in a new tab — we display the schedule in-app, foreUP
+                        handles auth/payment.
+
+                        Data source: `/api/tee-times?date=YYYY-MM-DD` (Next.js Route Handler;
+                        edge runtime; 60s edge cache + SWR) which proxies foreUP's
+                        `/index.php/api/booking/times` endpoint. We must proxy because foreUP
+                        doesn't set `Access-Control-Allow-Origin` for cross-origin browser
+                        clients. (The earlier iframe approach rendered blank in production
+                        even though no `X-Frame-Options` is set — possibly a JS frame-detection
+                        check; replaced with the native list.)
 
   CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
                       (value - baseline) / baseline so every line starts at y=0 and the
@@ -379,7 +387,8 @@ app/                           Next.js routes
   portfolio/[user]/page.tsx    SSG for 4 users; dispatches to <PortfolioView>
   stock/[ticker]/page.tsx      SSG for ALL_TICKERS; dispatches to <StockView>
   stocks/page.tsx              Renders <StocksListView> with all TickerSeries
-  tee-times/page.tsx           Renders <TeeTimesView> (foreUP booking iframe)
+  tee-times/page.tsx           Renders <TeeTimesView> (native list backed by foreUP API proxy)
+  api/tee-times/route.ts       Edge route handler; proxies foreUP /api/booking/times JSON
 
 components/                    Client components (mostly)
   ScrubChart.tsx               (315 LOC) The chart. Owns scrub state, accepts xDomain + liveEndpoint.

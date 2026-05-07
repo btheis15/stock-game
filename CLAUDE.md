@@ -256,33 +256,74 @@ own a ticker. Each row links to `/stock/{ticker}`.
 
 ### §5.5. Tee Times (`/tee-times`)
 
-A bonus tab the user added so the friend group can book Inshalla CC tee
-times without leaving the app. The page is a thin wrapper around an
-iframe of the foreUP booking widget:
+A bonus tab so the friend group can see Inshalla CC's available tee
+times without leaving the app. We display the schedule natively in the
+app's style; the actual booking flow (auth, payment, captcha) hands off
+to foreUP via an "open in a new tab" link. We do NOT reproduce the
+booking flow — foreUP owns auth/payment/captcha; we'd never get the
+edge cases right.
+
+**v1 (shipped)**: iframe of foreUP's booking widget. Rendered blank on
+production (white screen, no console errors) — most likely a JS-side
+frame-detection check inside foreUP's bundle, since foreUP doesn't set
+`X-Frame-Options` or a CSP `frame-ancestors`. Replaced.
+
+**v2 (current)**: native list backed by foreUP's JSON API.
 
 ```
-https://stage.foreupsoftware.com/index.php/booking/19715/2251#/teetimes
+[client]  GET /api/tee-times?date=2026-05-08
+   ↓
+[edge fn] app/api/tee-times/route.ts
+   ↓
+[foreUP]  GET /index.php/api/booking/times?
+              schedule_id=2251&course_id=19715&date=05-08-2026
+              &time=all&holes=all&players=0
+   ↓
+[edge fn] cache for 60s (SWR=120s), forward unchanged JSON
+   ↓
+[client]  TeeTimesView renders the array
 ```
 
-**Server side** (`app/tee-times/page.tsx`): static page, just renders
-`<TeeTimesView>`.
+The proxy is mandatory because foreUP doesn't set
+`Access-Control-Allow-Origin` for browser clients. The route handler is
+`runtime: "edge"` and `dynamic: "force-dynamic"`; everything else in
+the app is SSG so this is the one piece that runs at request time on
+Vercel.
 
-**Client side** (`components/TeeTimesView.tsx`):
-- Small header with "Tee Times — Inshalla CC · Tomahawk, WI" and an
-  "Open ↗" link (target=_blank) — the bailout if the iframe ever blanks.
-- Fullscreen iframe sized via dvh-based calc to fit between the header
-  and the fixed bottom TabBar. The wrapper uses `-mb-20` to cancel the
-  layout's `pb-20` so the iframe sits flush with the TabBar.
-- foreUP's stage origin doesn't set `X-Frame-Options` or a CSP
-  `frame-ancestors` directive, so embedding works. No `sandbox`
-  attribute — foreUP needs scripts, forms, popups, and same-origin for
-  the booking flow.
-- The Footer is hidden on this route (see `Footer.tsx` — short-circuits
-  on `pathname.startsWith("/tee-times")`).
+**TeeTimesView responsibilities** (`components/TeeTimesView.tsx`):
+- Small "Tee Times · Inshalla CC · Tomahawk, WI" header.
+- Day picker `‹ Today / Tomorrow / Sat, May 9 / … ›` with arrows. Bounded
+  to today (no past days) through today+14.
+- Fetches `/api/tee-times?date=YYYY-MM-DD` on mount and on `dayOffset`
+  change. Aborts in-flight requests on unmount.
+- Renders each tee time row: time on the left (large with AM/PM tag),
+  middle column shows `N open · group sizes · holes`, right column
+  shows green-fee and `+ $cart` cart-fee. "Special" badge in green when
+  `has_special` is true.
+- Tap a row → opens foreUP's `/booking/19715/2251?date=YYYY-MM-DD#/teetimes`
+  in a new tab. (foreUP doesn't expose a clean per-time deep link, so
+  the day-level URL is the closest hand-off.)
 
-If the iframe ever does break (e.g. foreUP changes their CSP), the
-fallback is the "Open ↗" link in the header. No need to overengineer
-detection — point users at the link.
+**Constants in the codebase**:
+- `COURSE_ID = 19715` — Inshalla Country Club
+- `SCHEDULE_ID = 2251`
+- foreUP base URL: `https://stage.foreupsoftware.com/`. Note `stage.`;
+  foreUP's production endpoint is presumably `app.foreupsoftware.com`
+  but the user's URL pointed at stage and that's what works.
+
+**If foreUP changes their API**, this is what to refresh:
+1. Open `https://stage.foreupsoftware.com/index.php/booking/19715/2251`
+   in a real browser, watch DevTools → Network → XHR.
+2. The first call after page load is the tee-times fetch — note the
+   path and query params.
+3. Update `app/api/tee-times/route.ts` to match. The TeeTime TS shape
+   in `TeeTimesView.tsx` only depends on a few fields (`time`,
+   `available_spots`, `green_fee`, etc.); the rest of the JSON is
+   ignored, so additive upstream changes don't break us.
+
+**The Footer is hidden on this route** (see `Footer.tsx`). Snapshot
+timestamps are about stock data; they'd be misleading on a tee-times
+page.
 
 ### §5.6. Theme system
 

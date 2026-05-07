@@ -44,10 +44,12 @@ Four things, on a phone screen:
    for example, so NVDA's page shows both their positions). Below that, a
    list of every dividend that stock has paid since 2/5.
 
-4. **Tee Times.** A third tab, golf-ball icon. Embeds the Inshalla CC
-   foreUP booking widget right inside the app so the friend group can book a
-   round without bouncing out to Safari. There's an "Open ↗" link in the
-   header if the embedded widget ever has trouble.
+4. **Tee Times.** A third tab, golf-ball icon. Shows Inshalla CC's
+   available tee times for the next two weeks — pulled live from foreUP
+   in the app's own style. Pick a day with the date arrows, tap a time
+   to hand off to foreUP for the actual booking (auth and payment live
+   there). Each row shows the time, open spots, allowed group sizes,
+   green fee, and cart fee at a glance.
 
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
 that re-scope the data. The Compare and per-player views open on **1D** by
