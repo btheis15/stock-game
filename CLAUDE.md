@@ -256,134 +256,77 @@ own a ticker. Each row links to `/stock/{ticker}`.
 
 ### §5.5. Tee Times (`/tee-times`)
 
-A bonus tab so the friend group can see Inshalla CC's available tee
-times without leaving the app. We display the schedule natively in the
-app's style; the actual booking flow (auth, payment, captcha) hands off
-to foreUP via an "open in a new tab" link. We do NOT reproduce the
-booking flow — foreUP owns auth/payment/captcha; we'd never get the
-edge cases right.
+A bonus tab so the friend group can quickly hop into Inshalla CC's
+foreUP booking page. **The current implementation is a deliberate
+deep-link landing — not a native list.** We display nothing about
+foreUP's tee-time data in-app; we just provide three quick-pick day
+shortcuts that open foreUP pre-filtered to Daily Golf for the chosen
+date.
 
-**v1 (shipped)**: iframe of foreUP's booking widget. Rendered blank on
-production (white screen, no console errors) — most likely a JS-side
-frame-detection check inside foreUP's bundle, since foreUP doesn't set
-`X-Frame-Options` or a CSP `frame-ancestors`. Replaced.
+**Why deep-link only, not a native list?** foreUP's [Terms of Use](https://stage.foreupsoftware.com/terms_and_conditions.php)
+§3.2(v) prohibits "automated software, devices, or other processes to
+'crawl' or scrape data from the Service." Their `robots.txt` disallows
+all automated agents (`User-agent: * / Disallow: /`). An earlier version
+of this view ran a server-side proxy that hit foreUP's
+`/api/booking/times` JSON endpoint and rendered the schedule natively;
+that approach worked technically but ran afoul of those clauses. The
+deep-link landing avoids the problem entirely — we don't read foreUP's
+data, we just hand off cleanly. URL crafting (passing
+`booking_class_id`, `schedule_id`, `date` query params they themselves
+respect) is normal browser behavior, not scraping.
 
-**v2 (current)**: native list backed by foreUP's JSON API.
+**The deep-link contract** (discovered by reading the foreUP SPA bundle,
+preserved here for future reference):
 
 ```
-[client]  GET /api/tee-times?date=2026-05-08
-   ↓
-[edge fn] app/api/tee-times/route.ts
-   ↓
-[foreUP]  GET /index.php/api/booking/times?
-              schedule_id=2251&course_id=19715&date=05-08-2026
-              &time=all&holes=all&players=0
-   ↓
-[edge fn] cache for 60s (SWR=120s), forward unchanged JSON
-   ↓
-[client]  TeeTimesView renders the array
+https://stage.foreupsoftware.com/index.php/booking/19715/2251
+  ?booking_class_id=2431      ← Daily Golf class; skips chooser
+  &schedule_id=2251           ← required alongside booking_class_id
+  &date=MM-DD-YYYY            ← optional; pre-fills the date picker
+  #/teetimes                  ← SPA route to the time list
 ```
 
-The proxy is mandatory because foreUP doesn't set
-`Access-Control-Allow-Origin` for browser clients. The route handler is
-`runtime: "edge"` and `dynamic: "force-dynamic"`; everything else in
-the app is SSG so this is the one piece that runs at request time on
-Vercel.
+The SPA's router checks `urlParams.get('booking_class_id') &&
+urlParams.get('schedule_id')` and, if both are present, calls
+`filters.set('booking_class', ...)` + `filters.set('schedule_id', ...)`
+before rendering tee times. It also reads `date`, `players`,
+`time_of_day`, `holes` from the same query string (we only set `date`
+for now; the others are available for future use).
 
 **TeeTimesView responsibilities** (`components/TeeTimesView.tsx`):
-- Small "Tee Times · Inshalla CC · Tomahawk, WI" header.
-- Day picker `‹ Today / Tomorrow / Sat, May 9 / … ›` with arrows. Bounded
-  to today (no past days) through today+14.
-- Fetches `/api/tee-times?date=YYYY-MM-DD` on mount and on `dayOffset`
-  change. Aborts in-flight requests on unmount.
-- Renders each tee time row: time on the left (large with AM/PM tag),
-  middle column shows `N open · group sizes · holes`, right column
-  shows green-fee and `+ $cart` cart-fee. "Special" badge in green when
-  `has_special` is true.
-- Tap a row → opens foreUP at the **Daily Golf** booking class with the
-  date pre-selected, skipping the chooser screen. The deep-link format
-  was found by reading the SPA source (`online-booking.min.js`):
-
-  ```
-  https://stage.foreupsoftware.com/index.php/booking/19715/2251
-    ?booking_class_id=2431
-    &schedule_id=2251
-    &date=MM-DD-YYYY
-    #/teetimes
-  ```
-
-  The SPA's router checks `urlParams.get('booking_class_id') &&
-  urlParams.get('schedule_id')` and, if both are present, calls
-  `filters.set('booking_class', ...)` + `filters.set('schedule_id', ...)`
-  before rendering tee times. It also reads `date`, `players`,
-  `time_of_day`, `holes` from the same query string (we only set `date`
-  for now; the others can be wired up if we ever surface group-size /
-  hole filters in our UI).
+- Small header: "Tee Times · Inshalla CC · Tomahawk, WI"
+- "Quick book" card with three rows: Today, Tomorrow, day-after. Each
+  is an `<a target="_blank">` to the deep link with that day's date.
+- "View all available times ↗" primary CTA — same deep link without a
+  date param, so foreUP shows its own date picker.
+- Disclosure copy: "Tee times, pricing, and booking are managed by
+  Inshalla Country Club via foreUP."
+- A bare "Inshalla CC on foreUP →" footer link without `booking_class_id`
+  for users who want to browse Members or browse without filters.
 
 **Constants in the codebase**:
 - `COURSE_ID = 19715` — Inshalla Country Club
 - `SCHEDULE_ID = 2251`
 - `DAILY_GOLF_BOOKING_CLASS_ID = 2431` (the schedule's other class is
-  "Members" id 49668; we always link to Daily Golf since that's the
-  public class)
+  "Members" id 49668; we always link to Daily Golf for the quick-book
+  rows since that's the family's class)
 - foreUP base URL: `https://stage.foreupsoftware.com/`. Note `stage.`;
   foreUP's production endpoint is presumably `app.foreupsoftware.com`
   but the user's URL pointed at stage and that's what works.
 
-**If foreUP changes their API**, this is what to refresh:
-1. Open `https://stage.foreupsoftware.com/index.php/booking/19715/2251`
-   in a real browser, watch DevTools → Network → XHR.
-2. The first call after page load is the tee-times fetch — note the
-   path and query params.
-3. Update `app/api/tee-times/route.ts` to match. The TeeTime TS shape
-   in `TeeTimesView.tsx` only depends on a few fields (`time`,
-   `available_spots`, `green_fee`, etc.); the rest of the JSON is
-   ignored, so additive upstream changes don't break us.
-
-**The Footer is hidden on this route** (see `Footer.tsx`). Snapshot
-timestamps are about stock data; they'd be misleading on a tee-times
-page.
-
-**Cron / refresh independence**: Tee-time freshness is decoupled from
-the data cron entirely. The cron exists to update `prices.json` (stock
-data) and pushes a new build to Vercel. The Tee Times tab does NOT
-depend on the build — `/api/tee-times` is a runtime edge function that
-hits foreUP every time the user opens the tab (60s edge cache to be
-polite, plus 120s stale-while-revalidate). So:
-
-- Cron paused → tee times still update live ✓
-- Market closed (overnight) → tee times still update live ✓
-- App not rebuilt for hours → tee times still update live ✓
-
-The user can pause the schedule for stock data without breaking tee
-times; the only thing that would break tee times is foreUP changing
-their API or going down.
-
-**Date picker**: three pill chips for `Today / Tomorrow / day-after`
-plus a calendar icon button on the right. The calendar opens a hidden
-`<input type="date">` via `showPicker()` (iOS Safari 16+ supports it;
-fallback is `focus()` + `click()` for older browsers). The calendar
-icon flips to its active style (white bg) when a non-chip date is
-selected so the user always knows which day is showing.
-
-**Booking-window cap**: the calendar's `max`, the chip enabled-state,
-and the "Bookings open N days ahead" hint all come from
-`/api/tee-times/config` — an edge function that scrapes foreUP's
-inline `SCHEDULES = [...]` JSON and reads `days_in_booking_window` off
-schedule 2251. As of writing Inshalla runs a 5-day window (today + 4
-future days). If the course operator extends the window in foreUP, our
-app picks up the change within ~1 hour (the config response is
-edge-cached for 3600s). Chips for days beyond the window render
-disabled + greyed; the date input clamps to the cap defensively in
-its `onChange` so even a programmatic value past max gets snapped to
-max. Fallback if the scrape fails: 14 days.
+**If you ever get permission to display schedule data in-app** (e.g.
+Inshalla's pro shop gives written consent, or foreUP issues a partner
+embed code), the proxy + native-list pattern lives in
+`docs/embedding-third-party-booking.md` §1–§7. The git history at
+commits 360e810 → 3326d72 has the full working implementation
+(`/api/tee-times` edge proxy, `/api/tee-times/config` SCHEDULES scraper,
+booking-window-aware date picker, holes-aware fee selection). Restoring
+it is a 1-hour change. Don't restore without permission.
 
 **Reusable playbook**: `docs/embedding-third-party-booking.md` is a
-field guide for applying this exact approach to other booking SaaS
-(Calendly, OpenTable, Resy, Mindbody, etc.). Read that file before
-adding the next SaaS-embed feature; it covers API discovery, edge-proxy
-patterns, deep-link extraction from minified bundles, native-list UX,
-and local-time date math gotchas.
+field guide covering both the deep-link-only pattern (compliant
+default) and the proxy + native-list pattern (when permission is in
+hand). Read that file before adding the next SaaS-embed feature.
 
 ### §5.6. Theme system
 

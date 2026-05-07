@@ -44,19 +44,14 @@ Four things, on a phone screen:
    for example, so NVDA's page shows both their positions). Below that, a
    list of every dividend that stock has paid since 2/5.
 
-4. **Tee Times.** A third tab, golf-ball icon. Shows Inshalla CC's
-   available tee times for the next two weeks — pulled live from foreUP
-   in the app's own style. Pick a day with the date arrows, tap a time
-   to hand off to foreUP for the actual booking (auth and payment live
-   there). The hand-off deep-links straight into the Daily Golf booking
-   class with the date pre-selected, so you land on the time list
-   immediately — no extra "select Daily Golf" tap. Each row shows the
-   time, open spots, allowed group sizes, green fee, and cart fee.
-
-   Tee-time availability **always reflects foreUP's current state**, no
-   matter what the stock-data refresh is doing. The list is fetched on
-   the spot every time you open the tab — paused cron, overnight
-   market, weekend, doesn't matter; the times are live.
+4. **Tee Times.** A third tab, golf-ball icon. Quick shortcuts into
+   Inshalla CC's foreUP booking page — three tappable rows for Today,
+   Tomorrow, and the day after, plus a primary "View all available
+   times" button. Tapping any of them opens foreUP in a new tab
+   pre-filtered to Daily Golf for the chosen date, so you skip the
+   "pick a category" screen and land on the time list immediately.
+   foreUP handles the actual schedule view, prices, account, and
+   payment.
 
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
 that re-scope the data. The Compare and per-player views open on **1D** by

@@ -1,11 +1,61 @@
-# Embedding a third-party booking SaaS natively in your app
+# Embedding a third-party booking SaaS in your app
 
-> A field-tested playbook for taking a booking widget from a SaaS like
-> **foreUP** (golf), Mindbody (fitness), Calendly, OpenTable, etc. and
-> rendering it inside your own app's UI — without losing booking
-> functionality. Written from doing exactly this for the Stock Game app's
-> Tee Times tab (Inshalla CC). The same recipe applies, mostly unchanged,
-> to any "single-page booking app" SaaS.
+> A field-tested playbook for surfacing a booking SaaS like **foreUP**
+> (golf), Mindbody (fitness), Calendly, OpenTable, etc. inside your
+> own app — written from doing exactly this for the Stock Game app's
+> Tee Times tab (Inshalla CC).
+>
+> **There are two patterns in this doc and they're not interchangeable:**
+>
+> **Pattern A — Deep-link landing** (§§1, 2, 6 only). What we ship by
+> default. You don't read the SaaS's data; you provide pre-filtered
+> deep links that open the SaaS's own page in a new tab with the
+> chooser screens skipped. Works without permission. **TOS-clean.**
+>
+> **Pattern B — Native list backed by an API proxy** (§§1, 3, 4, 5, 7,
+> 8, 9). You scrape/proxy the SaaS's JSON to render their schedule in
+> your own UI. Better UX, but most booking SaaS terms forbid scraping
+> their service (foreUP §3.2.v, robots.txt `Disallow: /`). **Don't ship
+> this without written permission from the SaaS or the operator.**
+>
+> Always start with Pattern A. Move to Pattern B only with consent.
+
+---
+
+---
+
+## 0. Compliance check first — read this before anything else
+
+Every booking SaaS has a Terms of Use. Skim it for the following clauses
+**before** you decide which pattern to implement:
+
+- **No scraping/crawling** ("automated software... to crawl or scrape
+  data from the Service") — appears in foreUP, Calendly, Resy,
+  OpenTable, basically all of them.
+- **No public display of Content** — sometimes specific to schedule /
+  pricing / availability data.
+- **No display in frames or links to Content without consent** — broader
+  than it sounds; usually targeted at scrapers and aggregators.
+- **robots.txt** — `Disallow: /` is a notice that automated access is
+  unwelcome even if not legally binding.
+
+If the SaaS forbids scraping (most do), **don't ship Pattern B without
+written consent.** Realistic paths to consent:
+
+1. **Ask the SaaS's customer (the merchant)**, not the SaaS itself. The
+   golf course / studio / restaurant has skin in the game — they want
+   bookings. They can speak to the SaaS on your behalf, or hand you
+   their official "Book Now" embed code (which is licensed for partner
+   sites).
+2. **Ask the SaaS directly** for partner / API access. Big ones
+   (Calendly, OpenTable, Mindbody) have public partner programs and
+   real APIs you can sign up for.
+3. **If neither is available**, ship Pattern A and accept the slight UX
+   cost. It's still a much better experience than "go to the SaaS's
+   site and find the right page yourself."
+
+Pattern A doesn't require any of this — URL crafting against query
+params the SaaS itself respects is normal browser behavior.
 
 ---
 
@@ -35,7 +85,75 @@ API; you can call it too.
 
 ---
 
-## 2. The pattern (high level)
+## 1.5. Pattern A — Deep-link landing (the compliant default)
+
+Stop here if you don't have permission to scrape. Pattern A delivers
+~80% of the UX value of a full embed for ~10% of the work and zero TOS
+risk.
+
+```
+┌──────────────────────────────────────────────┐
+│  Your app                                    │
+│  /your-tab                                    │
+│   ├── header + branding                      │
+│   ├── 3 quick-pick day rows                   │
+│   │     each: <a target="_blank" href={…}>   │
+│   │     each opens SaaS in a new tab pre-    │
+│   │     filtered to category + that date     │
+│   └── primary CTA: "View all available"      │
+│         opens SaaS index without date filter │
+└──────────────────────────────────────────────┘
+            │
+            └─→ SaaS in a new tab (auth, payment,
+                full schedule view — all theirs)
+```
+
+The whole component is ~120 LOC. No data fetching, no API proxy, no
+caching, no scraped HTML. Just URL crafting:
+
+```ts
+function buildSaasUrl({ dateMdY }: { dateMdY?: string } = {}) {
+  const params = new URLSearchParams({
+    category_id: String(YOUR_CATEGORY_ID),    // skips chooser screens
+    schedule_id: String(YOUR_SCHEDULE_ID),
+  });
+  if (dateMdY) params.set("date", dateMdY);
+  return `${SAAS_BOOKING_URL}?${params.toString()}#/teetimes`;
+}
+
+// In the view:
+<a
+  href={buildSaasUrl({ dateMdY: toMdY(today) })}
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  Today · {fmtDate(today)} ↗
+</a>
+```
+
+What you give up vs. Pattern B:
+- No in-app schedule preview (user has to tap to know what's open)
+- No price awareness in your UI
+
+What you keep:
+- One-tap booking from your app to the right SaaS page
+- Skipping the SaaS's chooser screens (the deep-link contract is what
+  matters; finding it is §3.3 below — same research applies whether
+  you're shipping Pattern A or Pattern B)
+- The SaaS's branding / pricing / inventory always perfectly current
+  because it's always the SaaS itself rendering
+
+**This is what the Stock Game app currently ships** for the Tee Times
+tab. The rest of this doc (§§2–13) describes Pattern B, which we built
+and reverted once we audited foreUP's terms. Reference for if/when
+permission is in hand.
+
+---
+
+## 2. Pattern B — The architecture (high level)
+
+**Only ship if you have written consent from the SaaS or the operator.**
+See §0.
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
@@ -654,6 +772,13 @@ SaaS flows in the same app; not worth doing for the first one.
 
 ## 12. Specific to Stock Game's Tee Times tab
 
+**Currently ships Pattern A (deep-link landing).** Pattern B was built,
+verified, and reverted when foreUP's TOS audit flagged §3.2(v) and the
+robots.txt `Disallow: /` directive. The Pattern B implementation is
+preserved in git history at commits `360e810` → `3326d72` for reference;
+restore only with written permission from Inshalla CC's pro shop or
+foreUP support.
+
 | | |
 |---|---|
 | Course | Inshalla Country Club, Tomahawk WI |
@@ -661,12 +786,11 @@ SaaS flows in the same app; not worth doing for the first one.
 | `SCHEDULE_ID` | `2251` |
 | `DAILY_GOLF_BOOKING_CLASS_ID` | `2431` (the public class; the other is `49668` Members) |
 | SaaS base | `https://stage.foreupsoftware.com/` (note `stage.`) |
-| Inventory endpoint | `GET /index.php/api/booking/times?schedule_id=2251&course_id=19715&date=MM-DD-YYYY&time=all&holes=all&players=0` |
-| Proxy route | `app/api/tee-times/route.ts` |
-| View component | `components/TeeTimesView.tsx` |
+| Deep-link template | `https://stage.foreupsoftware.com/index.php/booking/19715/2251?booking_class_id=2431&schedule_id=2251&date=MM-DD-YYYY#/teetimes` |
+| View component | `components/TeeTimesView.tsx` (Pattern A landing) |
 | Tab definition | `components/TabBar.tsx` (golf-ball-on-tee SVG icon) |
 | Page route | `app/tee-times/page.tsx` |
-| Footer hidden? | Yes, see `components/Footer.tsx` (`pathname.startsWith("/tee-times")`) |
+| Pattern B reference | `git log --oneline 360e810..3326d72` |
 
 If foreUP's API changes, re-run §3.3:
 

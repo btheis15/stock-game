@@ -121,12 +121,10 @@ Functions exported:
 /portfolio/{brian|kevin|rick|lee}  → PortfolioView (per-user drill-down)
 /stock/{ticker}            → StockView (per-stock detail; one Position card per owner)
 /stocks                    → StocksListView (all picks, filterable)
-/tee-times                 → TeeTimesView (native list of Inshalla CC tee times)
-/api/tee-times             → Edge route handler; proxies foreUP /api/booking/times JSON
-/api/tee-times/config      → Edge route handler; scrapes foreUP SCHEDULES for booking-window cap
+/tee-times                 → TeeTimesView (deep-link landing → Inshalla CC on foreUP)
 ```
 
-All page routes are marked `dynamic = "force-static"` so they SSG. The `/api/tee-times` route is `dynamic = "force-dynamic"` (edge runtime) since it must hit foreUP per request, but it edge-caches the response for 60s with SWR so a popular day costs us at most one upstream call per minute. **38 static pages + 1 dynamic API route.**
+All page routes are marked `dynamic = "force-static"` so they SSG. **38 static pages, no dynamic routes.**
 
 ## 6. Components
 
@@ -154,8 +152,6 @@ components/
   HeaderBack.tsx      Sticky top bar with "< Compare" back button (router.back).
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
-                      Hidden on /tee-times (the iframe view is full-bleed; data-snapshot footer
-                      is irrelevant there).
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
   PullToRefresh.tsx   Two refresh paths in one client component:
                         (a) Pull at scrollY=0, drag past 70px, release → location.reload()
@@ -168,43 +164,29 @@ components/
                         (last intraday bar < 30 min old, mirroring `isMarketLive`); clears it
                         otherwise. Re-evaluates every 60 seconds so the page flips themes when
                         the market crosses open/close without needing a manual reload.
-  TeeTimesView.tsx      Native list of available tee times for Inshalla CC. Header + day
-                        picker (today through +14 days) + list of times rendered in the app's
-                        own style (time on the left, "N open · group sizes · holes" middle,
-                        green-fee + cart-fee right). Tap-through opens foreUP's booking page
-                        for that day in a new tab — we display the schedule in-app, foreUP
-                        handles auth/payment.
+  TeeTimesView.tsx      Deep-link landing for Inshalla CC's foreUP booking page. Renders a
+                        small header + three "Quick book" rows (Today / Tomorrow / day-after,
+                        each showing the full date) + a primary "View all available times"
+                        CTA. Every link opens foreUP in a new tab, pre-filtered to Daily Golf
+                        for the chosen date so the user lands on the time list immediately
+                        (no booking-class chooser).
 
-                        Data source: `/api/tee-times?date=YYYY-MM-DD` (Next.js Route Handler;
-                        edge runtime; 60s edge cache + SWR) which proxies foreUP's
-                        `/index.php/api/booking/times` endpoint. We must proxy because foreUP
-                        doesn't set `Access-Control-Allow-Origin` for cross-origin browser
-                        clients. (The earlier iframe approach rendered blank in production
-                        even though no `X-Frame-Options` is set — possibly a JS frame-detection
-                        check; replaced with the native list.)
+                        We deliberately do NOT fetch foreUP's API or scrape its HTML. The
+                        SPA-bundle research in §5.5 / docs/embedding-third-party-booking.md
+                        is preserved for future use, but is not exercised here — foreUP's
+                        Terms (§3.2.v) prohibit programmatic crawling/scraping, and their
+                        robots.txt disallows all automated agents. Schedule visibility,
+                        pricing, auth, captcha, and payment all live on foreUP. Our role is
+                        a smart bookmark that pre-fills query params they support
+                        (booking_class_id=2431, schedule_id=2251, date=MM-DD-YYYY) so the
+                        hand-off feels seamless.
 
-                        Tap-through deep-links foreUP straight into "Daily Golf" for the
-                        chosen date, skipping the booking-class chooser. The SPA's router
-                        reads ?booking_class_id=2431 + ?schedule_id=2251 + ?date=MM-DD-YYYY
-                        from the query string on mount and pre-applies them. See CLAUDE.md
-                        §5.5 for the deep-link format.
-
-                        Cron-independent: /api/tee-times is a runtime edge function — every
-                        load hits foreUP fresh (60s edge cache). Pausing the data cron does
-                        NOT freeze tee-time inventory. Tee times update whenever foreUP does.
-
-                        Date picker: three pill chips (Today / Tomorrow / day-after) plus a
-                        calendar icon button on the right that opens HTML5 <input type="date">
-                        via showPicker() (iOS Safari 16+). Calendar icon flips active when a
-                        non-chip date is picked. The calendar's max date AND chip enabled-state
-                        come from /api/tee-times/config (which scrapes
-                        days_in_booking_window from foreUP's SCHEDULES blob — currently 5 for
-                        Inshalla). Chips beyond the window grey out + go disabled; the calendar
-                        won't let users pick beyond the cap. "Bookings open N days ahead" hint
-                        renders below the date display.
-
-                        Reusable playbook for porting this approach to other booking SaaS:
-                        docs/embedding-third-party-booking.md
+                        If the relationship with the course operator advances and you get
+                        written permission to display schedule data in-app, the proxy +
+                        native-list pattern is documented in
+                        docs/embedding-third-party-booking.md §1–§7 (and in the project's
+                        git history at commit 360e810/3326d72). Restoring it is a 1-hour
+                        change.
 
   CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
                       (value - baseline) / baseline so every line starts at y=0 and the
@@ -411,9 +393,7 @@ app/                           Next.js routes
   portfolio/[user]/page.tsx    SSG for 4 users; dispatches to <PortfolioView>
   stock/[ticker]/page.tsx      SSG for ALL_TICKERS; dispatches to <StockView>
   stocks/page.tsx              Renders <StocksListView> with all TickerSeries
-  tee-times/page.tsx           Renders <TeeTimesView> (native list backed by foreUP API proxy)
-  api/tee-times/route.ts       Edge route handler; proxies foreUP /api/booking/times JSON
-  api/tee-times/config/route.ts  Edge route handler; scrapes foreUP SCHEDULES for booking-window cap
+  tee-times/page.tsx           Renders <TeeTimesView> (deep-link landing for foreUP)
 
 components/                    Client components (mostly)
   ScrubChart.tsx               (315 LOC) The chart. Owns scrub state, accepts xDomain + liveEndpoint.
