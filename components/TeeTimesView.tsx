@@ -10,9 +10,11 @@ const SCHEDULE_ID = 2251;
 const DAILY_GOLF_BOOKING_CLASS_ID = 2431;
 const FOREUP_BASE = `https://stage.foreupsoftware.com/index.php/booking/${COURSE_ID}/${SCHEDULE_ID}`;
 
-// foreUP allows booking a few weeks out; cap the calendar at 90 days to keep
-// the picker manageable and avoid edge-case fetches that return [].
-const MAX_DAYS_AHEAD = 90;
+// Generous fallback. The actual cap comes from /api/tee-times/config which
+// reads `days_in_booking_window` from foreUP's own SCHEDULES blob — Inshalla
+// currently runs a 5-day window, but other courses and future settings vary.
+// We use this only if the config fetch fails.
+const FALLBACK_DAYS_IN_BOOKING_WINDOW = 14;
 
 /**
  * Builds a foreUP booking URL that skips the booking-class chooser.
@@ -35,6 +37,11 @@ function buildForeUpUrl(opts: { dateMdY?: string; players?: number; holes?: "9" 
   if (opts.players) params.set("players", String(opts.players));
   if (opts.holes) params.set("holes", opts.holes);
   return `${FOREUP_BASE}?${params.toString()}#/teetimes`;
+}
+
+interface BookingWindowConfig {
+  daysInBookingWindow: number; // total span of bookable days from today
+  daysOut: number;             // minimum days out; 0 = today bookable
 }
 
 interface TeeTime {
@@ -69,8 +76,32 @@ export function TeeTimesView() {
   const [times, setTimes] = useState<TeeTime[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState<BookingWindowConfig>({
+    daysInBookingWindow: FALLBACK_DAYS_IN_BOOKING_WINDOW,
+    daysOut: 0,
+  });
 
   const date = useMemo(() => parseLocalIso(selectedIso), [selectedIso]);
+
+  // Fetch the booking-window config once on mount. The endpoint scrapes
+  // foreUP's SCHEDULES JSON for `days_in_booking_window`, so the cap is
+  // always live (course operator can extend the window without us redeploying).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/tee-times/config")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((c: BookingWindowConfig) => {
+        if (cancelled) return;
+        setConfig(c);
+      })
+      .catch(() => {
+        // Silently keep the fallback config — booking still works, just with
+        // a wider calendar that may show a few empty days at the far end.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,7 +150,11 @@ export function TeeTimesView() {
         </div>
       </div>
 
-      <DayPicker selectedIso={selectedIso} setSelectedIso={setSelectedIso} />
+      <DayPicker
+        selectedIso={selectedIso}
+        setSelectedIso={setSelectedIso}
+        config={config}
+      />
 
       <div className="px-4 mt-3">
         {loading ? (
@@ -215,15 +250,22 @@ function TeeTimeRow({ t }: { t: TeeTime }) {
 function DayPicker({
   selectedIso,
   setSelectedIso,
+  config,
 }: {
   selectedIso: string;
   setSelectedIso: (iso: string) => void;
+  config: BookingWindowConfig;
 }) {
   const today = todayIsoLocal();
   const tomorrow = addDaysIso(today, 1);
   const dayAfter = addDaysIso(today, 2);
-  const maxIso = addDaysIso(today, MAX_DAYS_AHEAD);
+  // Last bookable day, inclusive: today + (window − 1). Window=5 → today+4.
+  const maxOffset = Math.max(0, config.daysInBookingWindow - 1);
+  const maxIso = addDaysIso(today, maxOffset);
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const tomorrowOutOfWindow = 1 > maxOffset;
+  const dayAfterOutOfWindow = 2 > maxOffset;
 
   const openCalendar = () => {
     const el = dateInputRef.current;
@@ -259,11 +301,13 @@ function DayPicker({
           active={selectedIso === tomorrow}
           onClick={() => setSelectedIso(tomorrow)}
           label="Tomorrow"
+          disabled={tomorrowOutOfWindow}
         />
         <Chip
           active={selectedIso === dayAfter}
           onClick={() => setSelectedIso(dayAfter)}
           label={fmtDowShort(parseLocalIso(dayAfter))}
+          disabled={dayAfterOutOfWindow}
         />
         <div className="ml-auto relative">
           <button
@@ -280,7 +324,8 @@ function DayPicker({
           </button>
           {/* Hidden native date input — clicking the icon button programmatically
               triggers it. Positioned over the button so iOS-Safari fallback
-              (focus + click) can still hit it on touch. */}
+              (focus + click) can still hit it on touch. The browser greys
+              out dates outside [min, max] in its native picker UI for free. */}
           <input
             ref={dateInputRef}
             type="date"
@@ -288,7 +333,14 @@ function DayPicker({
             max={maxIso}
             value={selectedIso}
             onChange={(e) => {
-              if (e.target.value) setSelectedIso(e.target.value);
+              const v = e.target.value;
+              if (!v) return;
+              // Clamp defensively. iOS Safari's wheel picker enforces min/max
+              // already, but other browsers (and programmatic .value sets)
+              // don't, so we make sure we never select outside the window.
+              if (v > maxIso) setSelectedIso(maxIso);
+              else if (v < today) setSelectedIso(today);
+              else setSelectedIso(v);
             }}
             className="absolute inset-0 opacity-0 pointer-events-none"
             tabIndex={-1}
@@ -307,6 +359,10 @@ function DayPicker({
         <div className="text-[15px] font-semibold text-white">
           {fmtFullDate(selectedDate)}
         </div>
+        <div className="text-[10px] text-zinc-600 mt-1">
+          Bookings open {config.daysInBookingWindow}{" "}
+          {config.daysInBookingWindow === 1 ? "day" : "days"} ahead
+        </div>
       </div>
     </div>
   );
@@ -316,20 +372,30 @@ function Chip({
   active,
   onClick,
   label,
+  disabled,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  disabled?: boolean;
 }) {
+  const base =
+    "px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border";
+  let cls: string;
+  if (disabled) {
+    // Greyed-out chip — beyond the booking window, not tappable.
+    cls = "bg-zinc-900/40 text-zinc-600 border-zinc-800/60 cursor-not-allowed";
+  } else if (active) {
+    cls = "bg-white text-black border-white";
+  } else {
+    cls = "bg-zinc-900/70 text-zinc-300 border-zinc-800 active:bg-zinc-800";
+  }
   return (
     <button
       onClick={onClick}
-      className={
-        "px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border " +
-        (active
-          ? "bg-white text-black border-white"
-          : "bg-zinc-900/70 text-zinc-300 border-zinc-800 active:bg-zinc-800")
-      }
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`${base} ${cls}`}
     >
       {label}
     </button>

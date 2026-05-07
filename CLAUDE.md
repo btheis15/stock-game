@@ -364,8 +364,19 @@ plus a calendar icon button on the right. The calendar opens a hidden
 `<input type="date">` via `showPicker()` (iOS Safari 16+ supports it;
 fallback is `focus()` + `click()` for older browsers). The calendar
 icon flips to its active style (white bg) when a non-chip date is
-selected so the user always knows which day is showing. Range bounded
-to today through today+90 days.
+selected so the user always knows which day is showing.
+
+**Booking-window cap**: the calendar's `max`, the chip enabled-state,
+and the "Bookings open N days ahead" hint all come from
+`/api/tee-times/config` — an edge function that scrapes foreUP's
+inline `SCHEDULES = [...]` JSON and reads `days_in_booking_window` off
+schedule 2251. As of writing Inshalla runs a 5-day window (today + 4
+future days). If the course operator extends the window in foreUP, our
+app picks up the change within ~1 hour (the config response is
+edge-cached for 3600s). Chips for days beyond the window render
+disabled + greyed; the date input clamps to the cap defensively in
+its `onChange` so even a programmatic value past max gets snapped to
+max. Fallback if the scrape fails: 14 days.
 
 **Reusable playbook**: `docs/embedding-third-party-booking.md` is a
 field guide for applying this exact approach to other booking SaaS

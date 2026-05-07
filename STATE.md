@@ -123,6 +123,7 @@ Functions exported:
 /stocks                    → StocksListView (all picks, filterable)
 /tee-times                 → TeeTimesView (native list of Inshalla CC tee times)
 /api/tee-times             → Edge route handler; proxies foreUP /api/booking/times JSON
+/api/tee-times/config      → Edge route handler; scrapes foreUP SCHEDULES for booking-window cap
 ```
 
 All page routes are marked `dynamic = "force-static"` so they SSG. The `/api/tee-times` route is `dynamic = "force-dynamic"` (edge runtime) since it must hit foreUP per request, but it edge-caches the response for 60s with SWR so a popular day costs us at most one upstream call per minute. **38 static pages + 1 dynamic API route.**
@@ -195,7 +196,12 @@ components/
                         Date picker: three pill chips (Today / Tomorrow / day-after) plus a
                         calendar icon button on the right that opens HTML5 <input type="date">
                         via showPicker() (iOS Safari 16+). Calendar icon flips active when a
-                        non-chip date is picked. Range capped at today+90 days.
+                        non-chip date is picked. The calendar's max date AND chip enabled-state
+                        come from /api/tee-times/config (which scrapes
+                        days_in_booking_window from foreUP's SCHEDULES blob — currently 5 for
+                        Inshalla). Chips beyond the window grey out + go disabled; the calendar
+                        won't let users pick beyond the cap. "Bookings open N days ahead" hint
+                        renders below the date display.
 
                         Reusable playbook for porting this approach to other booking SaaS:
                         docs/embedding-third-party-booking.md
@@ -407,6 +413,7 @@ app/                           Next.js routes
   stocks/page.tsx              Renders <StocksListView> with all TickerSeries
   tee-times/page.tsx           Renders <TeeTimesView> (native list backed by foreUP API proxy)
   api/tee-times/route.ts       Edge route handler; proxies foreUP /api/booking/times JSON
+  api/tee-times/config/route.ts  Edge route handler; scrapes foreUP SCHEDULES for booking-window cap
 
 components/                    Client components (mostly)
   ScrubChart.tsx               (315 LOC) The chart. Owns scrub state, accepts xDomain + liveEndpoint.

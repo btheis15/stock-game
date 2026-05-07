@@ -401,6 +401,103 @@ fallback (`focus() + click()`) still hits it on touch.
 
 ---
 
+## 7.1. Reading the booking-window cap from the SaaS
+
+Most booking SaaS limit how far in advance customers can book — golf
+courses typically 5-14 days, restaurants 30-60, fitness studios 7. If
+the user picks a date past that cap, you'll show "no times available"
+which is misleading. The right UX is to **disable dates beyond the cap
+in the picker** so they're never tappable.
+
+The cap value is per-tenant config inside the SaaS. They expose it
+through the same SCHEDULES JSON we already used to find booking class
+IDs (§3.3) — usually under a key like `days_in_booking_window`,
+`max_days_advance`, `online_booking_advance_days`, etc.
+
+The pattern is a second edge route that scrapes-and-parses the booking
+page's HTML for the JSON blob, returns the relevant fields, and
+edge-caches for an hour:
+
+```ts
+// app/api/your-tab/config/route.ts
+export const dynamic = "force-dynamic";
+export const runtime = "edge";
+
+const FALLBACK_DAYS = 14;
+
+export async function GET() {
+  try {
+    const resp = await fetch(SAAS_PAGE, {
+      headers: { Accept: "text/html", "User-Agent": MOBILE_UA },
+      next: { revalidate: 3600 },
+    });
+    if (!resp.ok) return jsonOk({ daysInBookingWindow: FALLBACK_DAYS, source: "fallback" });
+    const html = await resp.text();
+    const match = html.match(/SCHEDULES\s*=\s*(\[[\s\S]*?\]);/);
+    if (!match) return jsonOk({ daysInBookingWindow: FALLBACK_DAYS, source: "fallback" });
+    const schedules = JSON.parse(match[1]);
+    const target = schedules.find(s => String(s.teesheet_id) === String(SCHEDULE_ID));
+    return jsonOk({
+      daysInBookingWindow: parseInt(target?.days_in_booking_window) || FALLBACK_DAYS,
+      source: "saas",
+    });
+  } catch {
+    return jsonOk({ daysInBookingWindow: FALLBACK_DAYS, source: "fallback" });
+  }
+}
+
+function jsonOk(body) {
+  return NextResponse.json(body, {
+    headers: {
+      "Cache-Control":
+        "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
+}
+```
+
+In the React view, the hooks shape is:
+
+```tsx
+const [config, setConfig] = useState({ daysInBookingWindow: FALLBACK_DAYS });
+
+useEffect(() => {
+  fetch("/api/your-tab/config")
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(setConfig)
+    .catch(() => { /* keep fallback */ });
+}, []);
+
+// Then in the date picker:
+const maxOffset = Math.max(0, config.daysInBookingWindow - 1);
+const maxIso = addDaysIso(today, maxOffset);
+
+<Chip
+  label="Tomorrow"
+  disabled={1 > maxOffset}
+  onClick={() => setSelectedIso(tomorrow)}
+/>
+
+<input type="date" min={today} max={maxIso}
+  onChange={e => {
+    const v = e.target.value;
+    if (!v) return;
+    setSelectedIso(v > maxIso ? maxIso : v < today ? today : v);
+  }}
+/>
+```
+
+**Always clamp in `onChange`.** iOS Safari's wheel picker enforces
+min/max for human users, but other browsers and programmatic value
+sets don't. The clamp is your defensive backstop.
+
+**Always render a hint** (e.g. "Bookings open 5 days ahead") below the
+date display. Without it, a 5-day cap looks like a bug to users who
+expected to book 3 weeks out — they'll think the app is broken when
+it's actually showing the SaaS's real policy.
+
+---
+
 ## 8. Local-time date math (the gotcha that always bites)
 
 Booking SaaS pages use **local clock time at the venue** — not UTC, not
