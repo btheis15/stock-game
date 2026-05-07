@@ -7,8 +7,14 @@ import { NextResponse } from "next/server";
  *
  * foreUP endpoint:
  *   GET https://stage.foreupsoftware.com/index.php/api/booking/times
- *     ?schedule_id={SCHEDULE}&course_id={COURSE}&date=MM-DD-YYYY
- *     &time=all&holes=all&players=0
+ *     ?schedule_id={SCHEDULE}&course_id={COURSE}&booking_class={BC}
+ *     &date=MM-DD-YYYY&time=all&holes=all&players=0
+ *
+ * The `booking_class` param is critical — without it, foreUP returns a
+ * different (smaller) booking window and the wrong pricing mix. Daily
+ * Golf class 2431 has window=7; without the param, the schedule default
+ * window=5 is applied. Always pin to Daily Golf so what users see in our
+ * app matches what they get when they hand off to foreUP.
  *
  * Returns the JSON array of available tee times unchanged.
  */
@@ -18,6 +24,7 @@ export const runtime = "edge";
 
 const COURSE_ID = 19715; // Inshalla Country Club
 const SCHEDULE_ID = 2251;
+const DAILY_GOLF_BOOKING_CLASS_ID = 2431;
 const FOREUP_BASE = "https://stage.foreupsoftware.com/index.php/api/booking/times";
 
 function toForeUpDate(iso: string): string {
@@ -37,6 +44,7 @@ export async function GET(req: Request) {
   const upstream = new URL(FOREUP_BASE);
   upstream.searchParams.set("schedule_id", String(SCHEDULE_ID));
   upstream.searchParams.set("course_id", String(COURSE_ID));
+  upstream.searchParams.set("booking_class", String(DAILY_GOLF_BOOKING_CLASS_ID));
   upstream.searchParams.set("date", toForeUpDate(dateIso));
   upstream.searchParams.set("time", "all");
   upstream.searchParams.set("holes", "all");

@@ -496,6 +496,32 @@ date display. Without it, a 5-day cap looks like a bug to users who
 expected to book 3 weeks out — they'll think the app is broken when
 it's actually showing the SaaS's real policy.
 
+**Watch for per-category overrides.** The cap is often configured on
+the schedule/calendar, but the per-booking-class (or per-service-tier)
+value overrides it. We hit this with foreUP/Inshalla:
+
+| Source | days_in_booking_window |
+|---|---|
+| Schedule 2251 default | 5 |
+| Daily Golf class (2431) | **7** ← what users actually get |
+| Members class (49668) | 10 |
+
+The schedule's default is a fallback for when no class is selected;
+the class's override is what the SPA applies once you've picked a class
+(or what the API uses if you pass `booking_class=…` in the query). A
+naive "read the schedule's value" implementation will be off by the
+delta. **Always pass the class param to the API and read the cap from
+the class config too.** Your config endpoint should:
+
+1. Find the matching schedule by ID
+2. Find the matching booking_class within `schedule.booking_classes` by ID
+3. Prefer `class.days_in_booking_window` over `schedule.days_in_booking_window`,
+   falling back to the schedule's value, then to a hardcoded fallback
+
+Same correction applies to your inventory proxy: pin the
+`booking_class` query param. Otherwise the SaaS will return a different
+(smaller) data set and prices will be wrong.
+
 ---
 
 ## 8. Local-time date math (the gotcha that always bites)
