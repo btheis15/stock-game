@@ -117,38 +117,38 @@ export function TeeTimesView() {
       </div>
 
       <div className="px-4 mt-6">
-        <div className="flex items-baseline justify-between mb-2">
-          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500">
-            Daily Deals
-          </div>
-          <a
-            href={DAILY_DEALS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] font-semibold text-zinc-400 active:text-white"
-          >
-            Open ↗
-          </a>
+        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-2">
+          Daily Deals
         </div>
         {/*
-          Inshalla's Daily Deals widget, served by Sagacity Golf. This is an
-          official embed product — the /widget/ path, CORS=*, lack of any
-          X-Frame-Options or CSP frame-ancestors, plus the inline GA event
-          firing 'page_location: /embed/times' all confirm it's meant to be
-          iframed on partner sites. We attach our own utm_source so Inshalla's
-          analytics show traffic from this app distinctly.
+          Inshalla's Daily Deals widget (Sagacity Golf) is technically an
+          embed-friendly widget — see Pattern C in
+          docs/embedding-third-party-booking.md. We tried iframing it inline
+          and the proportions never looked right (the widget's chrome plus
+          our card chrome stacks awkwardly on mobile). Hand-off is cleaner:
+          a single tap-through card that opens the widget in a new tab,
+          matching the foreUP "Quick book" rows above. Our utm_source still
+          attributes the click distinctly in Inshalla's analytics.
         */}
-        <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-white">
-          <iframe
-            src={DAILY_DEALS_URL}
-            title="Inshalla CC Daily Deals"
-            className="w-full block border-0"
-            // Tall enough to show ~6 deals before the user has to scroll
-            // inside the iframe. The widget is responsive so it'll adapt to
-            // narrower screens automatically.
-            style={{ height: "640px" }}
-          />
-        </div>
+        <a
+          href={DAILY_DEALS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center px-4 py-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 active:bg-zinc-800/60 transition-colors"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[15px] font-semibold text-white">View Daily Deals</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#00C805] text-black">
+                Save
+              </span>
+            </div>
+            <div className="text-[11px] text-zinc-500 mt-0.5">
+              Discounted Inshalla tee times via Sagacity Golf
+            </div>
+          </div>
+          <div className="text-zinc-500 text-[18px] leading-none ml-3">↗</div>
+        </a>
       </div>
 
       <div className="px-4">
