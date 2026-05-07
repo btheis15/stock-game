@@ -215,7 +215,7 @@ function ScrubChartInner({
         <Line
           from={{ x: 0, y: baselineY }}
           to={{ x: width, y: baselineY }}
-          stroke="rgba(255,255,255,0.12)"
+          stroke="var(--chart-baseline)"
           strokeWidth={1}
           strokeDasharray="3,4"
         />
@@ -282,7 +282,7 @@ function ScrubChartInner({
           <Line
             from={{ x: xScale(dates[scrubIdx]), y: PAD_TOP - 8 }}
             to={{ x: xScale(dates[scrubIdx]), y: height - PAD_BOTTOM }}
-            stroke="rgba(255,255,255,0.35)"
+            stroke="var(--chart-scrub-line)"
             strokeWidth={1}
           />
           {series.map((s) => {

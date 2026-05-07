@@ -5,6 +5,10 @@
   --foreground: #ffffff;
   --gain: #00c805;
   --loss: #ff453a;
+  /* Chart UI lines (baseline reference + scrub crosshair). Tinted with the
+     theme's foreground so they stay visible on whichever surface is active. */
+  --chart-baseline: rgba(255, 255, 255, 0.12);
+  --chart-scrub-line: rgba(255, 255, 255, 0.35);
 }
 
 html,
@@ -74,6 +78,9 @@ button {
 :root[data-theme="light"] {
   --background: #fafafa; /* zinc-50 */
   --foreground: #18181b; /* zinc-900 */
+  /* Darker tints for the chart UI lines so they read on the light page bg. */
+  --chart-baseline: rgba(24, 24, 27, 0.18);
+  --chart-scrub-line: rgba(24, 24, 27, 0.45);
   color-scheme: light;
 }
 
