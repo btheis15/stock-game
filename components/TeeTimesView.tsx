@@ -10,6 +10,12 @@ const SCHEDULE_ID = 2251;
 const DAILY_GOLF_BOOKING_CLASS_ID = 2431;
 const FOREUP_BASE = `https://stage.foreupsoftware.com/index.php/booking/${COURSE_ID}/${SCHEDULE_ID}`;
 
+// Pulled from Inshalla's profile in the foreUP booking page (the same blob
+// that drives their own "About" widget). Public info; the course publishes
+// it on their website too.
+const INSHALLA_PHONE_DISPLAY = "(715) 453-3130";
+const INSHALLA_PHONE_TEL = "+17154533130"; // E.164 for tel: links
+
 /**
  * Builds a foreUP booking URL that skips the booking-class chooser. Discovered
  * in the SPA bundle:
@@ -85,11 +91,22 @@ export function TeeTimesView() {
           View all available times ↗
         </a>
 
+        <a
+          href={`tel:${INSHALLA_PHONE_TEL}`}
+          className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900/70 border border-zinc-800 text-white font-semibold text-[14px] py-3 active:bg-zinc-800 transition-colors"
+        >
+          <PhoneIcon />
+          <span>Call pro shop</span>
+          <span className="text-zinc-400 font-medium tabular-nums">
+            {INSHALLA_PHONE_DISPLAY}
+          </span>
+        </a>
+
         <div className="mt-5 text-[11px] text-zinc-500 leading-relaxed">
           Tee times, pricing, and booking are managed by Inshalla Country Club
           via foreUP. Tapping a day above opens foreUP's secure booking page
           pre-filtered to that day — your tee time, account, and payment all
-          live there.
+          live there. Or tap the call button to book by phone.
         </div>
 
         <div className="mt-3 text-[11px] text-zinc-600">
@@ -122,6 +139,24 @@ function DayLink({ date, label }: { date: Date; label: string }) {
       </div>
       <div className="text-zinc-500 text-[18px] leading-none ml-3">↗</div>
     </a>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="w-4 h-4"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
