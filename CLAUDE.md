@@ -359,6 +359,21 @@ The user can pause the schedule for stock data without breaking tee
 times; the only thing that would break tee times is foreUP changing
 their API or going down.
 
+**Date picker**: three pill chips for `Today / Tomorrow / day-after`
+plus a calendar icon button on the right. The calendar opens a hidden
+`<input type="date">` via `showPicker()` (iOS Safari 16+ supports it;
+fallback is `focus()` + `click()` for older browsers). The calendar
+icon flips to its active style (white bg) when a non-chip date is
+selected so the user always knows which day is showing. Range bounded
+to today through today+90 days.
+
+**Reusable playbook**: `docs/embedding-third-party-booking.md` is a
+field guide for applying this exact approach to other booking SaaS
+(Calendly, OpenTable, Resy, Mindbody, etc.). Read that file before
+adding the next SaaS-embed feature; it covers API discovery, edge-proxy
+patterns, deep-link extraction from minified bundles, native-list UX,
+and local-time date math gotchas.
+
 ### §5.6. Theme system
 
 The dark palette is the default `:root`. `<ThemeController>` (mounted in

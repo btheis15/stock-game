@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const COURSE_ID = 19715;
 const SCHEDULE_ID = 2251;
@@ -9,6 +9,10 @@ const SCHEDULE_ID = 2251;
 // before the time list. We pre-select Daily Golf in the deep link.
 const DAILY_GOLF_BOOKING_CLASS_ID = 2431;
 const FOREUP_BASE = `https://stage.foreupsoftware.com/index.php/booking/${COURSE_ID}/${SCHEDULE_ID}`;
+
+// foreUP allows booking a few weeks out; cap the calendar at 90 days to keep
+// the picker manageable and avoid edge-case fetches that return [].
+const MAX_DAYS_AHEAD = 90;
 
 /**
  * Builds a foreUP booking URL that skips the booking-class chooser.
@@ -59,19 +63,20 @@ interface TeeTime {
  * happens on foreUP.
  */
 export function TeeTimesView() {
-  const [dayOffset, setDayOffset] = useState(0);
+  // Source of truth for the selected day. ISO string YYYY-MM-DD in local time.
+  // Defaults to today; the chip row + calendar icon both write to this state.
+  const [selectedIso, setSelectedIso] = useState<string>(() => todayIsoLocal());
   const [times, setTimes] = useState<TeeTime[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const date = useMemo(() => addDays(new Date(), dayOffset), [dayOffset]);
-  const dateIso = toIsoDate(date);
+  const date = useMemo(() => parseLocalIso(selectedIso), [selectedIso]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/tee-times?date=${dateIso}`)
+    fetch(`/api/tee-times?date=${selectedIso}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -89,7 +94,7 @@ export function TeeTimesView() {
     return () => {
       cancelled = true;
     };
-  }, [dateIso]);
+  }, [selectedIso]);
 
   return (
     <div className="pb-24">
@@ -114,7 +119,7 @@ export function TeeTimesView() {
         </div>
       </div>
 
-      <DayPicker dayOffset={dayOffset} setDayOffset={setDayOffset} date={date} />
+      <DayPicker selectedIso={selectedIso} setSelectedIso={setSelectedIso} />
 
       <div className="px-4 mt-3">
         {loading ? (
@@ -208,48 +213,173 @@ function TeeTimeRow({ t }: { t: TeeTime }) {
 }
 
 function DayPicker({
-  dayOffset,
-  setDayOffset,
-  date,
+  selectedIso,
+  setSelectedIso,
 }: {
-  dayOffset: number;
-  setDayOffset: (n: number) => void;
-  date: Date;
+  selectedIso: string;
+  setSelectedIso: (iso: string) => void;
 }) {
+  const today = todayIsoLocal();
+  const tomorrow = addDaysIso(today, 1);
+  const dayAfter = addDaysIso(today, 2);
+  const maxIso = addDaysIso(today, MAX_DAYS_AHEAD);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const openCalendar = () => {
+    const el = dateInputRef.current;
+    if (!el) return;
+    // showPicker() is the standardized way to programmatically open the native
+    // date picker; iOS Safari 16+ supports it. Fall back to focus() so the
+    // picker still opens on tap on older browsers.
+    if (typeof el.showPicker === "function") {
+      try {
+        el.showPicker();
+        return;
+      } catch {
+        /* fall through */
+      }
+    }
+    el.focus();
+    el.click();
+  };
+
+  const selectedDate = parseLocalIso(selectedIso);
+  const isCustom =
+    selectedIso !== today && selectedIso !== tomorrow && selectedIso !== dayAfter;
+
   return (
-    <div className="px-4 mt-2 flex items-center justify-between gap-2">
-      <button
-        onClick={() => setDayOffset(dayOffset - 1)}
-        disabled={dayOffset <= 0}
-        className="text-[20px] leading-none text-zinc-400 disabled:text-zinc-700 px-2 py-1"
-        aria-label="Previous day"
-      >
-        ‹
-      </button>
-      <div className="flex-1 text-center">
-        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500">
-          {dayOffset === 0 ? "Today" : dayOffset === 1 ? "Tomorrow" : fmtDow(date)}
-        </div>
-        <div className="text-[15px] font-semibold text-white">
-          {fmtFullDate(date)}
+    <div className="px-4 mt-2">
+      <div className="flex items-center gap-2">
+        <Chip
+          active={selectedIso === today}
+          onClick={() => setSelectedIso(today)}
+          label="Today"
+        />
+        <Chip
+          active={selectedIso === tomorrow}
+          onClick={() => setSelectedIso(tomorrow)}
+          label="Tomorrow"
+        />
+        <Chip
+          active={selectedIso === dayAfter}
+          onClick={() => setSelectedIso(dayAfter)}
+          label={fmtDowShort(parseLocalIso(dayAfter))}
+        />
+        <div className="ml-auto relative">
+          <button
+            onClick={openCalendar}
+            className={
+              "flex items-center justify-center w-10 h-9 rounded-full border transition-colors " +
+              (isCustom
+                ? "bg-white text-black border-white"
+                : "bg-zinc-900/70 text-zinc-300 border-zinc-800 active:bg-zinc-800")
+            }
+            aria-label="Pick a date"
+          >
+            <CalendarIcon />
+          </button>
+          {/* Hidden native date input — clicking the icon button programmatically
+              triggers it. Positioned over the button so iOS-Safari fallback
+              (focus + click) can still hit it on touch. */}
+          <input
+            ref={dateInputRef}
+            type="date"
+            min={today}
+            max={maxIso}
+            value={selectedIso}
+            onChange={(e) => {
+              if (e.target.value) setSelectedIso(e.target.value);
+            }}
+            className="absolute inset-0 opacity-0 pointer-events-none"
+            tabIndex={-1}
+            aria-hidden="true"
+          />
         </div>
       </div>
-      <button
-        onClick={() => setDayOffset(dayOffset + 1)}
-        disabled={dayOffset >= 14}
-        className="text-[20px] leading-none text-zinc-400 disabled:text-zinc-700 px-2 py-1"
-        aria-label="Next day"
-      >
-        ›
-      </button>
+      <div className="mt-2 text-center">
+        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+          {selectedIso === today
+            ? "Today"
+            : selectedIso === tomorrow
+              ? "Tomorrow"
+              : fmtDow(selectedDate)}
+        </div>
+        <div className="text-[15px] font-semibold text-white">
+          {fmtFullDate(selectedDate)}
+        </div>
+      </div>
     </div>
   );
 }
 
-function addDays(d: Date, n: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + n);
-  return out;
+function Chip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors border " +
+        (active
+          ? "bg-white text-black border-white"
+          : "bg-zinc-900/70 text-zinc-300 border-zinc-800 active:bg-zinc-800")
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="w-[18px] h-[18px]"
+      aria-hidden="true"
+    >
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M3 10h18M8 3v4M16 3v4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// ---- date helpers (all local-time, since tee-time slots are local clock times) ----
+
+function todayIsoLocal(): string {
+  return toIsoDate(new Date());
+}
+
+function parseLocalIso(iso: string): Date {
+  // Constructing a Date from "YYYY-MM-DD" parses as UTC midnight, which can
+  // shift the date in negative timezones. Build it explicitly in local time.
+  const [y, m, d] = iso.split("-").map((s) => parseInt(s, 10));
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+function addDaysIso(iso: string, n: number): string {
+  const d = parseLocalIso(iso);
+  d.setDate(d.getDate() + n);
+  return toIsoDate(d);
 }
 
 function toIsoDate(d: Date): string {
@@ -303,4 +433,8 @@ function fmtFullDate(d: Date): string {
 
 function fmtDow(d: Date): string {
   return d.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function fmtDowShort(d: Date): string {
+  return d.toLocaleDateString("en-US", { weekday: "short" });
 }

@@ -192,6 +192,14 @@ components/
                         load hits foreUP fresh (60s edge cache). Pausing the data cron does
                         NOT freeze tee-time inventory. Tee times update whenever foreUP does.
 
+                        Date picker: three pill chips (Today / Tomorrow / day-after) plus a
+                        calendar icon button on the right that opens HTML5 <input type="date">
+                        via showPicker() (iOS Safari 16+). Calendar icon flips active when a
+                        non-chip date is picked. Range capped at today+90 days.
+
+                        Reusable playbook for porting this approach to other booking SaaS:
+                        docs/embedding-third-party-booking.md
+
   CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
                       (value - baseline) / baseline so every line starts at y=0 and the
                       visual order matches the leaderboard ranking. baseline=0 dashed line
