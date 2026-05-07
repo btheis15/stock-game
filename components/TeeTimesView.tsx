@@ -49,9 +49,11 @@ interface TeeTime {
   available_spots: number;
   allowed_group_sizes: string[];
   holes: string; // "9/18" | "9" | "18"
+  // `green_fee` and `cart_fee` are foreUP's auto-adjusted headline rates:
+  // for "9/18" slots they hold the 18-hole prices, for "9"-only slots they
+  // hold the 9-hole prices. Use these directly. The `_9` and `_18` variants
+  // also exist in the JSON if you ever need to show both prices side-by-side.
   green_fee: number;
-  green_fee_9?: number;
-  green_fee_18?: number;
   cart_fee: number;
   has_special?: boolean;
   pay_online?: string;
@@ -237,7 +239,7 @@ function TeeTimeRow({ t }: { t: TeeTime }) {
       </div>
       <div className="text-right shrink-0">
         <div className="text-[14px] font-semibold text-white tabular-nums">
-          ${t.green_fee_18 ?? t.green_fee}
+          ${t.green_fee}
         </div>
         <div className="text-[10px] text-zinc-500 tabular-nums">
           + ${t.cart_fee} cart
