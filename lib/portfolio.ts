@@ -155,6 +155,28 @@ export function intradayPortfolioSeries(
   return { points, previousClose };
 }
 
+// Cap the 1W view at the most-recent 5 distinct trading days. Yahoo's 8-day
+// lookback always gives us a partial first day at one edge of the window;
+// trimming to 5 complete days means the chart shows a consistent "trading
+// week" without that stub. Also matches what Robinhood / most stock UIs
+// consider "1W."
+const WEEKLY_TRADING_DAYS = 5;
+
+/** Group bars by their trading day (UTC YYYY-MM-DD prefix), keep the last N
+ *  groups, return the bars belonging to those days. Bars within each kept day
+ *  remain in their original order. */
+function trimToLastNTradingDays<B extends { t: string }>(
+  bars: B[],
+  n: number
+): B[] {
+  if (bars.length === 0) return bars;
+  const days = new Set<string>();
+  for (const b of bars) days.add(b.t.slice(0, 10));
+  const sortedDays = [...days].sort();
+  const keepDays = new Set(sortedDays.slice(-n));
+  return bars.filter((b) => keepDays.has(b.t.slice(0, 10)));
+}
+
 /**
  * Builds a portfolio-level series from per-ticker hourly bars covering roughly
  * the past 7–8 days. Used by the 1W view so the chart line has proper density.
@@ -163,6 +185,9 @@ export function intradayPortfolioSeries(
  * across the user's tickers, walk forward, and at each timestamp sum
  * (sharesFor(ticker) × most-recent-known-close-of-that-ticker). Tickers with no
  * weekly data fall back to the most recent daily close as their value.
+ *
+ * Output is trimmed to the most recent 5 trading days so the chart doesn't
+ * show a partial first-day stub.
  *
  * Returns `null` if no ticker has weekly data — caller should fall back to the
  * existing daily-closes path.
@@ -176,19 +201,13 @@ export function weeklyPortfolioSeries(
   const haveWeekly = seriesByTicker.some((s) => (s.weekly?.length ?? 0) > 0);
   if (!haveWeekly) return null;
 
-  // Cutoff: last 7 calendar days inclusive. A bar older than this gets dropped
-  // from the chart (it's still useful as carry-forward for tickers that
-  // lack newer data).
-  const now = Date.now();
-  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
-
   const tsSet = new Set<string>();
   for (const s of seriesByTicker) {
-    for (const b of s.weekly ?? []) {
-      if (new Date(b.t).getTime() >= cutoff) tsSet.add(b.t);
-    }
+    for (const b of s.weekly ?? []) tsSet.add(b.t);
   }
-  const timestamps = [...tsSet].sort();
+  // Trim union of timestamps to the last 5 distinct trading days.
+  const allTs = [...tsSet].sort().map((t) => ({ t }));
+  const timestamps = trimToLastNTradingDays(allTs, WEEKLY_TRADING_DAYS).map((x) => x.t);
   if (timestamps.length === 0) return null;
 
   // Carry-forward last-seen close per ticker. Initialize with the daily close
@@ -220,20 +239,18 @@ export function weeklyPortfolioSeries(
 }
 
 /**
- * Past-week hourly bars for a single ticker. Returns `null` if the ticker has
- * no weekly data — caller should fall back to daily-close range filtering.
+ * Past-week hourly bars for a single ticker, trimmed to the last 5 trading
+ * days. Returns `null` if the ticker has no weekly data — caller should fall
+ * back to daily-close range filtering.
  */
 export function weeklyTickerSeries(
   series: TickerSeries
 ): PortfolioPoint[] | null {
   const bars = series.weekly ?? [];
   if (bars.length === 0) return null;
-  const now = Date.now();
-  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
-  const points = bars
-    .filter((b) => new Date(b.t).getTime() >= cutoff)
-    .map((b) => ({ date: b.t, value: b.close }));
-  return points.length > 0 ? points : null;
+  const trimmed = trimToLastNTradingDays(bars, WEEKLY_TRADING_DAYS);
+  if (trimmed.length === 0) return null;
+  return trimmed.map((b) => ({ date: b.t, value: b.close }));
 }
 
 export function intradayTickerSeries(
