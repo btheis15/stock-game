@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { fmtPct, fmtSignedUSD } from "@/lib/portfolio";
+import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/portfolio";
 import type { RangeAnalysis, RangeMover } from "@/lib/types";
 import { TICKER_NAMES, USER_LIST, USERS, type UserId } from "@/lib/picks";
 
@@ -122,7 +122,12 @@ function MoverRow({ mover }: { mover: RangeMover }) {
       className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors -mx-1 px-1 rounded-md"
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold text-white">{mover.ticker}</div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[13px] font-semibold text-white">{mover.ticker}</span>
+          <span className="text-[11px] text-zinc-500 tabular-nums">
+            {fmtUSD(mover.price, 2)}
+          </span>
+        </div>
         <div className="text-[11px] text-zinc-500 truncate">
           {TICKER_NAMES[mover.ticker] ?? ""}
         </div>
@@ -131,8 +136,8 @@ function MoverRow({ mover }: { mover: RangeMover }) {
         <div className="text-[13px] font-semibold tabular-nums" style={{ color }}>
           {fmtPct(mover.pct)}
         </div>
-        <div className="text-[11px] text-zinc-500 tabular-nums">
-          {fmtSignedUSD(mover.dollars, 0)}
+        <div className="text-[11px] tabular-nums" style={{ color }}>
+          {fmtSignedUSD(mover.points, 2)}
         </div>
       </div>
     </Link>

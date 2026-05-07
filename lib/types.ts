@@ -68,7 +68,12 @@ export interface HoldingRow {
 export interface RangeMover {
   ticker: string;
   pct: number;
+  /** Holding-level $ delta = shares × (endClose − startClose). */
   dollars: number;
+  /** Per-share end-of-range close (i.e., the stock's price at range end). */
+  price: number;
+  /** Per-share $ delta = endClose − startClose ("points" up/down). */
+  points: number;
   ownerId: UserId;
 }
 

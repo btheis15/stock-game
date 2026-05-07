@@ -121,16 +121,19 @@ Functions exported:
 /portfolio/{brian|kevin|rick|lee}  → PortfolioView (per-user drill-down)
 /stock/{ticker}            → StockView (per-stock detail; one Position card per owner)
 /stocks                    → StocksListView (all picks, filterable)
+/tee-times                 → TeeTimesView (embedded foreUP booking iframe for Inshalla CC)
 ```
 
-All marked `dynamic = "force-static"`. `generateStaticParams` enumerates the 4 players and ALL_TICKERS for SSG. **35 static pages total**.
+All marked `dynamic = "force-static"`. `generateStaticParams` enumerates the 4 players and ALL_TICKERS for SSG. **38 static pages total** (35 stock-game pages + tee-times + 2 generated routes).
 
 ## 6. Components
 
 ```
 app/layout.tsx        Root: <html>, metadata, dynamic SITE_URL from VERCEL_PROJECT_PRODUCTION_URL,
                       OG card, viewport, loads PriceData server-side to render Footer with
-                      "data through" timestamp, mounts <PullToRefresh /> + <InstallHint /> + <TabBar />.
+                      "data through" timestamp, mounts <PullToRefresh /> + <InstallHint /> + <TabBar />
+                      + <ThemeController /> (passed the latest intraday bar's timestamp from any one
+                      ticker, used to flip <html data-theme="light"> when the market is open).
 
 components/
   ScrubChart.tsx      Pointer-driven scrub chart. Props:
@@ -142,18 +145,34 @@ components/
                       `touch-action: none` on the SVG so vertical drift doesn't kill the gesture.
                       Reports scrub via parent-stable refs (no useEffect loop).
   RangeTabs.tsx       1D / 1W / 1M / 3M / 1YR / ALL. 1D is the leftmost.
-  TabBar.tsx          Bottom nav, fixed. Two tabs: Compare, Stocks. (Per-user tabs were removed
-                      when Rick + Lee landed; jump into a portfolio via the Compare leaderboard.)
+  TabBar.tsx          Bottom nav, fixed. Three tabs: Compare, Stocks, Tee Times. Each tab uses
+                      flex-1 so they distribute evenly. Tee Times icon is a golf ball on a tee.
+                      (Per-user tabs were removed when Rick + Lee landed; jump into a portfolio
+                      via the Compare leaderboard.)
   HeaderBack.tsx      Sticky top bar with "< Compare" back button (router.back).
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
+                      Hidden on /tee-times (the iframe view is full-bleed; data-snapshot footer
+                      is irrelevant there).
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
   PullToRefresh.tsx   Two refresh paths in one client component:
                         (a) Pull at scrollY=0, drag past 70px, release → location.reload()
                         (b) Visibility change: if hidden > 60s and becomes visible → reload
                       Touches that start inside an <svg> or [data-no-ptr] element are ignored
                       so chart scrubbing isn't hijacked.
-  MarketStateBadge.tsx  Green pulsing "● LIVE" or grey "● MARKET CLOSED".
+  MarketStateBadge.tsx  "● Market open" (green, pulsing dot) or "● Market closed" (zinc).
+                        Renders "Last updated HH:MM" inline next to it (from `data.generatedAt`).
+  ThemeController.tsx   Client-only. Sets `<html data-theme="light">` while the market is open
+                        (last intraday bar < 30 min old, mirroring `isMarketLive`); clears it
+                        otherwise. Re-evaluates every 60 seconds so the page flips themes when
+                        the market crosses open/close without needing a manual reload.
+  TeeTimesView.tsx      Renders the small "Tee Times — Inshalla CC · Tomahawk, WI" header plus
+                        a fullscreen iframe of the foreUP booking page
+                        (https://stage.foreupsoftware.com/index.php/booking/19715/2251#/teetimes).
+                        Uses `-mb-20` to cancel the layout's pb-20 so the iframe sits flush with
+                        the TabBar; height = 100dvh − header − tabbar − safe-areas. The "Open ↗"
+                        link in the header is the fallback if the iframe ever blanks out
+                        (we tested foreUP doesn't set X-Frame-Options or a CSP frame-ancestors).
 
   CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
                       (value - baseline) / baseline so every line starts at y=0 and the
@@ -174,8 +193,9 @@ components/
   InsightsCard.tsx    "What's driving it" — per-user cards showing top-3 / bottom-3 movers in
                       the active range. Cards re-sort by leaderboard rank for the active range.
                       Card header (user name + pct + place) links to /portfolio/{owner}.
-                      Mover rows link to /stock/{ticker} (jump straight to the stock detail
-                      page, not the owner's holdings list).
+                      Mover rows: TICKER + per-share price next to small name on the left;
+                      pct% + per-share point delta (signed $, e.g. "+$11.60") on the right.
+                      Each row links to /stock/{ticker}.
 ```
 
 ## 7. Chart UX details
@@ -318,7 +338,8 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **Cache headers.** `next.config.ts` sets `public, max-age=0, must-revalidate` on HTML and `prices.json`. Don't tighten without thought — PWA installs go stale otherwise.
 - **`metadataBase`** in `app/layout.tsx` resolves dynamically from `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → localhost fallback. Don't hardcode the vercel.app domain.
 - **Site URL is `stock-game-gamma.vercel.app`.** Vercel assigned this; we don't control it. README + OG metadata don't depend on it (dynamic).
-- **iCloud + git** can be flaky if files are placeholders. Always verify materialization before committing.
+- **iCloud + git is forbidden — repo lives at `~/Repos/stock-game`.** iCloud silently writes `<file> 2` duplicates inside `.git/`, `node_modules/`, `.next/`, etc., which poisons `git fetch` (`fatal: bad object refs/remotes/origin/main 2`) and silently aborts every cron fire. Both Mac mini and laptop clone to `~/Repos/stock-game`; the iCloud Desktop folder keeps absolute symlinks to the canonical docs only. See CLAUDE.md §13.2 for full setup.
+- **Theme system.** `globals.css` keeps the dark palette as the default `:root` and overrides a handful of zinc/black/white utility classes under `:root[data-theme="light"]` (Robinhood-light: zinc-50 page bg, white cards, zinc-200 borders, zinc-900 text). `<ThemeController>` mounts in the layout and toggles `<html data-theme="light">` whenever `isMarketLive` is true (re-evaluated every 60s). Player accents and gain/loss greens are unchanged across themes. If you add a new component, reuse the existing zinc utility classes — those flip automatically. New hex literals (e.g. `bg-[#xxx]`) won't.
 - **DST heuristic** in `sessionBoundsForDate` is coarse (Mar–Nov = EDT). Wrong on the few transition days; harmless for the visual axis.
 - **Today's intraday bars are regular session only.** `scripts/fetch-prices.ts` filters bars to `9:30 AM ≤ t < 4:00 PM ET` via `sessionBoundsET()` so the chart's last point is the 4:00 PM close, not an after-hours print. The 3:00 PM CT (= 4:00 PM ET market-close) fire captures the closing bar; the optional 3:15 PM CT fire is a backup that picks it up if Yahoo's bar wasn't ready at the close. Either way, the data ends at the close.
 - **`isMarketLive`** = bar < 30 min old. Doesn't know about market holidays; relies on Yahoo not returning fresh bars on those days.
@@ -346,18 +367,19 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - Per-user dividend totals on the portfolio drill-down ("Dividends received: $X").
 - Show realized vs. unrealized splits if we ever add a "sell" event.
 - Push notifications when ranks change (would need a service worker + a live backend; not worth it for 4 friends).
-- Theming (currently dark-only; light mode trivial via Tailwind v4 vars).
+- Theming: dark + light themes ship; light is automatically active while the market is open via `ThemeController`. Manual override toggle could be added.
 
 ## 14. File-by-file map
 
 ```
 app/                           Next.js routes
-  layout.tsx                   Root layout, metadata, OG, mounts global UI
+  layout.tsx                   Root layout, metadata, OG, mounts global UI + <ThemeController>
   page.tsx                     "/" → loads PriceData, computes daily + intraday series + analyses, renders <CompareView>
-  globals.css                  Tailwind import + CSS vars + keyframes (holdingFlash, livePulseRing/Fill)
+  globals.css                  Tailwind import + CSS vars + keyframes + light-theme utility overrides
   portfolio/[user]/page.tsx    SSG for 4 users; dispatches to <PortfolioView>
   stock/[ticker]/page.tsx      SSG for ALL_TICKERS; dispatches to <StockView>
   stocks/page.tsx              Renders <StocksListView> with all TickerSeries
+  tee-times/page.tsx           Renders <TeeTimesView> (foreUP booking iframe)
 
 components/                    Client components (mostly)
   ScrubChart.tsx               (315 LOC) The chart. Owns scrub state, accepts xDomain + liveEndpoint.
@@ -366,6 +388,8 @@ components/                    Client components (mostly)
   StockView.tsx                Per-ticker page logic. N Position cards.
   StocksListView.tsx           Filterable ticker list.
   InsightsCard.tsx             "What's driving it" per-user breakdown, ranked.
+  TeeTimesView.tsx             Inshalla CC tee-time iframe with header + Open-in-Safari fallback.
+  ThemeController.tsx          Toggles light/dark theme based on isMarketLive.
   RangeTabs / TabBar / HeaderBack / PriceHeader / Footer / InstallHint / PullToRefresh / MarketStateBadge
 
 lib/                           Pure logic, no React

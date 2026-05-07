@@ -21,7 +21,7 @@ The point is twofold:
 
 ## What does the app actually do?
 
-Three things, on a phone screen:
+Four things, on a phone screen:
 
 1. **Compare** (home tab). Four colored lines on one chart: Brian green, Kevin
    blue, Rick orange, Lee purple. Drag your finger across the chart and the
@@ -29,7 +29,9 @@ Three things, on a phone screen:
    moment. Below the chart is a 2×2 leaderboard showing 1st through 4th place
    with each player's current portfolio value. Below that, "What's driving
    it" — for each player, the top three holdings boosting them and the bottom
-   three dragging them down, in the active time range.
+   three dragging them down. Each row shows the ticker, the stock's current
+   share price, the % move for the range, and the per-share dollar move
+   ("points up/down").
 
 2. **Per-player drill-down.** Tap a leaderboard card — or the *name* in any
    "What's driving it" card — and you land on that player's portfolio. Same
@@ -42,16 +44,27 @@ Three things, on a phone screen:
    for example, so NVDA's page shows both their positions). Below that, a
    list of every dividend that stock has paid since 2/5.
 
+4. **Tee Times.** A third tab, golf-ball icon. Embeds the Inshalla CC
+   foreUP booking widget right inside the app so the friend group can book a
+   round without bouncing out to Safari. There's an "Open ↗" link in the
+   header if the embedded widget ever has trouble.
+
 Every chart has range tabs along the bottom — **1D, 1W, 1M, 3M, 1YR, ALL** —
 that re-scope the data. The Compare and per-player views open on **1D** by
 default. The 1D view is special: the x-axis spans the full trading day
 (9:30 AM – 4:00 PM ET), the line shows what's happened so far, and the
-most-recent point pulses gently while the market is live. A "● LIVE" or
-"● MARKET CLOSED" badge sits just above the chart in 1D so you know which
-state you're in. The lines on the Compare chart are normalized to %-change
-from the start of the range so the visual order always matches the
-leaderboard ranking — the highest line is the player in 1st place. Each
-holding row's % return reflects the active range, not all-time.
+most-recent point pulses gently while the market is live. A "● Market open"
+or "● Market closed" badge sits just above the chart in 1D so you know
+which state you're in, with a "Last updated" timestamp next to it. The
+lines on the Compare chart are normalized to %-change from the start of
+the range so the visual order always matches the leaderboard ranking —
+the highest line is the player in 1st place. Each holding row's % return
+reflects the active range, not all-time.
+
+**The whole app flips to a clean light theme while the market is open**
+and switches back to dark when it closes. Robinhood-style: white cards
+on a near-white page during trading hours; black surfaces when the
+market shuts. The transition is automatic — no toggle to remember.
 
 Pull down at the top of any page to refresh. If you've left the app closed
 for more than a minute and come back, it auto-refreshes too — no need to

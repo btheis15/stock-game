@@ -39,6 +39,28 @@ const TABS: Tab[] = [
       </svg>
     ),
   },
+  {
+    href: "/tee-times",
+    label: "Tee Times",
+    match: (p) => p.startsWith("/tee-times"),
+    // Golf ball on a tee. Ball = circle with a few dimples; tee = "Y" stem
+    // anchored at the bottom edge.
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
+        <circle cx="12" cy="9" r="4.5" stroke="currentColor" strokeWidth="2" />
+        <circle cx="10.5" cy="8" r="0.5" fill="currentColor" />
+        <circle cx="13.5" cy="8" r="0.5" fill="currentColor" />
+        <circle cx="12" cy="10.5" r="0.5" fill="currentColor" />
+        <path
+          d="M9 15l3 3 3-3M12 18v3"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export function TabBar() {
@@ -57,7 +79,7 @@ export function TabBar() {
               href={t.href}
               prefetch
               className={clsx(
-                "flex flex-col items-center gap-1 transition-colors w-32",
+                "flex flex-col items-center gap-1 transition-colors flex-1",
                 active ? "text-white" : "text-zinc-500"
               )}
             >

@@ -141,8 +141,8 @@ DailyClose     = { date: "YYYY-MM-DD", close: number }
 IntradayBar    = { t: ISO_UTC, close: number }
 DividendEvent  = { date: "YYYY-MM-DD", amount: number }
 PortfolioPoint = { date: string, value: number }   // date can be daily OR ISO depending on source
-HoldingRow     = { ticker, shares, startClose, currentClose, costBasis, currentValue, pl, plPct }
-RangeMover     = { ticker, pct, dollars, ownerId }
+HoldingRow     = { ticker, shares, startClose, currentClose, costBasis, currentValue, pl, plPct, rangeStats }
+RangeMover     = { ticker, pct, dollars, price, points, ownerId }   // price = endClose; points = per-share $ delta
 RangeAnalysis  = { range, startDate, endDate, perUser, topGainers[], topLosers[] }
 ScrubState     = { index: number, date: string, values: { id, value }[] } | null
 ChartSeries    = { id: string, color: string, data: { date, value }[] }
@@ -253,6 +253,56 @@ order) to `<StocksListView>`.
 **Client**: filter chips (All / Brian / Kevin / Rick / Lee), sorted by
 total %-return-since-Feb-5 desc. Multi-color owner swatch when 2+ players
 own a ticker. Each row links to `/stock/{ticker}`.
+
+### §5.5. Tee Times (`/tee-times`)
+
+A bonus tab the user added so the friend group can book Inshalla CC tee
+times without leaving the app. The page is a thin wrapper around an
+iframe of the foreUP booking widget:
+
+```
+https://stage.foreupsoftware.com/index.php/booking/19715/2251#/teetimes
+```
+
+**Server side** (`app/tee-times/page.tsx`): static page, just renders
+`<TeeTimesView>`.
+
+**Client side** (`components/TeeTimesView.tsx`):
+- Small header with "Tee Times — Inshalla CC · Tomahawk, WI" and an
+  "Open ↗" link (target=_blank) — the bailout if the iframe ever blanks.
+- Fullscreen iframe sized via dvh-based calc to fit between the header
+  and the fixed bottom TabBar. The wrapper uses `-mb-20` to cancel the
+  layout's `pb-20` so the iframe sits flush with the TabBar.
+- foreUP's stage origin doesn't set `X-Frame-Options` or a CSP
+  `frame-ancestors` directive, so embedding works. No `sandbox`
+  attribute — foreUP needs scripts, forms, popups, and same-origin for
+  the booking flow.
+- The Footer is hidden on this route (see `Footer.tsx` — short-circuits
+  on `pathname.startsWith("/tee-times")`).
+
+If the iframe ever does break (e.g. foreUP changes their CSP), the
+fallback is the "Open ↗" link in the header. No need to overengineer
+detection — point users at the link.
+
+### §5.6. Theme system
+
+The dark palette is the default `:root`. `<ThemeController>` (mounted in
+`app/layout.tsx`) toggles `<html data-theme="light">` while the market
+is open (`Date.now() − latestIntradayBar < 30 min` — the same rule as
+`isMarketLive`). It re-evaluates every 60 seconds so the page flips
+when the market crosses open/close without a reload.
+
+`globals.css` defines the light overrides as targeted utility-class
+overrides under `:root[data-theme="light"]` rather than introducing new
+theme tokens. The covered classes are exactly what the codebase uses
+today (audited via `grep -rohE "(bg|text|border|divide)-(black|white|zinc-[0-9]+)"`)
+plus their `/N` opacity variants. **If you add a new component, reuse
+those existing utilities** — they flip themes automatically. New hex
+literals (e.g. `bg-[#xxx]`) won't.
+
+The Robinhood-light palette is intentionally muted so brand colors
+(player accents + gain-green / loss-red) stay readable on white. The
+chart's accent gradients and animations are the same in both themes.
 
 ---
 

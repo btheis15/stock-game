@@ -325,7 +325,15 @@ export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
       const { startClose, endClose } = rangeCloses(s, data, range);
       const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
       const dollars = shares * (endClose - startClose);
-      const mover: RangeMover = { ticker: t, pct, dollars, ownerId: u.id };
+      const points = endClose - startClose;
+      const mover: RangeMover = {
+        ticker: t,
+        pct,
+        dollars,
+        price: endClose,
+        points,
+        ownerId: u.id,
+      };
       userMovers.push(mover);
       allMovers.push(mover);
       startTotal += shares * startClose;

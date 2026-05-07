@@ -56,3 +56,118 @@ button {
   --color-gain: var(--gain);
   --color-loss: var(--loss);
 }
+
+/*
+ * LIGHT THEME — toggled by ThemeController on <html data-theme="light">
+ * when the market is open. The toggle target is the entire app surface, so
+ * rather than rewriting every component we override the small set of zinc /
+ * black / white utility classes the codebase actually uses (see grep audit).
+ *
+ * Color palette is Robinhood-Light-inspired: zinc-50 page bg, white cards,
+ * zinc-200 borders, zinc-900 primary text, zinc-600/500 muted text. Brand
+ * accents (player colors, gain green, loss red) stay identical so the chart
+ * lines and badges read the same across themes.
+ *
+ * `color-scheme: light` tells iOS Safari to render scrollbars / form chrome
+ * in light mode and adjusts the system status-bar overlay.
+ */
+:root[data-theme="light"] {
+  --background: #fafafa; /* zinc-50 */
+  --foreground: #18181b; /* zinc-900 */
+  color-scheme: light;
+}
+
+:root[data-theme="light"] .bg-black,
+:root[data-theme="light"] .bg-zinc-950 {
+  background-color: #fafafa !important; /* zinc-50 page */
+}
+
+:root[data-theme="light"] .bg-black\/85,
+:root[data-theme="light"] .bg-black\/95 {
+  background-color: rgb(255 255 255 / 0.92) !important;
+}
+
+:root[data-theme="light"] .bg-zinc-900,
+:root[data-theme="light"] .bg-zinc-900\/95,
+:root[data-theme="light"] .bg-zinc-900\/70,
+:root[data-theme="light"] .bg-zinc-900\/50 {
+  background-color: #ffffff !important; /* card surface */
+}
+
+:root[data-theme="light"] .bg-zinc-800,
+:root[data-theme="light"] .bg-zinc-800\/80 {
+  background-color: #f4f4f5 !important; /* zinc-100 — small pills, ticker badges */
+}
+
+:root[data-theme="light"] .bg-zinc-800\/60,
+:root[data-theme="light"] .bg-zinc-800\/40 {
+  background-color: rgb(228 228 231 / 0.7) !important; /* zinc-200/70 — pressed state */
+}
+
+:root[data-theme="light"] .bg-zinc-700 {
+  background-color: #d4d4d8 !important; /* zinc-300 */
+}
+
+:root[data-theme="light"] .bg-zinc-600 {
+  background-color: #a1a1aa !important; /* zinc-400 — closed-state pulse dot */
+}
+
+:root[data-theme="light"] .text-white {
+  color: #18181b !important; /* zinc-900 */
+}
+
+:root[data-theme="light"] .text-zinc-200 {
+  color: #27272a !important; /* zinc-800 */
+}
+
+:root[data-theme="light"] .text-zinc-300 {
+  color: #3f3f46 !important; /* zinc-700 */
+}
+
+:root[data-theme="light"] .text-zinc-400 {
+  color: #52525b !important; /* zinc-600 */
+}
+
+/* zinc-500 is mid-gray and reads OK on both backgrounds; keep as-is. */
+
+:root[data-theme="light"] .text-zinc-600 {
+  color: #a1a1aa !important; /* zinc-400 — subtler captions */
+}
+
+:root[data-theme="light"] .text-zinc-700 {
+  color: #d4d4d8 !important; /* zinc-300 — subtlest text */
+}
+
+:root[data-theme="light"] .border-zinc-800,
+:root[data-theme="light"] .border-zinc-900 {
+  border-color: #e4e4e7 !important; /* zinc-200 */
+}
+
+:root[data-theme="light"] .divide-zinc-800 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="light"] .divide-zinc-800\/70 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e4e4e7 !important; /* zinc-200 */
+}
+
+/* Smooth surface/text transitions when the theme flips at market open/close. */
+:root,
+body,
+.bg-black,
+.bg-zinc-950,
+.bg-zinc-900,
+.bg-zinc-900\/95,
+.bg-zinc-900\/70,
+.bg-zinc-900\/50,
+.bg-zinc-800,
+.bg-zinc-800\/80,
+.bg-zinc-800\/60,
+.bg-zinc-800\/40,
+.text-white,
+.text-zinc-200,
+.text-zinc-300,
+.text-zinc-400,
+.text-zinc-600,
+.text-zinc-700,
+.border-zinc-800,
+.border-zinc-900 {
+  transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
+}
