@@ -119,7 +119,7 @@ function MoverRow({ mover }: { mover: RangeMover }) {
   return (
     <Link
       href={`/stock/${mover.ticker}`}
-      className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors -mx-1 px-1 rounded-md"
+      className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5">
