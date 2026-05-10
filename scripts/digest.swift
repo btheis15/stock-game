@@ -268,6 +268,22 @@ struct OutputJSON: Codable {
     var holdings: [String: [String: WindowDigest]]
 }
 
+// Game inception. Every multi-day window's lookback is capped at the elapsed
+// game age — there is no news before the start of the game, so 1Y on day 95
+// is identical to ALL until day 365 has passed. After Feb 5, 2027, 1Y starts
+// becoming a true rolling-365-day window. Same logic for 1M / 3M.
+let GAME_START_DATE = "2026-02-05"
+
+func gameAgeInDays(asOf: Date = Date()) -> Int {
+    let cal = Calendar.current
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    f.timeZone = TimeZone(identifier: "America/New_York")
+    guard let start = f.date(from: GAME_START_DATE) else { return 1 }
+    let days = cal.dateComponents([.day], from: start, to: asOf).day ?? 0
+    return max(1, days + 1)        // inclusive of day 1
+}
+
 enum WindowKey: String, CaseIterable {
     case d1 = "1D"
     case w1 = "1W"
@@ -276,27 +292,49 @@ enum WindowKey: String, CaseIterable {
     case y1 = "1Y"
     case all = "ALL"
 
-    // Days required for the window to be considered "full" / mature.
-    // ALL is always mature once any article is archived — it summarizes the
-    // entire game span (since 2026-02-05) regardless of duration.
-    var daysRequired: Int {
+    // Static window length (days). The *effective* lookback / requirement is
+    // capped at gameAge for the multi-day windows — see effectiveDaysRequired.
+    private var staticDays: Int {
         switch self {
         case .d1: return 1
         case .w1: return 7
         case .m1: return 30
         case .m3: return 90
         case .y1: return 365
-        case .all: return 1
+        case .all: return 365 * 5    // hard ceiling — caller caps to gameAge
         }
     }
 
-    // Archive lookback. ALL caps at the planned 5-year game length so we
-    // never blow up prompt size — top-relevance sampling further trims it.
-    var lookbackDays: Int {
+    // Days the window is allowed to look back, capped at game age.
+    func effectiveLookback(gameAge: Int) -> Int {
         switch self {
-        case .all: return 365 * 5
-        default:   return daysRequired
+        case .d1, .w1: return staticDays
+        case .m1, .m3, .y1, .all: return min(staticDays, gameAge)
         }
+    }
+
+    // Effective daysRequired controls when the panel says "insufficient" vs
+    // "full". For multi-day windows we only need ONE archive day to start
+    // showing a digest — there's no earlier history to wait for, so the
+    // window just summarizes whatever fraction of itself has elapsed
+    // (1Y on day 5 = "5 days since Feb 5"; 3M on day 95 = full sliding 90).
+    // 1W is the exception: until we have ~7 distinct archive days, a "1W"
+    // digest would be misleading because it would just be today's news,
+    // so we keep the 7-day requirement there.
+    func effectiveDaysRequired(gameAge: Int) -> Int {
+        switch self {
+        case .d1: return 1
+        case .w1: return min(7, gameAge)
+        case .m1, .m3, .y1, .all: return 1
+        }
+    }
+
+    // What we *display* in the JSON as the threshold — useful only for the
+    // 1W "X more days needed" countdown. Returns the same value as
+    // effectiveDaysRequired today; kept separate in case we want different
+    // semantics later (e.g., "this digest reflects N days of the M-day window").
+    func displayDaysRequired(gameAge: Int) -> Int {
+        effectiveDaysRequired(gameAge: gameAge)
     }
 }
 
@@ -559,8 +597,8 @@ func loadArticlesInLastNDays(ticker: String, days: Int) -> [Article] {
     return out
 }
 
-func articlesForWindow(ticker: String, window: WindowKey) -> [Article] {
-    let articles = loadArticlesInLastNDays(ticker: ticker, days: window.lookbackDays)
+func articlesForWindow(ticker: String, window: WindowKey, gameAge: Int) -> [Article] {
+    let articles = loadArticlesInLastNDays(ticker: ticker, days: window.effectiveLookback(gameAge: gameAge))
     switch window {
     case .d1, .w1:
         return articles                                   // all qualifying, dedup'd
@@ -594,7 +632,7 @@ func dataMaturity(daysOfData: Int, daysRequired: Int) -> String {
 
 // MARK: - Digest generation
 
-func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article]) -> String {
+func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], gameAge: Int) -> String {
     let name = TICKER_NAMES[ticker] ?? ticker
     var articleText = ""
     for (i, a) in articles.enumerated() {
@@ -624,30 +662,42 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article]) -
         \(articleText)
         """
     case .m1:
+        let scope = gameAge < 30
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full month)"
+            : "over the past 30 days"
         return """
-        You are a financial analyst writing a monthly briefing for an investor holding \(ticker) (\(name)).
-        These are the highest-signal developments from the past 30 days, ranked by investor relevance.
-        Write exactly 3 sentences: (1) the month's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading into next month.
+        You are a financial analyst writing a monthly-style briefing for an investor holding \(ticker) (\(name)) \(scope).
+        These are the highest-signal developments in this period, ranked by investor relevance.
+        Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward.
         Be specific — cite actual events, not vague generalities. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
 
         Articles:
         \(articleText)
         """
     case .m3:
+        let scope = gameAge < 90
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full quarter)"
+            : "over the past 90 days"
         return """
-        You are a financial analyst writing a quarterly briefing for an investor holding \(ticker) (\(name)).
-        These are the highest-signal developments from the past 90 days, ranked by investor relevance.
-        Write exactly 3 sentences: (1) the quarter's defining theme or catalyst, (2) major risks or opportunities that emerged, (3) how the investment thesis has evolved.
+        You are a financial analyst writing a quarterly-style briefing for an investor holding \(ticker) (\(name)) \(scope).
+        These are the highest-signal developments in this period, ranked by investor relevance.
+        Write exactly 3 sentences: (1) the period's defining theme or catalyst, (2) major risks or opportunities that emerged, (3) how the investment thesis has evolved.
         Be specific — cite actual events, not vague generalities. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
 
         Articles:
         \(articleText)
         """
     case .y1:
+        // Until the game is at least a year old, "1Y" effectively means
+        // "since February 5, 2026" — there is no earlier history to draw on.
+        let isYoung = gameAge < 365
+        let scopeFraming = isYoung
+            ? "since the game's start on February 5, 2026 (the game has been running for \(gameAge) days, so this covers the entire holding period to date)"
+            : "over the past 12 months"
         return """
-        You are a financial analyst writing an annual briefing for an investor holding \(ticker) (\(name)).
-        These are the year's most material business developments, filtered for relevance.
-        Write exactly 3 sentences: (1) the year's most important storyline and its market impact, (2) how the company's competitive position or financial trajectory changed, (3) the long-term outlook based on this year's arc of events.
+        You are a financial analyst writing an annual-style briefing for an investor holding \(ticker) (\(name)) \(scopeFraming).
+        These are the most material business developments in this period, filtered for relevance.
+        Write exactly 3 sentences: (1) the period's most important storyline and its market impact, (2) how the company's competitive position or financial trajectory changed, (3) the long-term outlook based on this arc of events.
         Be concrete and specific. No filler. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
 
         Articles:
@@ -655,10 +705,10 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article]) -
         """
     case .all:
         return """
-        You are a financial analyst writing a long-horizon summary for an investor holding \(ticker) (\(name)) since February 5, 2026 — the start of a 5-year tracking period.
+        You are a financial analyst writing a since-inception summary for an investor holding \(ticker) (\(name)) since February 5, 2026 — the start of the tracking period (\(gameAge) days ago).
         These are the most material business developments across the entire holding period, filtered for investor relevance and ranked by signal.
-        Write exactly 3 sentences: (1) the defining arc of the company over this period — biggest catalysts, pivots, or regime changes, (2) how the original investment thesis has evolved or been challenged, (3) the structural outlook from here based on what these events imply about competitive position and execution.
-        Be concrete and specific. Reference actual events, not generic commentary. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
+        Write exactly 3 sentences: (1) the defining arc of the company since February 5, 2026 — biggest catalysts, pivots, or regime changes, (2) how the original investment thesis has evolved or been challenged, (3) the structural outlook from here based on what these events imply about competitive position and execution.
+        Be concrete and specific. Reference actual events, not generic commentary. Do not refer to "5 years" — the timeframe is whatever has elapsed since February 5, 2026. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
 
         Articles:
         \(articleText)
@@ -666,9 +716,9 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article]) -
     }
 }
 
-func generateDigestText(ticker: String, window: WindowKey, articles: [Article]) async -> String? {
+func generateDigestText(ticker: String, window: WindowKey, articles: [Article], gameAge: Int) async -> String? {
     guard !articles.isEmpty else { return nil }
-    let prompt = buildDigestPrompt(ticker: ticker, window: window, articles: articles)
+    let prompt = buildDigestPrompt(ticker: ticker, window: window, articles: articles, gameAge: gameAge)
     do {
         let session = LanguageModelSession()    // fresh session per (ticker, window)
         let response = try await session.respond(to: prompt)
@@ -839,10 +889,12 @@ func processTicker(_ ticker: String, args: Args) async -> TickerOutcome {
 
     // 6. Generate digests for every window
     let daysAvail = daysOfDataAvailable(ticker)
+    let gameAge = gameAgeInDays()
     var anyAI = false
     for w in WindowKey.allCases {
-        let articles = articlesForWindow(ticker: ticker, window: w)
-        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: w.daysRequired)
+        let articles = articlesForWindow(ticker: ticker, window: w, gameAge: gameAge)
+        let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
 
         if articles.isEmpty || maturity == "insufficient" {
             perWindow[w.rawValue] = WindowDigest(
@@ -854,13 +906,13 @@ func processTicker(_ ticker: String, args: Args) async -> TickerOutcome {
                 aiEngine: nil,
                 dataMaturity: maturity,
                 daysOfData: daysAvail,
-                daysRequired: w.daysRequired,
+                daysRequired: effRequired,
                 sources: nil
             )
             continue
         }
 
-        let digestText = await generateDigestText(ticker: ticker, window: w, articles: articles)
+        let digestText = await generateDigestText(ticker: ticker, window: w, articles: articles, gameAge: gameAge)
         let scores = articles.compactMap { $0.relevanceScore }
         let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
         let dates = articles.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
@@ -886,7 +938,7 @@ func processTicker(_ ticker: String, args: Args) async -> TickerOutcome {
             aiEngine: digestText != nil ? "AppleIntelligence" : nil,
             dataMaturity: maturity,
             daysOfData: daysAvail,
-            daysRequired: w.daysRequired,
+            daysRequired: effRequired,
             sources: Array(sources)
         )
         log("  \(ticker) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, maturity=\(maturity))")
