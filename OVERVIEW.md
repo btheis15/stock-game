@@ -27,7 +27,11 @@ Four things, on a phone screen:
    blue, Rick orange, Lee purple. Drag your finger across the chart and the
    header above updates with the gap (in dollars and percent) at that exact
    moment. Below the chart is a 2×2 leaderboard showing 1st through 4th place
-   with each player's current portfolio value. Below that, "What's driving
+   with each player's current portfolio value. Below that, a **game-wide
+   AI briefing** scoped to the active range — three sentences explaining
+   *why* the standings look the way they do, citing actual percentages
+   ("Rick is leading the leaderboard with +10.12% portfolio, driven by
+   top holdings RKLB +33.83% and NBIS +14.60%…"). Below that, "What's driving
    it" — for each player, the top three holdings boosting them and the bottom
    three dragging them down. Each row shows the ticker, the stock's current
    share price, the % move for the range, and the per-share dollar move
@@ -159,27 +163,40 @@ it just summarizes whatever's in the archive at any moment.
 
 ## How updates work
 
-You don't have to do anything for the app to stay current. Here's the chain:
+Two pipelines run on the Mac mini's tkinter scheduler. You leave the app open
+and click **Schedule Run** once; it handles the rest.
+
+**Pipeline 1 — price refresh** fires every ~15 min during extended market
+hours (3:00 AM – 7:00 PM CT, covering pre-market + regular + after-hours).
+Skips Saturdays and Sundays. Pulls fresh closes + intraday bars from Yahoo
+Finance, commits `public/data/prices.json`, pushes — Vercel rebuilds.
+
+**Pipeline 2 — daily AI briefings** fires once per weekday at 7:00 AM CT
+(before regular market open). Runs the full Apple Intelligence digest
+pipeline: per-ticker news fetched + filtered + summarized; per-player
+portfolio rollups; game-wide leaderboard analysis. Writes `public/digests.json`,
+commits, pushes — Vercel rebuilds. Takes ~10–15 min.
 
 ```
 [Mac mini at home, running 24/7]
-    ↓ scheduler app fires every 15 minutes during US market hours (8:30am–3:00pm CT)
-    ↓
-[scripts/cron-update.sh runs]
-    ├── pulls the latest closing prices + intraday bars from Yahoo Finance
-    ├── if anything changed: commits + pushes to GitHub
-    └── deploys to Vercel
-    ↓
-[stock-game-gamma.vercel.app rebuilds in ~30 seconds]
-    ↓
-[Your iPhone shows the latest data the next time you open the app]
+    ↓ scheduler fires its two timers
+    ↓                             ↓
+[every ~15 min                  [once per weekday
+ during ext. market hours]       at 7 AM CT]
+    ↓                             ↓
+scripts/cron-update.sh        scripts/digest-update.sh
+    ↓                             ↓
+public/data/prices.json       public/digests.json
+                  ↓ both committed + pushed
+                [stock-game-gamma.vercel.app rebuilds in ~30 seconds]
+                  ↓
+                [Your iPhone shows the latest data on next open]
 ```
 
-End-to-end, from "data changes" to "your phone shows it" is about a minute.
-The schedule is configurable from a tkinter desktop app on the Mac mini —
-launch it with `npm run stockgame`. Pick an interval (5/10/15/30 min, or
-1–24 hr), pick a window (defaults to market hours in CT), and click
-**Schedule Run**. It stays scheduled until you click **Stop** or close the app.
+End-to-end refresh latency: ~50 seconds for prices, ~12 minutes for the daily
+digest. Launch the scheduler with `npm run stockgame`. Pick an interval, pick
+a digest time, hit **Schedule Run**. Leave it on through the weekend — the
+"Weekdays only" checkbox keeps it idle on Sat/Sun.
 
 ---
 

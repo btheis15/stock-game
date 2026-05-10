@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ScrubChart, type ChartSeries, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { InsightsCard } from "./InsightsCard";
+import { DigestPanel } from "./DigestPanel";
+import { useDigests } from "@/lib/digests";
 import {
   filterRange,
   fmtDateLong,
@@ -42,6 +44,7 @@ interface Props {
 
 export function CompareView({ series, intraday, weekly, intradayDate, generatedAt, analyses }: Props) {
   const [range, setRange] = useState<Range>("1D");
+  const { loading: digestsLoading, getGameDigest } = useDigests();
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
   const isIntraday = range === "1D";
@@ -164,6 +167,12 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
           />
         ))}
       </div>
+
+      <DigestPanel
+        digest={getGameDigest(range)}
+        loading={digestsLoading}
+        range={range}
+      />
 
       <InsightsCard analysis={analyses[range]} />
 

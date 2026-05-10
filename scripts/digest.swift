@@ -290,6 +290,10 @@ struct OutputJSON: Codable {
     // Same WindowDigest shape as `holdings`; sources draw from across the user's
     // ticker list, not a single ticker.
     var portfolios: [String: [String: WindowDigest]]?
+    // Game-wide leaderboard analysis (Phase 3). Per-window digests that
+    // explain *why* the standings look the way they do, citing player names,
+    // specific tickers, and percentages from the live price data.
+    var game: [String: WindowDigest]?
 }
 
 // Game inception. Every multi-day window's lookback is capped at the elapsed
@@ -1135,9 +1139,289 @@ func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOu
     return PortfolioOutcome(userId: player.id, windows: perWindow)
 }
 
+// MARK: - Game-wide leaderboard analysis (Phase 3)
+
+// Mirror of the relevant slice of public/data/prices.json. We only decode the
+// fields needed for standings — everything else is ignored.
+struct PD_DailyClose: Codable { let date: String; let close: Double }
+struct PD_IntradayBar: Codable { let t: String; let close: Double }
+struct PD_TickerSeries: Codable {
+    let ticker: String
+    let name: String
+    let startClose: Double
+    let closes: [PD_DailyClose]
+    let intraday: [PD_IntradayBar]?
+}
+struct PriceDataLite: Codable {
+    let startDate: String
+    let generatedAt: String
+    let intradayDate: String?
+    let tickers: [String: PD_TickerSeries]
+    let tradingDates: [String]
+}
+
+func loadPriceData(at url: URL) -> PriceDataLite? {
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(PriceDataLite.self, from: data)
+}
+
+// Mirrors lib/picks.ts STARTING_PORTFOLIO_DOLLARS.
+let STARTING_PORTFOLIO_DOLLARS: Double = 100_000
+
+func perHoldingDollarsFor(_ player: PlayerRoster) -> Double {
+    return STARTING_PORTFOLIO_DOLLARS / Double(player.tickers.count)
+}
+
+func sharesFor(_ player: PlayerRoster, _ series: PD_TickerSeries) -> Double {
+    perHoldingDollarsFor(player) / series.startClose
+}
+
+func lastKnownClose(_ series: PD_TickerSeries, asOf date: String) -> Double {
+    var found = series.startClose
+    for c in series.closes {
+        if c.date <= date { found = c.close } else { break }
+    }
+    return found
+}
+
+// Port of rangeBounds from lib/portfolio.ts.
+func rangeBounds(tradingDates: [String], window: WindowKey) -> (startDate: String, endDate: String) {
+    guard let endDate = tradingDates.last else { return ("", "") }
+    if window == .all { return (tradingDates.first ?? endDate, endDate) }
+    if window == .d1 {
+        let prev = tradingDates.count >= 2 ? tradingDates[tradingDates.count - 2] : endDate
+        return (prev, endDate)
+    }
+    let days: Int
+    switch window {
+    case .w1: days = 7
+    case .m1: days = 30
+    case .m3: days = 90
+    case .y1: days = 365
+    default:  days = 0
+    }
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    f.timeZone = TimeZone(secondsFromGMT: 0)
+    guard let last = f.date(from: endDate),
+          let cutoff = Calendar(identifier: .iso8601).date(byAdding: .day, value: -days, to: last) else {
+        return (tradingDates.first ?? endDate, endDate)
+    }
+    let cutoffStr = f.string(from: cutoff)
+    let startIdx = tradingDates.firstIndex(where: { $0 >= cutoffStr }) ?? 0
+    return (startIdx == 0 ? tradingDates.first ?? endDate : tradingDates[startIdx], endDate)
+}
+
+func rangeCloses(series: PD_TickerSeries, data: PriceDataLite, window: WindowKey) -> (start: Double, end: Double) {
+    if window == .d1 {
+        let intradayDate = data.intradayDate ?? data.tradingDates.last ?? ""
+        let prevDate = data.tradingDates.last(where: { $0 < intradayDate }) ?? data.tradingDates.last ?? ""
+        let startClose = lastKnownClose(series, asOf: prevDate)
+        let endClose = series.intraday?.last?.close ?? series.closes.last?.close ?? startClose
+        return (startClose, endClose)
+    }
+    let bounds = rangeBounds(tradingDates: data.tradingDates, window: window)
+    return (lastKnownClose(series, asOf: bounds.startDate),
+            lastKnownClose(series, asOf: bounds.endDate))
+}
+
+struct TickerMove {
+    let ticker: String
+    let pct: Double         // fractional, e.g. 0.052 = +5.2%
+    let dollars: Double
+    let endClose: Double
+}
+
+struct UserStanding {
+    let player: PlayerRoster
+    let pct: Double
+    let topMovers: [TickerMove]      // sorted desc by pct
+    let bottomMovers: [TickerMove]   // sorted asc by pct
+}
+
+func computeStandings(data: PriceDataLite, window: WindowKey) -> [UserStanding] {
+    var rows: [UserStanding] = []
+    for player in PLAYERS {
+        var movers: [TickerMove] = []
+        var startTotal: Double = 0
+        var endTotal: Double = 0
+        for t in player.tickers {
+            guard let s = data.tickers[t] else { continue }
+            let shares = sharesFor(player, s)
+            let r = rangeCloses(series: s, data: data, window: window)
+            let pct = r.start == 0 ? 0 : (r.end - r.start) / r.start
+            movers.append(TickerMove(ticker: t, pct: pct, dollars: shares * (r.end - r.start), endClose: r.end))
+            startTotal += shares * r.start
+            endTotal += shares * r.end
+        }
+        let portfolioPct = startTotal == 0 ? 0 : (endTotal - startTotal) / startTotal
+        let sorted = movers.sorted { $0.pct > $1.pct }
+        rows.append(UserStanding(
+            player: player,
+            pct: portfolioPct,
+            topMovers: Array(sorted.prefix(2)),
+            bottomMovers: Array(sorted.reversed().prefix(2))
+        ))
+    }
+    return rows.sorted { $0.pct > $1.pct }
+}
+
+func formatStandingsBlock(_ standings: [UserStanding]) -> String {
+    let placeLabels = ["1st", "2nd", "3rd", "4th", "5th"]
+    var lines: [String] = []
+    for (i, s) in standings.enumerated() {
+        let place = i < placeLabels.count ? placeLabels[i] : "\(i+1)th"
+        let pctStr = String(format: "%+.2f%%", s.pct * 100)
+        var line = "  \(place). \(s.player.name): \(pctStr) portfolio"
+        let topStr = s.topMovers.prefix(2).map { "\($0.ticker) \(String(format: "%+.2f%%", $0.pct * 100))" }.joined(separator: ", ")
+        if !topStr.isEmpty { line += " — top: \(topStr)" }
+        let dragOnly = s.bottomMovers.filter { $0.pct < 0 }.prefix(2)
+        if !dragOnly.isEmpty {
+            let dragStr = dragOnly.map { "\($0.ticker) \(String(format: "%+.2f%%", $0.pct * 100))" }.joined(separator: ", ")
+            line += "; drag: \(dragStr)"
+        }
+        lines.append(line)
+    }
+    return lines.joined(separator: "\n")
+}
+
+// Pull the highest-signal articles in the window across ALL players' tickers.
+// Capped at 15 so the prompt stays manageable.
+func gameNewsArticles(window: WindowKey, gameAge: Int) -> [Article] {
+    let lookback = window.effectiveLookback(gameAge: gameAge)
+    var seen: Set<String> = []
+    var pool: [Article] = []
+    let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
+    for ticker in allTickers {
+        for a in loadArticlesInLastNDays(ticker: ticker, days: lookback) {
+            if seen.insert(a.link).inserted { pool.append(a) }
+        }
+    }
+    pool.sort { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+    return Array(pool.prefix(15))
+}
+
+func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [Article], gameAge: Int) -> String {
+    let standingsBlock = formatStandingsBlock(standings)
+    let scope: String
+    switch window {
+    case .d1:  scope = "today"
+    case .w1:  scope = "this past week"
+    case .m1:  scope = gameAge < 30  ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "this past month"
+    case .m3:  scope = gameAge < 90  ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "this past quarter"
+    case .y1:  scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "this past year"
+    case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
+    }
+    var articleText = ""
+    let allTickers = PLAYERS.flatMap { $0.tickers }
+    for (i, a) in articles.enumerated() {
+        let desc = String(a.description.prefix(DESC_TRUNCATE))
+        let tag = detectTickerForArticle(a, in: allTickers) ?? "—"
+        articleText += "\(i + 1). [\(tag)] \(a.title)\n\(desc)\n\n"
+    }
+    return """
+    You are commenting on the live leaderboard of a 4-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000.
+
+    Players and their picks:
+      Brian: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD
+      Kevin: TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT
+      Rick:  COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA
+      Lee:   SPY (single position)
+
+    LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to 4th):
+    \(standingsBlock)
+
+    Most market-moving news from the period (each tagged with the ticker it relates to in brackets):
+    \(articleText)
+
+    Write exactly 3 sentences analyzing the leaderboard \(scope), as a single paragraph of plain prose:
+    Sentence 1: who is leading and *why* — name the leader and cite the 1–2 specific holdings + news catalysts driving them, using the percentages from the standings.
+    Sentence 2: what's separating the middle/back of the pack — name the laggards and what specific tickers or events are dragging them.
+    Sentence 3: the biggest catalyst or risk to watch heading forward, grounded in a specific holding mentioned above.
+
+    Use the player names verbatim. Quote percentages from the standings exactly. Do not invent numbers or events. Do not preface it. Do not number the sentences. Do not use bullet points.
+    """
+}
+
+struct GameOutcome {
+    let windows: [String: WindowDigest]
+}
+
+func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome {
+    log("• Game-wide summary: start")
+    var perWindow: [String: WindowDigest] = [:]
+    let nowISO = isoFormatter.string(from: Date())
+
+    // Use the max archive depth across any ticker as the "days of data" since
+    // the game-wide rollup spans every ticker.
+    let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
+    let daysAvail = allTickers.map { daysOfDataAvailable($0) }.max() ?? 0
+
+    for w in WindowKey.allCases {
+        let standings = computeStandings(data: data, window: w)
+        let articles = gameNewsArticles(window: w, gameAge: gameAge)
+        let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
+
+        if standings.isEmpty || articles.isEmpty || maturity == "insufficient" {
+            perWindow[w.rawValue] = WindowDigest(
+                digest: nil,
+                articleCount: 0,
+                dateRange: nil,
+                avgRelevanceScore: nil,
+                generatedAt: nowISO,
+                aiEngine: nil,
+                dataMaturity: maturity,
+                daysOfData: daysAvail,
+                daysRequired: effRequired,
+                sources: nil
+            )
+            continue
+        }
+
+        let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge)
+        var digestText: String? = nil
+        do {
+            let session = LanguageModelSession()
+            let response = try await session.respond(to: prompt)
+            digestText = cleanDigestProse(response.content)
+        } catch {
+            logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
+        }
+
+        let scores = articles.compactMap { $0.relevanceScore }
+        let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
+        let bounds = rangeBounds(tradingDates: data.tradingDates, window: w)
+        let sources = articles.prefix(8).map { a in
+            SourceArticle(
+                title: a.title,
+                link: a.link,
+                source: a.source,
+                date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
+                score: a.relevanceScore ?? 0
+            )
+        }
+        perWindow[w.rawValue] = WindowDigest(
+            digest: digestText,
+            articleCount: articles.count,
+            dateRange: bounds.startDate.isEmpty ? nil : DateRange(from: bounds.startDate, to: bounds.endDate),
+            avgRelevanceScore: avg,
+            generatedAt: nowISO,
+            aiEngine: digestText != nil ? "AppleIntelligence" : nil,
+            dataMaturity: maturity,
+            daysOfData: daysAvail,
+            daysRequired: effRequired,
+            sources: Array(sources)
+        )
+        log("  Game \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, \(standings.count) players)")
+    }
+
+    return GameOutcome(windows: perWindow)
+}
+
 // MARK: - Output writer
 
-func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome], to outputURL: URL) throws {
+func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome], game: GameOutcome?, to outputURL: URL) throws {
     var holdings: [String: [String: WindowDigest]] = [:]
     for o in outcomes where !o.windows.isEmpty {
         holdings[o.ticker] = o.windows
@@ -1146,11 +1430,13 @@ func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome]
     for p in portfolios where !p.windows.isEmpty {
         portfolioBlock[p.userId] = p.windows
     }
+    let gameBlock = (game?.windows.isEmpty == false) ? game?.windows : nil
     let out = OutputJSON(
         generatedAt: isoFormatter.string(from: Date()),
         aiEngine: "AppleIntelligence",
         holdings: holdings,
-        portfolios: portfolioBlock.isEmpty ? nil : portfolioBlock
+        portfolios: portfolioBlock.isEmpty ? nil : portfolioBlock,
+        game: gameBlock
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -1159,7 +1445,7 @@ func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome]
     let parent = outputURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     try data.write(to: outputURL)
-    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios)")
+    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios, \(gameBlock?.count ?? 0) game windows)")
 }
 
 // MARK: - Entry point
@@ -1219,13 +1505,32 @@ func runMain() async {
         log("Skipping portfolio rollups (subset run).")
     }
 
+    // Phase 3: game-wide leaderboard analysis. Reads public/data/prices.json
+    // for live standings, combines with the article archive to explain *why*
+    // the leaderboard looks like it does. Same subset-skip rule as above.
+    var game: GameOutcome? = nil
+    if runAllTickers {
+        // The prices.json lives next to digests.json by convention. Walk up
+        // from the output path to find /public, then read /public/data/prices.json.
+        let publicDir = args.outputPath.deletingLastPathComponent()
+        let pricesURL = publicDir.appendingPathComponent("data/prices.json")
+        if let priceData = loadPriceData(at: pricesURL) {
+            let gameAge = gameAgeInDays()
+            game = await processGameSummary(data: priceData, gameAge: gameAge)
+        } else {
+            logErr("Game summary skipped — could not load prices.json at \(pricesURL.path)")
+        }
+    } else {
+        log("Skipping game-wide summary (subset run).")
+    }
+
     if args.dryRun {
         log("DRY RUN complete; no files written.")
         return
     }
 
     do {
-        try writeOutputJSON(outcomes, portfolios: portfolios, to: args.outputPath)
+        try writeOutputJSON(outcomes, portfolios: portfolios, game: game, to: args.outputPath)
     } catch {
         logErr("Failed to write output JSON: \(error.localizedDescription)")
         exit(1)

@@ -47,6 +47,10 @@ export interface DigestsJson {
   // Per-user portfolio rollups (Phase 2). Optional so older snapshots don't
   // break the page; missing → the panel renders nothing on /portfolio/[user].
   portfolios?: Partial<Record<UserId, Partial<Record<DigestWindow, WindowDigest>>>>;
+  // Game-wide leaderboard analysis (Phase 3). Per-window analytical digests
+  // explaining the live standings — references player names + actual %s. Renders
+  // on the home Compare view.
+  game?: Partial<Record<DigestWindow, WindowDigest>>;
 }
 
 // The app's chart-tab Range uses "1YR"; the digest pipeline writes "1Y".
@@ -103,5 +107,10 @@ export function useDigests() {
     return data?.portfolios?.[userId]?.[w] ?? null;
   }
 
-  return { loading, data, getDigest, getPortfolioDigest };
+  function getGameDigest(range: Range): WindowDigest | null {
+    const w = rangeToDigestWindow(range);
+    return data?.game?.[w] ?? null;
+  }
+
+  return { loading, data, getDigest, getPortfolioDigest, getGameDigest };
 }

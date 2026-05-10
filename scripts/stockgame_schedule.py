@@ -20,7 +20,11 @@ from tkinter import messagebox
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REFRESH_SCRIPT = os.path.join(REPO_DIR, "scripts", "cron-update.sh")
+DIGEST_SCRIPT = os.path.join(REPO_DIR, "scripts", "digest-update.sh")
 LOG_FILE = "/tmp/stock-game.log"
+
+# Mon=0 ... Sun=6
+WEEKEND = {5, 6}
 
 
 class SchedulerApp:
@@ -36,6 +40,15 @@ class SchedulerApp:
         self.run_end_minutes = None
         self.window_wraps_midnight = False
 
+        # Daily digest (briefings) — separate timer, fires once per weekday
+        # at the configured time. Runs scripts/digest-update.sh which calls
+        # the Swift Apple Intelligence pipeline + commits + pushes.
+        self.digest_timer = None
+        self.digest_scheduled_time = None
+        self.digest_minutes = None
+        self.last_digest_text = "—"
+        self.last_digest_ok = None
+
         self.run_lock = threading.Lock()
         self.run_cond = threading.Condition(self.run_lock)
         self.is_running = False
@@ -45,6 +58,7 @@ class SchedulerApp:
         self.keep_awake_process = None
 
         self._create_refresh_section()
+        self._create_digest_section()
         self._create_status_labels()
         self._create_buttons()
         self._start_keep_awake()
@@ -90,11 +104,13 @@ class SchedulerApp:
             row=2, column=1, columnspan=2, sticky="w"
         )
 
-        # Defaults assume Central Time host (US market hours 9:30am-4:00pm ET = 8:30am-3:00pm CT)
+        # Defaults assume Central Time host. Extended US market hours run
+        # 4:00 AM ET (pre-market) through 8:00 PM ET (after-hours close)
+        # = 3:00 AM CT through 7:00 PM CT.
         tk.Label(self.root, text="Run Time Range:").grid(row=3, column=0, padx=5, pady=5)
-        self.start_hour_var = tk.StringVar(value="8")
+        self.start_hour_var = tk.StringVar(value="3")
         tk.OptionMenu(self.root, self.start_hour_var, *range(1, 13)).grid(row=3, column=1)
-        self.start_minute_var = tk.StringVar(value="30")
+        self.start_minute_var = tk.StringVar(value="00")
         tk.OptionMenu(
             self.root,
             self.start_minute_var,
@@ -103,7 +119,7 @@ class SchedulerApp:
         self.start_ampm_var = tk.StringVar(value="AM")
         tk.OptionMenu(self.root, self.start_ampm_var, "AM", "PM").grid(row=3, column=3)
 
-        self.end_hour_var = tk.StringVar(value="3")
+        self.end_hour_var = tk.StringVar(value="7")
         tk.OptionMenu(self.root, self.end_hour_var, *range(1, 13)).grid(row=4, column=1)
         self.end_minute_var = tk.StringVar(value="00")
         tk.OptionMenu(
@@ -114,41 +130,88 @@ class SchedulerApp:
         self.end_ampm_var = tk.StringVar(value="PM")
         tk.OptionMenu(self.root, self.end_ampm_var, "AM", "PM").grid(row=4, column=3)
 
+        # Mon–Fri only — weekends skip both the price refresh and the digest.
+        self.weekdays_only_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            self.root,
+            text="Weekdays only (skip Sat/Sun)",
+            variable=self.weekdays_only_var,
+        ).grid(row=5, column=0, columnspan=4, padx=5, pady=(2, 0), sticky="w")
+
+    def _create_digest_section(self):
+        tk.Label(
+            self.root,
+            text="Daily AI briefings (digests)",
+            font=("", 12, "bold"),
+        ).grid(row=6, column=0, columnspan=4, padx=5, pady=(12, 4), sticky="w")
+
+        tk.Label(self.root, text="Briefing time:").grid(row=7, column=0, padx=5, pady=5)
+        self.digest_hour_var = tk.StringVar(value="7")
+        tk.OptionMenu(self.root, self.digest_hour_var, *range(1, 13)).grid(row=7, column=1)
+        self.digest_minute_var = tk.StringVar(value="00")
+        tk.OptionMenu(
+            self.root,
+            self.digest_minute_var,
+            *["{:02d}".format(i) for i in range(0, 60, 5)],
+        ).grid(row=7, column=2)
+        self.digest_ampm_var = tk.StringVar(value="AM")
+        tk.OptionMenu(self.root, self.digest_ampm_var, "AM", "PM").grid(row=7, column=3)
+
+        tk.Label(
+            self.root,
+            text="Runs once per weekday before market open. ~10–15 min on Apple Intelligence.",
+            fg="#666",
+            font=("", 9),
+            wraplength=400,
+            justify="left",
+        ).grid(row=8, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w")
+
     def _create_status_labels(self):
         self.next_run_label = tk.Label(self.root, text="No refresh scheduled.")
-        self.next_run_label.grid(row=5, column=0, columnspan=4, padx=5, pady=(10, 2))
+        self.next_run_label.grid(row=9, column=0, columnspan=4, padx=5, pady=(10, 2))
         self.last_run_label = tk.Label(self.root, text="Last run: —")
-        self.last_run_label.grid(row=6, column=0, columnspan=4, padx=5, pady=2)
+        self.last_run_label.grid(row=10, column=0, columnspan=4, padx=5, pady=2)
+        self.next_digest_label = tk.Label(self.root, text="No briefing scheduled.")
+        self.next_digest_label.grid(row=11, column=0, columnspan=4, padx=5, pady=(8, 2))
+        self.last_digest_label = tk.Label(self.root, text="Last briefing: —")
+        self.last_digest_label.grid(row=12, column=0, columnspan=4, padx=5, pady=2)
         self.repo_label = tk.Label(
             self.root,
             text=f"Script: {REFRESH_SCRIPT}",
             fg="#666",
             font=("", 9),
         )
-        self.repo_label.grid(row=7, column=0, columnspan=4, padx=5, pady=(0, 4))
+        self.repo_label.grid(row=13, column=0, columnspan=4, padx=5, pady=(0, 4))
 
     def _create_buttons(self):
         self.schedule_button = tk.Button(
             self.root, text="Schedule Run", command=self.schedule_task
         )
         self.schedule_button.grid(
-            row=8, column=0, columnspan=2, sticky="ew", padx=5, pady=5
+            row=14, column=0, columnspan=2, sticky="ew", padx=5, pady=5
         )
         self.run_now_button = tk.Button(
             self.root, text="Run Now", command=self.run_now
         )
         self.run_now_button.grid(
-            row=8, column=2, columnspan=2, sticky="ew", padx=5, pady=5
+            row=14, column=2, columnspan=2, sticky="ew", padx=5, pady=5
         )
 
         self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_task)
-        self.stop_button.grid(row=9, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
+        self.stop_button.grid(row=15, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
+
+        self.run_digest_button = tk.Button(
+            self.root, text="Run Briefing Now", command=self.run_digest_now
+        )
+        self.run_digest_button.grid(
+            row=16, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
+        )
 
         self.open_log_button = tk.Button(
             self.root, text="Open Log", command=self.open_log
         )
         self.open_log_button.grid(
-            row=10, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
+            row=17, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
         )
 
     # ---------------- SCHEDULING ----------------
@@ -187,9 +250,19 @@ class SchedulerApp:
                 target_time += timedelta(days=1)
             self._schedule_refresh_at(target_time)
 
+            # Schedule the daily AI digest as well — once per weekday at the
+            # configured briefing time. Independent timer; runs whether or not
+            # the price-refresh interval is firing.
+            self.digest_minutes = self._parse_minutes(
+                self.digest_hour_var, self.digest_minute_var, self.digest_ampm_var
+            )
+            digest_target = self._next_daily_digest_time(now)
+            self._schedule_digest_at(digest_target)
+
             self.update_next_run_label()
+            self.update_next_digest_label()
             self.schedule_button.config(state=tk.DISABLED)
-            print(f"Scheduled refresh at {target_time}.")
+            print(f"Scheduled refresh at {target_time}; first briefing at {digest_target}.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -225,25 +298,132 @@ class SchedulerApp:
         self._on_main_thread(self.update_next_run_label)
 
     def stop_task(self):
-        if self.refresh_timer is None:
-            messagebox.showwarning("No Schedule", "No refresh is currently scheduled.")
+        had_refresh = self.refresh_timer is not None
+        had_digest = self.digest_timer is not None
+        if not had_refresh and not had_digest:
+            messagebox.showwarning("No Schedule", "Nothing is currently scheduled.")
             return
-        self.refresh_timer.cancel()
-        self.refresh_timer = None
+        if self.refresh_timer is not None:
+            self.refresh_timer.cancel()
+            self.refresh_timer = None
+        if self.digest_timer is not None:
+            self.digest_timer.cancel()
+            self.digest_timer = None
         self.refresh_scheduled_time = None
+        self.digest_scheduled_time = None
         self.interval_minutes = None
         self.run_start_minutes = None
         self.run_end_minutes = None
         self.window_wraps_midnight = False
+        self.digest_minutes = None
         self.update_next_run_label()
+        self.update_next_digest_label()
         self.schedule_button.config(state=tk.NORMAL)
-        messagebox.showinfo("Stopped", "Scheduled refresh stopped.")
+        messagebox.showinfo("Stopped", "Schedule stopped.")
 
     def run_now(self):
         if not self._try_start_run():
             messagebox.showwarning("Task Running", "A task is already running.")
             return
         threading.Thread(target=self._run_with_guard, daemon=True).start()
+
+    def run_digest_now(self):
+        if not self._try_start_run():
+            messagebox.showwarning("Task Running", "A task is already running.")
+            return
+        threading.Thread(target=self._run_digest_with_guard, daemon=True).start()
+
+    # ---------------- DAILY DIGEST ----------------
+    def _next_daily_digest_time(self, now):
+        """Next datetime to fire the daily digest. Today at the configured time
+        if it hasn't passed yet, otherwise tomorrow. Skips Sat/Sun if the
+        weekdays-only checkbox is on."""
+        if self.digest_minutes is None:
+            return None
+        candidate = datetime(now.year, now.month, now.day) + timedelta(minutes=self.digest_minutes)
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        if self.weekdays_only_var.get():
+            while candidate.weekday() in WEEKEND:
+                candidate += timedelta(days=1)
+        return candidate
+
+    def _schedule_digest_at(self, run_at):
+        if run_at is None:
+            return
+        delay = max(0.0, (run_at - datetime.now()).total_seconds())
+        self.digest_timer = threading.Timer(
+            delay, self._fire_digest, args=(run_at,)
+        )
+        self.digest_timer.daemon = True
+        self.digest_timer.start()
+        self.digest_scheduled_time = run_at
+
+    def _fire_digest(self, scheduled_for):
+        # Coordinate with the price refresh — they share run_lock so we don't
+        # commit + push from two pipelines simultaneously.
+        if self._wait_and_start():
+            try:
+                self._run_digest()
+            finally:
+                self._finish_run()
+        else:
+            print("Skipped scheduled briefing: another task held the lock.")
+
+        # Re-arm for the next weekday.
+        next_run = self._next_daily_digest_time(datetime.now() + timedelta(minutes=1))
+        self._schedule_digest_at(next_run)
+        self._on_main_thread(self.update_next_digest_label)
+
+    def _run_digest_with_guard(self):
+        try:
+            self._run_digest()
+        finally:
+            self._finish_run()
+
+    def _run_digest(self):
+        if not os.path.exists(DIGEST_SCRIPT):
+            print(f"Digest script not found: {DIGEST_SCRIPT}")
+            return
+        try:
+            start_time = datetime.now().strftime("%m/%d/%Y %-I:%M:%S%p")
+            print(f"Briefing started at {start_time}.")
+            self._on_main_thread(
+                self.last_digest_label.config,
+                text=f"Briefing running… (started {start_time})",
+                fg="#666",
+            )
+            result = subprocess.run(["bash", DIGEST_SCRIPT], check=False)
+            finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
+            if result.returncode == 0:
+                self.last_digest_ok = True
+                self.last_digest_text = f"Last briefing: {finish_time} ✓"
+                print(f"Briefing completed at {finish_time}.")
+            else:
+                self.last_digest_ok = False
+                self.last_digest_text = (
+                    f"Last briefing failed: {finish_time} (exit {result.returncode})"
+                )
+                print(self.last_digest_text)
+            self._on_main_thread(
+                self.last_digest_label.config,
+                text=self.last_digest_text,
+                fg="#0a7" if self.last_digest_ok else "#c33",
+            )
+        except Exception as e:
+            self.last_digest_text = f"Briefing error: {e}"
+            print(self.last_digest_text)
+            self._on_main_thread(
+                self.last_digest_label.config, text=self.last_digest_text, fg="#c33"
+            )
+
+    def update_next_digest_label(self):
+        if self.digest_scheduled_time:
+            self.next_digest_label.config(
+                text=f"Next briefing: {self.digest_scheduled_time.strftime('%a %Y-%m-%d %I:%M %p')}"
+            )
+        else:
+            self.next_digest_label.config(text="No briefing scheduled.")
 
     # ---------------- RUNNERS ----------------
     def _run_with_guard(self):
@@ -318,6 +498,11 @@ class SchedulerApp:
         return (value.hour * 60) + value.minute
 
     def _is_within_window(self, value):
+        # Weekend skip — Mon=0, Sun=6. The user usually leaves the scheduler
+        # running through the weekend; this stops both the refresh + digest
+        # from firing on Sat/Sun without forcing them to hit Stop on Friday.
+        if self.weekdays_only_var.get() and value.weekday() in WEEKEND:
+            return False
         if self.run_start_minutes is None or self.run_end_minutes is None:
             return True
         current_minutes = self._minutes_from_datetime(value)
@@ -337,11 +522,19 @@ class SchedulerApp:
         current_minutes = self._minutes_from_datetime(value)
         if self.window_wraps_midnight:
             if current_minutes < self.run_start_minutes:
-                return start_today
-            return start_today + timedelta(days=1)
-        if current_minutes < self.run_start_minutes:
-            return start_today
-        return start_today + timedelta(days=1)
+                candidate = start_today
+            else:
+                candidate = start_today + timedelta(days=1)
+        elif current_minutes < self.run_start_minutes:
+            candidate = start_today
+        else:
+            candidate = start_today + timedelta(days=1)
+        # Skip weekend days entirely — bump candidate forward until we land on
+        # a weekday that's actually inside the run window.
+        if self.weekdays_only_var.get():
+            while candidate.weekday() in WEEKEND:
+                candidate += timedelta(days=1)
+        return candidate
 
     def _parse_interval(self, raw):
         raw = (raw or "").strip()
@@ -409,7 +602,7 @@ class SchedulerApp:
     def update_next_run_label(self):
         if self.refresh_scheduled_time:
             self.next_run_label.config(
-                text=f"Next refresh: {self.refresh_scheduled_time.strftime('%Y-%m-%d %I:%M %p')}"
+                text=f"Next refresh: {self.refresh_scheduled_time.strftime('%a %Y-%m-%d %I:%M %p')}"
             )
         else:
             self.next_run_label.config(text="No refresh scheduled.")
@@ -448,6 +641,9 @@ class SchedulerApp:
         if self.refresh_timer is not None:
             self.refresh_timer.cancel()
             self.refresh_timer = None
+        if self.digest_timer is not None:
+            self.digest_timer.cancel()
+            self.digest_timer = None
         self.root.destroy()
 
 
