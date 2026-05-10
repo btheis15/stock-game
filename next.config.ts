@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
         headers: [noStoreHtml],
       },
       {
+        source: "/digests.json",
+        headers: [noStoreHtml],
+      },
+      {
         source: "/manifest.webmanifest",
         headers: [noStoreHtml],
       },

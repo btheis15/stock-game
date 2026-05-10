@@ -21,6 +21,7 @@ import {
 import type { Range, TickerSeries } from "@/lib/types";
 import { TICKER_OWNERS, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
+import { DigestPanel } from "./DigestPanel";
 
 interface Props {
   series: TickerSeries;
@@ -103,6 +104,8 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
       />
 
       <RangeTabs value={range} onChange={setRange} accent={accentColor} />
+
+      <DigestPanel ticker={series.ticker} range={range} />
 
       {owners.length === 0 ? (
         <div className="px-4 mt-3 text-[12px] text-zinc-500">

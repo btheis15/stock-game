@@ -39,10 +39,20 @@ Four things, on a phone screen:
    have, sorted by performance for the active range.
 
 3. **Per-stock detail.** Tap any holding row, or any individual stock inside
-   a "What's driving it" card, and you see that stock's price chart plus a
-   "Position" card for each player who owns it (Kevin and Rick both own NVDA,
-   for example, so NVDA's page shows both their positions). Below that, a
-   list of every dividend that stock has paid since 2/5.
+   a "What's driving it" card, and you see that stock's price chart plus —
+   directly below the range tabs — a Robinhood-style **news digest** scoped
+   to whichever range tab you're on. The digest shows three sentences of
+   plain-English summary ("what happened today" for 1D, "the year's most
+   important storyline" for 1Y, "the defining arc of the company since 2/5"
+   for ALL), with a "Show more" tap target that reveals the full prose,
+   the underlying article sources (linked to the originals), the article
+   count, and a tiny "⬡ Summarized by Apple Intelligence" credit at the
+   bottom. The dot at the left of the card is a signal-quality indicator —
+   green when the underlying articles average a high relevance score,
+   yellow when middling. Below the digest are "Position" cards for each
+   player who owns the stock (Kevin and Rick both own NVDA, for example,
+   so NVDA's page shows both their positions), and below that, a list of
+   every dividend that stock has paid since 2/5.
 
 4. **Tee Times.** A third tab, golf-ball icon. Quick shortcuts into
    Inshalla CC's foreUP booking page — three tappable rows for Today,
@@ -117,6 +127,31 @@ A few notes on this:
   picks up `36.24 shares × $0.26 = $9.42` in cash — added to his total.
 
 ---
+
+## Where the news digests come from
+
+The summaries on each stock's detail page aren't editorial — they're
+generated fresh once a day by an Apple Intelligence pipeline that runs on
+the Mac mini at home. Yahoo Finance's RSS feed for each ticker is fetched,
+articles get filtered through a two-stage relevance gate (a fast keyword
+pre-filter that drops crime stories / store openings / sports, then an
+Apple Intelligence scoring pass that requires ≥6/10 investor relevance
+to make it through), and the survivors get summarized into 3-sentence
+digests for each time window — 1D, 1W, 1M, 3M, 1Y, and a "since 2/5/26"
+ALL summary that's framed around the 5-year game arc.
+
+The whole pipeline runs on-device — no ChatGPT, no Claude API, no
+cloud LLM bills. Apple Intelligence handles every summarization locally
+via the FoundationModels framework. When the daily run finishes, it
+writes `public/digests.json` and the same git push that fires off price
+updates ships the new digests to Vercel. Total runtime: ~8 minutes for
+all 29 tickers. If Apple Intelligence is ever unavailable for any reason
+(disabled in System Settings, etc.), the script exits cleanly without
+overwriting `digests.json` — yesterday's digests keep serving.
+
+The 1M / 3M / 1Y windows show "Monthly digest available after ~29 more
+days" until enough archive history accumulates; ALL is always live since
+it just summarizes whatever's in the archive at any moment.
 
 ## How updates work
 
