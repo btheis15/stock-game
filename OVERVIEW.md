@@ -35,8 +35,12 @@ Four things, on a phone screen:
 
 2. **Per-player drill-down.** Tap a leaderboard card — or the *name* in any
    "What's driving it" card — and you land on that player's portfolio. Same
-   big chart, but only their line; below it, a list of every holding they
-   have, sorted by performance for the active range.
+   big chart, but only their line. Below the chart, a **portfolio briefing**
+   summarizing what's happening across that player's holdings for the active
+   range — three sentences referencing their actual tickers, with the same
+   "Show more" expand-for-sources affordance as the per-stock digest. Below
+   that, a list of every holding they have, sorted by performance for the
+   active range.
 
 3. **Per-stock detail.** Tap any holding row, or any individual stock inside
    a "What's driving it" card, and you see that stock's price chart plus —

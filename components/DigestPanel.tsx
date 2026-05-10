@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useDigests, type WindowDigest } from "@/lib/digests";
+import type { WindowDigest } from "@/lib/digests";
 import type { Range } from "@/lib/types";
 import { fmtDateShort } from "@/lib/portfolio";
 
 interface Props {
-  ticker: string;
+  digest: WindowDigest | null;
+  loading: boolean;
   range: Range;
 }
 
@@ -28,10 +29,8 @@ const SHORT_RANGE_LABELS: Record<Range, string> = {
   ALL: "Game-to-date briefing",
 };
 
-export function DigestPanel({ ticker, range }: Props) {
-  const { loading, getDigest } = useDigests();
+export function DigestPanel({ digest, loading, range }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const digest = getDigest(ticker, range);
 
   // Render nothing while the JSON is still loading on the first paint.
   // The space stays empty briefly rather than flashing a placeholder.

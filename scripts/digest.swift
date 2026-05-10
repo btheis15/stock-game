@@ -68,6 +68,26 @@ let TICKER_NAMES: [String: String] = [
 let RELEVANCE_THRESHOLD = 6
 let DESC_TRUNCATE = 400
 
+// Player roster — mirrors lib/picks.ts on the web side. The IDs match the
+// route segments at /portfolio/{id}. If the roster changes there, change it
+// here too (or, future work, generate this from picks.ts at build time).
+struct PlayerRoster {
+    let id: String         // "brian" | "kevin" | "rick" | "lee"
+    let name: String
+    let tickers: [String]
+}
+
+let PLAYERS: [PlayerRoster] = [
+    PlayerRoster(id: "brian",  name: "Brian",
+        tickers: ["ASTS","AMZN","UBER","SERV","AAPL","QCOM","ISRG","CRSP","HON","EXOD"]),
+    PlayerRoster(id: "kevin",  name: "Kevin",
+        tickers: ["TSLA","NVDA","AVGO","MRVL","CRDO","PLTR","ORCL","ZS","VST","VRT"]),
+    PlayerRoster(id: "rick",   name: "Rick",
+        tickers: ["COHR","CRWV","GFS","GOOGL","NBIS","QBTS","NVDA","RKLB","S","TSLA"]),
+    PlayerRoster(id: "lee",    name: "Lee",
+        tickers: ["SPY"]),
+]
+
 // Sports/entertainment company list — exemption to "sports" rejection rule.
 let SPORTS_COMPANIES: Set<String> = []  // none today; add e.g. "DKNG" if picked
 
@@ -266,6 +286,10 @@ struct OutputJSON: Codable {
     var generatedAt: String
     var aiEngine: String
     var holdings: [String: [String: WindowDigest]]
+    // Per-user portfolio rollups (Phase 2). Key is the user id ("brian"/"kevin"/...).
+    // Same WindowDigest shape as `holdings`; sources draw from across the user's
+    // ticker list, not a single ticker.
+    var portfolios: [String: [String: WindowDigest]]?
 }
 
 // Game inception. Every multi-day window's lookback is capped at the elapsed
@@ -951,17 +975,182 @@ func parseFetchedAtDate(_ s: String) -> Date? {
     isoFormatter.date(from: s) ?? ISO8601DateFormatter().date(from: s)
 }
 
+// MARK: - Per-user portfolio aggregation (Phase 2)
+
+struct PortfolioOutcome {
+    let userId: String
+    let windows: [String: WindowDigest]
+}
+
+// Top-N article cap per (user, window). Same logic as the per-ticker version,
+// but applied to the union of articles across the user's tickers — so a Brian
+// 1W digest can cite both an AAPL beat and an UBER product launch.
+func portfolioArticlesForWindow(player: PlayerRoster, window: WindowKey, gameAge: Int) -> [Article] {
+    let lookback = window.effectiveLookback(gameAge: gameAge)
+    var seen: Set<String> = []
+    var pool: [Article] = []
+    for ticker in player.tickers {
+        for a in loadArticlesInLastNDays(ticker: ticker, days: lookback) {
+            if seen.insert(a.link).inserted { pool.append(a) }
+        }
+    }
+    pool.sort { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+    let cap: Int
+    switch window {
+    case .d1, .w1: cap = 25                  // most-recent + most-relevant
+    case .m1:      cap = 30
+    case .m3:      cap = 40
+    case .y1:      cap = 30
+    case .all:     cap = 35
+    }
+    return Array(pool.prefix(cap))
+}
+
+func buildPortfolioPrompt(player: PlayerRoster, window: WindowKey, articles: [Article], gameAge: Int) -> String {
+    let tickerList = player.tickers.joined(separator: ", ")
+    var articleText = ""
+    for (i, a) in articles.enumerated() {
+        let desc = String(a.description.prefix(DESC_TRUNCATE))
+        articleText += "\(i + 1). [\(detectTickerForArticle(a, in: player.tickers) ?? "—")] \(a.title)\n\(desc)\n\n"
+    }
+    let baseRoster = "\(player.name)'s portfolio holds: \(tickerList)."
+    let scope: String
+    switch window {
+    case .d1: scope = "today"
+    case .w1: scope = "the past 7 days"
+    case .m1: scope = gameAge < 30  ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 30 days"
+    case .m3: scope = gameAge < 90  ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 90 days"
+    case .y1: scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 12 months"
+    case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
+    }
+    return """
+    You are a financial analyst writing a portfolio briefing for \(player.name), a player in a stock-picking game.
+    \(baseRoster)
+    The articles below are drawn from across \(player.name)'s holdings over \(scope), pre-filtered for investor relevance and ranked by signal. Each article is tagged with the ticker it relates to in brackets.
+
+    Write exactly 3 sentences summarizing what's happening across \(player.name)'s portfolio in this period.
+    Sentence 1: the dominant theme — which 1–2 holdings are driving the action and why.
+    Sentence 2: cross-portfolio context — risks, opportunities, or competing forces among the holdings.
+    Sentence 3: what to watch heading forward.
+
+    Refer to specific tickers from \(player.name)'s portfolio. Do not refer to tickers outside the roster above. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
+
+    Articles:
+    \(articleText)
+    """
+}
+
+// Best-effort ticker tag for an article — checks the title/description for
+// any of the user's ticker symbols. Used purely for the LLM prompt so the
+// model knows which holding each article maps to.
+func detectTickerForArticle(_ a: Article, in tickers: [String]) -> String? {
+    let hay = (a.title + " " + a.description).uppercased()
+    for t in tickers {
+        // Match ticker as a whole word ("HON", "(HON)", "HON:") not as a substring of a larger word.
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: t))\\b"
+        if hay.range(of: pattern, options: .regularExpression) != nil {
+            return t
+        }
+        if let name = TICKER_NAMES[t]?.uppercased(), hay.contains(name) {
+            return t
+        }
+    }
+    return nil
+}
+
+func generatePortfolioDigestText(player: PlayerRoster, window: WindowKey, articles: [Article], gameAge: Int) async -> String? {
+    guard !articles.isEmpty else { return nil }
+    let prompt = buildPortfolioPrompt(player: player, window: window, articles: articles, gameAge: gameAge)
+    do {
+        let session = LanguageModelSession()        // fresh session per (user, window)
+        let response = try await session.respond(to: prompt)
+        let text = cleanDigestProse(response.content)
+        return text.isEmpty ? nil : text
+    } catch {
+        logErr("generatePortfolioDigestText error \(player.id) \(window.rawValue): \(error.localizedDescription)")
+        return nil
+    }
+}
+
+func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOutcome {
+    log("• \(player.name)'s portfolio: start (\(player.tickers.count) tickers)")
+    var perWindow: [String: WindowDigest] = [:]
+    let nowISO = isoFormatter.string(from: Date())
+
+    // The "days of data" for a portfolio is the max across its tickers — if
+    // any single ticker has been archived for N days, the portfolio rollup
+    // can speak to the same span.
+    let daysAvail = player.tickers.map { daysOfDataAvailable($0) }.max() ?? 0
+
+    for w in WindowKey.allCases {
+        let articles = portfolioArticlesForWindow(player: player, window: w, gameAge: gameAge)
+        let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
+
+        if articles.isEmpty || maturity == "insufficient" {
+            perWindow[w.rawValue] = WindowDigest(
+                digest: nil,
+                articleCount: 0,
+                dateRange: nil,
+                avgRelevanceScore: nil,
+                generatedAt: nowISO,
+                aiEngine: nil,
+                dataMaturity: maturity,
+                daysOfData: daysAvail,
+                daysRequired: effRequired,
+                sources: nil
+            )
+            continue
+        }
+
+        let digestText = await generatePortfolioDigestText(player: player, window: w, articles: articles, gameAge: gameAge)
+        let scores = articles.compactMap { $0.relevanceScore }
+        let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
+        let dates = articles.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
+        let dateRange: DateRange? = dates.first.map { DateRange(from: $0, to: dates.last ?? $0) }
+        let sources = articles.prefix(8).map { a in
+            SourceArticle(
+                title: a.title,
+                link: a.link,
+                source: a.source,
+                date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
+                score: a.relevanceScore ?? 0
+            )
+        }
+        perWindow[w.rawValue] = WindowDigest(
+            digest: digestText,
+            articleCount: articles.count,
+            dateRange: dateRange,
+            avgRelevanceScore: avg,
+            generatedAt: nowISO,
+            aiEngine: digestText != nil ? "AppleIntelligence" : nil,
+            dataMaturity: maturity,
+            daysOfData: daysAvail,
+            daysRequired: effRequired,
+            sources: Array(sources)
+        )
+        log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, maturity=\(maturity))")
+    }
+
+    return PortfolioOutcome(userId: player.id, windows: perWindow)
+}
+
 // MARK: - Output writer
 
-func writeOutputJSON(_ outcomes: [TickerOutcome], to outputURL: URL) throws {
+func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome], to outputURL: URL) throws {
     var holdings: [String: [String: WindowDigest]] = [:]
     for o in outcomes where !o.windows.isEmpty {
         holdings[o.ticker] = o.windows
     }
+    var portfolioBlock: [String: [String: WindowDigest]] = [:]
+    for p in portfolios where !p.windows.isEmpty {
+        portfolioBlock[p.userId] = p.windows
+    }
     let out = OutputJSON(
         generatedAt: isoFormatter.string(from: Date()),
         aiEngine: "AppleIntelligence",
-        holdings: holdings
+        holdings: holdings,
+        portfolios: portfolioBlock.isEmpty ? nil : portfolioBlock
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -970,7 +1159,7 @@ func writeOutputJSON(_ outcomes: [TickerOutcome], to outputURL: URL) throws {
     let parent = outputURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     try data.write(to: outputURL)
-    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers)")
+    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios)")
 }
 
 // MARK: - Entry point
@@ -1015,13 +1204,28 @@ func runMain() async {
         return
     }
 
+    // Phase 2: per-user portfolio rollups. Skip when running on a subset of
+    // tickers (any user whose roster isn't fully covered would generate
+    // misleading prose). The full all-tickers run hits this path daily.
+    var portfolios: [PortfolioOutcome] = []
+    let runAllTickers = args.tickers.isEmpty
+    if runAllTickers {
+        let gameAge = gameAgeInDays()
+        for player in PLAYERS {
+            let p = await processPortfolio(player, gameAge: gameAge)
+            portfolios.append(p)
+        }
+    } else {
+        log("Skipping portfolio rollups (subset run).")
+    }
+
     if args.dryRun {
         log("DRY RUN complete; no files written.")
         return
     }
 
     do {
-        try writeOutputJSON(outcomes, to: args.outputPath)
+        try writeOutputJSON(outcomes, portfolios: portfolios, to: args.outputPath)
     } catch {
         logErr("Failed to write output JSON: \(error.localizedDescription)")
         exit(1)

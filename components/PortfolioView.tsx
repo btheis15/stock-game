@@ -17,6 +17,8 @@ import {
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
 import { TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
+import { DigestPanel } from "./DigestPanel";
+import { useDigests } from "@/lib/digests";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -53,6 +55,7 @@ export function PortfolioView({
   const user = USERS[userId];
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
+  const { loading: digestsLoading, getPortfolioDigest } = useDigests();
 
   const isIntraday = range === "1D";
   const isWeeklyHourly = range === "1W" && weekly != null;
@@ -112,6 +115,12 @@ export function PortfolioView({
       />
 
       <RangeTabs value={range} onChange={setRange} accent={user.color} />
+
+      <DigestPanel
+        digest={getPortfolioDigest(userId, range)}
+        loading={digestsLoading}
+        range={range}
+      />
 
       <div className="px-4 mt-3">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Holdings</h2>

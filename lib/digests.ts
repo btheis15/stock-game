@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import type { Range } from "./types";
+import type { UserId } from "./picks";
 
 export type DigestWindow = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 
@@ -43,6 +44,9 @@ export interface DigestsJson {
   generatedAt: string;
   aiEngine: string;
   holdings: Record<string, Partial<Record<DigestWindow, WindowDigest>>>;
+  // Per-user portfolio rollups (Phase 2). Optional so older snapshots don't
+  // break the page; missing → the panel renders nothing on /portfolio/[user].
+  portfolios?: Partial<Record<UserId, Partial<Record<DigestWindow, WindowDigest>>>>;
 }
 
 // The app's chart-tab Range uses "1YR"; the digest pipeline writes "1Y".
@@ -94,5 +98,10 @@ export function useDigests() {
     return data?.holdings?.[ticker.toUpperCase()]?.[w] ?? null;
   }
 
-  return { loading, data, getDigest };
+  function getPortfolioDigest(userId: UserId, range: Range): WindowDigest | null {
+    const w = rangeToDigestWindow(range);
+    return data?.portfolios?.[userId]?.[w] ?? null;
+  }
+
+  return { loading, data, getDigest, getPortfolioDigest };
 }

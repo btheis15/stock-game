@@ -22,6 +22,7 @@ import type { Range, TickerSeries } from "@/lib/types";
 import { TICKER_OWNERS, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
+import { useDigests } from "@/lib/digests";
 
 interface Props {
   series: TickerSeries;
@@ -32,6 +33,7 @@ interface Props {
 export function StockView({ series, intradayDate, generatedAt }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
+  const { loading: digestsLoading, getDigest } = useDigests();
 
   // Force scroll-to-top on mount. Without this, Next.js's scroll restoration
   // can land the user mid-page when they tap a holding from a scrolled
@@ -105,7 +107,11 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
 
       <RangeTabs value={range} onChange={setRange} accent={accentColor} />
 
-      <DigestPanel ticker={series.ticker} range={range} />
+      <DigestPanel
+        digest={getDigest(series.ticker, range)}
+        loading={digestsLoading}
+        range={range}
+      />
 
       {owners.length === 0 ? (
         <div className="px-4 mt-3 text-[12px] text-zinc-500">
