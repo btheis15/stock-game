@@ -129,37 +129,50 @@ export function PortfolioView({
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
             const rangeDollars = stat?.dollars ?? 0;
+            // Anchor id + scroll-margin live on the WRAPPER, not the Link.
+            // When iOS Safari focuses a tapped link, any scroll-margin-top
+            // on that link can offset the page before navigation completes
+            // and the offset leaks into the new page's initial scroll
+            // position — visible as ~80px of empty space above the back
+            // button on /stock/{ticker}. Wrapping decouples the deep-link
+            // target (incoming `/portfolio/{user}#TICKER` jump-scroll +
+            // green flash) from the click handler (outgoing nav, which
+            // should always land at top).
             return (
-              <Link
+              <div
                 key={h.ticker}
-                href={`/stock/${h.ticker}`}
                 id={h.ticker}
-                className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
                 style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
+                className="target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
               >
-                <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
-                  {h.ticker}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-semibold text-white truncate">
-                    {TICKER_NAMES[h.ticker] ?? h.ticker}
+                <Link
+                  href={`/stock/${h.ticker}`}
+                  className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+                    {h.ticker}
                   </div>
-                  <div className="text-[11px] text-zinc-500 tabular-nums">
-                    {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold text-white truncate">
+                      {TICKER_NAMES[h.ticker] ?? h.ticker}
+                    </div>
+                    <div className="text-[11px] text-zinc-500 tabular-nums">
+                      {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[14px] font-semibold text-white tabular-nums">
-                    {fmtUSD(h.currentValue)}
+                  <div className="text-right">
+                    <div className="text-[14px] font-semibold text-white tabular-nums">
+                      {fmtUSD(h.currentValue)}
+                    </div>
+                    <div
+                      className="text-[11px] font-medium tabular-nums"
+                      style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
+                    >
+                      {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
+                    </div>
                   </div>
-                  <div
-                    className="text-[11px] font-medium tabular-nums"
-                    style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
-                  >
-                    {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
-                  </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
             );
           })}
         </div>
