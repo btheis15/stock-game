@@ -1102,17 +1102,17 @@ func buildPortfolioPrompt(
     STANDINGS — \(player.name)'s holdings this \(window.rawValue), ranked by $ contribution to portfolio (most positive at top, drags at bottom):
     \(standingsBlock)
 
-    Use the STANDINGS block above to determine which holdings actually drove \(player.name)'s portfolio \(scope). The article archive below provides context for WHY each holding moved, not WHICH holdings drove the portfolio. Never describe a holding as dominant unless it appears in the top of the STANDINGS block.
-
     Articles from the period (each tagged with [TICKER/owner]):
     \(articleText)
 
-    Write exactly 3 sentences as a single paragraph of plain prose, grounded strictly in the STANDINGS block:
-    Sentence 1: Name the holding that drove \(player.name)'s portfolio \(scope) and cite its $ contribution from the STANDINGS block.
-    Sentence 2: Name the specific news catalyst behind that move, quoting from the article archive above.
-    Sentence 3: Name the biggest drag from the STANDINGS block and the catalyst or risk to watch heading forward.
+    Your reader can already see the STANDINGS table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those numbers — not to restate the numbers. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action. Subordinate the dollar amounts to the news event, not the other way around.
 
-    Quote percentages and dollar amounts exactly from STANDINGS — do not invent numbers. Refer only to tickers from \(player.name)'s portfolio. Do not preface the digest. Do not number the sentences. Do not use bullet points.
+    Write exactly 3 sentences as a single paragraph of plain prose:
+    Sentence 1: Lead with the single most consequential news event behind \(player.name)'s top contributor (the #1 ticker in STANDINGS) — what happened, who reported it, what it implies. Then tie it to the $ impact on \(player.name)'s portfolio.
+    Sentence 2: Lead with the specific news event behind the biggest drag (from the Drag section of STANDINGS, or the smallest gainer if no drags exist) — what happened, what it implies. Then tie it to the $ impact.
+    Sentence 3: A specific forward-looking catalyst pulled from the article archive — an upcoming earnings date, regulatory milestone, product launch, or named risk for one of \(player.name)'s holdings. Be concrete: name the ticker and the catalyst, not "watch the market."
+
+    Hard rules: Refer only to tickers from \(player.name)'s portfolio. Quote dollar amounts and percentages from STANDINGS exactly — do not invent numbers. Do NOT use the structure "X drove the portfolio with $Y, Z was the drag with $W" — that's just restating the table. Open with the news event, every sentence. Do not preface the digest. Do not number the sentences. Do not use bullet points.
     """
 }
 
@@ -1521,12 +1521,14 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     Most market-moving news from the period (each tagged [TICKER/owners], where owners are the player ids that hold that ticker):
     \(articleText)
 
-    Write exactly 3 sentences analyzing the leaderboard \(scope), as a single paragraph of plain prose:
-    Sentence 1: who is leading and *why* — name the leader and cite the 1–2 specific holdings + news catalysts driving them, using the percentages from the standings.
-    Sentence 2: what's separating the middle/back of the pack — name the laggards and what specific tickers or events are dragging them.
-    Sentence 3: the biggest catalyst or risk to watch heading forward, grounded in a specific holding mentioned above.
+    Your reader can already see the leaderboard and the standings table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those rankings — not to restate them. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action. The player and the percentage are the consequence of the news, not the headline.
 
-    Use the player names verbatim. Quote percentages from the standings exactly. Do not invent numbers or events. Do not preface it. Do not number the sentences. Do not use bullet points.
+    Write exactly 3 sentences as a single paragraph of plain prose:
+    Sentence 1: Lead with the single most consequential news event of \(scope) — name the specific catalyst (cite the headline or core fact from the article archive), the ticker, what it implies for the business. Then tie it to the player it helped and their portfolio %.
+    Sentence 2: Lead with the biggest drag event of \(scope) — same structure: specific catalyst from the article archive, what it implies, then tie it to the player it hurt and their portfolio % loss.
+    Sentence 3: A specific forward-looking catalyst from the article archive that could move the standings — upcoming earnings date, FDA milestone, product launch, named macro risk. Tie it to the player whose holding it would affect.
+
+    Hard rules: Use the player names verbatim. Quote percentages from STANDINGS exactly — do not invent numbers or events. Do NOT use the structure "X is leading because of TICKER, Y is trailing because of TICKER" — that's just restating the standings table the reader already sees. Open every sentence with the news event, not the player or the percentage. Do not preface the digest. Do not number the sentences. Do not use bullet points.
 
     The PLAYERS section above is the only source of truth for which player owns which ticker. Before attributing a ticker move to a player, verify the ticker appears in that player's pick list. If a high-signal article relates to a ticker no one owns, you may omit it. Never invent ownership.
     """
