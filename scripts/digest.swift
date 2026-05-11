@@ -196,35 +196,43 @@ func ensureArchiveDir() {
 
 var verboseEnabled = false
 
+// Serial queue for log/logErr so concurrent task-group workers don't
+// interleave bytes in digest.log / digest-error.log.
+let logQueue = DispatchQueue(label: "stockgame.digest.log")
+
 func log(_ msg: String) {
     let ts = isoFormatter.string(from: Date())
     let line = "[\(ts)] \(msg)\n"
-    print(msg)
-    ensureArchiveDir()
-    if !FileManager.default.fileExists(atPath: LOG_FILE.path) {
-        FileManager.default.createFile(atPath: LOG_FILE.path, contents: nil)
-    }
-    if let data = line.data(using: .utf8),
-       let handle = try? FileHandle(forWritingTo: LOG_FILE) {
-        handle.seekToEndOfFile()
-        handle.write(data)
-        try? handle.close()
+    logQueue.sync {
+        print(msg)
+        ensureArchiveDir()
+        if !FileManager.default.fileExists(atPath: LOG_FILE.path) {
+            FileManager.default.createFile(atPath: LOG_FILE.path, contents: nil)
+        }
+        if let data = line.data(using: .utf8),
+           let handle = try? FileHandle(forWritingTo: LOG_FILE) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            try? handle.close()
+        }
     }
 }
 
 func logErr(_ msg: String) {
     let ts = isoFormatter.string(from: Date())
     let line = "[\(ts)] \(msg)\n"
-    fputs(line, stderr)
-    ensureArchiveDir()
-    if !FileManager.default.fileExists(atPath: ERROR_LOG_FILE.path) {
-        FileManager.default.createFile(atPath: ERROR_LOG_FILE.path, contents: nil)
-    }
-    if let data = line.data(using: .utf8),
-       let handle = try? FileHandle(forWritingTo: ERROR_LOG_FILE) {
-        handle.seekToEndOfFile()
-        handle.write(data)
-        try? handle.close()
+    logQueue.sync {
+        fputs(line, stderr)
+        ensureArchiveDir()
+        if !FileManager.default.fileExists(atPath: ERROR_LOG_FILE.path) {
+            FileManager.default.createFile(atPath: ERROR_LOG_FILE.path, contents: nil)
+        }
+        if let data = line.data(using: .utf8),
+           let handle = try? FileHandle(forWritingTo: ERROR_LOG_FILE) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            try? handle.close()
+        }
     }
 }
 
@@ -933,62 +941,84 @@ func processTicker(_ ticker: String, args: Args) async -> TickerOutcome {
         return TickerOutcome(ticker: ticker, windows: [:], aiEngineUsed: false)
     }
 
-    // 6. Generate digests for every window
+    // 6. Generate digests for every window — concurrently. Apple Intelligence
+    // sessions are independent (we always create a fresh LanguageModelSession
+    // per call), and on PCC-routed calls the latency stacks rather than
+    // overlaps when serial. Firing all six window prompts at once for a
+    // ticker roughly cuts per-ticker runtime by a third in practice.
     let daysAvail = daysOfDataAvailable(ticker)
     let gameAge = gameAgeInDays()
-    var anyAI = false
-    for w in WindowKey.allCases {
-        let articles = articlesForWindow(ticker: ticker, window: w, gameAge: gameAge)
-        let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
-        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
 
-        if articles.isEmpty || maturity == "insufficient" {
-            perWindow[w.rawValue] = WindowDigest(
-                digest: nil,
-                articleCount: 0,
-                dateRange: nil,
-                avgRelevanceScore: nil,
-                generatedAt: nowISO,
-                aiEngine: nil,
-                dataMaturity: maturity,
-                daysOfData: daysAvail,
-                daysRequired: effRequired,
-                sources: nil
-            )
-            continue
-        }
+    let entries: [(String, WindowDigest)] = await withTaskGroup(
+        of: (String, WindowDigest).self
+    ) { group -> [(String, WindowDigest)] in
+        for w in WindowKey.allCases {
+            let articles = articlesForWindow(ticker: ticker, window: w, gameAge: gameAge)
+            let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+            let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
 
-        let digestText = await generateDigestText(ticker: ticker, window: w, articles: articles, gameAge: gameAge)
-        let scores = articles.compactMap { $0.relevanceScore }
-        let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
-        let dates = articles.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
-        let dateRange: DateRange? = (dates.first.map { from in
-            DateRange(from: from, to: dates.last ?? from)
-        })
-        let sources = articles.prefix(8).map { a in
-            SourceArticle(
-                title: a.title,
-                link: a.link,
-                source: a.source,
-                date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
-                score: a.relevanceScore ?? 0
-            )
+            if articles.isEmpty || maturity == "insufficient" {
+                let key = w.rawValue
+                group.addTask {
+                    return (key, WindowDigest(
+                        digest: nil,
+                        articleCount: 0,
+                        dateRange: nil,
+                        avgRelevanceScore: nil,
+                        generatedAt: nowISO,
+                        aiEngine: nil,
+                        dataMaturity: maturity,
+                        daysOfData: daysAvail,
+                        daysRequired: effRequired,
+                        sources: nil
+                    ))
+                }
+                continue
+            }
+
+            group.addTask {
+                let digestText = await generateDigestText(ticker: ticker, window: w, articles: articles, gameAge: gameAge)
+                let scores = articles.compactMap { $0.relevanceScore }
+                let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
+                let dates = articles.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
+                let dateRange: DateRange? = dates.first.map { from in
+                    DateRange(from: from, to: dates.last ?? from)
+                }
+                let sources = articles.prefix(8).map { a in
+                    SourceArticle(
+                        title: a.title,
+                        link: a.link,
+                        source: a.source,
+                        date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
+                        score: a.relevanceScore ?? 0
+                    )
+                }
+                log("  \(ticker) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, maturity=\(maturity))")
+                return (w.rawValue, WindowDigest(
+                    digest: digestText,
+                    articleCount: articles.count,
+                    dateRange: dateRange,
+                    avgRelevanceScore: avg,
+                    generatedAt: nowISO,
+                    aiEngine: digestText != nil ? "AppleIntelligence" : nil,
+                    dataMaturity: maturity,
+                    daysOfData: daysAvail,
+                    daysRequired: effRequired,
+                    sources: Array(sources)
+                ))
+            }
         }
-        if digestText != nil { anyAI = true }
-        perWindow[w.rawValue] = WindowDigest(
-            digest: digestText,
-            articleCount: articles.count,
-            dateRange: dateRange,
-            avgRelevanceScore: avg,
-            generatedAt: nowISO,
-            aiEngine: digestText != nil ? "AppleIntelligence" : nil,
-            dataMaturity: maturity,
-            daysOfData: daysAvail,
-            daysRequired: effRequired,
-            sources: Array(sources)
-        )
-        log("  \(ticker) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, maturity=\(maturity))")
+        var collected: [(String, WindowDigest)] = []
+        for await result in group {
+            collected.append(result)
+        }
+        return collected
     }
+
+    for (k, v) in entries {
+        perWindow[k] = v
+    }
+    let anyAI = entries.contains { $0.1.digest != nil }
 
     return TickerOutcome(ticker: ticker, windows: perWindow, aiEngineUsed: anyAI)
 }
@@ -1053,13 +1083,9 @@ func buildPortfolioPrompt(
 ) -> String {
     let standingsBlock = formatUserStandingsBlock(movers, window: window)
     var articleText = ""
-    if articles.isEmpty {
-        articleText = "(no qualifying articles for the top movers in this window — describe the moves from STANDINGS only)"
-    } else {
-        for (i, ta) in articles.enumerated() {
-            let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
-            articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
-        }
+    for (i, ta) in articles.enumerated() {
+        let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
+        articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
     }
     let scope: String
     switch window {
@@ -1154,68 +1180,89 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int)
     // can speak to the same span.
     let daysAvail = player.tickers.map { daysOfDataAvailable($0) }.max() ?? 0
 
-    for w in WindowKey.allCases {
-        let movers = computeUserMovers(player: player, data: data, window: w)
-        let relevant = relevantTickersForPortfolio(movers)
-        let tagged = portfolioArticlesForWindow(
-            player: player,
-            window: w,
-            gameAge: gameAge,
-            relevantTickers: relevant
-        )
-        let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
-        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
-
-        // If the window's standings have zero magnitude in either direction
-        // (e.g., the game is on day 1 of itself), there's nothing material to
-        // narrate. Treat the same as "insufficient" — null digest.
-        let hasMovement = movers.movers.contains { abs($0.dollars) > 0.01 }
-        if !hasMovement || maturity == "insufficient" {
-            perWindow[w.rawValue] = WindowDigest(
-                digest: nil,
-                articleCount: 0,
-                dateRange: nil,
-                avgRelevanceScore: nil,
-                generatedAt: nowISO,
-                aiEngine: nil,
-                dataMaturity: maturity,
-                daysOfData: daysAvail,
-                daysRequired: effRequired,
-                sources: nil
+    let entries: [(String, WindowDigest)] = await withTaskGroup(
+        of: (String, WindowDigest).self
+    ) { group -> [(String, WindowDigest)] in
+        for w in WindowKey.allCases {
+            let movers = computeUserMovers(player: player, data: data, window: w)
+            let relevant = relevantTickersForPortfolio(movers)
+            let tagged = portfolioArticlesForWindow(
+                player: player,
+                window: w,
+                gameAge: gameAge,
+                relevantTickers: relevant
             )
-            continue
-        }
+            let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+            let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
 
-        let digestText = await generatePortfolioDigestText(
-            player: player, window: w, articles: tagged, movers: movers, gameAge: gameAge
-        )
-        let articleObjs = tagged.map { $0.article }
-        let scores = articleObjs.compactMap { $0.relevanceScore }
-        let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
-        let dates = articleObjs.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
-        let dateRange: DateRange? = dates.first.map { DateRange(from: $0, to: dates.last ?? $0) }
-        let sources = articleObjs.prefix(8).map { a in
-            SourceArticle(
-                title: a.title,
-                link: a.link,
-                source: a.source,
-                date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
-                score: a.relevanceScore ?? 0
-            )
+            // Skip when there's nothing to narrate. We require all three:
+            //   - the portfolio actually moved in this window,
+            //   - enough archive depth (the "insufficient" gate),
+            //   - at least one relevant article — without one the model has
+            //     to invent a catalyst, which is precisely the hallucination
+            //     class we're trying to suppress.
+            let hasMovement = movers.movers.contains { abs($0.dollars) > 0.01 }
+            if !hasMovement || maturity == "insufficient" || tagged.isEmpty {
+                let key = w.rawValue
+                group.addTask {
+                    return (key, WindowDigest(
+                        digest: nil,
+                        articleCount: 0,
+                        dateRange: nil,
+                        avgRelevanceScore: nil,
+                        generatedAt: nowISO,
+                        aiEngine: nil,
+                        dataMaturity: maturity,
+                        daysOfData: daysAvail,
+                        daysRequired: effRequired,
+                        sources: nil
+                    ))
+                }
+                continue
+            }
+
+            group.addTask {
+                let digestText = await generatePortfolioDigestText(
+                    player: player, window: w, articles: tagged, movers: movers, gameAge: gameAge
+                )
+                let articleObjs = tagged.map { $0.article }
+                let scores = articleObjs.compactMap { $0.relevanceScore }
+                let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
+                let dates = articleObjs.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
+                let dateRange: DateRange? = dates.first.map { DateRange(from: $0, to: dates.last ?? $0) }
+                let sources = articleObjs.prefix(8).map { a in
+                    SourceArticle(
+                        title: a.title,
+                        link: a.link,
+                        source: a.source,
+                        date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
+                        score: a.relevanceScore ?? 0
+                    )
+                }
+                log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articleObjs.count) articles, maturity=\(maturity), tickers=[\(relevant.joined(separator: ","))])")
+                return (w.rawValue, WindowDigest(
+                    digest: digestText,
+                    articleCount: articleObjs.count,
+                    dateRange: dateRange,
+                    avgRelevanceScore: avg,
+                    generatedAt: nowISO,
+                    aiEngine: digestText != nil ? "AppleIntelligence" : nil,
+                    dataMaturity: maturity,
+                    daysOfData: daysAvail,
+                    daysRequired: effRequired,
+                    sources: Array(sources)
+                ))
+            }
         }
-        perWindow[w.rawValue] = WindowDigest(
-            digest: digestText,
-            articleCount: articleObjs.count,
-            dateRange: dateRange,
-            avgRelevanceScore: avg,
-            generatedAt: nowISO,
-            aiEngine: digestText != nil ? "AppleIntelligence" : nil,
-            dataMaturity: maturity,
-            daysOfData: daysAvail,
-            daysRequired: effRequired,
-            sources: Array(sources)
-        )
-        log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articleObjs.count) articles, maturity=\(maturity), tickers=[\(relevant.joined(separator: ","))])")
+        var collected: [(String, WindowDigest)] = []
+        for await result in group {
+            collected.append(result)
+        }
+        return collected
+    }
+
+    for (k, v) in entries {
+        perWindow[k] = v
     }
 
     return PortfolioOutcome(userId: player.id, windows: perWindow)
@@ -1499,64 +1546,82 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
     let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
     let daysAvail = allTickers.map { daysOfDataAvailable($0) }.max() ?? 0
 
-    for w in WindowKey.allCases {
-        let standings = computeStandings(data: data, window: w)
-        let articles = gameNewsArticles(window: w, gameAge: gameAge)
-        let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
-        let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
+    let entries: [(String, WindowDigest)] = await withTaskGroup(
+        of: (String, WindowDigest).self
+    ) { group -> [(String, WindowDigest)] in
+        for w in WindowKey.allCases {
+            let standings = computeStandings(data: data, window: w)
+            let articles = gameNewsArticles(window: w, gameAge: gameAge)
+            let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+            let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
+            let bounds = rangeBounds(tradingDates: data.tradingDates, window: w)
 
-        if standings.isEmpty || articles.isEmpty || maturity == "insufficient" {
-            perWindow[w.rawValue] = WindowDigest(
-                digest: nil,
-                articleCount: 0,
-                dateRange: nil,
-                avgRelevanceScore: nil,
-                generatedAt: nowISO,
-                aiEngine: nil,
-                dataMaturity: maturity,
-                daysOfData: daysAvail,
-                daysRequired: effRequired,
-                sources: nil
-            )
-            continue
-        }
+            if standings.isEmpty || articles.isEmpty || maturity == "insufficient" {
+                let key = w.rawValue
+                group.addTask {
+                    return (key, WindowDigest(
+                        digest: nil,
+                        articleCount: 0,
+                        dateRange: nil,
+                        avgRelevanceScore: nil,
+                        generatedAt: nowISO,
+                        aiEngine: nil,
+                        dataMaturity: maturity,
+                        daysOfData: daysAvail,
+                        daysRequired: effRequired,
+                        sources: nil
+                    ))
+                }
+                continue
+            }
 
-        let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge)
-        var digestText: String? = nil
-        do {
-            let session = LanguageModelSession()
-            let response = try await session.respond(to: prompt)
-            digestText = cleanDigestProse(response.content)
-        } catch {
-            logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
-        }
+            group.addTask {
+                let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge)
+                var digestText: String? = nil
+                do {
+                    let session = LanguageModelSession()
+                    let response = try await session.respond(to: prompt)
+                    digestText = cleanDigestProse(response.content)
+                } catch {
+                    logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
+                }
 
-        let articleObjs = articles.map { $0.article }
-        let scores = articleObjs.compactMap { $0.relevanceScore }
-        let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
-        let bounds = rangeBounds(tradingDates: data.tradingDates, window: w)
-        let sources = articleObjs.prefix(8).map { a in
-            SourceArticle(
-                title: a.title,
-                link: a.link,
-                source: a.source,
-                date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
-                score: a.relevanceScore ?? 0
-            )
+                let articleObjs = articles.map { $0.article }
+                let scores = articleObjs.compactMap { $0.relevanceScore }
+                let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
+                let sources = articleObjs.prefix(8).map { a in
+                    SourceArticle(
+                        title: a.title,
+                        link: a.link,
+                        source: a.source,
+                        date: dayFormatter.string(from: parseFetchedAtDate(a.fetchedAt) ?? Date()),
+                        score: a.relevanceScore ?? 0
+                    )
+                }
+                log("  Game \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, \(standings.count) players)")
+                return (w.rawValue, WindowDigest(
+                    digest: digestText,
+                    articleCount: articleObjs.count,
+                    dateRange: bounds.startDate.isEmpty ? nil : DateRange(from: bounds.startDate, to: bounds.endDate),
+                    avgRelevanceScore: avg,
+                    generatedAt: nowISO,
+                    aiEngine: digestText != nil ? "AppleIntelligence" : nil,
+                    dataMaturity: maturity,
+                    daysOfData: daysAvail,
+                    daysRequired: effRequired,
+                    sources: Array(sources)
+                ))
+            }
         }
-        perWindow[w.rawValue] = WindowDigest(
-            digest: digestText,
-            articleCount: articleObjs.count,
-            dateRange: bounds.startDate.isEmpty ? nil : DateRange(from: bounds.startDate, to: bounds.endDate),
-            avgRelevanceScore: avg,
-            generatedAt: nowISO,
-            aiEngine: digestText != nil ? "AppleIntelligence" : nil,
-            dataMaturity: maturity,
-            daysOfData: daysAvail,
-            daysRequired: effRequired,
-            sources: Array(sources)
-        )
-        log("  Game \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, \(standings.count) players)")
+        var collected: [(String, WindowDigest)] = []
+        for await result in group {
+            collected.append(result)
+        }
+        return collected
+    }
+
+    for (k, v) in entries {
+        perWindow[k] = v
     }
 
     return GameOutcome(windows: perWindow)
@@ -1620,8 +1685,12 @@ func runMain() async {
     log("Engine: Apple Intelligence on-device/PCC")
     if args.dryRun { log("DRY RUN — nothing will be written") }
 
-    // Sequential — Apple Intelligence sessions are heavyweight and the on-device
-    // model serializes its work anyway. Parallelism gains are small vs. log clarity.
+    // Top level (across tickers / portfolios / game) stays sequential — the
+    // bottleneck is Apple Intelligence, and the on-device + PCC serializers
+    // give us no meaningful overlap when we try to interleave tickers. WITHIN
+    // a ticker / portfolio / game-window-group we fan out via withTaskGroup
+    // so the per-window prompts at least pipeline through the model queue
+    // back-to-back without per-call setup/teardown gaps.
     var outcomes: [TickerOutcome] = []
     for t in tickers {
         let o = await processTicker(t, args: args)
