@@ -152,7 +152,7 @@ cloud LLM bills. Apple Intelligence handles every summarization locally
 via the FoundationModels framework. When the daily run finishes, it
 writes `public/digests.json` and the same git push that fires off price
 updates ships the new digests to Vercel. Total runtime: ~8 minutes for
-all 29 tickers. If Apple Intelligence is ever unavailable for any reason
+all 37 tickers. If Apple Intelligence is ever unavailable for any reason
 (disabled in System Settings, etc.), the script exits cleanly without
 overwriting `digests.json` — yesterday's digests keep serving.
 

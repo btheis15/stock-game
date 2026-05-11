@@ -167,9 +167,9 @@ Functions exported:
 /tee-times                 → TeeTimesView (deep-link landing → Inshalla CC on foreUP)
 ```
 
-All page routes are marked `dynamic = "force-static"` so they SSG. **38 static pages, no dynamic routes.**
+All page routes are marked `dynamic = "force-static"` so they SSG. **46 static pages, no dynamic routes.**
 
-(38 = 4 portfolio + 29 stock + 1 home + 1 stocks + 1 tee-times + 1 _not-found + 1 layout shim. The digest panel renders client-side from `/digests.json`, no extra routes.)
+(46 = 4 portfolio + 37 stock + 1 home + 1 stocks + 1 tee-times + 1 _not-found + 1 layout shim. The digest panel renders client-side from `/digests.json`, no extra routes.)
 
 ## 6. Components
 
@@ -388,7 +388,7 @@ components/
            pushes to main. Required status check for branch protection.
 
 [Vercel]   Next.js production build
-   │           reads prices.json at build time → 35 static HTML pages prerendered
+   │           reads prices.json at build time → 46 static HTML pages prerendered
    │           Cache-Control: public, max-age=0, must-revalidate (set in next.config.ts)
    ▼
 [iPhone]   PWA refreshes on next tap
@@ -448,7 +448,7 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
    │         guard so the model never invents ownership
    │
    └─ write public/digests.json
-        - holdings: 29 tickers × 6 windows
+        - holdings: 37 tickers × 6 windows
         - portfolios: 4 users × 6 windows
         - game: 6 windows
         - ~600 KB total
@@ -456,13 +456,13 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
 
 The launchd plist (to be installed at `~/Library/LaunchAgents/com.stockgame.digest.plist`) runs `digest.swift` then chains to `cron-update.sh` so the same git-pull/commit/push machinery picks up `digests.json` and triggers the GitHub→Vercel webhook. No separate sync script needed.
 
-End-to-end runtime: ~8 minutes for 29 tickers from cold archive (today's HON test: 13s for fetch + 2-stage filter + 3 mature digests; scaled linearly).
+End-to-end runtime: ~10 minutes for 37 tickers from cold archive (scaled from earlier 29-ticker / ~8 min benchmark; HON 13s test: fetch + 2-stage filter + 3 mature digests).
 
 `scripts/digest.swift` flags:
 
 | Flag | Effect |
 |---|---|
-| (no args) | full pipeline, all 29 tickers, default `~/Repos/stock-game/public/digests.json` |
+| (no args) | full pipeline, all 37 tickers, default `~/Repos/stock-game/public/digests.json` |
 | `HON AAPL ...` | restrict to listed tickers |
 | `--check` | probe Apple Intelligence availability and exit |
 | `--dry-run` | fetch + filter + score; write nothing |
@@ -641,7 +641,7 @@ scripts/
 
 public/
   data/prices.json             The canonical price snapshot (committed).
-  digests.json                 Per-ticker AI news digests, 6 windows × 29 tickers (committed).
+  digests.json                 Per-ticker AI news digests, 6 windows × 37 tickers (committed).
   manifest.webmanifest         PWA manifest.
   icon-*.png, apple-touch-icon.png, favicon.png, og.png
 

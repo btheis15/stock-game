@@ -236,7 +236,7 @@ components receive prepared series and only do range-filtering and scrub.
 
 **Server side** (`app/stock/[ticker]/page.tsx`):
 1. `generateStaticParams()` returns `{ticker}` for every entry in
-   `ALL_TICKERS` (currently 25).
+   `ALL_TICKERS` (currently 37).
 2. Look up `data.tickers[upper]`, 404 if missing.
 3. Render `<HeaderBack />` (no title — natural "back" target depends on
    how you arrived) + `<StockView series intradayDate />`.
@@ -248,10 +248,11 @@ components receive prepared series and only do range-filtering and scrub.
    build an `intraday` block via `intradayTickerSeries(series, intradayDate)`.
 3. `live = isMarketLive(series.intraday)` directly on the raw bars.
 4. Chart series, baseline, xDomain logic mirrors PortfolioView.
-5. Below chart: ONE `<PositionCard>` per owner. NVDA shows two cards
-   (Kevin's + Rick's), each with their own shares / cost basis /
-   dividends-received / current value / total return. Same numbers when
-   they have the same allocation, different numbers if not.
+5. Below chart: ONE `<PositionCard>` per owner. NVDA and TSLA show two
+   cards each (Kevin's + Rick's); AAPL also shows two (Brian's + Lee's).
+   Each card has its own shares / cost basis / dividends-received /
+   current value / total return. Same numbers when they have the same
+   allocation, different numbers if not.
 6. Below positions: `<DividendsList>` if `series.dividends?.length > 0`.
    Per-share amounts only — converting to per-position cash is each
    PositionCard's job.
