@@ -38,7 +38,7 @@ export const USERS: Record<UserId, User> = {
     name: "Lee",
     color: "#BF5AF2",
     colorRgb: "191, 90, 242",
-    tickers: ["SPY"],
+    tickers: ["PEP", "GM", "TAP", "VZ", "UL", "DKS", "WMT", "PFE", "HD", "AAPL"],
   },
 };
 
@@ -93,5 +93,13 @@ export const TICKER_NAMES: Record<string, string> = {
   QBTS: "D-Wave Quantum",
   RKLB: "Rocket Lab",
   S: "SentinelOne",
-  SPY: "S&P 500 ETF",
+  PEP: "PepsiCo",
+  GM: "General Motors",
+  TAP: "Molson Coors Beverage",
+  VZ: "Verizon",
+  UL: "Unilever",
+  DKS: "Dick's Sporting Goods",
+  WMT: "Walmart",
+  PFE: "Pfizer",
+  HD: "Home Depot",
 };

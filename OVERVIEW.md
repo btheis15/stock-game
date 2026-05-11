@@ -119,15 +119,14 @@ think about staleness.
 | **Brian** | green | ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD | $10,000 |
 | **Kevin** | blue | TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT | $10,000 |
 | **Rick** | orange | COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA | $10,000 |
-| **Lee** | purple | SPY | $100,000 |
+| **Lee** | purple | PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, AAPL | $10,000 |
 
 A few notes on this:
-- The "$10k per pick" rule comes from "$100k total ÷ 10 picks." Lee chose to
-  put the entire $100k into a single S&P 500 ETF, so his per-pick
-  allocation is $100k.
-- Kevin and Rick both own NVDA and TSLA. Even though they share prices,
-  they each have their own independent share count (because each spent
-  their own $10k buying it at the 2/5 close).
+- The "$10k per pick" rule comes from "$100k total ÷ 10 picks."
+- Kevin and Rick both own NVDA and TSLA; Brian and Lee both own AAPL.
+  Even though they share prices, they each have their own independent
+  share count (because each spent their own $10k buying it at the 2/5
+  close).
 - Buying happens at the **2026-02-05 closing price**, partial shares allowed.
   Once a share count is set on Feb 5, it doesn't change unless a corporate
   action (spin-off, split) modifies it.

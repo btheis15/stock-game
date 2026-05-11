@@ -41,11 +41,11 @@
 | **Brian** | `#00C805` (green) | ASTS AMZN UBER SERV AAPL QCOM ISRG CRSP HON EXOD | $10,000 |
 | **Kevin** | `#5AC8FA` (blue) | TSLA NVDA AVGO MRVL CRDO PLTR ORCL ZS VST VRT | $10,000 |
 | **Rick** | `#FF9F0A` (orange) | COHR CRWV GFS GOOGL NBIS QBTS NVDA RKLB S TSLA | $10,000 |
-| **Lee** | `#BF5AF2` (purple) | SPY | $100,000 |
+| **Lee** | `#BF5AF2` (purple) | PEP GM TAP VZ UL DKS WMT PFE HD AAPL | $10,000 |
 
-Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. Lee's single SPY position therefore gets the full $100k. Players don't share share counts even when they hold the same ticker (NVDA / TSLA are picked by both Kevin and Rick — same prices, independent positions, computed via `sharesFor(userId, series)`).
+Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. Players don't share share counts even when they hold the same ticker (NVDA / TSLA are picked by both Kevin and Rick, AAPL by both Brian and Lee — same prices, independent positions, computed via `sharesFor(userId, series)`).
 
-`ALL_TICKERS` is the dedup set across all players (29 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, SPY).
+`ALL_TICKERS` is the dedup set across all players (37 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD).
 
 ## 3. Data layout
 
