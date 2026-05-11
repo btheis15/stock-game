@@ -79,16 +79,28 @@ fi
 log "fetching prices"
 npm run --silent fetch-prices
 
-# 2) Commit + push if data changed. Stage only prices.json so unrelated WIP
-# never gets auto-committed. Push retries on rejection — the digest pipeline
-# (digest-update.sh) is allowed to run concurrently and may push to main
-# during our window; rebasing our single prices commit on top is conflict
-# free since the two pipelines touch different files.
+# 2) Commit prices if they changed. Stage only prices.json so unrelated WIP
+# never gets auto-committed.
 if [ -n "$(git status --porcelain public/data/prices.json)" ]; then
   log "data changed — committing"
   git add public/data/prices.json
   git commit -m "data: $(ts)"
+else
+  log "no data change since last run"
+fi
 
+# 3) Push if local has any unpushed commits — either a fresh prices commit
+# we just made OR a deferred digest commit from a concurrent digest run
+# (digest-update.sh commits locally but never pushes, by design — see that
+# script's comments). This is the only place in the pipeline that touches
+# origin/main, which is what eliminates the push race entirely. A retry
+# loop is kept in case a laptop merge lands on origin between our rebase
+# and our push.
+unpushed="$(git rev-list origin/main..HEAD --count 2>/dev/null || echo 0)"
+if [ "$unpushed" -eq 0 ]; then
+  log "nothing to push"
+else
+  log "pushing $unpushed commit(s) to origin/main"
   push_attempts=0
   while ! git push 2>&1; do
     push_attempts=$((push_attempts + 1))
@@ -96,12 +108,10 @@ if [ -n "$(git status --porcelain public/data/prices.json)" ]; then
       log "push failed after 5 retries — bailing"
       exit 1
     fi
-    log "push rejected (likely concurrent digest push) — rebase + retry ($push_attempts/5)"
+    log "push rejected — rebase + retry ($push_attempts/5)"
     git fetch origin main
     git pull --rebase --autostash origin main
   done
-else
-  log "no data change since last run"
 fi
 
 # Vercel auto-deploys from the GitHub webhook on push to main. If that

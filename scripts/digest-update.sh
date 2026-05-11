@@ -72,26 +72,16 @@ if [ -z "$(git status --porcelain public/digests.json)" ]; then
   exit 0
 fi
 
-log "digests changed — committing"
+# Commit only — the digest pipeline never pushes. The next price refresh
+# (cron-update.sh, fires every ~15 min) is the only publisher; it picks up
+# any unpushed local commits along with its own data commit and pushes
+# everything in one fast-forward. This eliminates the git-push race that
+# would otherwise exist between the two concurrent pipelines: only one
+# process touches origin/main, ever. Trade-off: a manual run on a day
+# when the refresh isn't scheduled (weekend etc.) will sit unpushed until
+# the next refresh fires. Run `git push` manually in that case.
+log "digests changed — committing locally (push deferred to next price refresh)"
 git add public/digests.json
 git commit -m "digests: $(ts)"
-
-# Retry push if the price refresh pipeline pushed during our ~10 min run
-# (concurrent execution is intentional — see stockgame_schedule.py). After
-# each rejection: pull --rebase --autostash, then try again. Each cycle
-# rebases our single digests.json commit onto whatever new prices commits
-# landed, which is conflict-free since the two pipelines stage different
-# files.
-push_attempts=0
-while ! git push 2>&1; do
-  push_attempts=$((push_attempts + 1))
-  if [ "$push_attempts" -ge 5 ]; then
-    log "push failed after 5 retries — bailing"
-    exit 1
-  fi
-  log "push rejected (likely concurrent prices push) — rebase + retry ($push_attempts/5)"
-  git fetch origin main
-  git pull --rebase --autostash origin main
-done
 
 log "digest update done"
