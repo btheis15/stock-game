@@ -102,7 +102,7 @@ export function PortfolioView({
         scrubDate={scrubLabel}
       />
 
-      {isIntraday && <MarketStateBadge live={live} generatedAt={generatedAt} />}
+      {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
 
       <ScrubChart
         series={[{ id: userId, color: user.color, data: ranged }]}

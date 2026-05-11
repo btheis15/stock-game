@@ -93,7 +93,7 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
         fractionDigits={2}
       />
 
-      {isIntraday && <MarketStateBadge live={live} generatedAt={generatedAt} />}
+      {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
 
       <ScrubChart
         series={[{ id: series.ticker, color: accentColor, data: ranged }]}

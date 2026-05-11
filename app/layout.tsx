@@ -70,16 +70,10 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const data = await loadPriceData();
   const lastDate = data.tradingDates[data.tradingDates.length - 1];
-  // Pass the most-recent intraday bar timestamp from any single ticker so the
-  // ThemeController can evaluate isMarketLive client-side (NOT at build time —
-  // the snapshot may be minutes old by the time the user views).
-  const sampleTicker = Object.values(data.tickers)[0];
-  const latestIntradayTs =
-    sampleTicker?.intraday?.[sampleTicker.intraday.length - 1]?.t;
   return (
     <html lang="en" className="h-full">
       <body className="min-h-full bg-black text-white antialiased">
-        <ThemeController latestIntradayTs={latestIntradayTs} />
+        <ThemeController />
         <InstallHint />
         <PullToRefresh />
         <main

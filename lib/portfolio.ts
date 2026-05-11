@@ -291,15 +291,47 @@ export function intradayTickerSeries(
 const LIVE_MAX_LAG_MS = 30 * 60 * 1000;
 
 /**
- * Returns true if the market appears to be currently active for these
- * intraday bars: last bar arrived within the last 30 minutes. Naturally
- * handles weekends, holidays, and pre/post market without a calendar.
+ * Data-freshness check for the chart's pulsing endpoint: true when the most
+ * recent intraday bar arrived within the last 30 minutes. Distinct from
+ * `isUsMarketOpen` — when the price-refresh cron breaks, isMarketLive goes
+ * false even though the market is actually open. Use this only for "are we
+ * receiving realtime data" signals (the chart pulse). For the user-facing
+ * "Market open" badge and theme switch, use `isUsMarketOpen()`.
  */
 export function isMarketLive(intraday: IntradayBar[] | undefined): boolean {
   if (!intraday || intraday.length === 0) return false;
   const lastBar = new Date(intraday[intraday.length - 1].t);
   const now = Date.now();
   return now - lastBar.getTime() < LIVE_MAX_LAG_MS;
+}
+
+/**
+ * Calendar-based "is the US stock market in regular trading hours right now?"
+ * Mon-Fri, 9:30 AM - 4:00 PM ET. DST-aware via the "America/New_York" IANA
+ * zone (no manual EDT/EST heuristic). Doesn't handle market holidays
+ * (Thanksgiving, NYE closures, etc.) — would need a maintained calendar; for
+ * now those will show "Market open" until we add a holiday table.
+ *
+ * Use this for the user-facing "Market open" badge and the
+ * dark→light theme switch. Don't use it for the chart's pulsing endpoint —
+ * that wants `isMarketLive` (data freshness), since a stale-data session
+ * shouldn't show a pulsing "live" dot even if calendar says open.
+ */
+export function isUsMarketOpen(now: Date = new Date()): boolean {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const weekday = parts.find((p) => p.type === "weekday")?.value;
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
+  const minute = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+  if (weekday === "Sat" || weekday === "Sun") return false;
+  const minutes = hour * 60 + minute;
+  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
 }
 
 export function pctChange(start: number, end: number): number {

@@ -1,42 +1,34 @@
 "use client";
 
 import { useEffect } from "react";
-
-const LIVE_MAX_LAG_MS = 30 * 60 * 1000;
+import { isUsMarketOpen } from "@/lib/portfolio";
 
 /**
- * Sets `<html data-theme="light">` while the market is open and clears the
- * attribute when it's closed. Mirrors `isMarketLive` in lib/portfolio.ts so the
- * theme tracks the same "last bar < 30 min ago" rule as the LIVE pulse and the
- * MarketStateBadge — when those say "Market open," the app is light; when they
- * say "Market closed," the app is dark.
+ * Sets `<html data-theme="light">` while the US stock market is in regular
+ * trading hours (Mon-Fri 9:30 AM - 4:00 PM ET, DST-aware) and clears it
+ * when closed. Re-evaluates every 60 seconds so the page flips at the
+ * moment the market opens or closes without a refresh.
  *
- * Re-evaluates every 60 seconds so the page flips at the moment the market
- * crosses the live threshold without needing a refresh.
+ * Previously this was driven by "last intraday bar < 30 min ago," which
+ * read the snapshot timestamp at build time and reflected data freshness
+ * rather than calendar truth — a stalled price-refresh cron would leave
+ * the theme stuck on dark all day. Calendar check has no such failure
+ * mode and doesn't need any snapshot data wired in.
  */
-export function ThemeController({
-  latestIntradayTs,
-}: {
-  /** ISO timestamp of the most recent intraday bar in the snapshot. */
-  latestIntradayTs?: string;
-}) {
+export function ThemeController() {
   useEffect(() => {
-    if (!latestIntradayTs) return;
-    const lastBar = new Date(latestIntradayTs).getTime();
-
     function apply() {
-      const live = Date.now() - lastBar < LIVE_MAX_LAG_MS;
+      const open = isUsMarketOpen();
       const root = document.documentElement;
-      if (live) root.dataset.theme = "light";
+      if (open) root.dataset.theme = "light";
       else delete root.dataset.theme;
     }
-
     apply();
     const id = window.setInterval(apply, 60_000);
     return () => {
       window.clearInterval(id);
     };
-  }, [latestIntradayTs]);
+  }, []);
 
   return null;
 }

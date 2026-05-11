@@ -140,7 +140,7 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
         </div>
       </div>
 
-      {isIntraday && <MarketStateBadge live={live} generatedAt={generatedAt} />}
+      {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
 
       <ScrubChart
         series={chartSeries}
