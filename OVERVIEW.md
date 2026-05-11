@@ -161,6 +161,19 @@ The 1M / 3M / 1Y windows show "Monthly digest available after ~29 more
 days" until enough archive history accumulates; ALL is always live since
 it just summarizes whatever's in the archive at any moment.
 
+The same pipeline also produces two roll-up digests: a per-player
+"portfolio briefing" on `/portfolio/{user}` and a leaderboard digest on
+the home page. Both ground themselves in real portfolio math — the
+pipeline reads `prices.json`, computes each player's per-ticker dollar
+contribution (shares × price delta) for the window, and feeds the LLM a
+ranked **STANDINGS block** of top movers + drags. The model is told to
+cite specific holdings only when they appear at the top of that block,
+so the prose tracks "what actually drove the portfolio" instead of
+"which holding had the loudest press." Articles in those prompts are
+restricted to the tickers that moved the needle and inline-tagged with
+the owner (e.g. `[NVDA/kevin,rick]`), which keeps the model from
+attributing a move to the wrong player.
+
 ## How updates work
 
 Two pipelines run on the Mac mini's tkinter scheduler. You leave the app open

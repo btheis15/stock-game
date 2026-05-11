@@ -421,17 +421,31 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
    │            sample top-N by relevance, generate 3-sentence prose digest
    │            (fresh session per window; window-specific prompt framing)
    ├─ for each player (brian / kevin / rick / lee), for each window:
-   │     7. union of articles across the player's tickers, dedup by link,
-   │        sample top-N by relevance
-   │     8. generate 3-sentence portfolio-aware digest with the user's roster
-   │        injected into the prompt (so it cites only their own holdings)
+   │     7. read public/data/prices.json — compute the player's per-ticker
+   │        movers via computeUserMovers (shares × price delta) ranked by
+   │        $ contribution; pick the top 3 + bottom 3 drags as the
+   │        "relevant tickers" for this window
+   │     8. pull articles from the archive ONLY for those relevant tickers,
+   │        capped at 2 per ticker (≤12 total) — replaces the old "top-N
+   │        by relevance across all the player's tickers" pool which
+   │        misattributed dominance to whichever holding had the loudest
+   │        press regardless of actual P&L impact
+   │     9. inject a STANDINGS block at the top of the prompt listing top
+   │        movers + drags with $ contribution, % delta, and end price.
+   │        Articles are tagged [TICKER/owners] inline. The 3-sentence
+   │        contract is: (1) name the holding that drove the portfolio +
+   │        cite $ from STANDINGS, (2) name the news catalyst from the
+   │        archive, (3) name the biggest drag + risk to watch
    │
    ├─ for each window (Phase 3), generate game-wide leaderboard analysis:
-   │     9. read public/data/prices.json — port of analyzeRange logic
-   │        computes per-user portfolio %, top movers, drag tickers
-   │     10. format a STANDINGS block + pull top 15 articles from the archive
-   │     11. generate 3-sentence prose grounded in the live percentages,
-   │         naming players + tickers + catalysts
+   │     10. reuse the same prices.json port + computeStandings (which
+   │         now delegates to computeUserMovers internally)
+   │     11. format a STANDINGS block + pull top 15 articles from the
+   │         archive (each tagged [TICKER/owners])
+   │     12. generate 3-sentence prose grounded in the live percentages,
+   │         naming players + tickers + catalysts. Prompt ends with an
+   │         explicit "PLAYERS section is the only source of truth"
+   │         guard so the model never invents ownership
    │
    └─ write public/digests.json
         - holdings: 29 tickers × 6 windows
@@ -606,8 +620,13 @@ scripts/
   fetch-prices.ts              Yahoo Finance fetcher. Incremental + today's 15-min intraday + past-week 1h hourly + dividends + spin-off children.
   digest.swift                 Apple Intelligence news-digest pipeline. Single file,
                                no third-party deps. Run via `swift digest.swift [...]`.
-                               Reads `public/data/prices.json` at the end to compute
-                               standings for the game-wide summary.
+                               Loads `public/data/prices.json` BEFORE Phase 2 so the
+                               per-user portfolio prompt's STANDINGS block (top 3 movers +
+                               drags by $ contribution) grounds the prose in real P&L,
+                               not raw article frequency. Same prices feed Phase 3's
+                               game-wide summary. Articles are tagged inline with their
+                               owners (`[NVDA/kevin,rick]`) so the LLM has an ownership
+                               reminder at the point of reading each headline.
   cron-update.sh               One-shot: fetch + commit + push + vercel deploy.
   digest-update.sh             One-shot wrapper around digest.swift: rebase + run
                                digest.swift + commit + push. Mirrors cron-update.sh's

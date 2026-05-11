@@ -88,6 +88,24 @@ let PLAYERS: [PlayerRoster] = [
         tickers: ["SPY"]),
 ]
 
+// Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
+// with their owner so the LLM sees ownership inline (e.g. "[NVDA/kevin,rick]").
+// Owners preserve PLAYERS iteration order so the tag is deterministic.
+let TICKER_OWNERS: [String: [String]] = {
+    var m: [String: [String]] = [:]
+    for p in PLAYERS {
+        for t in p.tickers {
+            m[t, default: []].append(p.id)
+        }
+    }
+    return m
+}()
+
+func ownerSuffix(forTicker t: String) -> String {
+    let owners = TICKER_OWNERS[t] ?? []
+    return owners.isEmpty ? "" : "/\(owners.joined(separator: ","))"
+}
+
 // Sports/entertainment company list — exemption to "sports" rejection rule.
 let SPORTS_COMPANIES: Set<String> = []  // none today; add e.g. "DKNG" if picked
 
@@ -986,61 +1004,89 @@ struct PortfolioOutcome {
     let windows: [String: WindowDigest]
 }
 
-// Top-N article cap per (user, window). Same logic as the per-ticker version,
-// but applied to the union of articles across the user's tickers — so a Brian
-// 1W digest can cite both an AAPL beat and an UBER product launch.
-func portfolioArticlesForWindow(player: PlayerRoster, window: WindowKey, gameAge: Int) -> [Article] {
-    let lookback = window.effectiveLookback(gameAge: gameAge)
-    var seen: Set<String> = []
-    var pool: [Article] = []
-    for ticker in player.tickers {
-        for a in loadArticlesInLastNDays(ticker: ticker, days: lookback) {
-            if seen.insert(a.link).inserted { pool.append(a) }
-        }
-    }
-    pool.sort { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
-    let cap: Int
-    switch window {
-    case .d1, .w1: cap = 25                  // most-recent + most-relevant
-    case .m1:      cap = 30
-    case .m3:      cap = 40
-    case .y1:      cap = 30
-    case .all:     cap = 35
-    }
-    return Array(pool.prefix(cap))
+// An article paired with the archive bucket it came from. We tag explicitly
+// (instead of re-detecting via title text) so a Brian-portfolio article pulled
+// from the EXOD archive is always tagged EXOD, even if the body also mentions
+// AAPL. This is what the LLM prompt sees as the bracket tag.
+struct TaggedArticle {
+    let article: Article
+    let ticker: String
 }
 
-func buildPortfolioPrompt(player: PlayerRoster, window: WindowKey, articles: [Article], gameAge: Int) -> String {
-    let tickerList = player.tickers.joined(separator: ", ")
-    var articleText = ""
-    for (i, a) in articles.enumerated() {
-        let desc = String(a.description.prefix(DESC_TRUNCATE))
-        articleText += "\(i + 1). [\(detectTickerForArticle(a, in: player.tickers) ?? "—")] \(a.title)\n\(desc)\n\n"
+// Pull articles for a portfolio digest, restricted to the tickers that
+// actually drove the window — top movers + drag positions ranked by $
+// contribution. The model previously got ~30 articles ordered by raw
+// relevanceScore, which made it grasp onto whichever ticker had the loudest
+// press regardless of whether it touched the bottom line. With this filter
+// the article pool aligns with the STANDINGS block injected into the prompt.
+// Cap per ticker keeps the prompt focused; total is ~12 max.
+func portfolioArticlesForWindow(
+    player: PlayerRoster,
+    window: WindowKey,
+    gameAge: Int,
+    relevantTickers: [String],
+    perTickerCap: Int = 2
+) -> [TaggedArticle] {
+    let lookback = window.effectiveLookback(gameAge: gameAge)
+    var seen: Set<String> = []
+    var out: [TaggedArticle] = []
+    for ticker in relevantTickers {
+        let articles = loadArticlesInLastNDays(ticker: ticker, days: lookback)
+            .sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+        var kept = 0
+        for a in articles where kept < perTickerCap {
+            if seen.insert(a.link).inserted {
+                out.append(TaggedArticle(article: a, ticker: ticker))
+                kept += 1
+            }
+        }
     }
-    let baseRoster = "\(player.name)'s portfolio holds: \(tickerList)."
+    return out
+}
+
+func buildPortfolioPrompt(
+    player: PlayerRoster,
+    window: WindowKey,
+    articles: [TaggedArticle],
+    movers: UserMovers,
+    gameAge: Int
+) -> String {
+    let standingsBlock = formatUserStandingsBlock(movers, window: window)
+    var articleText = ""
+    if articles.isEmpty {
+        articleText = "(no qualifying articles for the top movers in this window — describe the moves from STANDINGS only)"
+    } else {
+        for (i, ta) in articles.enumerated() {
+            let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
+            articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
+        }
+    }
     let scope: String
     switch window {
     case .d1: scope = "today"
-    case .w1: scope = "the past 7 days"
+    case .w1: scope = "this past week"
     case .m1: scope = gameAge < 30  ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 30 days"
     case .m3: scope = gameAge < 90  ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 90 days"
     case .y1: scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 12 months"
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
     return """
-    You are a financial analyst writing a portfolio briefing for \(player.name), a player in a stock-picking game.
-    \(baseRoster)
-    The articles below are drawn from across \(player.name)'s holdings over \(scope), pre-filtered for investor relevance and ranked by signal. Each article is tagged with the ticker it relates to in brackets.
+    You are a financial analyst writing a portfolio briefing for \(player.name), a player in a stock-picking game. \(player.name)'s portfolio holds: \(player.tickers.joined(separator: ", ")).
 
-    Write exactly 3 sentences summarizing what's happening across \(player.name)'s portfolio in this period.
-    Sentence 1: the dominant theme — which 1–2 holdings are driving the action and why.
-    Sentence 2: cross-portfolio context — risks, opportunities, or competing forces among the holdings.
-    Sentence 3: what to watch heading forward.
+    STANDINGS — \(player.name)'s holdings this \(window.rawValue), ranked by $ contribution to portfolio (most positive at top, drags at bottom):
+    \(standingsBlock)
 
-    Refer to specific tickers from \(player.name)'s portfolio. Do not refer to tickers outside the roster above. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
+    Use the STANDINGS block above to determine which holdings actually drove \(player.name)'s portfolio \(scope). The article archive below provides context for WHY each holding moved, not WHICH holdings drove the portfolio. Never describe a holding as dominant unless it appears in the top of the STANDINGS block.
 
-    Articles:
+    Articles from the period (each tagged with [TICKER/owner]):
     \(articleText)
+
+    Write exactly 3 sentences as a single paragraph of plain prose, grounded strictly in the STANDINGS block:
+    Sentence 1: Name the holding that drove \(player.name)'s portfolio \(scope) and cite its $ contribution from the STANDINGS block.
+    Sentence 2: Name the specific news catalyst behind that move, quoting from the article archive above.
+    Sentence 3: Name the biggest drag from the STANDINGS block and the catalyst or risk to watch heading forward.
+
+    Quote percentages and dollar amounts exactly from STANDINGS — do not invent numbers. Refer only to tickers from \(player.name)'s portfolio. Do not preface the digest. Do not number the sentences. Do not use bullet points.
     """
 }
 
@@ -1062,9 +1108,14 @@ func detectTickerForArticle(_ a: Article, in tickers: [String]) -> String? {
     return nil
 }
 
-func generatePortfolioDigestText(player: PlayerRoster, window: WindowKey, articles: [Article], gameAge: Int) async -> String? {
-    guard !articles.isEmpty else { return nil }
-    let prompt = buildPortfolioPrompt(player: player, window: window, articles: articles, gameAge: gameAge)
+func generatePortfolioDigestText(
+    player: PlayerRoster,
+    window: WindowKey,
+    articles: [TaggedArticle],
+    movers: UserMovers,
+    gameAge: Int
+) async -> String? {
+    let prompt = buildPortfolioPrompt(player: player, window: window, articles: articles, movers: movers, gameAge: gameAge)
     do {
         let session = LanguageModelSession()        // fresh session per (user, window)
         let response = try await session.respond(to: prompt)
@@ -1076,7 +1127,24 @@ func generatePortfolioDigestText(player: PlayerRoster, window: WindowKey, articl
     }
 }
 
-func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOutcome {
+// Pick the tickers the LLM is allowed to anchor on — top 3 contributors by
+// $ + up to 3 negative-$ drags, deduped, in the order they should appear in
+// the prompt. The article archive is filtered to articles tagged with these
+// tickers (see portfolioArticlesForWindow).
+func relevantTickersForPortfolio(_ movers: UserMovers) -> [String] {
+    let byDollars = movers.movers.sorted { $0.dollars > $1.dollars }
+    var picked: [String] = []
+    for m in byDollars.prefix(3) {
+        picked.append(m.ticker)
+    }
+    let drags = byDollars.filter { $0.dollars < 0 }.reversed().prefix(3)
+    for d in drags where !picked.contains(d.ticker) {
+        picked.append(d.ticker)
+    }
+    return picked
+}
+
+func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int) async -> PortfolioOutcome {
     log("• \(player.name)'s portfolio: start (\(player.tickers.count) tickers)")
     var perWindow: [String: WindowDigest] = [:]
     let nowISO = isoFormatter.string(from: Date())
@@ -1087,11 +1155,22 @@ func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOu
     let daysAvail = player.tickers.map { daysOfDataAvailable($0) }.max() ?? 0
 
     for w in WindowKey.allCases {
-        let articles = portfolioArticlesForWindow(player: player, window: w, gameAge: gameAge)
+        let movers = computeUserMovers(player: player, data: data, window: w)
+        let relevant = relevantTickersForPortfolio(movers)
+        let tagged = portfolioArticlesForWindow(
+            player: player,
+            window: w,
+            gameAge: gameAge,
+            relevantTickers: relevant
+        )
         let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
         let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
 
-        if articles.isEmpty || maturity == "insufficient" {
+        // If the window's standings have zero magnitude in either direction
+        // (e.g., the game is on day 1 of itself), there's nothing material to
+        // narrate. Treat the same as "insufficient" — null digest.
+        let hasMovement = movers.movers.contains { abs($0.dollars) > 0.01 }
+        if !hasMovement || maturity == "insufficient" {
             perWindow[w.rawValue] = WindowDigest(
                 digest: nil,
                 articleCount: 0,
@@ -1107,12 +1186,15 @@ func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOu
             continue
         }
 
-        let digestText = await generatePortfolioDigestText(player: player, window: w, articles: articles, gameAge: gameAge)
-        let scores = articles.compactMap { $0.relevanceScore }
+        let digestText = await generatePortfolioDigestText(
+            player: player, window: w, articles: tagged, movers: movers, gameAge: gameAge
+        )
+        let articleObjs = tagged.map { $0.article }
+        let scores = articleObjs.compactMap { $0.relevanceScore }
         let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
-        let dates = articles.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
+        let dates = articleObjs.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
         let dateRange: DateRange? = dates.first.map { DateRange(from: $0, to: dates.last ?? $0) }
-        let sources = articles.prefix(8).map { a in
+        let sources = articleObjs.prefix(8).map { a in
             SourceArticle(
                 title: a.title,
                 link: a.link,
@@ -1123,7 +1205,7 @@ func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOu
         }
         perWindow[w.rawValue] = WindowDigest(
             digest: digestText,
-            articleCount: articles.count,
+            articleCount: articleObjs.count,
             dateRange: dateRange,
             avgRelevanceScore: avg,
             generatedAt: nowISO,
@@ -1133,7 +1215,7 @@ func processPortfolio(_ player: PlayerRoster, gameAge: Int) async -> PortfolioOu
             daysRequired: effRequired,
             sources: Array(sources)
         )
-        log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, maturity=\(maturity))")
+        log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articleObjs.count) articles, maturity=\(maturity), tickers=[\(relevant.joined(separator: ","))])")
     }
 
     return PortfolioOutcome(userId: player.id, windows: perWindow)
@@ -1232,6 +1314,17 @@ struct TickerMove {
     let endClose: Double
 }
 
+// All of a player's per-ticker contributions for a window, plus the portfolio
+// roll-up %. The per-user portfolio prompt (Phase 2) and the game-wide
+// standings prompt (Phase 3) both consume this; the only difference is
+// whether the consumer sorts the movers by $ (portfolio prompt — answers
+// "what drove the portfolio") or by % (legacy standings format).
+struct UserMovers {
+    let player: PlayerRoster
+    let pct: Double
+    let movers: [TickerMove]
+}
+
 struct UserStanding {
     let player: PlayerRoster
     let pct: Double
@@ -1239,31 +1332,75 @@ struct UserStanding {
     let bottomMovers: [TickerMove]   // sorted asc by pct
 }
 
+// Per-user mover computation. Called per (player, window) — once by the
+// portfolio rollup (sorts by $ to find true drivers) and once by the
+// game-wide standings (sorts by %).
+func computeUserMovers(player: PlayerRoster, data: PriceDataLite, window: WindowKey) -> UserMovers {
+    var movers: [TickerMove] = []
+    var startTotal: Double = 0
+    var endTotal: Double = 0
+    for t in player.tickers {
+        guard let s = data.tickers[t] else { continue }
+        let shares = sharesFor(player, s)
+        let r = rangeCloses(series: s, data: data, window: window)
+        let pct = r.start == 0 ? 0 : (r.end - r.start) / r.start
+        movers.append(TickerMove(ticker: t, pct: pct, dollars: shares * (r.end - r.start), endClose: r.end))
+        startTotal += shares * r.start
+        endTotal += shares * r.end
+    }
+    let portfolioPct = startTotal == 0 ? 0 : (endTotal - startTotal) / startTotal
+    return UserMovers(player: player, pct: portfolioPct, movers: movers)
+}
+
 func computeStandings(data: PriceDataLite, window: WindowKey) -> [UserStanding] {
     var rows: [UserStanding] = []
     for player in PLAYERS {
-        var movers: [TickerMove] = []
-        var startTotal: Double = 0
-        var endTotal: Double = 0
-        for t in player.tickers {
-            guard let s = data.tickers[t] else { continue }
-            let shares = sharesFor(player, s)
-            let r = rangeCloses(series: s, data: data, window: window)
-            let pct = r.start == 0 ? 0 : (r.end - r.start) / r.start
-            movers.append(TickerMove(ticker: t, pct: pct, dollars: shares * (r.end - r.start), endClose: r.end))
-            startTotal += shares * r.start
-            endTotal += shares * r.end
-        }
-        let portfolioPct = startTotal == 0 ? 0 : (endTotal - startTotal) / startTotal
-        let sorted = movers.sorted { $0.pct > $1.pct }
+        let um = computeUserMovers(player: player, data: data, window: window)
+        let sorted = um.movers.sorted { $0.pct > $1.pct }
         rows.append(UserStanding(
             player: player,
-            pct: portfolioPct,
+            pct: um.pct,
             topMovers: Array(sorted.prefix(2)),
             bottomMovers: Array(sorted.reversed().prefix(2))
         ))
     }
     return rows.sorted { $0.pct > $1.pct }
+}
+
+// Formatted STANDINGS block injected at the top of the portfolio prompt.
+// Sorts the player's positions by $ contribution (most positive at the top)
+// then appends a separate "Drag:" subsection for any negative-$ position
+// that wasn't already in the top 3.
+func formatUserStandingsBlock(_ um: UserMovers, window: WindowKey) -> String {
+    let byDollars = um.movers.sorted { $0.dollars > $1.dollars }
+    let topN = Array(byDollars.prefix(3))
+    let topTickers = Set(topN.map { $0.ticker })
+    let drags = byDollars
+        .filter { $0.dollars < 0 && !topTickers.contains($0.ticker) }
+        .reversed()        // most-negative first
+        .prefix(3)
+
+    func line(_ m: TickerMove) -> String {
+        let dollarSign = m.dollars >= 0 ? "+" : "-"
+        let dollarMag = String(format: "%.0f", abs(m.dollars))
+        let pctStr = String(format: "%+.2f%%", m.pct * 100)
+        let endStr = String(format: "%.2f", m.endClose)
+        return "\(m.ticker): \(dollarSign)$\(dollarMag) (\(pctStr), end price $\(endStr))"
+    }
+
+    var lines: [String] = []
+    for (i, m) in topN.enumerated() {
+        lines.append("  \(i + 1). \(line(m))")
+    }
+    if !drags.isEmpty {
+        lines.append("  Drag:")
+        for d in drags {
+            lines.append("    \(line(d))")
+        }
+    }
+    let pctStr = String(format: "%+.2f%%", um.pct * 100)
+    lines.append("  Portfolio total: \(pctStr)")
+    return lines.joined(separator: "\n")
 }
 
 func formatStandingsBlock(_ standings: [UserStanding]) -> String {
@@ -1286,22 +1423,27 @@ func formatStandingsBlock(_ standings: [UserStanding]) -> String {
 }
 
 // Pull the highest-signal articles in the window across ALL players' tickers.
+// Each article is tagged with the archive bucket it came from so the LLM
+// prompt can show [TICKER/owners] without re-detecting from the title text
+// (which can mismatch when an article mentions multiple tickers).
 // Capped at 15 so the prompt stays manageable.
-func gameNewsArticles(window: WindowKey, gameAge: Int) -> [Article] {
+func gameNewsArticles(window: WindowKey, gameAge: Int) -> [TaggedArticle] {
     let lookback = window.effectiveLookback(gameAge: gameAge)
     var seen: Set<String> = []
-    var pool: [Article] = []
+    var pool: [TaggedArticle] = []
     let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
     for ticker in allTickers {
         for a in loadArticlesInLastNDays(ticker: ticker, days: lookback) {
-            if seen.insert(a.link).inserted { pool.append(a) }
+            if seen.insert(a.link).inserted {
+                pool.append(TaggedArticle(article: a, ticker: ticker))
+            }
         }
     }
-    pool.sort { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+    pool.sort { ($0.article.relevanceScore ?? 0) > ($1.article.relevanceScore ?? 0) }
     return Array(pool.prefix(15))
 }
 
-func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [Article], gameAge: Int) -> String {
+func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int) -> String {
     let standingsBlock = formatStandingsBlock(standings)
     let scope: String
     switch window {
@@ -1313,16 +1455,14 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
     var articleText = ""
-    let allTickers = PLAYERS.flatMap { $0.tickers }
-    for (i, a) in articles.enumerated() {
-        let desc = String(a.description.prefix(DESC_TRUNCATE))
-        let tag = detectTickerForArticle(a, in: allTickers) ?? "—"
-        articleText += "\(i + 1). [\(tag)] \(a.title)\n\(desc)\n\n"
+    for (i, ta) in articles.enumerated() {
+        let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
+        articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
     }
     return """
     You are commenting on the live leaderboard of a 4-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000.
 
-    Players and their picks:
+    PLAYERS (this is the only source of truth for who owns what):
       Brian: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD
       Kevin: TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT
       Rick:  COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA
@@ -1331,7 +1471,7 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to 4th):
     \(standingsBlock)
 
-    Most market-moving news from the period (each tagged with the ticker it relates to in brackets):
+    Most market-moving news from the period (each tagged [TICKER/owners], where owners are the player ids that hold that ticker):
     \(articleText)
 
     Write exactly 3 sentences analyzing the leaderboard \(scope), as a single paragraph of plain prose:
@@ -1340,6 +1480,8 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     Sentence 3: the biggest catalyst or risk to watch heading forward, grounded in a specific holding mentioned above.
 
     Use the player names verbatim. Quote percentages from the standings exactly. Do not invent numbers or events. Do not preface it. Do not number the sentences. Do not use bullet points.
+
+    The PLAYERS section above is the only source of truth for which player owns which ticker. Before attributing a ticker move to a player, verify the ticker appears in that player's pick list. If a high-signal article relates to a ticker no one owns, you may omit it. Never invent ownership.
     """
 }
 
@@ -1389,10 +1531,11 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
             logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
         }
 
-        let scores = articles.compactMap { $0.relevanceScore }
+        let articleObjs = articles.map { $0.article }
+        let scores = articleObjs.compactMap { $0.relevanceScore }
         let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
         let bounds = rangeBounds(tradingDates: data.tradingDates, window: w)
-        let sources = articles.prefix(8).map { a in
+        let sources = articleObjs.prefix(8).map { a in
             SourceArticle(
                 title: a.title,
                 link: a.link,
@@ -1403,7 +1546,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
         }
         perWindow[w.rawValue] = WindowDigest(
             digest: digestText,
-            articleCount: articles.count,
+            articleCount: articleObjs.count,
             dateRange: bounds.startDate.isEmpty ? nil : DateRange(from: bounds.startDate, to: bounds.endDate),
             avgRelevanceScore: avg,
             generatedAt: nowISO,
@@ -1490,37 +1633,46 @@ func runMain() async {
         return
     }
 
+    // Load prices.json up front — Phase 2 (portfolio rollups) needs it for
+    // per-user standings, and Phase 3 (game-wide summary) needs it too.
+    // The prices file lives next to the output digests.json by convention
+    // (publicDir = outputPath's parent → publicDir/data/prices.json).
+    let runAllTickers = args.tickers.isEmpty
+    var priceData: PriceDataLite? = nil
+    if runAllTickers {
+        let publicDir = args.outputPath.deletingLastPathComponent()
+        let pricesURL = publicDir.appendingPathComponent("data/prices.json")
+        priceData = loadPriceData(at: pricesURL)
+        if priceData == nil {
+            logErr("Could not load prices.json at \(pricesURL.path) — Phase 2 + Phase 3 will be skipped.")
+        }
+    }
+
     // Phase 2: per-user portfolio rollups. Skip when running on a subset of
     // tickers (any user whose roster isn't fully covered would generate
-    // misleading prose). The full all-tickers run hits this path daily.
+    // misleading prose) or when prices.json isn't readable. The full
+    // all-tickers run hits this path daily.
     var portfolios: [PortfolioOutcome] = []
-    let runAllTickers = args.tickers.isEmpty
-    if runAllTickers {
+    if runAllTickers, let pd = priceData {
         let gameAge = gameAgeInDays()
         for player in PLAYERS {
-            let p = await processPortfolio(player, gameAge: gameAge)
+            let p = await processPortfolio(player, data: pd, gameAge: gameAge)
             portfolios.append(p)
         }
-    } else {
+    } else if !runAllTickers {
         log("Skipping portfolio rollups (subset run).")
+    } else {
+        log("Skipping portfolio rollups (prices.json unavailable).")
     }
 
     // Phase 3: game-wide leaderboard analysis. Reads public/data/prices.json
     // for live standings, combines with the article archive to explain *why*
     // the leaderboard looks like it does. Same subset-skip rule as above.
     var game: GameOutcome? = nil
-    if runAllTickers {
-        // The prices.json lives next to digests.json by convention. Walk up
-        // from the output path to find /public, then read /public/data/prices.json.
-        let publicDir = args.outputPath.deletingLastPathComponent()
-        let pricesURL = publicDir.appendingPathComponent("data/prices.json")
-        if let priceData = loadPriceData(at: pricesURL) {
-            let gameAge = gameAgeInDays()
-            game = await processGameSummary(data: priceData, gameAge: gameAge)
-        } else {
-            logErr("Game summary skipped — could not load prices.json at \(pricesURL.path)")
-        }
-    } else {
+    if runAllTickers, let pd = priceData {
+        let gameAge = gameAgeInDays()
+        game = await processGameSummary(data: pd, gameAge: gameAge)
+    } else if !runAllTickers {
         log("Skipping game-wide summary (subset run).")
     }
 
