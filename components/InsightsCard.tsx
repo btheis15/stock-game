@@ -45,10 +45,16 @@ function UserPerformersCard({
     .filter((m) => m.pct > 0)
     .sort((a, b) => b.pct - a.pct)
     .slice(0, MAX_PER_LIST);
+  // Pick the worst-N (most-negative first), then reverse so the list reads
+  // top-to-bottom as "less bad → worst." Together with the Top performers
+  // list above (descending: best at top), the two sections form one
+  // continuous descending-by-pct read — biggest gain at the very top,
+  // biggest loss at the very bottom.
   const bottom = [...movers]
     .filter((m) => m.pct < 0)
     .sort((a, b) => a.pct - b.pct)
-    .slice(0, MAX_PER_LIST);
+    .slice(0, MAX_PER_LIST)
+    .reverse();
   const placeLabel = ["1st", "2nd", "3rd", "4th"][place - 1] ?? `${place}th`;
   const pctColor = rangePct >= 0 ? "#00C805" : "#FF453A";
 
