@@ -154,18 +154,31 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
 
       <RangeTabs value={range} onChange={setRange} accent={leader.user.color} />
 
-      <div className="px-4 mt-2 grid grid-cols-2 gap-3">
-        {stats.map((s, i) => (
-          <UserCard
-            key={s.user.id}
-            name={s.user.name}
-            color={s.user.color}
-            value={s.value}
-            pct={s.pct}
-            href={`/portfolio/${s.user.id}`}
-            place={i + 1}
-          />
-        ))}
+      <div className="px-4 mt-2">
+        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+          {stats.map((s, i) => {
+            // Gap = how far behind the leader in $ gain over the active range
+            // (not raw portfolio diff — that would mix range performance with
+            // permanent wealth, which is misleading when the sort is by range
+            // pct). Matches the same definition used by the headline "leads
+            // by" number at the top of the page.
+            const rangeGain = s.value - s.baseline;
+            const leaderGain = leader.value - leader.baseline;
+            const gap = i === 0 ? 0 : leaderGain - rangeGain;
+            return (
+              <UserRow
+                key={s.user.id}
+                name={s.user.name}
+                color={s.user.color}
+                value={s.value}
+                pct={s.pct}
+                gap={gap}
+                place={i + 1}
+                href={`/portfolio/${s.user.id}`}
+              />
+            );
+          })}
+        </div>
       </div>
 
       <DigestPanel
@@ -187,48 +200,70 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
   );
 }
 
-function UserCard({
+// Sports-standings style row. Stacks vertically inside the bordered card so
+// the leaderboard scales to N players without the 2x2 grid breaking. Each
+// row reads at a glance: rank → color dot → name + gap-to-leader (or
+// "Leader" on row 1) on the left, current portfolio value + range pct on
+// the right. Whole row taps through to /portfolio/{user}.
+function UserRow({
   name,
   color,
   value,
   pct,
-  href,
+  gap,
   place,
+  href,
 }: {
   name: string;
   color: string;
   value: number;
   pct: number;
-  href: string;
+  gap: number; // $ behind the leader in this range's gain; 0 when place === 1
   place: number;
+  href: string;
 }) {
   const positive = pct >= 0;
   const deltaColor = positive ? "#00C805" : "#FF453A";
-  const placeLabel = ["1st", "2nd", "3rd", "4th"][place - 1] ?? `${place}th`;
+  const isLeader = place === 1;
   return (
     <Link
       href={href}
-      className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-3 flex flex-col gap-1 active:bg-zinc-900 transition-colors"
+      className="flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
     >
-      <div className="flex items-center gap-1.5">
-        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-        <span className="text-[13px] font-semibold text-zinc-300">{name}</span>
-        <span
-          className="ml-auto text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-          style={
-            place === 1
-              ? { backgroundColor: color, color: "#000" }
-              : { color: "#999", borderColor: "#3f3f46", border: "1px solid #3f3f46" }
-          }
+      <div className="w-6 text-center text-[14px] font-semibold text-zinc-500 tabular-nums shrink-0">
+        {place}
+      </div>
+      <div
+        className="w-2.5 h-2.5 rounded-full shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <div className="flex flex-col min-w-0 flex-1">
+        <div className="text-[15px] font-semibold text-zinc-200 truncate">
+          {name}
+        </div>
+        <div className="text-[11px] text-zinc-500 tabular-nums mt-0.5">
+          {isLeader ? (
+            <span
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+              style={{ backgroundColor: color, color: "#000" }}
+            >
+              Leader
+            </span>
+          ) : (
+            <>{fmtUSD(gap, 0)} back</>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col items-end shrink-0">
+        <div className="text-[16px] font-semibold text-white tabular-nums">
+          {fmtUSD(value, 0)}
+        </div>
+        <div
+          className="text-[12px] font-medium tabular-nums mt-0.5"
+          style={{ color: deltaColor }}
         >
-          {placeLabel}
-        </span>
-      </div>
-      <div className="text-[17px] font-semibold text-white tabular-nums">
-        {fmtUSD(value, 0)}
-      </div>
-      <div className="text-[12px] font-medium tabular-nums" style={{ color: deltaColor }}>
-        {fmtPct(pct)}
+          {fmtPct(pct)}
+        </div>
       </div>
     </Link>
   );
