@@ -49,9 +49,19 @@ class SchedulerApp:
         self.last_digest_text = "—"
         self.last_digest_ok = None
 
-        self.run_lock = threading.Lock()
-        self.run_cond = threading.Condition(self.run_lock)
-        self.is_running = False
+        # Two independent locks: the price refresh (cron-update.sh) and the
+        # digest pipeline (digest-update.sh) are allowed to run concurrently
+        # so a long digest run never blocks the 15-min stock interval. Within
+        # each pipeline we still serialize — a second tick won't fire while
+        # the prior one is still running. The bash scripts handle the git
+        # push race (each commits a different file; push retries on
+        # non-fast-forward).
+        self.refresh_lock = threading.Lock()
+        self.refresh_cond = threading.Condition(self.refresh_lock)
+        self.is_refresh_running = False
+        self.digest_lock = threading.Lock()
+        self.digest_cond = threading.Condition(self.digest_lock)
+        self.is_digest_running = False
         self.last_run_text = "—"
         self.last_run_ok = None
 
@@ -159,12 +169,28 @@ class SchedulerApp:
 
         tk.Label(
             self.root,
-            text="Runs once per weekday before market open. ~10–15 min on Apple Intelligence.",
+            text="Runs once per weekday. Independent of the 15-min stock refresh — both can run concurrently.",
             fg="#666",
             font=("", 9),
             wraplength=400,
             justify="left",
         ).grid(row=8, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w")
+
+        # When checked, skip the slow RSS fetch + Stage-2 AI scoring step
+        # and just regenerate digests from the existing article archive.
+        # Cuts a full ~10-15 min run to ~8 min and avoids ~150-300 Apple
+        # Intelligence relevance-scoring calls. The trade-off: today's
+        # newest headlines aren't pulled in, so digests reflect yesterday's
+        # archive. Useful for a quick refresh of digest prose after a code
+        # change without burning the full pipeline.
+        self.skip_fetch_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            self.root,
+            text="Skip article fetch (regenerate digests from existing archive — faster)",
+            variable=self.skip_fetch_var,
+            wraplength=380,
+            justify="left",
+        ).grid(row=8, column=0, columnspan=4, padx=5, pady=(20, 4), sticky="w")
 
     def _create_status_labels(self):
         self.next_run_label = tk.Label(self.root, text="No refresh scheduled.")
@@ -276,13 +302,16 @@ class SchedulerApp:
         self.refresh_scheduled_time = run_at
 
     def _fire_refresh(self, scheduled_for):
-        if self._wait_and_start():
+        # Refresh tick fires on its own lock so a long digest run can't push
+        # the next 15-min stock refresh past its window. If a prior refresh
+        # is somehow still running (network hang etc.) we wait briefly.
+        if self._wait_and_start_refresh():
             try:
                 self._run_refresh()
             finally:
-                self._finish_run()
+                self._finish_refresh()
         else:
-            print("Skipped scheduled refresh: another task held the lock.")
+            print("Skipped scheduled refresh: prior refresh still running.")
 
         if self.interval_minutes:
             next_run = self._next_valid_run_time(
@@ -322,14 +351,20 @@ class SchedulerApp:
         messagebox.showinfo("Stopped", "Schedule stopped.")
 
     def run_now(self):
-        if not self._try_start_run():
-            messagebox.showwarning("Task Running", "A task is already running.")
+        if not self._try_start_refresh():
+            messagebox.showwarning(
+                "Refresh Running",
+                "A stock refresh is already running.",
+            )
             return
         threading.Thread(target=self._run_with_guard, daemon=True).start()
 
     def run_digest_now(self):
-        if not self._try_start_run():
-            messagebox.showwarning("Task Running", "A task is already running.")
+        if not self._try_start_digest():
+            messagebox.showwarning(
+                "Briefing Running",
+                "The daily briefing is already running.",
+            )
             return
         threading.Thread(target=self._run_digest_with_guard, daemon=True).start()
 
@@ -360,15 +395,17 @@ class SchedulerApp:
         self.digest_scheduled_time = run_at
 
     def _fire_digest(self, scheduled_for):
-        # Coordinate with the price refresh — they share run_lock so we don't
-        # commit + push from two pipelines simultaneously.
-        if self._wait_and_start():
+        # Independent of the refresh lock — digest can run while the 15-min
+        # stock refresh is firing on its own cadence. The bash scripts handle
+        # the git push race (they commit different files and retry on
+        # non-fast-forward push).
+        if self._wait_and_start_digest():
             try:
                 self._run_digest()
             finally:
-                self._finish_run()
+                self._finish_digest()
         else:
-            print("Skipped scheduled briefing: another task held the lock.")
+            print("Skipped scheduled briefing: prior briefing still running.")
 
         # Re-arm for the next weekday.
         next_run = self._next_daily_digest_time(datetime.now() + timedelta(minutes=1))
@@ -379,7 +416,7 @@ class SchedulerApp:
         try:
             self._run_digest()
         finally:
-            self._finish_run()
+            self._finish_digest()
 
     def _run_digest(self):
         if not os.path.exists(DIGEST_SCRIPT):
@@ -387,13 +424,18 @@ class SchedulerApp:
             return
         try:
             start_time = datetime.now().strftime("%m/%d/%Y %-I:%M:%S%p")
-            print(f"Briefing started at {start_time}.")
+            mode = "digests-only" if self.skip_fetch_var.get() else "full"
+            print(f"Briefing started at {start_time} (mode={mode}).")
             self._on_main_thread(
                 self.last_digest_label.config,
-                text=f"Briefing running… (started {start_time})",
+                text=f"Briefing running… (started {start_time}, mode={mode})",
                 fg="#666",
             )
-            result = subprocess.run(["bash", DIGEST_SCRIPT], check=False)
+            # Pass mode through env — digest-update.sh reads DIGEST_MODE and
+            # forwards --digests-only to digest.swift when set.
+            env = os.environ.copy()
+            env["DIGEST_MODE"] = mode
+            result = subprocess.run(["bash", DIGEST_SCRIPT], check=False, env=env)
             finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
             if result.returncode == 0:
                 self.last_digest_ok = True
@@ -430,7 +472,7 @@ class SchedulerApp:
         try:
             self._run_refresh()
         finally:
-            self._finish_run()
+            self._finish_refresh()
 
     def _run_refresh(self):
         if not os.path.exists(REFRESH_SCRIPT):
@@ -569,28 +611,55 @@ class SchedulerApp:
             candidate += step
         return self._align_to_window(candidate)
 
-    def _try_start_run(self):
-        with self.run_lock:
-            if self.is_running:
+    def _try_start_refresh(self):
+        with self.refresh_lock:
+            if self.is_refresh_running:
                 return False
-            self.is_running = True
+            self.is_refresh_running = True
             return True
 
-    def _wait_and_start(self, timeout_seconds=6 * 3600):
+    def _wait_and_start_refresh(self, timeout_seconds=600):
+        # Refresh waits at most 10 min for a prior refresh to finish — at the
+        # 15-min cadence anything longer means we should just skip this tick.
         deadline = time.monotonic() + timeout_seconds
-        with self.run_cond:
-            while self.is_running:
+        with self.refresh_cond:
+            while self.is_refresh_running:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return False
-                self.run_cond.wait(timeout=remaining)
-            self.is_running = True
+                self.refresh_cond.wait(timeout=remaining)
+            self.is_refresh_running = True
             return True
 
-    def _finish_run(self):
-        with self.run_cond:
-            self.is_running = False
-            self.run_cond.notify_all()
+    def _finish_refresh(self):
+        with self.refresh_cond:
+            self.is_refresh_running = False
+            self.refresh_cond.notify_all()
+
+    def _try_start_digest(self):
+        with self.digest_lock:
+            if self.is_digest_running:
+                return False
+            self.is_digest_running = True
+            return True
+
+    def _wait_and_start_digest(self, timeout_seconds=6 * 3600):
+        # Digest waits up to 6 hours for a prior digest. Plenty for ~15 min
+        # full runs; mainly protects against accidental double-fire.
+        deadline = time.monotonic() + timeout_seconds
+        with self.digest_cond:
+            while self.is_digest_running:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self.digest_cond.wait(timeout=remaining)
+            self.is_digest_running = True
+            return True
+
+    def _finish_digest(self):
+        with self.digest_cond:
+            self.is_digest_running = False
+            self.digest_cond.notify_all()
 
     def _on_main_thread(self, func, *args, **kwargs):
         self.root.after(0, lambda: func(*args, **kwargs))

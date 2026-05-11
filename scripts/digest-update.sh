@@ -26,7 +26,16 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 log() { echo "[$(ts)] $*"; }
 
-log "digest update starting in $REPO_DIR"
+# DIGEST_MODE controls whether the RSS fetch + Stage-2 AI scoring runs:
+#   "full"          (default) — fetch RSS, score new articles, regenerate
+#                   every window's digest. Slow path, ~10-15 min.
+#   "digests-only"  — skip RSS fetch + scoring entirely, regenerate digests
+#                   from the existing archive. ~8 min.
+# The scheduler UI sets DIGEST_MODE=digests-only when the "Skip article
+# fetch" checkbox is on.
+DIGEST_MODE="${DIGEST_MODE:-full}"
+
+log "digest update starting in $REPO_DIR (mode=$DIGEST_MODE)"
 
 if [ -e "$SCRIPT_DIR/.pause" ]; then
   log "scripts/.pause exists — skipping digest run"
@@ -47,17 +56,42 @@ git pull --rebase --autostash origin main
 # Apple Intelligence availability is checked inside digest.swift — if
 # unavailable, the script exits 0 silently and yesterday's digests.json keeps
 # serving. So we don't need a guard here.
-log "running digest pipeline (this takes ~10 min for the full roster)"
-swift "$SCRIPT_DIR/digest.swift" --output "$REPO_DIR/public/digests.json"
+swift_args=("$SCRIPT_DIR/digest.swift" "--output" "$REPO_DIR/public/digests.json")
+if [ "$DIGEST_MODE" = "digests-only" ]; then
+  swift_args+=("--digests-only")
+  log "running digest pipeline — digests-only (skipping RSS fetch + scoring)"
+else
+  log "running digest pipeline (full — RSS fetch + scoring + digests)"
+fi
+swift "${swift_args[@]}"
 
 # Stage only digests.json — unrelated WIP never gets auto-committed.
-if [ -n "$(git status --porcelain public/digests.json)" ]; then
-  log "digests changed — committing and pushing"
-  git add public/digests.json
-  git commit -m "digests: $(ts)"
-  git push
-else
+if [ -z "$(git status --porcelain public/digests.json)" ]; then
   log "no digest changes since last run"
+  log "digest update done"
+  exit 0
 fi
+
+log "digests changed — committing"
+git add public/digests.json
+git commit -m "digests: $(ts)"
+
+# Retry push if the price refresh pipeline pushed during our ~10 min run
+# (concurrent execution is intentional — see stockgame_schedule.py). After
+# each rejection: pull --rebase --autostash, then try again. Each cycle
+# rebases our single digests.json commit onto whatever new prices commits
+# landed, which is conflict-free since the two pipelines stage different
+# files.
+push_attempts=0
+while ! git push 2>&1; do
+  push_attempts=$((push_attempts + 1))
+  if [ "$push_attempts" -ge 5 ]; then
+    log "push failed after 5 retries — bailing"
+    exit 1
+  fi
+  log "push rejected (likely concurrent prices push) — rebase + retry ($push_attempts/5)"
+  git fetch origin main
+  git pull --rebase --autostash origin main
+done
 
 log "digest update done"

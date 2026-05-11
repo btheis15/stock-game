@@ -80,12 +80,26 @@ log "fetching prices"
 npm run --silent fetch-prices
 
 # 2) Commit + push if data changed. Stage only prices.json so unrelated WIP
-# never gets auto-committed.
+# never gets auto-committed. Push retries on rejection — the digest pipeline
+# (digest-update.sh) is allowed to run concurrently and may push to main
+# during our window; rebasing our single prices commit on top is conflict
+# free since the two pipelines touch different files.
 if [ -n "$(git status --porcelain public/data/prices.json)" ]; then
-  log "data changed — committing and pushing"
+  log "data changed — committing"
   git add public/data/prices.json
   git commit -m "data: $(ts)"
-  git push
+
+  push_attempts=0
+  while ! git push 2>&1; do
+    push_attempts=$((push_attempts + 1))
+    if [ "$push_attempts" -ge 5 ]; then
+      log "push failed after 5 retries — bailing"
+      exit 1
+    fi
+    log "push rejected (likely concurrent digest push) — rebase + retry ($push_attempts/5)"
+    git fetch origin main
+    git pull --rebase --autostash origin main
+  done
 else
   log "no data change since last run"
 fi

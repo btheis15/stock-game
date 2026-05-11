@@ -190,6 +190,16 @@ pipeline: per-ticker news fetched + filtered + summarized; per-player
 portfolio rollups; game-wide leaderboard analysis. Writes `public/digests.json`,
 commits, pushes — Vercel rebuilds. Takes ~10–15 min.
 
+A "Skip article fetch" checkbox on the scheduler tells the digest pipeline
+to skip RSS fetching + AI relevance scoring and just regenerate digests
+from the existing article archive — useful when iterating on the prompt
+or for a quick refresh, runs in ~8 min instead.
+
+The two pipelines run independently — a long digest run does not block
+the 15-min stock refresh tick. Both push to `main` and the scripts retry
+the git push on race (they touch different files, so the rebase is
+always conflict-free).
+
 ```
 [Mac mini at home, running 24/7]
     ↓ scheduler fires its two timers

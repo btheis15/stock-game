@@ -471,6 +471,10 @@ End-to-end runtime: ~8 minutes for 29 tickers from cold archive (today's HON tes
 | `--digests-only` | regenerate digests from archive without re-fetching |
 | `--output PATH` | override the JSON destination |
 
+`scripts/digest-update.sh` honors a `DIGEST_MODE` env var: `full` (default — RSS fetch + Stage-2 scoring + digests) or `digests-only` (skip the slow article-fetch path, regenerate from the existing archive in ~8 min). The scheduler UI sets this via the "Skip article fetch" checkbox.
+
+The price refresh pipeline (`cron-update.sh`) and the digest pipeline (`digest-update.sh`) are allowed to run **concurrently**. They stage and commit different files (`public/data/prices.json` vs `public/digests.json`), so the only race is the git push — both scripts retry the push up to 5 times with `git fetch + pull --rebase --autostash` in between, which rebases their single commit on top of whatever the other pipeline just pushed. The Python scheduler reflects this with two independent locks (`refresh_lock` + `digest_lock`); a long digest run never blocks the 15-min stock refresh.
+
 ### Pause / resume the cron without closing the UI
 
 ```bash
