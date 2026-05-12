@@ -77,9 +77,12 @@ class SchedulerApp:
 
     # ---------------- UI ----------------
     def _create_refresh_section(self):
+        # Each tick now does TWO things: fetches fresh prices AND re-renders
+        # the game-wide 1D/1W/1M briefing templates with the new live pcts
+        # (no AI; sub-second). Section title reflects both.
         tk.Label(
             self.root,
-            text="Stock Game refresh + deploy",
+            text="Stock prices + fast briefing re-render",
             font=("", 12, "bold"),
         ).grid(row=0, column=0, columnspan=4, padx=5, pady=(8, 4), sticky="w")
 
@@ -153,7 +156,7 @@ class SchedulerApp:
     def _create_digest_section(self):
         tk.Label(
             self.root,
-            text="Daily AI briefings (digests)",
+            text="AI briefings (digests)",
             font=("", 12, "bold"),
         ).grid(row=6, column=0, columnspan=4, padx=5, pady=(12, 4), sticky="w")
 
@@ -185,66 +188,94 @@ class SchedulerApp:
 
         # When checked, skip the slow RSS fetch + Stage-2 AI scoring step
         # and just regenerate digests from the existing article archive.
-        # Cuts a full ~10-15 min run to ~8 min and avoids ~150-300 Apple
-        # Intelligence relevance-scoring calls. The trade-off: today's
-        # newest headlines aren't pulled in, so digests reflect yesterday's
-        # archive. Useful for a quick refresh of digest prose after a code
-        # change without burning the full pipeline.
+        # Useful for iterating on the prompt or for a quick prose refresh
+        # without burning the full fetch pipeline. The Saturday weekly tier
+        # ignores this checkbox — it never fetches RSS regardless.
         self.skip_fetch_var = tk.BooleanVar(value=False)
         tk.Checkbutton(
             self.root,
-            text="Skip article fetch (regenerate digests from existing archive — faster)",
+            text=(
+                "Skip article fetch (regenerate from existing archive — faster, "
+                "ignored on Saturday weekly tier)"
+            ),
             variable=self.skip_fetch_var,
             wraplength=380,
             justify="left",
         ).grid(row=8, column=0, columnspan=4, padx=5, pady=(20, 4), sticky="w")
 
     def _create_status_labels(self):
+        # Compact reference card so the cadence is visible at a glance —
+        # mirrors the three tiers the digest pipeline runs on.
+        cadence_text = (
+            "Refresh cadence:\n"
+            "  • Every 15 min  →  game 1D / 1W / 1M briefings (live-pct re-render, no AI)\n"
+            "  • Mon–Fri AM   →  daily briefing: 1D + 1W per-stock, 1D + 1W per-portfolio, all game windows\n"
+            "  • Saturday AM  →  weekly briefing: 1M / 3M / 1Y / ALL per-stock + per-portfolio (no RSS)\n"
+            "  • Sunday        →  silent"
+        )
+        self.cadence_label = tk.Label(
+            self.root,
+            text=cadence_text,
+            fg="#444",
+            font=("Menlo", 10),
+            justify="left",
+            anchor="w",
+        )
+        self.cadence_label.grid(row=9, column=0, columnspan=4, padx=5, pady=(8, 6), sticky="w")
+
         self.next_run_label = tk.Label(self.root, text="No refresh scheduled.")
-        self.next_run_label.grid(row=9, column=0, columnspan=4, padx=5, pady=(10, 2))
+        self.next_run_label.grid(row=10, column=0, columnspan=4, padx=5, pady=(6, 2))
         self.last_run_label = tk.Label(self.root, text="Last run: —")
-        self.last_run_label.grid(row=10, column=0, columnspan=4, padx=5, pady=2)
+        self.last_run_label.grid(row=11, column=0, columnspan=4, padx=5, pady=2)
         self.next_digest_label = tk.Label(self.root, text="No briefing scheduled.")
-        self.next_digest_label.grid(row=11, column=0, columnspan=4, padx=5, pady=(8, 2))
+        self.next_digest_label.grid(row=12, column=0, columnspan=4, padx=5, pady=(8, 2))
         self.last_digest_label = tk.Label(self.root, text="Last briefing: —")
-        self.last_digest_label.grid(row=12, column=0, columnspan=4, padx=5, pady=2)
+        self.last_digest_label.grid(row=13, column=0, columnspan=4, padx=5, pady=2)
         self.repo_label = tk.Label(
             self.root,
             text=f"Script: {REFRESH_SCRIPT}",
             fg="#666",
             font=("", 9),
         )
-        self.repo_label.grid(row=13, column=0, columnspan=4, padx=5, pady=(0, 4))
+        self.repo_label.grid(row=14, column=0, columnspan=4, padx=5, pady=(0, 4))
 
     def _create_buttons(self):
         self.schedule_button = tk.Button(
             self.root, text="Schedule Run", command=self.schedule_task
         )
         self.schedule_button.grid(
-            row=14, column=0, columnspan=2, sticky="ew", padx=5, pady=5
+            row=15, column=0, columnspan=2, sticky="ew", padx=5, pady=5
         )
         self.run_now_button = tk.Button(
             self.root, text="Run Now", command=self.run_now
         )
         self.run_now_button.grid(
-            row=14, column=2, columnspan=2, sticky="ew", padx=5, pady=5
+            row=15, column=2, columnspan=2, sticky="ew", padx=5, pady=5
         )
 
         self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_task)
-        self.stop_button.grid(row=15, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
+        self.stop_button.grid(row=16, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
 
+        # Button label tracks the calendar-day scope so the user knows what
+        # they're about to fire. Sat → "Run Briefing Now (weekly)"; weekday
+        # → "Run Briefing Now (daily)". Re-evaluated when the UI is built;
+        # if the scheduler stays open across midnight Sat→Sun, the label
+        # may go stale until next relaunch — a minor cosmetic issue.
+        scope_now = self._digest_scope_for_day(datetime.now().weekday()) or "daily"
         self.run_digest_button = tk.Button(
-            self.root, text="Run Briefing Now", command=self.run_digest_now
+            self.root,
+            text=f"Run Briefing Now ({scope_now})",
+            command=self.run_digest_now,
         )
         self.run_digest_button.grid(
-            row=16, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
+            row=17, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
         )
 
         self.open_log_button = tk.Button(
             self.root, text="Open Log", command=self.open_log
         )
         self.open_log_button.grid(
-            row=17, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
+            row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
         )
 
     # ---------------- SCHEDULING ----------------
@@ -469,12 +500,12 @@ class SchedulerApp:
             finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
             if result.returncode == 0:
                 self.last_digest_ok = True
-                self.last_digest_text = f"Last briefing: {finish_time} ✓"
-                print(f"Briefing completed at {finish_time}.")
+                self.last_digest_text = f"Last briefing: {finish_time} ({scope}) ✓"
+                print(f"Briefing completed at {finish_time} (scope={scope}).")
             else:
                 self.last_digest_ok = False
                 self.last_digest_text = (
-                    f"Last briefing failed: {finish_time} (exit {result.returncode})"
+                    f"Last briefing failed: {finish_time} ({scope}) (exit {result.returncode})"
                 )
                 print(self.last_digest_text)
             self._on_main_thread(
@@ -491,9 +522,9 @@ class SchedulerApp:
 
     def update_next_digest_label(self):
         if self.digest_scheduled_time:
-            self.next_digest_label.config(
-                text=f"Next briefing: {self.digest_scheduled_time.strftime('%a %Y-%m-%d %I:%M %p')}"
-            )
+            scope = self._digest_scope_for_day(self.digest_scheduled_time.weekday()) or "daily"
+            when = self.digest_scheduled_time.strftime("%a %Y-%m-%d %I:%M %p")
+            self.next_digest_label.config(text=f"Next briefing: {when} ({scope})")
         else:
             self.next_digest_label.config(text="No briefing scheduled.")
 
