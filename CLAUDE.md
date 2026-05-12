@@ -585,11 +585,19 @@ Defensive ordering:
 4. **Conditional `npm install`**: only if `node_modules` is missing or
    if `package.json`/`package-lock.json` changed during the rebase.
    Saves ~10s on most runs.
-5. **Fetch**: `npm run fetch-prices` (incremental).
-6. **Stage only `public/data/prices.json`** explicitly. WIP in other
-   files survives untouched.
-7. **Commit + push** if and only if prices.json changed.
-8. **No `vercel deploy`.** Webhook handles redeploy. Comment in the
+5. **Fetch prices**: `npm run fetch-prices` (incremental).
+6. **Fast tier digest re-render**: `swift digest.swift --scope fast`. No RSS,
+   no AI — just rewrites the `digest` field on each templated game window
+   (1D / 1W / 1M) by substituting live pcts from the fresh `prices.json`
+   into the stored `digestTemplate`. Sub-second. Failures here log but do
+   not block the price commit.
+7. **Stage `public/data/prices.json` AND `public/digests.json`** explicitly.
+   Any other WIP survives.
+8. **Commit + push** if anything changed. The push also carries any
+   locally-committed digest commits left by an earlier `digest-update.sh`
+   run (that script commits but never pushes — `cron-update.sh` is the
+   single publisher, preventing push races).
+9. **No `vercel deploy`.** Webhook handles redeploy. Comment in the
    script tells future-Claude to re-add the line if the webhook ever
    breaks.
 
@@ -612,21 +620,115 @@ Defensive ordering:
 
 ### §8.5. `scripts/stockgame_schedule.py` (tkinter scheduler UI)
 
-- The app *is* the scheduler. `threading.Timer` fires `cron-update.sh`
-  on the chosen wall-clock time.
+- The app *is* the scheduler. Two independent `threading.Timer` chains
+  fire `cron-update.sh` (price refresh) and `digest-update.sh` (briefings)
+  at their respective cadences.
 - Uses `caffeinate -i -w <pid>` so the Mac doesn't sleep while open.
-- Interval options: `5/10/15/30 min` and `1-24 hr` (default 15 min).
-- Window options: enforces a daily start/end time (default 8:30 AM –
-  3:00 PM CT = US market hours in ET).
-- Buttons: Schedule Run / Run Now / Stop / Open Log.
+- **Price refresh**: interval options `5/10/15/30 min` and `1-24 hr`
+  (default 15 min); start/end time window (default 8:30 AM – 3:00 PM CT).
+- **Briefings**: one time-of-day setting (default 7 AM CT). The same hour
+  drives both:
+  - **Mon–Fri** → fires the `daily` digest scope (1D + 1W per-stock and
+    per-portfolio briefings; all game windows, with `digestTemplate` on
+    1D / 1W / 1M).
+  - **Saturday** → fires the `weekly` digest scope (1M / 3M / 1Y / ALL
+    per-stock and per-portfolio briefings; no RSS fetch; no game windows —
+    those refresh daily + every 15 min via the fast tier).
+  - **Sunday** → skipped.
+  - The "Weekdays only" checkbox additionally suppresses the Saturday
+    weekly fire when on.
+- Buttons: Schedule Run / Run Now / Stop / Open Log. "Run Now" for
+  briefings uses today's calendar-day scope (Sat → weekly, otherwise
+  daily).
 - Status labels: "Next refresh: ..." and "Last run: ✓..." or "✗...".
 - **Edits to this Python file require closing + relaunching the tkinter
   window** (`npm run stockgame`) — the script is loaded into memory once.
   This is the *only* file in the pipeline where edits don't auto-flow on
-  the next fire. `cron-update.sh`, `fetch-prices.ts`, and any TS/TSX are
-  re-read every fire by their respective interpreters.
+  the next fire. `cron-update.sh`, `digest-update.sh`, `fetch-prices.ts`,
+  `digest.swift`, and any TS/TSX are re-read every fire by their
+  respective interpreters.
 
-### §8.6. The webhook + deploy
+### §8.6. `scripts/digest.swift` + `scripts/digest-update.sh` (the briefing pipeline)
+
+The digest pipeline is the second of the two writers to `main` and produces
+`public/digests.json`. It has three scopes, each owning a disjoint slice of
+the file. Whatever a scope doesn't touch is preserved on the next merge.
+
+**`--scope fast`** — runs from `cron-update.sh` step 6, after every 15-min
+price refresh. No RSS, no Apple Intelligence calls. Reads the existing
+`digests.json`, opens each game window in `TEMPLATED_GAME_WINDOWS` (1D / 1W
+/ 1M), substitutes live pcts into the stored `digestTemplate`, writes the
+result back to `digest`. Sub-second. Failures here log a warning but never
+block the price commit (`cron-update.sh` swallows non-zero exit and
+continues).
+
+**`--scope daily`** — runs from `digest-update.sh` Mon–Fri. Full RSS fetch
++ Stage-1 keyword filter + Stage-2 Apple Intelligence relevance scoring,
+then digest generation for:
+- Holdings: 1D + 1W only.
+- Portfolios: 1D + 1W only.
+- Game: ALL six windows. 1D / 1W / 1M additionally extract a
+  `digestTemplate` from the freshly-generated prose (see Templates below).
+Existing holdings/portfolios 1M / 3M / 1Y / ALL stay frozen on disk until
+the Saturday weekly run. After regeneration the script does a one-shot
+template render (the same logic the fast tier runs) so the just-written
+1D/1W/1M game prose reflects the current standings, not the standings at
+prompt time.
+
+**`--scope weekly`** — runs from `digest-update.sh` on Saturday. No RSS
+fetch. Regenerates the slow windows:
+- Holdings: 1M / 3M / 1Y / ALL.
+- Portfolios: 1M / 3M / 1Y / ALL.
+- Game: not touched (the daily + fast tiers already maintain it).
+Lighter than daily because it skips the fetch phase entirely.
+
+`digest-update.sh` reads two env vars from the scheduler:
+
+- `DIGEST_SCOPE` (default `daily`) — forwarded as `--scope`. `fast` is
+  rejected with a no-op exit so nobody accidentally fires the fast tier
+  from there (cron-update.sh owns that path).
+- `DIGEST_MODE` (default `full`) — when `digests-only`, forwards
+  `--digests-only` to `digest.swift` so RSS is skipped. The weekly scope
+  always forces this on regardless of `DIGEST_MODE`.
+
+#### Templates (game 1D / 1W / 1M)
+
+The daily run prompts Apple Intelligence to write every percentage as
+`TOKEN [SIGN+DECIMAL%]` — e.g. `ASTS [-10.23%]`, `TSLA [+5.62%]`,
+`Brian [+8.45%]`. TOKEN is either a ticker symbol (uppercase, from
+`DEFAULT_TICKERS`) or a player first name (from `PLAYERS`). The prompt is
+strict about this format; if the model wavers, `extractGameDigestTemplate`
+emits a `no template tokens extracted` warning and the fast tier just
+leaves that window's prose alone until the next daily run.
+
+After the model returns, two things happen:
+
+1. The rendered prose is stored in `WindowDigest.digest` (display string).
+2. A regex pass replaces each `TOKEN [SIGN+DECIMAL%]` occurrence with a
+   placeholder — `{{TICKER}}` if TOKEN matches a known ticker,
+   `{{user:USERID}}` if TOKEN matches a player. The templated string is
+   stored in `WindowDigest.digestTemplate`.
+
+The fast tier (every 15 min) reads each game template, computes the live
+pct for each placeholder via `liveTickerPct` / `liveUserPct` (which call
+`rangeCloses` / `computeUserMovers` on the freshly-pulled `prices.json`),
+formats as `[±X.XX%]`, and writes back to `digest`.
+
+Result: the game-wide "What's driving it" prose on `/` updates every 15
+min with current standings while the *narrative* (catalysts, news events,
+ranking story) only regenerates once per morning. ~3-sentence prose stays
+semantically frozen all day; the bracketed numbers flip.
+
+#### Merge writer
+
+`writeOutputJSON` reads the existing `digests.json` via
+`loadExistingDigests`, treats it as the base, and overlays the windows
+this run regenerated. Tickers / players not in the current roster are
+dropped at this step (this is what removed SPY when Lee swapped picks).
+First-ever run (no existing file): the base is empty; only the windows
+this run produced get written.
+
+### §8.7. The webhook + deploy
 
 - GitHub→Vercel integration (one-time UI install at
   `https://github.com/apps/vercel/installations/select_target`) listens
@@ -727,20 +829,32 @@ cheaper.
    - USER_LIST and TICKER_OWNERS auto-update via the IIFE at the bottom.
    - If picks include any new tickers, add them to TICKER_NAMES.
 
-2. scripts/fetch-prices.ts:
+2. scripts/digest.swift: the roster is hardcoded here too (Apple
+   Intelligence runs in Swift, no TS interop). Update three lists in lockstep:
+   - DEFAULT_TICKERS (top of file)
+   - TICKER_NAMES (display names)
+   - PLAYERS (with the new player's id, name, and tickers[])
+   Drift between lib/picks.ts and digest.swift is the #1 cause of
+   "digests look wrong after roster change" — see §10.2 for the same
+   warning re: ticker-only adds. Future work: generate digest.swift's
+   roster from picks.ts at run time.
+
+3. scripts/fetch-prices.ts:
    - No code change. Run: npm run fetch-prices -- --full
    - This fetches the new tickers' history and rewrites prices.json.
 
-3. components: NO CHANGES NEEDED. The compare grid auto-stretches to N
+4. components: NO CHANGES NEEDED. The compare grid auto-stretches to N
    players (currently a 2x2 grid; if N exceeds 4, refactor UserCard
    layout in CompareView from grid-cols-2 to grid-cols-{N|2}).
 
-4. STATE.md: update the Players table.
+5. STATE.md: update the Players table.
    OVERVIEW.md: update the players table.
 
-5. Test: npm run build. Verify all 4 (now N) /portfolio routes are SSG'd.
+6. Test: npm run build. Verify all 4 (now N) /portfolio routes are SSG'd.
 
-6. Commit, push, verify on staging.
+7. Commit, push, verify on staging. The next morning's digest-update.sh
+   run will populate the new player's portfolio digests + add any new
+   tickers to the holdings block.
 ```
 
 ### §10.2. Add a new ticker for an existing player
@@ -755,9 +869,14 @@ cheaper.
      new pick mid-game with fresh capital — that's a different mechanic
      not yet supported (would need a real ledger). Confirm with user.
 
-2. npm run fetch-prices -- --full to grab the new ticker's history.
+2. scripts/digest.swift: mirror the change in DEFAULT_TICKERS,
+   TICKER_NAMES, and PLAYERS (see §10.1). Skipping this step doesn't
+   crash the digest pipeline — it produces digests for the OLD roster
+   silently, which is much worse.
 
-3. STATE.md / OVERVIEW.md: update the picks table.
+3. npm run fetch-prices -- --full to grab the new ticker's history.
+
+4. STATE.md / OVERVIEW.md: update the picks table.
 ```
 
 ### §10.3. Add a chart range (e.g., "5D")

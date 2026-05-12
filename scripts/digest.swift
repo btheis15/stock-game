@@ -30,7 +30,8 @@ import FoundationModels
 let DEFAULT_TICKERS = [
     "ASTS","AMZN","UBER","SERV","AAPL","QCOM","ISRG","CRSP","HON","EXOD",
     "TSLA","NVDA","AVGO","MRVL","CRDO","PLTR","ORCL","ZS","VST","VRT",
-    "COHR","CRWV","GFS","GOOGL","NBIS","QBTS","RKLB","S","SPY",
+    "COHR","CRWV","GFS","GOOGL","NBIS","QBTS","RKLB","S",
+    "PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD",
 ]
 
 let TICKER_NAMES: [String: String] = [
@@ -62,7 +63,15 @@ let TICKER_NAMES: [String: String] = [
     "QBTS": "D-Wave Quantum",
     "RKLB": "Rocket Lab",
     "S": "SentinelOne",
-    "SPY": "S&P 500 ETF",
+    "PEP": "PepsiCo",
+    "GM": "General Motors",
+    "TAP": "Molson Coors Beverage",
+    "VZ": "Verizon",
+    "UL": "Unilever",
+    "DKS": "Dick's Sporting Goods",
+    "WMT": "Walmart",
+    "PFE": "Pfizer",
+    "HD": "Home Depot",
 ]
 
 let RELEVANCE_THRESHOLD = 6
@@ -85,7 +94,7 @@ let PLAYERS: [PlayerRoster] = [
     PlayerRoster(id: "rick",   name: "Rick",
         tickers: ["COHR","CRWV","GFS","GOOGL","NBIS","QBTS","NVDA","RKLB","S","TSLA"]),
     PlayerRoster(id: "lee",    name: "Lee",
-        tickers: ["SPY"]),
+        tickers: ["PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD","AAPL"]),
 ]
 
 // Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
@@ -144,6 +153,21 @@ let ERROR_LOG_FILE = ARCHIVE_DIR.appendingPathComponent("digest-error.log")
 
 // MARK: - Args
 
+// Refresh tier — controls which entities and which windows are regenerated.
+// fast   — runs after every 15-min price refresh. Touches only game 1D/1W/1M
+//          digests, and only by re-rendering their stored templates against
+//          the latest prices.json. Zero AI calls, finishes in <2s.
+// daily  — runs once weekday morning. Full RSS fetch + scoring, regenerates
+//          holdings 1D + 1W, portfolios 1D + 1W, and ALL game windows (the
+//          three short-window game digests are emitted with `digestTemplate`
+//          fields so the fast tier can re-render them later).
+// weekly — runs Saturday morning. No RSS fetch. Regenerates the slow windows
+//          for both holdings and portfolios: 1M / 3M / 1Y / ALL. Game digests
+//          are not touched (they refresh daily / fast).
+enum Scope: String {
+    case fast, daily, weekly
+}
+
 struct Args {
     var tickers: [String] = []      // empty = all
     var check = false
@@ -151,6 +175,7 @@ struct Args {
     var verbose = false
     var fetchOnly = false
     var digestsOnly = false
+    var scope: Scope = .daily
     var outputPath = DEFAULT_OUTPUT
 }
 
@@ -166,6 +191,14 @@ func parseArgs() -> Args {
         case "--verbose", "-v": a.verbose = true
         case "--fetch-only":    a.fetchOnly = true
         case "--digests-only":  a.digestsOnly = true
+        case "--scope":
+            i += 1
+            if i < argv.count, let s = Scope(rawValue: argv[i].lowercased()) {
+                a.scope = s
+            } else {
+                fputs("--scope requires one of: fast, daily, weekly\n", stderr)
+                exit(2)
+            }
         case "--output":
             i += 1
             if i < argv.count { a.outputPath = URL(fileURLWithPath: argv[i]) }
@@ -180,6 +213,19 @@ func parseArgs() -> Args {
     }
     return a
 }
+
+// Windows each scope is responsible for, per entity. Anything not in the list
+// is preserved from the existing digests.json (the loader is responsible for
+// reading the prior file and merging).
+let HOLDING_WINDOWS_DAILY: [WindowKey]  = [.d1, .w1]
+let HOLDING_WINDOWS_WEEKLY: [WindowKey] = [.m1, .m3, .y1, .all]
+let PORTFOLIO_WINDOWS_DAILY: [WindowKey]  = [.d1, .w1]
+let PORTFOLIO_WINDOWS_WEEKLY: [WindowKey] = [.m1, .m3, .y1, .all]
+
+// Game digests emitted with a `digestTemplate` (rendered & live-substituted
+// by the fast tier on every cron tick). The other game windows are regenerated
+// daily but not templated — their pcts are stale until the next morning run.
+let TEMPLATED_GAME_WINDOWS: Set<WindowKey> = [.d1, .w1, .m1]
 
 // MARK: - Logging
 
@@ -306,6 +352,14 @@ struct WindowDigest: Codable {
     var daysOfData: Int
     var daysRequired: Int
     var sources: [SourceArticle]?
+    // Templated prose — present only for game 1D / 1W / 1M digests. Tokens of
+    // the form {{TICKER}} or {{user:USERID}} mark the spots where a live
+    // percentage should be substituted by the fast tier. The morning daily run
+    // generates the prose, extracts the template, and stores both. Each fast
+    // tier tick reads `digestTemplate`, substitutes live pcts from prices.json,
+    // and overwrites `digest`. `digest` is always the rendered (display-ready)
+    // form; `digestTemplate` is the source.
+    var digestTemplate: String? = nil
 }
 
 struct OutputJSON: Codable {
@@ -831,8 +885,8 @@ struct TickerOutcome {
     let aiEngineUsed: Bool
 }
 
-func processTicker(_ ticker: String, args: Args) async -> TickerOutcome {
-    log("• \(ticker): start")
+func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKey.allCases) async -> TickerOutcome {
+    log("• \(ticker): start (windows=\(windows.map { $0.rawValue }.joined(separator: ",")))")
     var perWindow: [String: WindowDigest] = [:]
     let nowISO = isoFormatter.string(from: Date())
     let today = todayET()
@@ -952,7 +1006,7 @@ func processTicker(_ ticker: String, args: Args) async -> TickerOutcome {
     let entries: [(String, WindowDigest)] = await withTaskGroup(
         of: (String, WindowDigest).self
     ) { group -> [(String, WindowDigest)] in
-        for w in WindowKey.allCases {
+        for w in windows {
             let articles = articlesForWindow(ticker: ticker, window: w, gameAge: gameAge)
             let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
             let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
@@ -1170,8 +1224,8 @@ func relevantTickersForPortfolio(_ movers: UserMovers) -> [String] {
     return picked
 }
 
-func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int) async -> PortfolioOutcome {
-    log("• \(player.name)'s portfolio: start (\(player.tickers.count) tickers)")
+func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int, windows: [WindowKey] = WindowKey.allCases) async -> PortfolioOutcome {
+    log("• \(player.name)'s portfolio: start (\(player.tickers.count) tickers, windows=\(windows.map { $0.rawValue }.joined(separator: ",")))")
     var perWindow: [String: WindowDigest] = [:]
     let nowISO = isoFormatter.string(from: Date())
 
@@ -1183,7 +1237,7 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int)
     let entries: [(String, WindowDigest)] = await withTaskGroup(
         of: (String, WindowDigest).self
     ) { group -> [(String, WindowDigest)] in
-        for w in WindowKey.allCases {
+        for w in windows {
             let movers = computeUserMovers(player: player, data: data, window: w)
             let relevant = relevantTickersForPortfolio(movers)
             let tagged = portfolioArticlesForWindow(
@@ -1490,6 +1544,15 @@ func gameNewsArticles(window: WindowKey, gameAge: Int) -> [TaggedArticle] {
     return Array(pool.prefix(15))
 }
 
+// Built dynamically from PLAYERS so the prompt never drifts from lib/picks.ts.
+func playersBlockForPrompt() -> String {
+    var lines: [String] = []
+    for p in PLAYERS {
+        lines.append("  \(p.name): \(p.tickers.joined(separator: ", "))")
+    }
+    return lines.joined(separator: "\n")
+}
+
 func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int) -> String {
     let standingsBlock = formatStandingsBlock(standings)
     let scope: String
@@ -1510,10 +1573,7 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     You are commenting on the live leaderboard of a 4-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000.
 
     PLAYERS (this is the only source of truth for who owns what):
-      Brian: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD
-      Kevin: TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT
-      Rick:  COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA
-      Lee:   SPY (single position)
+    \(playersBlockForPrompt())
 
     LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to 4th):
     \(standingsBlock)
@@ -1528,18 +1588,112 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     Sentence 2: Lead with the biggest drag event of \(scope) — same structure: specific catalyst from the article archive, what it implies, then tie it to the player it hurt and their portfolio % loss.
     Sentence 3: A specific forward-looking catalyst from the article archive that could move the standings — upcoming earnings date, FDA milestone, product launch, named macro risk. Tie it to the player whose holding it would affect.
 
+    PERCENTAGE FORMAT (MANDATORY): Every single percentage you write must be formatted as TOKEN [SIGN+DECIMAL%], where TOKEN is either a ticker symbol (uppercase, no surrounding punctuation) or a player's first name (Brian, Kevin, Rick, or Lee). Always include the sign and exactly two decimal places. Examples: ASTS [-10.23%], TSLA [+5.62%], Brian [+8.45%], Lee [-2.10%]. Do NOT write "TSLA rose 5%" or "Brian is up 8.45%" or "TSLA up about five percent" — always the bracketed form, no exceptions. Place the bracketed percentage immediately after its TOKEN, separated by one space. This format is parsed by an automated post-processor.
+
     Hard rules: Use the player names verbatim. Quote percentages from STANDINGS exactly — do not invent numbers or events. Do NOT use the structure "X is leading because of TICKER, Y is trailing because of TICKER" — that's just restating the standings table the reader already sees. Open every sentence with the news event, not the player or the percentage. Do not preface the digest. Do not number the sentences. Do not use bullet points.
 
     The PLAYERS section above is the only source of truth for which player owns which ticker. Before attributing a ticker move to a player, verify the ticker appears in that player's pick list. If a high-signal article relates to a ticker no one owns, you may omit it. Never invent ownership.
     """
 }
 
+// MARK: - Templating (Phase 3)
+//
+// The morning daily run prompts Apple Intelligence to format every percentage
+// as "TOKEN [±X.XX%]" where TOKEN is a ticker or a player first name. After
+// generation, we walk the prose and replace each match with a placeholder
+// (`{{TICKER}}` or `{{user:USERID}}`). Both the templated and rendered forms
+// are saved so the fast tier can re-render quickly without an AI call.
+
+let TEMPLATE_TOKEN_PATTERN = #"\b([A-Z][A-Za-z]{0,9})\s+\[([+-]?\d+(?:\.\d+)?)%\]"#
+let TEMPLATE_PLACEHOLDER_PATTERN = #"\{\{((?:user:)?[A-Za-z]+)\}\}"#
+
+// Map of "first name as the AI writes it" → user id. Lowercased name keys so
+// case-insensitive lookup works without per-call lowercasing.
+let PLAYER_NAME_TO_ID: [String: String] = {
+    var m: [String: String] = [:]
+    for p in PLAYERS { m[p.name.lowercased()] = p.id }
+    return m
+}()
+
+let KNOWN_TICKERS: Set<String> = Set(DEFAULT_TICKERS)
+
+// Returns the templated string. Tokens that we don't recognize as either a
+// ticker or a player name are left untouched — they'll just be static prose
+// at render time.
+func extractGameDigestTemplate(_ prose: String) -> String {
+    guard let regex = try? NSRegularExpression(pattern: TEMPLATE_TOKEN_PATTERN) else { return prose }
+    let ns = prose as NSString
+    let matches = regex.matches(in: prose, range: NSRange(location: 0, length: ns.length))
+    var result = prose
+    // Reverse iteration so range offsets from the original string remain valid
+    // for the not-yet-replaced (earlier) matches.
+    for m in matches.reversed() {
+        let tokenRange = m.range(at: 1)
+        let token = ns.substring(with: tokenRange)
+        let placeholder: String?
+        if KNOWN_TICKERS.contains(token) {
+            placeholder = "{{\(token)}}"
+        } else if let uid = PLAYER_NAME_TO_ID[token.lowercased()] {
+            placeholder = "{{user:\(uid)}}"
+        } else {
+            placeholder = nil
+        }
+        guard let p = placeholder else { continue }
+        let fullRange = m.range
+        let nsResult = result as NSString
+        let prefix = nsResult.substring(with: NSRange(location: 0, length: fullRange.location))
+        let suffix = nsResult.substring(from: fullRange.location + fullRange.length)
+        result = prefix + token + " " + p + suffix
+    }
+    return result
+}
+
+// Substitute placeholders in a templated game digest with live pcts read from
+// prices.json. `window` controls which range each placeholder represents
+// (the game digest's window is the implicit lookback).
+func renderGameDigestTemplate(_ template: String, window: WindowKey, data: PriceDataLite) -> String {
+    guard let regex = try? NSRegularExpression(pattern: TEMPLATE_PLACEHOLDER_PATTERN) else { return template }
+    let ns = template as NSString
+    let matches = regex.matches(in: template, range: NSRange(location: 0, length: ns.length))
+    var result = template
+    for m in matches.reversed() {
+        let tokenRange = m.range(at: 1)
+        let token = ns.substring(with: tokenRange)
+        let pct: Double?
+        if token.hasPrefix("user:") {
+            let uid = String(token.dropFirst("user:".count))
+            pct = liveUserPct(userId: uid, window: window, data: data)
+        } else {
+            pct = liveTickerPct(ticker: token, window: window, data: data)
+        }
+        guard let value = pct else { continue }
+        let formatted = String(format: "[%+.2f%%]", value * 100)
+        let fullRange = m.range
+        let nsResult = result as NSString
+        let prefix = nsResult.substring(with: NSRange(location: 0, length: fullRange.location))
+        let suffix = nsResult.substring(from: fullRange.location + fullRange.length)
+        result = prefix + formatted + suffix
+    }
+    return result
+}
+
+func liveTickerPct(ticker: String, window: WindowKey, data: PriceDataLite) -> Double? {
+    guard let series = data.tickers[ticker] else { return nil }
+    let r = rangeCloses(series: series, data: data, window: window)
+    return r.start == 0 ? nil : (r.end - r.start) / r.start
+}
+
+func liveUserPct(userId: String, window: WindowKey, data: PriceDataLite) -> Double? {
+    guard let player = PLAYERS.first(where: { $0.id == userId }) else { return nil }
+    return computeUserMovers(player: player, data: data, window: window).pct
+}
+
 struct GameOutcome {
     let windows: [String: WindowDigest]
 }
 
-func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome {
-    log("• Game-wide summary: start")
+func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] = WindowKey.allCases) async -> GameOutcome {
+    log("• Game-wide summary: start (\(windows.map { $0.rawValue }.joined(separator: ", ")))")
     var perWindow: [String: WindowDigest] = [:]
     let nowISO = isoFormatter.string(from: Date())
 
@@ -1551,7 +1705,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
     let entries: [(String, WindowDigest)] = await withTaskGroup(
         of: (String, WindowDigest).self
     ) { group -> [(String, WindowDigest)] in
-        for w in WindowKey.allCases {
+        for w in windows {
             let standings = computeStandings(data: data, window: w)
             let articles = gameNewsArticles(window: w, gameAge: gameAge)
             let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
@@ -1588,6 +1742,19 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
                     logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
                 }
 
+                // For the templated windows, extract a placeholder template from
+                // the freshly-generated prose. Future fast-tier ticks substitute
+                // live pcts into the template without invoking the AI.
+                var templateText: String? = nil
+                if let d = digestText, TEMPLATED_GAME_WINDOWS.contains(w) {
+                    let t = extractGameDigestTemplate(d)
+                    if t.contains("{{") {
+                        templateText = t
+                    } else {
+                        logErr("processGameSummary \(w.rawValue): no template tokens extracted — model likely skipped the bracket-pct format. Fast tier will leave this window's prose untouched.")
+                    }
+                }
+
                 let articleObjs = articles.map { $0.article }
                 let scores = articleObjs.compactMap { $0.relevanceScore }
                 let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
@@ -1600,7 +1767,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
                         score: a.relevanceScore ?? 0
                     )
                 }
-                log("  Game \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, \(standings.count) players)")
+                log("  Game \(w.rawValue) → \(digestText != nil ? "✓" : "—")\(templateText != nil ? " [template]" : "") (\(articles.count) articles, \(standings.count) players)")
                 return (w.rawValue, WindowDigest(
                     digest: digestText,
                     articleCount: articleObjs.count,
@@ -1611,7 +1778,8 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
                     dataMaturity: maturity,
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
-                    sources: Array(sources)
+                    sources: Array(sources),
+                    digestTemplate: templateText
                 ))
             }
         }
@@ -1631,22 +1799,81 @@ func processGameSummary(data: PriceDataLite, gameAge: Int) async -> GameOutcome 
 
 // MARK: - Output writer
 
-func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome], game: GameOutcome?, to outputURL: URL) throws {
+// Load an existing digests.json. Returns nil on first run (file missing) or
+// on a decode failure — both cases just mean "no prior content to merge."
+func loadExistingDigests(at url: URL) -> OutputJSON? {
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    let decoder = JSONDecoder()
+    do {
+        return try decoder.decode(OutputJSON.self, from: data)
+    } catch {
+        logErr("Could not decode existing \(url.lastPathComponent) — starting from scratch (\(error.localizedDescription))")
+        return nil
+    }
+}
+
+// Merge writer. `existing` is the prior contents of digests.json. Anything the
+// caller didn't regenerate this run is preserved from `existing`. Holdings or
+// portfolios whose key isn't in the current roster (e.g. SPY after Lee's swap)
+// are dropped.
+func writeOutputJSON(
+    _ outcomes: [TickerOutcome],
+    portfolios: [PortfolioOutcome],
+    game: GameOutcome?,
+    existing: OutputJSON?,
+    to outputURL: URL
+) throws {
+    let validTickers = Set(DEFAULT_TICKERS)
+    let validUserIds = Set(PLAYERS.map { $0.id })
+
+    // Holdings: start with existing (filtered to current roster), overlay
+    // any per-window updates from this run.
     var holdings: [String: [String: WindowDigest]] = [:]
+    if let ex = existing {
+        for (t, w) in ex.holdings where validTickers.contains(t) {
+            holdings[t] = w
+        }
+    }
     for o in outcomes where !o.windows.isEmpty {
-        holdings[o.ticker] = o.windows
+        var merged = holdings[o.ticker] ?? [:]
+        for (k, v) in o.windows {
+            merged[k] = v
+        }
+        holdings[o.ticker] = merged
     }
+
+    // Portfolios: same merge pattern.
     var portfolioBlock: [String: [String: WindowDigest]] = [:]
-    for p in portfolios where !p.windows.isEmpty {
-        portfolioBlock[p.userId] = p.windows
+    if let ex = existing, let pf = ex.portfolios {
+        for (uid, w) in pf where validUserIds.contains(uid) {
+            portfolioBlock[uid] = w
+        }
     }
-    let gameBlock = (game?.windows.isEmpty == false) ? game?.windows : nil
+    for p in portfolios where !p.windows.isEmpty {
+        var merged = portfolioBlock[p.userId] ?? [:]
+        for (k, v) in p.windows {
+            merged[k] = v
+        }
+        portfolioBlock[p.userId] = merged
+    }
+
+    // Game: overlay per-window.
+    var gameBlock: [String: WindowDigest] = [:]
+    if let ex = existing, let g = ex.game {
+        gameBlock = g
+    }
+    if let g = game {
+        for (k, v) in g.windows {
+            gameBlock[k] = v
+        }
+    }
+
     let out = OutputJSON(
         generatedAt: isoFormatter.string(from: Date()),
         aiEngine: "AppleIntelligence",
         holdings: holdings,
         portfolios: portfolioBlock.isEmpty ? nil : portfolioBlock,
-        game: gameBlock
+        game: gameBlock.isEmpty ? nil : gameBlock
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -1655,7 +1882,56 @@ func writeOutputJSON(_ outcomes: [TickerOutcome], portfolios: [PortfolioOutcome]
     let parent = outputURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     try data.write(to: outputURL)
-    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios, \(gameBlock?.count ?? 0) game windows)")
+    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios, \(gameBlock.count) game windows)")
+}
+
+// MARK: - Fast tier (template re-render)
+//
+// Reads the existing digests.json, recomputes live pcts from prices.json, and
+// substitutes them into each templated game window. No AI calls; no RSS
+// fetching; intended to run after every 15-min price refresh.
+func runFastTier(args: Args) async {
+    guard let pricesURL = pricesURLFor(outputPath: args.outputPath),
+          let priceData = loadPriceData(at: pricesURL) else {
+        logErr("Fast tier: prices.json unavailable — leaving digests.json untouched.")
+        return
+    }
+    guard var existing = loadExistingDigests(at: args.outputPath) else {
+        logErr("Fast tier: no existing digests.json to render against — leaving untouched.")
+        return
+    }
+    var gameBlock = existing.game ?? [:]
+    var rendered = 0
+    let nowISO = isoFormatter.string(from: Date())
+    for w in TEMPLATED_GAME_WINDOWS {
+        let key = w.rawValue
+        guard var wd = gameBlock[key], let template = wd.digestTemplate else { continue }
+        let newProse = renderGameDigestTemplate(template, window: w, data: priceData)
+        wd.digest = newProse
+        wd.generatedAt = nowISO
+        gameBlock[key] = wd
+        rendered += 1
+    }
+    existing.game = gameBlock.isEmpty ? nil : gameBlock
+    existing.generatedAt = nowISO
+    if args.dryRun {
+        log("DRY RUN — would re-render \(rendered) game window(s).")
+        return
+    }
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    do {
+        let data = try encoder.encode(existing)
+        try data.write(to: args.outputPath)
+        log("✓ fast tier rendered \(rendered) game window(s).")
+    } catch {
+        logErr("Fast tier: failed to write \(args.outputPath.path): \(error.localizedDescription)")
+    }
+}
+
+func pricesURLFor(outputPath: URL) -> URL? {
+    let publicDir = outputPath.deletingLastPathComponent()
+    return publicDir.appendingPathComponent("data/prices.json")
 }
 
 // MARK: - Entry point
@@ -1677,15 +1953,48 @@ func runMain() async {
         return
     }
 
+    // Fast tier short-circuits before the AI availability check — it never
+    // invokes Apple Intelligence, just regex substitution.
+    if args.scope == .fast {
+        log("Stock News Digest — scope=fast (template re-render only)")
+        await runFastTier(args: args)
+        return
+    }
+
     if case .unavailable(let reason) = SystemLanguageModel.default.availability {
         logErr("Apple Intelligence unavailable (\(reason)) — skipping digest run. Previous digests.json keeps serving.")
         exit(0)        // soft skip
     }
 
     let tickers = args.tickers.isEmpty ? DEFAULT_TICKERS : args.tickers
-    log("Stock News Digest — \(tickers.count) ticker(s)")
+    log("Stock News Digest — \(tickers.count) ticker(s), scope=\(args.scope.rawValue)")
     log("Engine: Apple Intelligence on-device/PCC")
     if args.dryRun { log("DRY RUN — nothing will be written") }
+
+    // Scope dictates which windows each entity regenerates. The other windows
+    // stay frozen on disk and are merged in by writeOutputJSON.
+    let holdingsWindows: [WindowKey]
+    let portfolioWindows: [WindowKey]
+    let gameWindows: [WindowKey]
+    let skipFetch: Bool
+    switch args.scope {
+    case .daily:
+        holdingsWindows = HOLDING_WINDOWS_DAILY
+        portfolioWindows = PORTFOLIO_WINDOWS_DAILY
+        gameWindows = WindowKey.allCases    // game refreshes in full; 1D/1W/1M emit templates
+        skipFetch = args.digestsOnly        // honor the legacy flag
+    case .weekly:
+        holdingsWindows = HOLDING_WINDOWS_WEEKLY
+        portfolioWindows = PORTFOLIO_WINDOWS_WEEKLY
+        gameWindows = []                    // game is owned by daily + fast tiers
+        skipFetch = true                    // weekly never refetches RSS
+    case .fast:
+        // Unreachable — handled above.
+        return
+    }
+
+    var argsForWindows = args
+    if skipFetch { argsForWindows.digestsOnly = true }
 
     // Top level (across tickers / portfolios / game) stays sequential — the
     // bottleneck is Apple Intelligence, and the on-device + PCC serializers
@@ -1694,9 +2003,13 @@ func runMain() async {
     // so the per-window prompts at least pipeline through the model queue
     // back-to-back without per-call setup/teardown gaps.
     var outcomes: [TickerOutcome] = []
-    for t in tickers {
-        let o = await processTicker(t, args: args)
-        outcomes.append(o)
+    if !holdingsWindows.isEmpty {
+        for t in tickers {
+            let o = await processTicker(t, args: argsForWindows, windows: holdingsWindows)
+            outcomes.append(o)
+        }
+    } else {
+        log("Skipping per-ticker digests for scope=\(args.scope.rawValue).")
     }
 
     if args.fetchOnly {
@@ -1711,11 +2024,11 @@ func runMain() async {
     let runAllTickers = args.tickers.isEmpty
     var priceData: PriceDataLite? = nil
     if runAllTickers {
-        let publicDir = args.outputPath.deletingLastPathComponent()
-        let pricesURL = publicDir.appendingPathComponent("data/prices.json")
-        priceData = loadPriceData(at: pricesURL)
-        if priceData == nil {
-            logErr("Could not load prices.json at \(pricesURL.path) — Phase 2 + Phase 3 will be skipped.")
+        if let url = pricesURLFor(outputPath: args.outputPath) {
+            priceData = loadPriceData(at: url)
+            if priceData == nil {
+                logErr("Could not load prices.json at \(url.path) — Phase 2 + Phase 3 will be skipped.")
+            }
         }
     }
 
@@ -1724,12 +2037,14 @@ func runMain() async {
     // misleading prose) or when prices.json isn't readable. The full
     // all-tickers run hits this path daily.
     var portfolios: [PortfolioOutcome] = []
-    if runAllTickers, let pd = priceData {
+    if !portfolioWindows.isEmpty, runAllTickers, let pd = priceData {
         let gameAge = gameAgeInDays()
         for player in PLAYERS {
-            let p = await processPortfolio(player, data: pd, gameAge: gameAge)
+            let p = await processPortfolio(player, data: pd, gameAge: gameAge, windows: portfolioWindows)
             portfolios.append(p)
         }
+    } else if portfolioWindows.isEmpty {
+        log("Skipping portfolio rollups for scope=\(args.scope.rawValue).")
     } else if !runAllTickers {
         log("Skipping portfolio rollups (subset run).")
     } else {
@@ -1740,9 +2055,11 @@ func runMain() async {
     // for live standings, combines with the article archive to explain *why*
     // the leaderboard looks like it does. Same subset-skip rule as above.
     var game: GameOutcome? = nil
-    if runAllTickers, let pd = priceData {
+    if !gameWindows.isEmpty, runAllTickers, let pd = priceData {
         let gameAge = gameAgeInDays()
-        game = await processGameSummary(data: pd, gameAge: gameAge)
+        game = await processGameSummary(data: pd, gameAge: gameAge, windows: gameWindows)
+    } else if gameWindows.isEmpty {
+        log("Skipping game-wide summary for scope=\(args.scope.rawValue).")
     } else if !runAllTickers {
         log("Skipping game-wide summary (subset run).")
     }
@@ -1752,11 +2069,37 @@ func runMain() async {
         return
     }
 
+    let existing = loadExistingDigests(at: args.outputPath)
     do {
-        try writeOutputJSON(outcomes, portfolios: portfolios, game: game, to: args.outputPath)
+        try writeOutputJSON(outcomes, portfolios: portfolios, game: game, existing: existing, to: args.outputPath)
     } catch {
         logErr("Failed to write output JSON: \(error.localizedDescription)")
         exit(1)
+    }
+
+    // After a daily run, immediately render the templates so the on-disk
+    // digest.json reflects the current standings rather than the ones at
+    // generation time. This keeps the gap between "AI wrote it" and "user
+    // sees it" near zero on the morning run.
+    if args.scope == .daily, let url = pricesURLFor(outputPath: args.outputPath),
+       let pd = loadPriceData(at: url) {
+        guard var refreshed = loadExistingDigests(at: args.outputPath) else { return }
+        var gameBlock = refreshed.game ?? [:]
+        let nowISO = isoFormatter.string(from: Date())
+        for w in TEMPLATED_GAME_WINDOWS {
+            let key = w.rawValue
+            guard var wd = gameBlock[key], let tmpl = wd.digestTemplate else { continue }
+            wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd)
+            wd.generatedAt = nowISO
+            gameBlock[key] = wd
+        }
+        refreshed.game = gameBlock.isEmpty ? nil : gameBlock
+        refreshed.generatedAt = nowISO
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let d = try? encoder.encode(refreshed) {
+            try? d.write(to: args.outputPath)
+        }
     }
 }
 

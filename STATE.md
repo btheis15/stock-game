@@ -109,6 +109,7 @@ WindowDigest {
   daysOfData: number                 // distinct archive days available for this ticker
   daysRequired: number               // 1/7/30/90/365/1 for d1/w1/m1/m3/y1/all
   sources: { title, link, source, date, score }[] | null   // ≤6 surfaced in the panel
+  digestTemplate?: string | null     // present only on game 1D / 1W / 1M; see "Tiered refresh" below
 }
 
 window keys: "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL"
@@ -117,6 +118,20 @@ window keys: "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL"
 The web app maps the chart-tab `Range` ("1YR") to the digest window `"1Y"` via `rangeToDigestWindow()`. The `ALL` window is always mature (`daysRequired: 1`) and frames its prose around the 5-year game arc since 2026-02-05; 1M/3M/1Y stay `insufficient` until enough archive history accumulates.
 
 The article archive that feeds digests lives outside the repo at `~/StockDigests/articles/{TICKER}/{YYYY-MM-DD}.json` on the Mac mini — Mac-only state, like a cache. Logs at `~/StockDigests/digest.log` and `digest-error.log`.
+
+#### Tiered refresh (digest pipeline)
+
+`scripts/digest.swift` has three scopes; each scope is responsible for a disjoint slice of `digests.json`:
+
+| Scope | Fires from | RSS fetch | AI calls | Updates |
+|---|---|---|---|---|
+| `fast` | `cron-update.sh` every 15 min, after the price fetch | no | none | game `1D / 1W / 1M` — re-renders each `digestTemplate` with live pcts from the freshly-written `prices.json` |
+| `daily` | `digest-update.sh` Mon–Fri at the scheduled time | yes (subject to `DIGEST_MODE=digests-only`) | many | holdings `1D + 1W`, portfolios `1D + 1W`, game ALL windows (1D/1W/1M emitted with `digestTemplate`) |
+| `weekly` | `digest-update.sh` on Saturday at the scheduled time | no | many | holdings `1M / 3M / 1Y / ALL`, portfolios `1M / 3M / 1Y / ALL` |
+
+Anything a given scope doesn't touch is preserved from the prior `digests.json` — `writeOutputJSON` reads the existing file and overlays only the windows it just regenerated. Holdings or portfolios whose key isn't in the current roster (e.g. SPY after the Lee swap) are pruned at merge time.
+
+**Templated game prose (Phase 3).** The daily run instructs Apple Intelligence to format every percentage as `TOKEN [±X.XX%]`, where TOKEN is a ticker symbol or player first name. After generation, `extractGameDigestTemplate` replaces those `TOKEN [±X.XX%]` occurrences with `{{TICKER}}` or `{{user:USERID}}` placeholders and stores the result in `WindowDigest.digestTemplate` (alongside the rendered `digest`). The next 15-min `fast` tier reads each game template, computes the live pct for each placeholder via `rangeCloses` / `computeUserMovers`, and writes the substituted prose back to `digest`. Sub-second; no AI involved. If the model ever drifts from the bracket format the extractor logs a warning and that window's prose just stays frozen until the next daily run — no crash.
 
 ## 4. Portfolio math (`lib/portfolio.ts`)
 

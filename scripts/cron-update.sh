@@ -79,11 +79,22 @@ fi
 log "fetching prices"
 npm run --silent fetch-prices
 
-# 2) Commit prices if they changed. Stage only prices.json so unrelated WIP
-# never gets auto-committed.
-if [ -n "$(git status --porcelain public/data/prices.json)" ]; then
-  log "data changed — committing"
-  git add public/data/prices.json
+# 2) Fast-tier digest re-render — substitutes live pcts from the new prices.json
+# into the templated game digests (1D / 1W / 1M). No AI, no RSS; just regex.
+# Skipped silently if digests.json doesn't exist yet (first run) or if no
+# templates are present (pre-Phase-3 file). Failures here never block the
+# price commit + push.
+log "fast tier — re-rendering game digest templates"
+if ! swift "$SCRIPT_DIR/digest.swift" --output "$REPO_DIR/public/digests.json" --scope fast; then
+  log "fast tier exited non-zero; continuing with the price push"
+fi
+
+# 3) Commit prices + (potentially rendered) digests if anything changed. We
+# stage the two paths explicitly so unrelated WIP never gets auto-committed.
+status_lines="$(git status --porcelain public/data/prices.json public/digests.json)"
+if [ -n "$status_lines" ]; then
+  log "data and/or digests changed — committing"
+  git add public/data/prices.json public/digests.json
   git commit -m "data: $(ts)"
 else
   log "no data change since last run"

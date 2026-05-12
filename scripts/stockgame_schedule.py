@@ -25,6 +25,8 @@ LOG_FILE = "/tmp/stock-game.log"
 
 # Mon=0 ... Sun=6
 WEEKEND = {5, 6}
+SATURDAY = 5
+SUNDAY = 6
 
 
 class SchedulerApp:
@@ -169,7 +171,12 @@ class SchedulerApp:
 
         tk.Label(
             self.root,
-            text="Runs once per weekday. Independent of the 15-min stock refresh — both can run concurrently.",
+            text=(
+                "Mon–Fri fires the daily briefing (1D + 1W holdings/portfolios, "
+                "all game windows). Saturday fires the weekly slow tier (1M/3M/1Y/ALL "
+                "holdings/portfolios, no RSS). Sunday skips. Independent of the 15-min "
+                "stock refresh — both can run concurrently."
+            ),
             fg="#666",
             font=("", 9),
             wraplength=400,
@@ -369,18 +376,34 @@ class SchedulerApp:
         threading.Thread(target=self._run_digest_with_guard, daemon=True).start()
 
     # ---------------- DAILY DIGEST ----------------
+    def _digest_scope_for_day(self, weekday):
+        """Mon-Fri → daily briefing. Saturday → weekly slow-tier (1M/3M/1Y/ALL
+        of holdings + portfolios). Sunday → skip entirely."""
+        if weekday == SATURDAY:
+            return "weekly"
+        if weekday == SUNDAY:
+            return None
+        return "daily"
+
     def _next_daily_digest_time(self, now):
-        """Next datetime to fire the daily digest. Today at the configured time
-        if it hasn't passed yet, otherwise tomorrow. Skips Sat/Sun if the
-        weekdays-only checkbox is on."""
+        """Next datetime to fire a digest. Today at the configured time if it
+        hasn't passed yet, otherwise tomorrow. Always skips Sunday. When
+        weekdays-only is on, also skips Saturday — otherwise Saturday runs the
+        weekly slow tier."""
         if self.digest_minutes is None:
             return None
         candidate = datetime(now.year, now.month, now.day) + timedelta(minutes=self.digest_minutes)
         if candidate <= now:
             candidate += timedelta(days=1)
-        if self.weekdays_only_var.get():
-            while candidate.weekday() in WEEKEND:
+        while True:
+            scope = self._digest_scope_for_day(candidate.weekday())
+            if scope is None:
                 candidate += timedelta(days=1)
+                continue
+            if scope == "weekly" and self.weekdays_only_var.get():
+                candidate += timedelta(days=1)
+                continue
+            break
         return candidate
 
     def _schedule_digest_at(self, run_at):
@@ -401,7 +424,11 @@ class SchedulerApp:
         # non-fast-forward push).
         if self._wait_and_start_digest():
             try:
-                self._run_digest()
+                scope = self._digest_scope_for_day(scheduled_for.weekday())
+                if scope is None:
+                    print("Skipping briefing (Sunday).")
+                else:
+                    self._run_digest(scope=scope)
             finally:
                 self._finish_digest()
         else:
@@ -418,23 +445,26 @@ class SchedulerApp:
         finally:
             self._finish_digest()
 
-    def _run_digest(self):
+    def _run_digest(self, scope=None):
         if not os.path.exists(DIGEST_SCRIPT):
             print(f"Digest script not found: {DIGEST_SCRIPT}")
             return
+        if scope is None:
+            scope = self._digest_scope_for_day(datetime.now().weekday()) or "daily"
         try:
             start_time = datetime.now().strftime("%m/%d/%Y %-I:%M:%S%p")
             mode = "digests-only" if self.skip_fetch_var.get() else "full"
-            print(f"Briefing started at {start_time} (mode={mode}).")
+            print(f"Briefing started at {start_time} (scope={scope}, mode={mode}).")
             self._on_main_thread(
                 self.last_digest_label.config,
-                text=f"Briefing running… (started {start_time}, mode={mode})",
+                text=f"Briefing running… (started {start_time}, scope={scope}, mode={mode})",
                 fg="#666",
             )
-            # Pass mode through env — digest-update.sh reads DIGEST_MODE and
-            # forwards --digests-only to digest.swift when set.
+            # Pass scope + mode through env — digest-update.sh reads both and
+            # picks the right --scope / --digests-only flags for digest.swift.
             env = os.environ.copy()
             env["DIGEST_MODE"] = mode
+            env["DIGEST_SCOPE"] = scope
             result = subprocess.run(["bash", DIGEST_SCRIPT], check=False, env=env)
             finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
             if result.returncode == 0:

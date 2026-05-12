@@ -38,6 +38,12 @@ export interface WindowDigest {
   daysOfData: number;
   daysRequired: number;
   sources: SourceArticle[] | null;
+  // Game 1D / 1W / 1M digests carry a template with `{{TICKER}}` /
+  // `{{user:USERID}}` placeholders. The cron's fast tier substitutes live
+  // pcts into this every 15 min so `digest` reflects current standings
+  // without an AI call. UI never reads this directly — `digest` is the
+  // rendered, display-ready string.
+  digestTemplate?: string | null;
 }
 
 export interface DigestsJson {
