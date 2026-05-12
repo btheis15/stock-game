@@ -248,6 +248,33 @@ a digest time, hit **Schedule Run**. "Weekdays only" still skips Sat + Sun
 for the 15-min stock refresh; the weekly digest fires on Saturday regardless
 (or also skips Sat if you check the "weekdays only" box).
 
+### Working on this from the laptop without restarting the Mac mini
+
+GitHub is the source of truth. Every change you push from the laptop flows
+to the Mac mini automatically on its next cron tick:
+
+- **bash, Swift, TS** (cron-update.sh, digest.swift, fetch-prices.ts,
+  lib/picks.ts, components/…) — re-read from disk every time they run.
+  Nothing to do; the next tick picks them up.
+- **Python scheduler** (stockgame_schedule.py) — the long-running tkinter
+  app, which would otherwise sit on the version it launched with. The
+  scheduler watches its own source file every 60 s; when cron-update.sh's
+  `git pull` brings down a newer copy, the scheduler persists its active
+  schedule to `~/.stockgame-schedule.json`, syntax-checks the new file,
+  and re-execs itself. On launch it restores the schedule, deletes the
+  state file, and shows "Code: re-launched with latest version" in the
+  GitHub-sync row at the bottom of the window.
+
+The "Auto-restart on GitHub update" checkbox is on by default. There's
+also a manual "Restart now" button next to it for when you want a
+just-pushed change live immediately rather than within 60 s. Either way:
+if your push has a Python syntax error, the `py_compile` check inside
+the restart aborts the re-exec, the old process keeps running, and the
+sync label flips red so you know to push a fix.
+
+So: edit on the laptop, commit, push, walk away. The Mac mini stays on
+the latest `origin/main` commit without intervention.
+
 ### How the live-pct templating works
 
 The daily Apple Intelligence run for the game-wide 1D / 1W / 1M briefings

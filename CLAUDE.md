@@ -53,16 +53,23 @@ you.
 
   [Mac mini]                                              [Laptop]
   ──────────                                              ────────
-  scheduler UI (tkinter)                                  feature branches
-  threading.Timer fires                                   PR → CI build → merge
-        ↓                                                 (no direct push to main
-  scripts/cron-update.sh                                   from laptop)
-   ├─ rebase onto origin/main          ←─── git pull          ↑
-   ├─ conditional npm install                                 │
-   ├─ npm run fetch-prices              writes prices.json   │
-   ├─ git commit -m "data: ..."                               │
-   └─ git push                          ─── webhook ──→  [Vercel] rebuild → CDN
-                                                                ↓
+  scheduler UI (tkinter, long-running)                    edits, commits, pushes
+   │                                                            │
+   ├─ threading.Timer  →  cron-update.sh    (every ~15 min)     │
+   ├─ threading.Timer  →  digest-update.sh  (Mon–Fri / Sat AM)  │
+   └─ self-watch: poll own mtime every 60 s — when cron-update  │
+       brings down a newer stockgame_schedule.py via git pull,  │
+       persist active schedule + os.execv to relaunch on        │
+       latest code. No manual SSH needed.                       │
+              ↓                                                  ↓
+      scripts/cron-update.sh                                 git push
+       ├─ git pull --rebase                ←─── pulls latest ────┘
+       ├─ conditional npm install
+       ├─ npm run fetch-prices            writes prices.json
+       ├─ swift digest.swift --scope fast  re-renders game 1D/1W/1M
+       │                                    templates with live pcts
+       └─ git commit + push                ─── webhook ──→ [Vercel] rebuild → CDN
+                                                                  ↓
                                                               [iPhone PWA]
                                                               fresh on every open
                                                               (cache: must-revalidate)
@@ -76,9 +83,14 @@ Three principles fall out of this:
 2. **`main` is the deploy trigger.** GitHub→Vercel webhook redeploys on
    every push to `main`. The Mac mini doesn't run Vercel CLI — it just
    pushes data commits and the webhook handles deploy.
-3. **The Mac mini and laptop never collide.** The cron does
-   `git pull --rebase --autostash origin main` before fetching prices, so
-   any laptop merges land cleanly on the mini before the next data push.
+3. **The Mac mini and laptop never collide, and never drift.** Every
+   cron tick does `git pull --rebase --autostash origin main` before
+   doing work, so laptop pushes land cleanly on the mini. Bash + Swift
+   + TS files re-read their source on every fire, so commits are live
+   on the next tick. The tkinter scheduler is the lone long-running
+   process; it auto-restarts itself when a new version of its source
+   appears on disk (see §8.5), keeping the Mac mini at exactly the
+   commit on `origin/main` with zero manual intervention.
 
 ---
 
@@ -637,16 +649,41 @@ Defensive ordering:
   - **Sunday** → skipped.
   - The "Weekdays only" checkbox additionally suppresses the Saturday
     weekly fire when on.
-- Buttons: Schedule Run / Run Now / Stop / Open Log. "Run Now" for
-  briefings uses today's calendar-day scope (Sat → weekly, otherwise
-  daily).
-- Status labels: "Next refresh: ..." and "Last run: ✓..." or "✗...".
-- **Edits to this Python file require closing + relaunching the tkinter
-  window** (`npm run stockgame`) — the script is loaded into memory once.
-  This is the *only* file in the pipeline where edits don't auto-flow on
-  the next fire. `cron-update.sh`, `digest-update.sh`, `fetch-prices.ts`,
-  `digest.swift`, and any TS/TSX are re-read every fire by their
-  respective interpreters.
+- Buttons: Schedule Run / Run Now / Stop / Open Log / Run Briefing Now /
+  Restart now (pull + re-exec). "Run Briefing Now" uses today's
+  calendar-day scope (Sat → weekly, otherwise daily) and the button label
+  reflects that scope.
+- Status labels: "Next refresh: ...", "Last run: ✓...", "Next briefing:
+  ... (daily|weekly)", "Last briefing: ... (scope) ✓", and "Code: in sync
+  / update pending / re-launching".
+- **GitHub sync (auto-restart)**: The bash + Swift + TS pieces of the
+  pipeline are re-read from disk on every fire, so any commit you push
+  from the laptop is picked up automatically on the next cron tick. The
+  Python scheduler is the one exception — it loads its source once at
+  launch. To close that gap, the scheduler polls `os.path.getmtime`
+  on its own source file every 60 s. When `cron-update.sh`'s
+  `git pull --rebase` brings down a newer version of
+  `stockgame_schedule.py`, the watcher trips:
+  1. Sets the "Code: update pending" banner.
+  2. If "Auto-restart on GitHub update" is checked (default ON) AND no
+     refresh / digest run is currently in progress, the scheduler
+     persists its active schedule to `~/.stockgame-schedule.json`,
+     `py_compile`-checks the new source, then `os.execv`s itself.
+  3. The freshly-launched process reads `~/.stockgame-schedule.json` on
+     startup, re-applies the schedule (price interval + window +
+     briefing time), and deletes the state file. The user sees "Code:
+     re-launched with latest version (state restored from …)".
+- **Safety net**: a Python syntax error in a pushed commit is caught by
+  the `py_compile` check pre-execv. The restart is aborted, the old
+  process keeps running, and the sync label flips red so the laptop
+  user knows to push a fix.
+- **Manual "Restart now" button**: forces a `git pull` + py_compile +
+  re-exec without waiting for the polling cycle. Useful when a code
+  push lands seconds before you want it active. Refuses to restart
+  if a price refresh or briefing is currently mid-flight.
+- **State file lives at `~/.stockgame-schedule.json`** (outside the repo,
+  no commit pollution). Gets deleted on consume — a fresh manual launch
+  always starts from the default UI selections.
 
 ### §8.6. `scripts/digest.swift` + `scripts/digest-update.sh` (the briefing pipeline)
 

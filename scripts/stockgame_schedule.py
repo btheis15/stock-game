@@ -9,9 +9,12 @@ Run:
 or  npm run stockgame
 """
 
+import json
 import os
+import py_compile
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import tkinter as tk
@@ -19,9 +22,18 @@ from datetime import datetime, timedelta
 from tkinter import messagebox
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRIPT_PATH = os.path.abspath(__file__)
 REFRESH_SCRIPT = os.path.join(REPO_DIR, "scripts", "cron-update.sh")
 DIGEST_SCRIPT = os.path.join(REPO_DIR, "scripts", "digest-update.sh")
 LOG_FILE = "/tmp/stock-game.log"
+# Persisted schedule state so the auto-restart on GitHub update is seamless —
+# stockgame_schedule.py re-execs, then on launch re-applies whatever schedule
+# was active before. Lives outside the repo so it doesn't leak into commits.
+STATE_FILE = os.path.expanduser("~/.stockgame-schedule.json")
+# How often to recheck whether the on-disk source is newer than the version
+# this process loaded. The bash cron pulls every ~15 min; one-minute polling
+# means the auto-restart fires within ~60 s of a `git pull` landing.
+CODE_CHECK_INTERVAL_MS = 60_000
 
 # Mon=0 ... Sun=6
 WEEKEND = {5, 6}
@@ -34,6 +46,17 @@ class SchedulerApp:
         self.root = root
         self.root.title("Stock Game Scheduler")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        # mtime of stockgame_schedule.py at process startup. _check_for_code_update
+        # compares against this to spot when cron-update.sh's `git pull` brings
+        # down a newer version. Stored as float seconds — exact comparison only,
+        # no tolerance needed since git writes the file with a fresh mtime.
+        try:
+            self.script_loaded_mtime = os.path.getmtime(SCRIPT_PATH)
+        except OSError:
+            self.script_loaded_mtime = 0.0
+        self.code_update_pending = False
+        self.is_restarting = False
 
         self.refresh_timer = None
         self.refresh_scheduled_time = None
@@ -74,6 +97,12 @@ class SchedulerApp:
         self._create_status_labels()
         self._create_buttons()
         self._start_keep_awake()
+        # Restore any active schedule from a prior session (covers the
+        # auto-restart-on-GitHub-update path; on a fresh manual launch the
+        # state file just doesn't exist).
+        self._restore_state_if_present()
+        # Start the file-mtime watcher loop.
+        self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
 
     # ---------------- UI ----------------
     def _create_refresh_section(self):
@@ -275,7 +304,40 @@ class SchedulerApp:
             self.root, text="Open Log", command=self.open_log
         )
         self.open_log_button.grid(
-            row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
+            row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
+        )
+
+        # --- GitHub sync row (auto-pulled by the cron's `git pull --rebase` ---
+        # The bash + Swift + TS pieces of the pipeline are re-read from disk on
+        # every fire. The tkinter app is the one exception: it loads its source
+        # once at launch. This row detects when cron-update.sh has pulled down
+        # a newer version of this file and offers (or auto-fires) a clean
+        # re-exec that re-applies the current schedule from STATE_FILE.
+        tk.Label(
+            self.root,
+            text="GitHub sync",
+            font=("", 12, "bold"),
+        ).grid(row=19, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
+        self.auto_restart_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(
+            self.root,
+            text="Auto-restart this app when a new version is pushed to GitHub",
+            variable=self.auto_restart_var,
+            wraplength=380,
+            justify="left",
+        ).grid(row=20, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
+        self.code_sync_label = tk.Label(
+            self.root,
+            text="Code: in sync with origin/main",
+            fg="#0a7",
+            font=("", 9),
+        )
+        self.code_sync_label.grid(row=21, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
+        self.restart_button = tk.Button(
+            self.root, text="Restart now (pull + re-exec)", command=self.restart_now
+        )
+        self.restart_button.grid(
+            row=22, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
         )
 
     # ---------------- SCHEDULING ----------------
@@ -765,6 +827,177 @@ class SchedulerApp:
                 process.terminate()
             except Exception:
                 pass
+
+    # ---------------- AUTO-SYNC WITH GITHUB ----------------
+    def _check_for_code_update(self):
+        """Polled every CODE_CHECK_INTERVAL_MS. cron-update.sh's `git pull` is
+        what actually fetches the new version of this file from origin/main —
+        we just notice when the on-disk mtime has moved past where it was at
+        process startup, then auto-restart (or surface a banner) so the new
+        code is actually executing."""
+        if self.is_restarting:
+            return
+        try:
+            current_mtime = os.path.getmtime(SCRIPT_PATH)
+        except OSError:
+            self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+            return
+        if current_mtime > self.script_loaded_mtime and not self.code_update_pending:
+            self.code_update_pending = True
+            self.code_sync_label.config(
+                text="Code: update pending — will restart when idle",
+                fg="#a60",
+            )
+        if self.code_update_pending and self.auto_restart_var.get():
+            if not self.is_refresh_running and not self.is_digest_running:
+                self._restart_self()
+                return        # _restart_self never returns control on success
+        self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+
+    def restart_now(self):
+        """Manual escape hatch — always attempts a restart, even if no code
+        change has been detected (useful after a `git pull` you did by hand)."""
+        if self.is_refresh_running or self.is_digest_running:
+            messagebox.showwarning(
+                "Pipeline Running",
+                "A price refresh or briefing is currently running. "
+                "Try again once it finishes.",
+            )
+            return
+        self._restart_self(force=True)
+
+    def _restart_self(self, force=False):
+        """Persist active state, syntax-check the freshly-pulled source, and
+        re-exec. If the new source has a Python syntax error we abort the
+        restart, leave the old process running, and surface the error so the
+        user can push a fix from the laptop."""
+        if self.is_restarting:
+            return
+        self.is_restarting = True
+        # Try a git pull first so the manual button picks up un-pulled commits.
+        # The cron's own pull might not have fired yet on a manual click. We
+        # capture stderr separately so a network failure shows up in the UI
+        # rather than silently leaving us on stale code.
+        try:
+            pull = subprocess.run(
+                ["git", "-C", REPO_DIR, "pull", "--rebase", "--autostash", "origin", "main"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if pull.returncode != 0:
+                self.code_sync_label.config(
+                    text=f"Code: git pull failed (rc={pull.returncode}) — see log",
+                    fg="#c33",
+                )
+                print(f"[restart] git pull failed:\n{pull.stderr}")
+                self.is_restarting = False
+                self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+                return
+        except Exception as exc:
+            self.code_sync_label.config(text=f"Code: git pull error: {exc}", fg="#c33")
+            self.is_restarting = False
+            self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+            return
+
+        # Syntax-check the (possibly just-pulled) source before we re-exec.
+        try:
+            py_compile.compile(SCRIPT_PATH, doraise=True)
+        except py_compile.PyCompileError as exc:
+            self.code_sync_label.config(
+                text="Code: new version has a syntax error — staying on current",
+                fg="#c33",
+            )
+            print(f"[restart] py_compile failed:\n{exc}")
+            self.is_restarting = False
+            self.code_update_pending = False        # don't keep retrying
+            self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+            return
+
+        # Persist whatever schedule is active so the restarted process can
+        # re-arm cleanly.
+        self._persist_state()
+
+        self.code_sync_label.config(text="Code: re-launching with latest version…", fg="#888")
+        self.root.update_idletasks()
+
+        # Stop caffeinate before we re-exec (the new process will start its own).
+        self._stop_keep_awake()
+        if self.refresh_timer is not None:
+            self.refresh_timer.cancel()
+        if self.digest_timer is not None:
+            self.digest_timer.cancel()
+
+        # Re-exec replaces this process image. tkinter teardown is implicit.
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    def _persist_state(self):
+        """Snapshot the currently-active schedule + UI selections to
+        STATE_FILE. _restore_state_if_present picks it up on next launch."""
+        state = {
+            "scheduled": self.refresh_timer is not None,
+            "interval_minutes": self.interval_minutes,
+            "run_start_minutes": self.run_start_minutes,
+            "run_end_minutes": self.run_end_minutes,
+            "window_wraps_midnight": self.window_wraps_midnight,
+            "weekdays_only": self.weekdays_only_var.get(),
+            "digest_scheduled": self.digest_timer is not None,
+            "digest_minutes": self.digest_minutes,
+            "skip_fetch": self.skip_fetch_var.get(),
+            "auto_restart": self.auto_restart_var.get(),
+            "saved_at": datetime.now().isoformat(),
+        }
+        try:
+            with open(STATE_FILE, "w") as f:
+                json.dump(state, f, indent=2)
+        except OSError as exc:
+            print(f"[restart] could not write state file: {exc}")
+
+    def _restore_state_if_present(self):
+        """On startup, re-apply the schedule we were running before. Only
+        kicks in if STATE_FILE exists and `scheduled: true`. The state file
+        is consumed (deleted) after restore so a manual launch always starts
+        from a clean slate."""
+        if not os.path.exists(STATE_FILE):
+            return
+        try:
+            with open(STATE_FILE) as f:
+                state = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[restart] could not read state file: {exc}")
+            return
+        try:
+            os.remove(STATE_FILE)
+        except OSError:
+            pass
+
+        self.auto_restart_var.set(bool(state.get("auto_restart", True)))
+        self.weekdays_only_var.set(bool(state.get("weekdays_only", True)))
+        self.skip_fetch_var.set(bool(state.get("skip_fetch", False)))
+
+        if state.get("scheduled") and state.get("interval_minutes"):
+            self.interval_minutes = state["interval_minutes"]
+            self.run_start_minutes = state.get("run_start_minutes")
+            self.run_end_minutes = state.get("run_end_minutes")
+            self.window_wraps_midnight = bool(state.get("window_wraps_midnight"))
+            now = datetime.now()
+            next_run = self._next_valid_run_time(now, self.interval_minutes, now)
+            self._schedule_refresh_at(next_run)
+            self.schedule_button.config(state=tk.DISABLED)
+            self.update_next_run_label()
+
+        if state.get("digest_scheduled") and state.get("digest_minutes") is not None:
+            self.digest_minutes = state["digest_minutes"]
+            next_digest = self._next_daily_digest_time(datetime.now())
+            self._schedule_digest_at(next_digest)
+            self.update_next_digest_label()
+
+        if state.get("scheduled") or state.get("digest_scheduled"):
+            saved_at = state.get("saved_at", "—")
+            self.code_sync_label.config(
+                text=f"Code: re-launched with latest version (state restored from {saved_at[:19]})",
+                fg="#0a7",
+            )
 
     def on_close(self):
         self._stop_keep_awake()
