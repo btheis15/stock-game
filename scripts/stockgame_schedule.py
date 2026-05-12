@@ -201,20 +201,11 @@ class SchedulerApp:
         self.digest_ampm_var = tk.StringVar(value="AM")
         tk.OptionMenu(self.root, self.digest_ampm_var, "AM", "PM").grid(row=7, column=3)
 
-        tk.Label(
-            self.root,
-            text=(
-                "Mon–Fri fires the daily briefing (1D + 1W holdings/portfolios, "
-                "all game windows). Saturday fires the weekly slow tier (1M/3M/1Y/ALL "
-                "holdings/portfolios, no RSS). Sunday skips. Independent of the 15-min "
-                "stock refresh — both can run concurrently."
-            ),
-            fg="#666",
-            font=("", 9),
-            wraplength=400,
-            justify="left",
-        ).grid(row=8, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w")
-
+        # Prose summary of the cadence used to live on row 8 next to the
+        # skip-fetch checkbox — it duplicated what the "Refresh cadence"
+        # table below already says, so it's been removed. The skip-fetch
+        # checkbox now has row 8 to itself.
+        #
         # When checked, skip the slow RSS fetch + Stage-2 AI scoring step
         # and just regenerate digests from the existing article archive.
         # Useful for iterating on the prompt or for a quick prose refresh
@@ -230,7 +221,7 @@ class SchedulerApp:
             variable=self.skip_fetch_var,
             wraplength=380,
             justify="left",
-        ).grid(row=8, column=0, columnspan=4, padx=5, pady=(20, 4), sticky="w")
+        ).grid(row=8, column=0, columnspan=4, padx=5, pady=(8, 4), sticky="w")
 
     def _create_status_labels(self):
         # Compact reference card so the cadence is visible at a glance —
@@ -242,10 +233,12 @@ class SchedulerApp:
             "  • Saturday AM  →  weekly briefing: 1M / 3M / 1Y / ALL per-stock + per-portfolio (no RSS)\n"
             "  • Sunday        →  silent"
         )
+        # Light gray for dark-mode legibility — #444 was unreadable on the
+        # tkinter dark-mode background that ships with current macOS.
         self.cadence_label = tk.Label(
             self.root,
             text=cadence_text,
-            fg="#444",
+            fg="#aaa",
             font=("Menlo", 10),
             justify="left",
             anchor="w",
@@ -263,7 +256,7 @@ class SchedulerApp:
         self.repo_label = tk.Label(
             self.root,
             text=f"Script: {REFRESH_SCRIPT}",
-            fg="#666",
+            fg="#888",
             font=("", 9),
         )
         self.repo_label.grid(row=14, column=0, columnspan=4, padx=5, pady=(0, 4))
@@ -551,7 +544,7 @@ class SchedulerApp:
             self._on_main_thread(
                 self.last_digest_label.config,
                 text=f"Briefing running… (started {start_time}, scope={scope}, mode={mode})",
-                fg="#666",
+                fg="#aaa",
             )
             # Pass scope + mode through env — digest-update.sh reads both and
             # picks the right --scope / --digests-only flags for digest.swift.
