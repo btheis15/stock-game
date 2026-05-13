@@ -59,8 +59,17 @@ Four things, on a phone screen:
    green when the underlying articles average a high relevance score,
    yellow when middling. Below the digest are "Position" cards for each
    player who owns the stock (Kevin and Rick both own NVDA, for example,
-   so NVDA's page shows both their positions), and below that, a list of
-   every dividend that stock has paid since 2/5.
+   so NVDA's page shows both their positions). Below that, an **About**
+   card with the company's description + key statistics (market cap,
+   P/E, EPS, sector, 52-week range, dividend yield, headquarters,
+   employees, website), then a **Financials** chart with Quarterly /
+   Annual toggle showing Revenue, Gross profit, and Net income as
+   grouped bars with a Net margin line overlay, then an **Earnings**
+   chart with Quarterly / Annual toggle showing analyst estimate vs
+   actual EPS per period. Tickers Yahoo doesn't fully cover (some
+   small caps and recent IPOs) hide whichever fields they're missing
+   rather than blanking the section. Finally, a list of every
+   dividend that stock has paid since 2/5.
 
 4. **Tee Times.** A third tab, golf-ball icon. Quick shortcuts into
    Inshalla CC's foreUP booking page — three tappable rows for Today,

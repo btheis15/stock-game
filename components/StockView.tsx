@@ -22,15 +22,18 @@ import type { Range, TickerSeries } from "@/lib/types";
 import { TICKER_OWNERS, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
+import { FundamentalsPanel } from "./FundamentalsPanel";
 import { useDigests } from "@/lib/digests";
+import type { TickerFundamentals } from "@/lib/types";
 
 interface Props {
   series: TickerSeries;
   intradayDate: string;
   generatedAt: string;
+  fundamentals: TickerFundamentals | null;
 }
 
-export function StockView({ series, intradayDate, generatedAt }: Props) {
+export function StockView({ series, intradayDate, generatedAt, fundamentals }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const { loading: digestsLoading, getDigest } = useDigests();
@@ -130,6 +133,11 @@ export function StockView({ series, intradayDate, generatedAt }: Props) {
           ))}
         </div>
       )}
+
+      <FundamentalsPanel
+        fundamentals={fundamentals}
+        accentColor={accentColor}
+      />
 
       {dividends.length > 0 && (
         <div className="px-4 mt-5">

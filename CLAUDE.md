@@ -699,8 +699,10 @@ Defensive ordering:
 ### §8.6. `scripts/digest.swift` + `scripts/digest-update.sh` (the briefing pipeline)
 
 The digest pipeline is the second of the two writers to `main` and produces
-`public/digests.json`. It has three scopes, each owning a disjoint slice of
-the file. Whatever a scope doesn't touch is preserved on the next merge.
+`public/digests.json` plus, on the daily tier, `public/data/fundamentals.json`
+(via `npm run fetch-fundamentals` — see §8.6.5). It has three scopes, each
+owning a disjoint slice of `digests.json`. Whatever a scope doesn't touch is
+preserved on the next merge.
 
 **`--scope fast`** — runs from `cron-update.sh` step 6, after every 15-min
 price refresh. No RSS, no Apple Intelligence calls. Reads the existing
@@ -775,6 +777,41 @@ this run regenerated. Tickers / players not in the current roster are
 dropped at this step (this is what removed SPY when Lee swapped picks).
 First-ever run (no existing file): the base is empty; only the windows
 this run produced get written.
+
+### §8.6.5. `scripts/fetch-fundamentals.ts` (per-ticker About / Financials / Earnings data)
+
+Pulls Yahoo's `quoteSummary` modules (`assetProfile`, `summaryDetail`,
+`defaultKeyStatistics`, `incomeStatementHistory{,Quarterly}`,
+`earningsHistory`, `price`) for every ticker in `ALL_TICKERS` and writes
+`public/data/fundamentals.json`. Powers the three new sections on
+`/stock/[ticker]`:
+
+- **About card** — company description + key-stats grid (Market cap, P/E,
+  Forward P/E, EPS, 52-week range, Beta, Dividend yield, Sector / Industry,
+  Headquarters, Employees, Exchange, Website).
+- **Financials chart** — Quarterly/Annual toggle. Revenue / Gross profit /
+  Net income as grouped bars + Net margin as an overlaid line.
+- **Earnings chart** — Quarterly/Annual toggle. Scatter plot per period:
+  light-green dot = analyst estimate, brand-green dot = actual.
+
+Every field is optional. Yahoo's coverage is uneven — micro caps + recent
+IPOs frequently lack some modules, and Yahoo's `incomeStatementHistory*`
+endpoints have been returning truncated data since late 2024 (4 quarters /
+4 years is typical). The UI hides missing rows / sections rather than
+blocking the page; the fetch script catches per-ticker errors so one
+ticker's failure (e.g. HUT hits a Yahoo schema-validation bug) doesn't
+abort the rest.
+
+**Cadence**: `digest-update.sh` runs `npm run fetch-fundamentals` once a
+day on the daily tier only (skipped on the Saturday weekly tier — these
+values don't move on weekends). Takes ~30 s for 45 tickers. Failures here
+don't block the digest pipeline.
+
+**Client/server split**: `lib/fundamentals-data.ts` (server-only loader,
+imports `node:fs/promises`) is separate from `lib/fundamentals.ts`
+(formatters only). The split keeps `node:fs` out of the client bundle —
+a "use client" component can `import { fmtMarketCap } from "@/lib/fundamentals"`
+without dragging Node modules into the browser.
 
 ### §8.7. The webhook + deploy
 
@@ -926,7 +963,13 @@ cheaper.
 
 3. npm run fetch-prices -- --full to grab the new ticker's history.
 
-4. STATE.md / OVERVIEW.md: update the picks table.
+4. npm run fetch-fundamentals to populate the About / Financials /
+   Earnings sections for the new ticker. (The next morning's digest
+   cron will also do this automatically; running manually here just
+   means the stock detail page works on the very next deploy without
+   waiting for the morning fire.)
+
+5. STATE.md / OVERVIEW.md: update the picks table.
 ```
 
 ### §10.3. Add a chart range (e.g., "5D")

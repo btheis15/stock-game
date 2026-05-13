@@ -91,3 +91,66 @@ export interface RangeAnalysis {
   topGainers: RangeMover[];
   topLosers: RangeMover[];
 }
+
+// --- Fundamentals (public/data/fundamentals.json) ---------------------------
+// Refreshed once a day by scripts/fetch-fundamentals.ts. Every field is
+// optional — Yahoo's coverage varies a lot for small caps, recent IPOs, ADRs,
+// etc. The /stock/[ticker] UI hides anything missing rather than blocking the
+// section, so partial data is fine.
+
+export interface FinancialsRow {
+  /** Period end date, YYYY-MM-DD. */
+  date: string;
+  revenue: number | null;
+  grossProfit: number | null;
+  netIncome: number | null;
+  /** netIncome / revenue, as a fraction (0.12 = 12%). null when either is missing. */
+  netMargin: number | null;
+}
+
+export interface EarningsRow {
+  /** Period end date for annual, YYYY-MM-DD-or-quarter-label for quarterly. */
+  date: string;
+  epsEstimate: number | null;
+  epsActual: number | null;
+  /** epsActual - epsEstimate; null when either is missing. */
+  surprise: number | null;
+}
+
+export interface TickerFundamentals {
+  ticker: string;
+  /** Display name. Falls back to picks.ts TICKER_NAMES when Yahoo omits longName. */
+  name: string;
+  description: string | null;
+  sector: string | null;
+  industry: string | null;
+  website: string | null;
+  employees: number | null;
+  /** City, State or City, Country. Constructed from address fields. */
+  headquarters: string | null;
+  /** USD. Null for tickers Yahoo doesn't price (rare). */
+  marketCap: number | null;
+  /** Trailing twelve months P/E. Null when EPS ≤ 0. */
+  peRatio: number | null;
+  forwardPE: number | null;
+  eps: number | null;
+  /** As a fraction. 0.025 = 2.5%. */
+  dividendYield: number | null;
+  beta: number | null;
+  /** [low, high] over the past 52 weeks; both can be null. */
+  fiftyTwoWeekRange: [number | null, number | null] | null;
+  exchange: string | null;
+  financials: {
+    quarterly: FinancialsRow[];
+    annual: FinancialsRow[];
+  };
+  earnings: {
+    quarterly: EarningsRow[];
+    annual: EarningsRow[];
+  };
+}
+
+export interface FundamentalsData {
+  generatedAt: string;
+  tickers: Record<string, TickerFundamentals>;
+}

@@ -63,6 +63,19 @@ log "rebasing onto origin/main"
 git fetch origin main
 git pull --rebase --autostash origin main
 
+# Fundamentals refresh — daily only. Pulls company profile + key statistics +
+# financial statements + earnings history into public/data/fundamentals.json
+# for the About / Financials / Earnings sections on /stock/[ticker]. Fast
+# (~30s for 45 tickers); failures don't block the digest pipeline. Skipped on
+# the weekly tier since the data only changes after earnings releases —
+# Saturday morning would catch nothing new the prior weekday didn't.
+if [ "$DIGEST_SCOPE" = "daily" ]; then
+  log "refreshing fundamentals"
+  if ! (cd "$REPO_DIR" && npm run --silent fetch-fundamentals); then
+    log "fundamentals refresh failed — continuing with digest pipeline"
+  fi
+fi
+
 # Apple Intelligence availability is checked inside digest.swift — if
 # unavailable, the script exits 0 silently and yesterday's digests.json keeps
 # serving. So we don't need a guard here.
@@ -79,9 +92,11 @@ else
 fi
 swift "${swift_args[@]}"
 
-# Stage only digests.json — unrelated WIP never gets auto-committed.
-if [ -z "$(git status --porcelain public/digests.json)" ]; then
-  log "no digest changes since last run"
+# Stage digests.json + fundamentals.json — both files are managed by this
+# pipeline. Other WIP stays unstaged so unrelated dev work doesn't get
+# auto-committed.
+if [ -z "$(git status --porcelain public/digests.json public/data/fundamentals.json)" ]; then
+  log "no digest or fundamentals changes since last run"
   log "digest update done"
   exit 0
 fi
@@ -94,8 +109,8 @@ fi
 # process touches origin/main, ever. Trade-off: a manual run on a day
 # when the refresh isn't scheduled (weekend etc.) will sit unpushed until
 # the next refresh fires. Run `git push` manually in that case.
-log "digests changed — committing locally (push deferred to next price refresh)"
-git add public/digests.json
+log "digests/fundamentals changed — committing locally (push deferred to next price refresh)"
+git add public/digests.json public/data/fundamentals.json
 git commit -m "digests: $(ts)"
 
 log "digest update done"

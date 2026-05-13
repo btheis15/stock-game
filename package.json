@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "fetch-prices": "tsx scripts/fetch-prices.ts",
+    "fetch-fundamentals": "tsx scripts/fetch-fundamentals.ts",
     "refresh": "bash scripts/cron-update.sh",
     "stockgame": "python3 scripts/stockgame_schedule.py"
   },
