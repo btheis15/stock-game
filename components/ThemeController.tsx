@@ -1,26 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
-import { isUsMarketOpen } from "@/lib/portfolio";
+import { getMarketSessionState } from "@/lib/portfolio";
 
 /**
- * Sets `<html data-theme="light">` while the US stock market is in regular
- * trading hours (Mon-Fri 9:30 AM - 4:00 PM ET, DST-aware) and clears it
- * when closed. Re-evaluates every 60 seconds so the page flips at the
- * moment the market opens or closes without a refresh.
+ * Sets `<html data-theme="...">` based on the current US market session:
+ *   • "light"    — regular hours (Mon-Fri 9:30 AM - 4:00 PM ET)
+ *   • "twilight" — pre-market (7:00 - 9:30 AM ET) or after-hours
+ *                  (4:00 - 6:00 PM ET); a cool indigo palette evoking
+ *                  dawn / dusk
+ *   • (none)     — overnight / weekends, falls through to the dark default
  *
- * Previously this was driven by "last intraday bar < 30 min ago," which
- * read the snapshot timestamp at build time and reflected data freshness
- * rather than calendar truth — a stalled price-refresh cron would leave
- * the theme stuck on dark all day. Calendar check has no such failure
- * mode and doesn't need any snapshot data wired in.
+ * Re-evaluates every 60 seconds so the page flips at session boundaries
+ * without a refresh.
  */
 export function ThemeController() {
   useEffect(() => {
     function apply() {
-      const open = isUsMarketOpen();
+      const state = getMarketSessionState();
       const root = document.documentElement;
-      if (open) root.dataset.theme = "light";
+      if (state === "open") root.dataset.theme = "light";
+      else if (state === "premarket" || state === "afterhours")
+        root.dataset.theme = "twilight";
       else delete root.dataset.theme;
     }
     apply();

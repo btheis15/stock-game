@@ -137,13 +137,15 @@ const WEEKLY_INTERVAL = "1h";
 const WEEKLY_LOOKBACK_DAYS = 8; // covers a 5-day trading week + weekend buffer
 
 async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
-  // Pull today's intraday 15-min bars. range:'1d' is a Yahoo shortcut that
-  // returns the current trading session (or the most recent one if closed).
+  // Pull today's intraday 15-min bars. includePrePost:true makes Yahoo return
+  // pre-market (4 AM–9:30 AM ET) and after-hours (4 PM–8 PM ET) bars too;
+  // we trim to the visible 7 AM–6 PM ET window in the caller.
   try {
     const result = await yahooFinance.chart(ticker, {
       period1: new Date(Date.now() - 26 * 60 * 60 * 1000),
       period2: new Date(Date.now() + 60 * 1000),
       interval: INTRADAY_INTERVAL,
+      includePrePost: true,
     });
     const quotes = result.quotes ?? [];
     return quotes
@@ -183,8 +185,10 @@ async function fetchWeeklyHourly(ticker: string): Promise<IntradayBar[]> {
 
 // Filter hourly bars to regular session only (9:30 AM – 4:00 PM ET) for each
 // trading day in the input. Drops pre-market, after-hours, and weekend bars
-// that Yahoo sometimes returns. Uses the same DST heuristic as
-// sessionBoundsET (months 3–10 = EDT, else EST).
+// that Yahoo sometimes returns. Used for the 1W view, which intentionally
+// excludes extended hours to keep the multi-day curve dense and uncluttered.
+// Uses the same DST heuristic as extendedSessionBoundsET (months 3–10 =
+// EDT, else EST).
 function filterToRegularSession(bars: IntradayBar[]): IntradayBar[] {
   return bars.filter((b) => {
     const t = new Date(b.t);
@@ -215,18 +219,19 @@ function todayInETDate(): string {
   return et.toISOString().slice(0, 10);
 }
 
-// Returns UTC [open, close] timestamps for the regular US trading session
-// (9:30 AM – 4:00 PM ET) on the given ET date. Coarse DST heuristic: months
-// 3–10 are EDT (UTC-4), else EST (UTC-5). Wrong on the 4 DST transition days
-// per year — harmless for filtering since the boundaries shift by 1 hour, but
-// the same bars are kept either way during regular session windows.
-function sessionBoundsET(dateStr: string): [Date, Date] {
+// Returns UTC [start, end] timestamps for the extended US trading session
+// (7:00 AM – 6:00 PM ET) on the given ET date. Covers pre-market and
+// after-hours so the 1D chart shows extended-hours moves. Coarse DST
+// heuristic: months 3–10 are EDT (UTC-4), else EST (UTC-5). Wrong on the 4
+// DST transition days per year — the boundaries shift by 1 hour but the
+// chart still renders correctly.
+function extendedSessionBoundsET(dateStr: string): [Date, Date] {
   const [y, m, d] = dateStr.split("-").map(Number);
   const isDST = m >= 3 && m <= 10;
   const offset = isDST ? 4 : 5;
-  const open = new Date(Date.UTC(y, m - 1, d, 9 + offset, 30, 0));
-  const close = new Date(Date.UTC(y, m - 1, d, 16 + offset, 0, 0));
-  return [open, close];
+  const start = new Date(Date.UTC(y, m - 1, d, 7 + offset, 0, 0));
+  const end = new Date(Date.UTC(y, m - 1, d, 18 + offset, 0, 0));
+  return [start, end];
 }
 
 async function main() {
@@ -264,20 +269,20 @@ async function main() {
     if (bars.length > 0) {
       const todayPrefix = todayInETDate();
       const today = bars.filter((b) => b.t.slice(0, 10) === todayPrefix);
-      // Filter to regular session only (9:30 AM – 4:00 PM ET). Drops
-      // pre-market and after-hours bars so the chart's last point is the
-      // official 4:00 PM close, not an after-hours print.
-      const [sessionOpen, sessionClose] = sessionBoundsET(todayPrefix);
-      const todayRegular = today.filter((b) => {
+      // Keep the extended session window (7:00 AM – 6:00 PM ET). Drops the
+      // noisy 4-7 AM and 6-8 PM bars Yahoo returns when includePrePost is
+      // on; everything inside the visible chart window stays.
+      const [sessionOpen, sessionClose] = extendedSessionBoundsET(todayPrefix);
+      const todayExtended = today.filter((b) => {
         const t = new Date(b.t);
         return t >= sessionOpen && t < sessionClose;
       });
       out[ticker].intraday =
-        todayRegular.length > 0
-          ? todayRegular
+        todayExtended.length > 0
+          ? todayExtended
           : today.length > 0
             ? today
-            : bars.slice(-26); // fallback: pre-market only, or use last session
+            : bars.slice(-26); // fallback: last session (weekend / pre-7AM)
       console.log(`${out[ticker].intraday?.length ?? 0} bars`);
     } else {
       console.log("none");
