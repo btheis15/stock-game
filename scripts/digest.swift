@@ -931,11 +931,10 @@ struct OwnershipViolation {
 
 func detectOwnershipViolations(in prose: String) -> [OwnershipViolation] {
     let knownTickers = Set(DEFAULT_TICKERS)
-    let nameToTickers: [String: Set<String>] = {
-        var m: [String: Set<String>] = [:]
-        for p in PLAYERS { m[p.name.lowercased()] = Set(p.tickers) }
-        return m
-    }()
+    // (Earlier draft also built a name→tickers forward map here; turned out
+    // we only need the reverse direction via TICKER_OWNERS inside the loop,
+    // so the forward map was removed.)
+    //
     // Split prose into sentences. The 3-sentence digests are short, so naive
     // splitting on sentence-ending punctuation is fine.
     let sentences = prose
