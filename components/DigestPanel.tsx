@@ -56,11 +56,14 @@ export function DigestPanel({ digest, loading, range }: Props) {
               <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
                 {SHORT_RANGE_LABELS[range]}
               </span>
-              {digest.dataMaturity === "partial" && (
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500">
-                  Partial
-                </span>
-              )}
+              <span className="flex items-center gap-2">
+                {digest.dataMaturity === "partial" && (
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500">
+                    Partial
+                  </span>
+                )}
+                <InlineAIAttribution digest={digest} />
+              </span>
             </div>
             <p
               className={`mt-1.5 text-[13px] leading-[1.55] text-zinc-200 ${
@@ -100,7 +103,6 @@ export function DigestPanel({ digest, loading, range }: Props) {
                 </ul>
               </div>
             )}
-            <AIAttribution digest={digest} />
           </div>
         )}
       </div>
@@ -148,16 +150,20 @@ function DigestMeta({ digest, range }: { digest: WindowDigest; range: Range }) {
   );
 }
 
-function AIAttribution({ digest }: { digest: WindowDigest }) {
+// Subtle Apple-Intelligence attribution rendered inline on the briefing
+// header row (right side, next to the "Daily briefing" / "Weekly briefing"
+// label) so the credit is always visible without needing to expand the
+// card. Tiny gray text — readable but doesn't compete with the headline.
+function InlineAIAttribution({ digest }: { digest: WindowDigest }) {
   const engineLabel =
     digest.aiEngine === "AppleIntelligence"
       ? "Apple Intelligence"
       : digest.aiEngine ?? null;
   if (!engineLabel) return null;
   return (
-    <div className="mt-3 text-[10px] tracking-[0.06em] text-zinc-600">
-      ⬡ Summarized by {engineLabel}
-    </div>
+    <span className="text-[10px] tracking-[0.04em] text-zinc-600 whitespace-nowrap">
+      ⬡ {engineLabel}
+    </span>
   );
 }
 

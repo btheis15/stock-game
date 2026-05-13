@@ -154,6 +154,15 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
 
       <RangeTabs value={range} onChange={setRange} accent={leader.user.color} />
 
+      {/* Briefing sits ABOVE the leaderboard now — it's the narrative
+          context for what the rankings below show, so reading top-down
+          flows chart → range tabs → "what happened" → standings. */}
+      <DigestPanel
+        digest={getGameDigest(range)}
+        loading={digestsLoading}
+        range={range}
+      />
+
       <div className="px-4 mt-2">
         <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
           {stats.map((s, i) => {
@@ -180,12 +189,6 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
           })}
         </div>
       </div>
-
-      <DigestPanel
-        digest={getGameDigest(range)}
-        loading={digestsLoading}
-        range={range}
-      />
 
       <InsightsCard analysis={analyses[range]} />
 
