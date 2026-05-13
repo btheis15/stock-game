@@ -345,32 +345,53 @@ class SchedulerApp:
         self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_task)
         self.stop_button.grid(row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
 
-        # Button label tracks the calendar-day scope so the user knows what
-        # they're about to fire. Sat → "Run Briefing Now (weekly)"; weekday
-        # → "Run Briefing Now (daily)". Re-evaluated when the UI is built;
-        # if the scheduler stays open across midnight Sat→Sun, the label
-        # may go stale until next relaunch — a minor cosmetic issue.
-        scope_now = self._digest_scope_for_day(datetime.now().weekday()) or "daily"
-        self.run_digest_button = tk.Button(
-            self.root,
-            text=f"Run Briefing Now ({scope_now})",
-            command=self.run_digest_now,
+        # Explicit per-scope briefing buttons. Each forces a specific scope
+        # regardless of which day it is. The scheduled morning timer still
+        # auto-picks (daily on Mon-Fri, weekly on Sat) — these buttons are
+        # for manual mid-day runs where the user wants explicit control.
+        #
+        #   Daily       Mon-Fri-style refresh: 1D + 1W per-stock + per-portfolio,
+        #               all 6 game windows. RSS fetch + scoring. ~25-30 min.
+        #   Weekly      Saturday-style refresh: 1M / 3M / 1Y / ALL per-stock +
+        #               per-portfolio (no game). No RSS. ~10-15 min steady state
+        #               (much longer on the very first run after Phase 2 ships —
+        #               see the daily-tier vs weekly-tier comments in
+        #               digest.swift's hierarchical-summary section).
+        #   Game        6 game-wide windows only, from the existing article
+        #               archive. No RSS, no per-stock or per-portfolio work.
+        #               ~30 s. For previewing prompt-tuning changes mid-day.
+        #   All         Daily, then Weekly back-to-back. ~40-45 min combined
+        #               steady state. Useful right after a roster change or
+        #               during the initial Phase 2 backfill so every scope
+        #               gets caught up in one shot.
+        self.run_daily_briefing_button = tk.Button(
+            self.root, text="Run Daily Briefing",
+            command=lambda: self._fire_briefing_scope("daily"),
         )
-        self.run_digest_button.grid(
-            row=19, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
+        self.run_daily_briefing_button.grid(
+            row=19, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
+        )
+        self.run_weekly_briefing_button = tk.Button(
+            self.root, text="Run Weekly Briefing",
+            command=lambda: self._fire_briefing_scope("weekly"),
+        )
+        self.run_weekly_briefing_button.grid(
+            row=19, column=2, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
         )
 
-        # Game-only re-run: regenerates the 6 game-wide leaderboard digests
-        # (1D/1W/1M/3M/1Y/ALL) from the existing article archive. Skips RSS
-        # fetch, per-stock briefings, and per-portfolio briefings. Takes ~30 s
-        # so it's safe to fire mid-day while validating prompt tweaks.
-        self.run_game_digest_button = tk.Button(
-            self.root,
-            text="Re-run Game Briefings Only",
-            command=self.run_game_digest_now,
+        self.run_game_briefing_button = tk.Button(
+            self.root, text="Re-run Game Briefings Only",
+            command=lambda: self._fire_briefing_scope("game"),
         )
-        self.run_game_digest_button.grid(
-            row=20, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
+        self.run_game_briefing_button.grid(
+            row=20, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
+        )
+        self.run_all_briefings_button = tk.Button(
+            self.root, text="Run All Briefings (Daily + Weekly)",
+            command=self.run_all_briefings_now,
+        )
+        self.run_all_briefings_button.grid(
+            row=20, column=2, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
         )
 
         self.open_log_button = tk.Button(
@@ -532,20 +553,12 @@ class SchedulerApp:
             return
         threading.Thread(target=self._run_with_guard, daemon=True).start()
 
-    def run_digest_now(self):
-        if not self._try_start_digest():
-            messagebox.showwarning(
-                "Briefing Running",
-                "The daily briefing is already running.",
-            )
-            return
-        threading.Thread(target=self._run_digest_with_guard, daemon=True).start()
-
-    def run_game_digest_now(self):
-        """Manual trigger for the game-only scope. Regenerates the 6 game-wide
-        leaderboard digests from the existing article archive (~30 s). Useful
-        for previewing prompt-tuning changes without sitting through the full
-        daily run."""
+    def _fire_briefing_scope(self, scope):
+        """Manual trigger for a specific briefing scope. The scheduled
+        morning timer still auto-picks based on the calendar day; these
+        buttons override that for one-shot runs (e.g. force a Weekly run
+        on a Tuesday, or a Game-only re-run mid-day to validate a prompt
+        change). Refuses if any briefing is already running."""
         if not self._try_start_digest():
             messagebox.showwarning(
                 "Briefing Running",
@@ -554,9 +567,32 @@ class SchedulerApp:
             return
         threading.Thread(
             target=self._run_digest_with_guard_for_scope,
-            args=("game",),
+            args=(scope,),
             daemon=True,
         ).start()
+
+    def run_all_briefings_now(self):
+        """Run Daily, then Weekly back-to-back. Useful right after a roster
+        change or during the Phase 2 backfill so every scope catches up in
+        one shot. Combined runtime: ~40-45 min steady state (~3+ hours on
+        the very first run after Phase 2 ships, while the chain backfills
+        ~3 months of daily/weekly/monthly summaries per ticker)."""
+        if not self._try_start_digest():
+            messagebox.showwarning(
+                "Briefing Running",
+                "A briefing is already running. Wait for it to finish, then try again.",
+            )
+            return
+        threading.Thread(target=self._run_all_with_guard, daemon=True).start()
+
+    def _run_all_with_guard(self):
+        """Chains daily → weekly under the same digest lock so concurrent
+        manual triggers can't double-fire."""
+        try:
+            self._run_digest(scope="daily")
+            self._run_digest(scope="weekly")
+        finally:
+            self._finish_digest()
 
     def _run_digest_with_guard_for_scope(self, scope):
         try:
@@ -627,12 +663,6 @@ class SchedulerApp:
         next_run = self._next_daily_digest_time(datetime.now() + timedelta(minutes=1))
         self._schedule_digest_at(next_run)
         self._on_main_thread(self.update_next_digest_label)
-
-    def _run_digest_with_guard(self):
-        try:
-            self._run_digest()
-        finally:
-            self._finish_digest()
 
     def _run_digest(self, scope=None):
         if not os.path.exists(DIGEST_SCRIPT):
