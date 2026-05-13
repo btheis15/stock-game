@@ -10,6 +10,7 @@ import {
   fmtCount,
   fmtEPS,
   fmtMarketCap,
+  fmtMoneyShort,
   fmtPctPoints,
   fmtPeriodLabel,
   fmtRatio,
@@ -192,6 +193,7 @@ function FinancialsSection({
   accentColor: string;
 }) {
   const [g, setG] = useState<Granularity>("quarterly");
+  const [showTable, setShowTable] = useState(false);
   const rows = g === "quarterly" ? f.financials.quarterly : f.financials.annual;
   // Limit to 5 most recent periods (matches Robinhood's display density).
   const recent = rows.slice(-5);
@@ -208,20 +210,75 @@ function FinancialsSection({
             No {g} data available.
           </p>
         ) : (
-          <div className="mt-3">
-            <ParentSize debounceTime={50}>
-              {({ width }) => (
-                <FinancialsChart
-                  width={width}
-                  height={260}
-                  rows={recent}
-                  granularity={g}
-                />
-              )}
-            </ParentSize>
-          </div>
+          <>
+            <div className="mt-3">
+              <ParentSize debounceTime={50}>
+                {({ width }) => (
+                  <FinancialsChart
+                    width={width}
+                    height={260}
+                    rows={recent}
+                    granularity={g}
+                  />
+                )}
+              </ParentSize>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTable((v) => !v)}
+              className="mt-3 text-[12px] text-zinc-500 hover:text-zinc-300"
+            >
+              {showTable ? "Hide numbers" : "Show numbers"}
+            </button>
+            {showTable && <FinancialsTable rows={recent} granularity={g} />}
+          </>
         )}
       </div>
+    </div>
+  );
+}
+
+function FinancialsTable({
+  rows,
+  granularity,
+}: {
+  rows: FinancialsRow[];
+  granularity: Granularity;
+}) {
+  // Show one card per period (mobile-first; horizontal table would overflow
+  // narrow widths and the net-margin column especially can be thousands of %
+  // for unprofitable companies). Reverse so the most recent period is on top.
+  const ordered = [...rows].reverse();
+  return (
+    <div className="mt-3 space-y-2">
+      {ordered.map((r) => {
+        const { primary, secondary } = fmtPeriodLabel(r.date, granularity);
+        const label = secondary ? `${primary} ${secondary}` : primary;
+        const fields: Array<[string, string]> = [
+          ["Revenue", fmtMoneyShort(r.revenue)],
+          ["Gross profit", fmtMoneyShort(r.grossProfit)],
+          ["Net income", fmtMoneyShort(r.netIncome)],
+          ["Net margin", fmtPctPoints(r.netMargin)],
+        ];
+        return (
+          <div
+            key={r.date}
+            className="rounded-lg bg-zinc-950/60 border border-zinc-800 px-3 py-2"
+          >
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+              {label}
+            </div>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+              {fields.map(([k, v]) => (
+                <div key={k} className="flex items-baseline justify-between">
+                  <dt className="text-[11px] text-zinc-500">{k}</dt>
+                  <dd className="text-[12px] tabular-nums text-zinc-200">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -358,10 +415,13 @@ function FinancialsChart({
     return ticks;
   }, [yMin, yMax]);
 
+  const zeroInRange = yMin <= 0 && yMax >= 0;
+
   return (
     <svg width={width} height={height} aria-hidden>
       <g transform={`translate(${PAD_LEFT}, ${PAD_TOP})`}>
-        {/* Horizontal grid lines */}
+        {/* Horizontal grid lines (dashed, subtle). Skip the tick nearest to
+            zero — the dedicated zero line below will sit there instead. */}
         {yTicks.map((v, i) => (
           <g key={i}>
             <line
@@ -369,9 +429,9 @@ function FinancialsChart({
               x2={innerW}
               y1={yScale(v)}
               y2={yScale(v)}
-              stroke="#27272a"
+              stroke="var(--chart-baseline)"
               strokeWidth={1}
-              strokeDasharray={v === 0 ? "0" : "2 3"}
+              strokeDasharray="2 3"
             />
             <text
               x={-6}
@@ -385,6 +445,32 @@ function FinancialsChart({
             </text>
           </g>
         ))}
+
+        {/* Zero reference line — solid, theme-aware, more prominent than the
+            grid so positive vs. negative bars read clearly. */}
+        {zeroInRange && (
+          <g>
+            <line
+              x1={0}
+              x2={innerW}
+              y1={zeroY}
+              y2={zeroY}
+              stroke="var(--chart-axis-label)"
+              strokeWidth={1.25}
+            />
+            <text
+              x={-6}
+              y={zeroY}
+              dy="0.32em"
+              textAnchor="end"
+              fontSize={10}
+              fill="var(--chart-axis-label)"
+              fontWeight={600}
+            >
+              0
+            </text>
+          </g>
+        )}
 
         {/* Bars per period */}
         {rows.map((r, i) => {
@@ -495,6 +581,7 @@ function EarningsSection({
   fundamentals: TickerFundamentals;
   accentColor: string;
 }) {
+  const [showTable, setShowTable] = useState(false);
   // Quarterly-only (annual rollup was ambiguous when companies have partial
   // years and the user didn't want the toggle here — earnings cadence is
   // quarterly anyway).
@@ -511,15 +598,60 @@ function EarningsSection({
             No quarterly earnings data available.
           </p>
         ) : (
-          <div className="mt-3">
-            <ParentSize debounceTime={50}>
-              {({ width }) => (
-                <EarningsChart width={width} height={220} rows={recent} />
-              )}
-            </ParentSize>
-          </div>
+          <>
+            <div className="mt-3">
+              <ParentSize debounceTime={50}>
+                {({ width }) => (
+                  <EarningsChart width={width} height={220} rows={recent} />
+                )}
+              </ParentSize>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTable((v) => !v)}
+              className="mt-3 text-[12px] text-zinc-500 hover:text-zinc-300"
+            >
+              {showTable ? "Hide numbers" : "Show numbers"}
+            </button>
+            {showTable && <EarningsTable rows={recent} />}
+          </>
         )}
       </div>
+    </div>
+  );
+}
+
+function EarningsTable({ rows }: { rows: EarningsRow[] }) {
+  const ordered = [...rows].reverse();
+  return (
+    <div className="mt-3 space-y-2">
+      {ordered.map((r) => {
+        const { primary, secondary } = fmtPeriodLabel(r.date, "quarterly");
+        const label = secondary ? `${primary} ${secondary}` : primary;
+        const fields: Array<[string, string]> = [
+          ["Estimate", fmtEPS(r.epsEstimate)],
+          ["Actual", fmtEPS(r.epsActual)],
+          ["Surprise", r.surprise == null ? "—" : fmtEPS(r.surprise)],
+        ];
+        return (
+          <div
+            key={r.date}
+            className="rounded-lg bg-zinc-950/60 border border-zinc-800 px-3 py-2"
+          >
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+              {label}
+            </div>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+              {fields.map(([k, v]) => (
+                <div key={k} className="flex items-baseline justify-between">
+                  <dt className="text-[11px] text-zinc-500">{k}</dt>
+                  <dd className="text-[12px] tabular-nums text-zinc-200">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -574,6 +706,12 @@ function EarningsChart({
     if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
       return { yMin: -1, yMax: 1 };
     }
+    // Always include 0 in the y-domain — for companies with all-negative EPS
+    // (most growth-stage tickers in the roster), this puts a visible
+    // breakeven reference line at the top of the chart so the user can see
+    // how far below profitability the dots are sitting.
+    lo = Math.min(lo, 0);
+    hi = Math.max(hi, 0);
     if (lo === hi) {
       lo -= Math.abs(lo) * 0.5 + 0.1;
       hi += Math.abs(hi) * 0.5 + 0.1;
@@ -609,6 +747,8 @@ function EarningsChart({
     return ticks;
   }, [yMin, yMax]);
 
+  const zeroInRange = yMin <= 0 && yMax >= 0;
+
   return (
     <svg width={width} height={height} aria-hidden>
       <g transform={`translate(${PAD_LEFT}, ${PAD_TOP})`}>
@@ -619,7 +759,7 @@ function EarningsChart({
               x2={innerW}
               y1={yScale(v)}
               y2={yScale(v)}
-              stroke="#27272a"
+              stroke="var(--chart-baseline)"
               strokeWidth={1}
               strokeDasharray="2 3"
             />
@@ -635,6 +775,31 @@ function EarningsChart({
             </text>
           </g>
         ))}
+        {/* Breakeven (zero) reference line — same treatment as the financials
+            chart so the "above/below zero" read is consistent. */}
+        {zeroInRange && (
+          <g>
+            <line
+              x1={0}
+              x2={innerW}
+              y1={yScale(0)}
+              y2={yScale(0)}
+              stroke="var(--chart-axis-label)"
+              strokeWidth={1.25}
+            />
+            <text
+              x={-6}
+              y={yScale(0)}
+              dy="0.32em"
+              textAnchor="end"
+              fontSize={10}
+              fill="var(--chart-axis-label)"
+              fontWeight={600}
+            >
+              $0
+            </text>
+          </g>
+        )}
         {/* Dots — estimate and actual at the SAME x position so the user can
             read the surprise at a glance: stacked vertically when the actual
             missed/beat by a lot, overlapping (concentric) when the actual
