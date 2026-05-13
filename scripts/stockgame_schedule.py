@@ -822,14 +822,54 @@ class SchedulerApp:
                 pass
 
     # ---------------- AUTO-SYNC WITH GITHUB ----------------
+    def _background_pull(self):
+        """Fire-and-forget `git fetch + git pull --rebase --autostash`. Runs on
+        a daemon thread so the UI never blocks. The cron + digest pipelines
+        also pull on their own cadence; whichever wins the .git/index.lock
+        race goes first, the others retry next interval. Origin pushes from
+        the laptop or Claude Code mobile land on disk here within
+        CODE_CHECK_INTERVAL_MS — not "next 15-min cron tick" — so a phone
+        commit at 9pm is live within ~60 s instead of overnight."""
+        try:
+            subprocess.run(
+                ["git", "-C", REPO_DIR, "fetch", "--quiet", "origin", "main"],
+                check=False,
+                timeout=30,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "-C", REPO_DIR, "pull", "--rebase", "--autostash",
+                 "--quiet", "origin", "main"],
+                check=False,
+                timeout=30,
+                capture_output=True,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            # Network blip / lock contention / git missing — silently retry
+            # next interval. Persistent failures get caught by _restart_self's
+            # pull when an actual restart is attempted.
+            pass
+
     def _check_for_code_update(self):
-        """Polled every CODE_CHECK_INTERVAL_MS. cron-update.sh's `git pull` is
-        what actually fetches the new version of this file from origin/main —
-        we just notice when the on-disk mtime has moved past where it was at
-        process startup, then auto-restart (or surface a banner) so the new
-        code is actually executing."""
+        """Polled every CODE_CHECK_INTERVAL_MS. Two jobs:
+
+        1. Kick off a background `git pull` so origin/main lands on disk
+           even when cron-update.sh hasn't fired recently (overnight, on
+           weekends with weekdays-only enabled, between manual stops, etc.).
+        2. Compare the on-disk mtime against process-load mtime; if newer,
+           flag the update + auto-restart when idle.
+
+        The pull is async — its result lands on disk and gets picked up by
+        the *next* poll cycle's mtime check, not this one. That's fine; we
+        accept up to one extra 60-s tick of latency in exchange for never
+        blocking the UI thread on git."""
         if self.is_restarting:
             return
+        # Job 1: kick off the background pull. No await — result lands on
+        # disk and the next mtime check picks it up.
+        threading.Thread(target=self._background_pull, daemon=True).start()
+
+        # Job 2: detect mtime change + auto-restart
         try:
             current_mtime = os.path.getmtime(SCRIPT_PATH)
         except OSError:

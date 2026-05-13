@@ -1,5 +1,12 @@
 name: build
 
+# The build job validates TypeScript / React / Next.js. The other two
+# (python-syntax, swift-syntax) catch errors in scripts that the main
+# build doesn't touch — important because changes made via Claude Code
+# mobile + the GitHub connector can't run `python3 -m py_compile` or
+# `swift -frontend -parse` locally before pushing. CI is the only
+# safety net for those edits.
+
 on:
   pull_request:
   push:
@@ -19,3 +26,29 @@ jobs:
       - run: npm install --legacy-peer-deps
 
       - run: npm run build
+
+  python-syntax:
+    # Catches Python syntax errors in scripts/stockgame_schedule.py before
+    # they reach the Mac mini. The scheduler's own auto-restart loop also
+    # py_compile-checks new versions and aborts the re-exec on failure,
+    # but failing here on the PR is faster + clearer feedback.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m py_compile scripts/stockgame_schedule.py
+
+  swift-syntax:
+    # Catches Swift parse errors in scripts/digest.swift. We can't actually
+    # *run* digest.swift on CI (FoundationModels + Apple Intelligence are
+    # macOS-only and need on-device model availability), but a parse check
+    # rejects typos, missing braces, bad string interpolation, and most
+    # other class-of-error a mobile edit might introduce. Uses a macOS
+    # runner because Swift's FoundationModels imports won't even parse on
+    # linux-swift.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcrun swift -frontend -parse scripts/digest.swift

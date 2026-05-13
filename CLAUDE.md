@@ -53,14 +53,17 @@ you.
 
   [Mac mini]                                              [Laptop]
   ──────────                                              ────────
-  scheduler UI (tkinter, long-running)                    edits, commits, pushes
-   │                                                            │
-   ├─ threading.Timer  →  cron-update.sh    (every ~15 min)     │
-   ├─ threading.Timer  →  digest-update.sh  (Mon–Fri / Sat AM)  │
-   └─ self-watch: poll own mtime every 60 s — when cron-update  │
-       brings down a newer stockgame_schedule.py via git pull,  │
-       persist active schedule + os.execv to relaunch on        │
-       latest code. No manual SSH needed.                       │
+  scheduler UI (tkinter, long-running)             edits from laptop OR
+   │                                                Claude Code mobile,
+   ├─ threading.Timer  →  cron-update.sh    (15m)   commits to GitHub
+   ├─ threading.Timer  →  digest-update.sh  (M–F)         │
+   ├─ background pull: git fetch + pull every 60 s ←──── origin/main
+   │   (independent of cron's own pull, so phone-pushed
+   │    code lands on disk within ~60 s even overnight)
+   └─ self-watch: poll own mtime every 60 s — when a
+       newer stockgame_schedule.py lands on disk,
+       persist active schedule + os.execv. No manual
+       SSH needed.                                        │
               ↓                                                  ↓
       scripts/cron-update.sh                                 git push
        ├─ git pull --rebase                ←─── pulls latest ────┘
@@ -657,23 +660,30 @@ Defensive ordering:
 - Status labels: "Next refresh: ...", "Last run: ✓...", "Next briefing:
   ... (daily|weekly)", "Last briefing: ... (scope) ✓", and "Code: in sync
   / update pending / re-launching".
-- **GitHub sync (auto-restart)**: The bash + Swift + TS pieces of the
-  pipeline are re-read from disk on every fire, so any commit you push
-  from the laptop is picked up automatically on the next cron tick. The
-  Python scheduler is the one exception — it loads its source once at
-  launch. To close that gap, the scheduler polls `os.path.getmtime`
-  on its own source file every 60 s. When `cron-update.sh`'s
-  `git pull --rebase` brings down a newer version of
-  `stockgame_schedule.py`, the watcher trips:
-  1. Sets the "Code: update pending" banner.
-  2. If "Auto-restart on GitHub update" is checked (default ON) AND no
-     refresh / digest run is currently in progress, the scheduler
-     persists its active schedule to `~/.stockgame-schedule.json`,
-     `py_compile`-checks the new source, then `os.execv`s itself.
-  3. The freshly-launched process reads `~/.stockgame-schedule.json` on
-     startup, re-applies the schedule (price interval + window +
-     briefing time), and deletes the state file. The user sees "Code:
-     re-launched with latest version (state restored from …)".
+- **GitHub sync (auto-pull + auto-restart)**: The bash + Swift + TS pieces
+  of the pipeline are re-read from disk on every fire. The Python
+  scheduler is the one exception — it loads its source once at launch.
+  To close that gap, the scheduler runs *two* things on a 60-s timer:
+  1. A **background `git fetch` + `git pull --rebase --autostash`** on a
+     daemon thread. This makes the scheduler an active puller — it
+     doesn't wait for `cron-update.sh`'s next 15-min tick to bring code
+     down. Push from the laptop or from Claude Code mobile at 9 pm and
+     the new code lands on the Mac mini's disk within ~60 s, even
+     overnight or on weekends when no cron is firing.
+  2. A **mtime check** comparing the loaded version of
+     `stockgame_schedule.py` against what's on disk. When the background
+     pull (or the cron's pull) brings down a newer version, the watcher
+     trips:
+     a. Sets the "Code: update pending" banner.
+     b. If "Auto-restart on GitHub update" is checked (default ON) AND
+        no refresh / digest run is currently in progress, the scheduler
+        persists its active schedule to `~/.stockgame-schedule.json`,
+        `py_compile`-checks the new source, then `os.execv`s itself.
+     c. The freshly-launched process reads
+        `~/.stockgame-schedule.json` on startup, re-applies the
+        schedule (price interval + window + briefing time), and deletes
+        the state file. The user sees "Code: re-launched with latest
+        version (state restored from …)".
 - **Safety net**: a Python syntax error in a pushed commit is caught by
   the `py_compile` check pre-execv. The restart is aborted, the old
   process keeps running, and the sync label flips red so the laptop
@@ -1193,6 +1203,99 @@ find . -name "* 2" -o -name "* 2.*" | xargs rm -rf
 
 If you find them and the repo IS in iCloud, that's the signal to
 relocate (`mv ~/Desktop/Stock\ Game\ App/stock-game ~/Repos/`).
+
+---
+
+## §13.3. Working from Claude Code mobile (GitHub connector)
+
+This repo is set up so it's usable from the Claude Code mobile app via
+the GitHub connector. The intended flow when you're away from the
+laptop:
+
+```
+[iPhone, Claude Code mobile]
+   "tweak the digest.swift prompt so the AI never says 'today's market'"
+   → mobile-Claude edits scripts/digest.swift
+   → commits to btheis15/stock-game / main via GitHub API
+       ↓
+[GitHub Actions]
+   build.yml fires:
+     • build       (Ubuntu)  — npm install + next build
+     • python-syntax (Ubuntu) — py_compile scripts/stockgame_schedule.py
+     • swift-syntax  (macOS) — swift -frontend -parse scripts/digest.swift
+   If any fails, the mobile UI shows the red ✗ and you push a fix.
+       ↓ all green
+[Mac mini]
+   Within ~60 s the tkinter scheduler's background pull
+   (`_background_pull` in stockgame_schedule.py) fetches origin/main
+   and writes the new files to disk. The mtime watcher then auto-
+   restarts the scheduler if its own source changed.
+   The next 15-min cron tick is also pulling on its own cadence —
+   redundant, intentionally so. Doesn't matter which one wins; both
+   land at the same SHA.
+       ↓
+[Mac mini, next fire of cron-update.sh / digest-update.sh]
+   reads the updated file from disk and runs it. Swift script edits
+   take effect on the next 7 AM briefing fire (or "Run Briefing Now").
+```
+
+### What works well from mobile-Claude
+
+- **digest.swift prompt edits** (the most common ask). Tweaking the
+  3-sentence template, adding rejection rules, changing tone, etc.
+  The swift-syntax CI job catches typos; if the prompt itself produces
+  bad prose, the next morning's briefing will show it and you can
+  push a refinement.
+- **UI text / colors / Tailwind classes** in `components/` and `app/`.
+  The build job catches type errors and bad JSX. PWA preview deploys
+  automatically.
+- **picks.ts edits**: changing a player's color, renaming, fixing a
+  typo in TICKER_NAMES. Adding a *new* ticker mid-game is technically
+  possible but the data backfill needs a `--full` fetch which the
+  cron only does on the laptop trigger (see §10.2 for why); plan
+  ticker additions for the laptop, not mobile.
+- **Doc edits** in CLAUDE.md / STATE.md / OVERVIEW.md.
+- **stockgame_schedule.py tweaks**: UI labels, status text. The
+  scheduler will auto-restart on the Mac mini within ~60 s of CI
+  going green.
+
+### What to avoid from mobile-Claude
+
+- **`npm run fetch-prices -- --full`** can't run from a phone push.
+  If a change *requires* a full fetch (adding a new ticker, moving
+  START_DATE, etc.), do it from the laptop.
+- **OG image / PWA icon regeneration** (`scripts/make-og.py`,
+  `scripts/make-icons.py`) needs local Python + Pillow. Cosmetic only;
+  defer to laptop.
+- **Anything touching `public/data/prices.json`** — that file is
+  auto-generated. Never hand-edit.
+- **Big refactors** that need `npm run dev` to verify visually.
+  Mobile can't preview at small/iPhone widths; ship those from the
+  laptop after `npm run dev` poke-tests.
+
+### Safety nets
+
+- **CI build job** catches TS/React errors.
+- **CI python-syntax job** catches `stockgame_schedule.py` typos.
+- **CI swift-syntax job** catches `digest.swift` parse errors.
+- **Scheduler's `py_compile` check on auto-restart** is the last gate
+  before the new code actually runs on the Mac mini — a syntax error
+  that somehow slipped past CI (e.g., merge conflict resolution) gets
+  caught here and the old process keeps running with a red "Code"
+  banner.
+- **digest pipeline** never pushes; `cron-update.sh` is the only
+  publisher. Mobile commits + this script never race on push.
+
+### How to connect this repo in the mobile app
+
+(This is a one-time UI step, not something I can do from this terminal.)
+
+1. Open Claude Code mobile → Settings → Connectors → GitHub.
+2. Make sure the GitHub account that owns `btheis15/stock-game` is
+   authorized.
+3. Add `btheis15/stock-game` to the allowed repositories list (if it
+   isn't already covered by an "all repos" grant).
+4. Start a new chat and reference the repo by name to begin.
 
 ---
 
