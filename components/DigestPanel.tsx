@@ -162,7 +162,7 @@ function InlineAIAttribution({ digest }: { digest: WindowDigest }) {
   if (!engineLabel) return null;
   return (
     <span className="text-[10px] tracking-[0.04em] text-zinc-600 whitespace-nowrap">
-      ⬡ {engineLabel}
+      ⬡ Summarized by {engineLabel}
     </span>
   );
 }
