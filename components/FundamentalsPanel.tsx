@@ -447,29 +447,19 @@ function FinancialsChart({
         ))}
 
         {/* Zero reference line — solid, theme-aware, more prominent than the
-            grid so positive vs. negative bars read clearly. */}
+            grid so positive vs. negative bars read clearly. No "0" label on
+            the axis: a fixed-position label would collide with whichever
+            evenly-spaced tick happens to land closest to zero. The line
+            position itself is the signal. */}
         {zeroInRange && (
-          <g>
-            <line
-              x1={0}
-              x2={innerW}
-              y1={zeroY}
-              y2={zeroY}
-              stroke="var(--chart-axis-label)"
-              strokeWidth={1.25}
-            />
-            <text
-              x={-6}
-              y={zeroY}
-              dy="0.32em"
-              textAnchor="end"
-              fontSize={10}
-              fill="var(--chart-axis-label)"
-              fontWeight={600}
-            >
-              0
-            </text>
-          </g>
+          <line
+            x1={0}
+            x2={innerW}
+            y1={zeroY}
+            y2={zeroY}
+            stroke="var(--chart-axis-label)"
+            strokeWidth={1.25}
+          />
         )}
 
         {/* Bars per period */}
@@ -776,29 +766,17 @@ function EarningsChart({
           </g>
         ))}
         {/* Breakeven (zero) reference line — same treatment as the financials
-            chart so the "above/below zero" read is consistent. */}
+            chart, no axis label to avoid overlapping the nearest evenly-spaced
+            tick when zero lands between them. */}
         {zeroInRange && (
-          <g>
-            <line
-              x1={0}
-              x2={innerW}
-              y1={yScale(0)}
-              y2={yScale(0)}
-              stroke="var(--chart-axis-label)"
-              strokeWidth={1.25}
-            />
-            <text
-              x={-6}
-              y={yScale(0)}
-              dy="0.32em"
-              textAnchor="end"
-              fontSize={10}
-              fill="var(--chart-axis-label)"
-              fontWeight={600}
-            >
-              $0
-            </text>
-          </g>
+          <line
+            x1={0}
+            x2={innerW}
+            y1={yScale(0)}
+            y2={yScale(0)}
+            stroke="var(--chart-axis-label)"
+            strokeWidth={1.25}
+          />
         )}
         {/* Dots — estimate and actual at the SAME x position so the user can
             read the surprise at a glance: stacked vertically when the actual
