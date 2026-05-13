@@ -123,17 +123,28 @@ The article archive that feeds digests lives outside the repo at `~/StockDigests
 
 #### Tiered refresh (digest pipeline)
 
-`scripts/digest.swift` has three scopes; each scope is responsible for a disjoint slice of `digests.json`:
+`scripts/digest.swift` has four scopes; each scope is responsible for a disjoint slice of `digests.json`:
 
 | Scope | Fires from | RSS fetch | AI calls | Updates |
 |---|---|---|---|---|
 | `fast` | `cron-update.sh` every 15 min, after the price fetch | no | none | game `1D / 1W / 1M` — re-renders each `digestTemplate` with live pcts from the freshly-written `prices.json` |
 | `daily` | `digest-update.sh` Mon–Fri at the scheduled time | yes (subject to `DIGEST_MODE=digests-only`) | many | holdings `1D + 1W`, portfolios `1D + 1W`, game ALL windows (1D/1W/1M emitted with `digestTemplate`) |
 | `weekly` | `digest-update.sh` on Saturday at the scheduled time | no | many | holdings `1M / 3M / 1Y / ALL`, portfolios `1M / 3M / 1Y / ALL` |
+| `game` | Manual — the "Re-run Game Briefings Only" button in the scheduler, or `DIGEST_SCOPE=game bash scripts/digest-update.sh` from a shell | no | 6 | game ALL windows only (1D/1W/1M with `digestTemplate`). Used for mid-day prompt-tuning re-runs without sitting through the full daily pipeline. ~30 s. |
 
 Anything a given scope doesn't touch is preserved from the prior `digests.json` — `writeOutputJSON` reads the existing file and overlays only the windows it just regenerated. Holdings or portfolios whose key isn't in the current roster (e.g. SPY after the Lee swap) are pruned at merge time.
 
 **Templated game prose (Phase 3).** The daily run instructs Apple Intelligence to format every percentage as `TOKEN [±X.XX%]`, where TOKEN is a ticker symbol or player first name. After generation, `extractGameDigestTemplate` replaces those `TOKEN [±X.XX%]` occurrences with `{{TICKER}}` or `{{user:USERID}}` placeholders and stores the result in `WindowDigest.digestTemplate` (alongside the rendered `digest`). The next 15-min `fast` tier reads each game template, computes the live pct for each placeholder via `rangeCloses` / `computeUserMovers`, and writes the substituted prose back to `digest`. Sub-second; no AI involved. If the model ever drifts from the bracket format the extractor logs a warning and that window's prose just stays frozen until the next daily run — no crash.
+
+**Facts-first game prompt (Phase 4).** Earlier versions of the game-summary prompt asked the model to pick its own top mover, drag, and forward catalyst from a raw article list and write prose — which produced hallucinations like "40% increase in April" that weren't in any input. The current prompt is templated around three labeled FACT blocks pre-computed deterministically by `computeGameDigestFacts(data, window, standings, articles)`:
+
+- **FACT 1** — `topMover`: ticker with the largest positive window pct, plus its best-relevance article and every owner's portfolio pct.
+- **FACT 2** — `topDrag`: ticker with the largest negative window pct, same shape.
+- **FACT 3** — `forwardCatalyst`: highest-relevance article whose title/description mentions a future-event keyword (`upcoming`, `scheduled`, `outlook`, `FDA decision`, `earnings call`, …), filtered to a ticker not already used in sentences 1-2.
+
+Each `GameAnchor` carries `ticker`, `tickerPct`, owners with their portfolio pcts, and one article. The prompt renders each anchor as a FACT block and tells the model: *"Do NOT introduce ANY information not present in the FACT block — no extra percentages, no dates, no growth figures. Every number must come from a FACT block."* When a slot has no data the FACT is marked `[skip]` and the model omits that sentence rather than fabricating.
+
+**Ownership QA backstop.** `detectOwnershipViolations(prose)` runs on every generated digest (portfolio + game) sentence-by-sentence. For each (player, ticker) co-occurrence it checks whether the player is in `TICKER_OWNERS[ticker]`; if not, and no legitimate owner is named in the same sentence, the violation is logged via `logOwnershipViolations` → stderr → `/tmp/stock-game.log` with the sentence + offending pair. The digest still ships (we don't burn an already-generated AI call), but the log gives a paper trail to spot patterns and tune the prompt.
 
 ## 4. Portfolio math (`lib/portfolio.ts`)
 
@@ -326,12 +337,17 @@ components/
                       from a scrolled portfolio view doesn't land mid-page.
   StocksListView.tsx  All picks sorted by % return. Filter chips: All / Brian / Kevin / Rick / Lee.
                       Multi-color owner swatch when a ticker is held by 2+ users.
-  DigestPanel.tsx     News-digest card rendered ONLY on /stock/[ticker], between RangeTabs and
-                      the Position cards. Robinhood-style collapsible: 3-line clamped prose by
-                      default with "Show more"; expanded view reveals the full digest, a meta
-                      strip (range label · date range · article count · "Updated HH:MM"),
-                      a Sources section (up to 6 article titles linking to the originals),
-                      and a small "⬡ Summarized by Apple Intelligence" attribution.
+  DigestPanel.tsx     News-digest card composed on /stock/[ticker], /portfolio/[user], and the
+                      Compare home view. Position varies per page (between RangeTabs and Position
+                      cards on stock detail; between RangeTabs and Holdings on portfolio; ABOVE
+                      the leaderboard on Compare — narrative cause before the consequences).
+                      Robinhood-style collapsible: 3-line clamped prose by default with "Show
+                      more"; expanded view reveals the full digest, a meta strip (range label ·
+                      date range · article count · "Updated HH:MM"), and a Sources section
+                      (up to 6 article titles linking to the originals). The
+                      "⬡ Summarized by Apple Intelligence" attribution is inlined on the
+                      header row (right side, next to the "DAILY BRIEFING" label) so it's
+                      always visible without expanding the card.
                       Signal-quality dot at the left edge: green if avgRelevanceScore ≥ 8,
                       yellow if 6–7. Three render branches:
                         • digest=null OR no entry for ticker → renders nothing (zero noise)
@@ -343,8 +359,31 @@ components/
                       so /digests.json is fetched once per session even across stock-page
                       navigations.
                       Component is data-pure: takes `digest: WindowDigest | null` as a prop
-                      directly, plus `loading` + `range`. Both StockView (via `getDigest`)
-                      and PortfolioView (via `getPortfolioDigest`) compose it.
+                      directly, plus `loading` + `range`. StockView (via `getDigest`),
+                      PortfolioView (via `getPortfolioDigest`), and CompareView (via
+                      `getGameDigest`) all compose it.
+  FundamentalsPanel.tsx
+                      About / Financials / Earnings sections for /stock/[ticker]. Fed by
+                      `public/data/fundamentals.json`. About card has a 2-col key-stats grid
+                      (Market cap, P/E, Forward P/E, EPS, 52-week range, Beta, Div yield,
+                      Sector, Industry, HQ, Employees, Exchange, Website) plus collapsible
+                      company description. Financials chart is grouped bars (Revenue / Gross
+                      profit / Net income) with a Net margin overlay line on its own
+                      scaled y-range; Quarterly / Annual toggle; solid theme-aware zero
+                      reference line on the y=0 axis when the domain spans both signs;
+                      "Show numbers" button expands a per-period card stack with the exact
+                      figures (net-margin can be 4-digit-% for unprofitable companies, not
+                      readable from the chart). Earnings chart is per-quarter scatter:
+                      lighter-bigger Estimate dot drawn first, brand-green Actual dot drawn
+                      on top — when they overlap the lighter ring frames the actual; when
+                      they stack vertically the surprise reads as the gap. No
+                      Quarterly/Annual toggle on Earnings (annual rollup was ambiguous for
+                      partial-year companies and the cadence is quarterly anyway). Y-domain
+                      clamps to always include 0 so all-negative-EPS companies get a visible
+                      breakeven line at the top. "Show numbers" mirror the Financials table
+                      with Estimate / Actual / Surprise. Inner per-period cards use
+                      `bg-zinc-800/40` so the theme-flip from globals.css renders readable
+                      contrast in dark / light / twilight modes.
   InsightsCard.tsx    "What's driving it" — per-user cards showing top-3 / bottom-3 movers in
                       the active range. Cards re-sort by leaderboard rank for the active range.
                       Card header (user name + pct + place) links to /portfolio/{owner}.

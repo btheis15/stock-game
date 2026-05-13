@@ -220,10 +220,20 @@ components receive prepared series and only do range-filtering and scrub.
    forces the axis to span the full trading session even when only part is filled.
 9. Render header (`{leader.user.name} leads` or `It's a tie`), gap pct +
    gap $, optional `<MarketStateBadge>`, `<ScrubChart>`, `<RangeTabs>`,
-   sports-standings-style leaderboard (`<UserRow>` stack — rank + color dot +
-   name + gap-to-leader + value; auto-scales to N players), `<InsightsCard>`
-   (rendered for every range including 1D — `app/page.tsx` precomputes a
-   1D analysis too), Game rules.
+   `<DigestPanel>` (game-wide briefing scoped to the active range — the
+   narrative cause), sports-standings-style leaderboard (`<UserRow>` stack
+   — rank + color dot + name + gap-to-leader + value; auto-scales to N
+   players; the consequence of what the digest just described),
+   `<InsightsCard>` (rendered for every range including 1D — `app/page.tsx`
+   precomputes a 1D analysis too), Game rules.
+
+   Render order is cause → consequence: the DigestPanel sits ABOVE the
+   leaderboard so reading top-down flows chart → range tabs → "what
+   happened" → standings. The leaderboard is the *consequence*; the digest
+   is the *story*. The "⬡ Summarized by Apple Intelligence" attribution
+   is rendered inline on the digest header (right side of the
+   "DAILY BRIEFING" label row), not as a footer block — visible without
+   expanding the card.
 
 ### §5.2. Portfolio drill-down (`/portfolio/[user]`)
 
@@ -700,7 +710,7 @@ Defensive ordering:
 
 The digest pipeline is the second of the two writers to `main` and produces
 `public/digests.json` plus, on the daily tier, `public/data/fundamentals.json`
-(via `npm run fetch-fundamentals` — see §8.6.5). It has three scopes, each
+(via `npm run fetch-fundamentals` — see §8.6.5). It has four scopes, each
 owning a disjoint slice of `digests.json`. Whatever a scope doesn't touch is
 preserved on the next merge.
 
@@ -732,14 +742,24 @@ fetch. Regenerates the slow windows:
 - Game: not touched (the daily + fast tiers already maintain it).
 Lighter than daily because it skips the fetch phase entirely.
 
+**`--scope game`** — manual trigger. Fired by the "Re-run Game Briefings
+Only" button in the scheduler UI (or directly via
+`DIGEST_SCOPE=game bash scripts/digest-update.sh` on the Mac mini). No
+RSS, no per-stock or per-portfolio briefings. Regenerates all 6 game
+windows from the existing article archive with the current prompt — ~30 s.
+Used for previewing prompt-tuning changes mid-day without sitting through
+the full daily run; 1D/1W/1M emit fresh `digestTemplate`s so the next
+fast tier picks up the new prose.
+
 `digest-update.sh` reads two env vars from the scheduler:
 
-- `DIGEST_SCOPE` (default `daily`) — forwarded as `--scope`. `fast` is
-  rejected with a no-op exit so nobody accidentally fires the fast tier
-  from there (cron-update.sh owns that path).
+- `DIGEST_SCOPE` (default `daily`) — forwarded as `--scope`. Accepts
+  `daily | weekly | game`. `fast` is rejected with a no-op exit so nobody
+  accidentally fires the fast tier from there (`cron-update.sh` owns that
+  path).
 - `DIGEST_MODE` (default `full`) — when `digests-only`, forwards
-  `--digests-only` to `digest.swift` so RSS is skipped. The weekly scope
-  always forces this on regardless of `DIGEST_MODE`.
+  `--digests-only` to `digest.swift` so RSS is skipped. The weekly + game
+  scopes always force this on regardless of `DIGEST_MODE`.
 
 #### Templates (game 1D / 1W / 1M)
 
@@ -769,6 +789,59 @@ min with current standings while the *narrative* (catalysts, news events,
 ranking story) only regenerates once per morning. ~3-sentence prose stays
 semantically frozen all day; the bracketed numbers flip.
 
+#### Game prompt — facts-first layered architecture
+
+Earlier versions of the game-summary prompt handed Apple Intelligence
+the raw standings + an article list and asked it to pick the top mover,
+drag, and forward catalyst itself, then write prose. That gave the model
+too many degrees of freedom and produced hallucinations like *"the
+biggest drag of the day saw a 40% increase in April"* and *"TSLA has
+seen a 30% increase since April, a big concern for Rick, who lost 6.24%
+of his portfolio."* Neither April figure was in any input — the model
+confabulated.
+
+Current architecture (Phase 4): Swift computes three structured anchors
+deterministically in `computeGameDigestFacts(data, window, standings,
+articles)`. Each anchor is a `GameAnchor` carrying `ticker`, `tickerPct`,
+every `owners[].name + portfolioPct`, and one article (highest
+`relevanceScore` for that ticker in the window):
+
+- **`topMover`** — ticker with the largest positive window pct
+  (from `tickerPctMap = { ticker → pct }` across `ALL_TICKERS`).
+- **`topDrag`** — ticker with the largest negative window pct.
+- **`forwardCatalyst`** — highest-relevance article whose title or
+  description mentions a `FUTURE_EVENT_KEYWORDS` term (`upcoming`,
+  `scheduled`, `outlook`, `FDA decision`, `earnings call`, `to launch`,
+  …), filtered to an owned ticker not already used in sentences 1-2.
+  Falls back to the highest-relevance unused article if no
+  future-event match exists.
+
+The prompt renders each anchor as a labeled `FACT 1 / FACT 2 / FACT 3`
+block (ticker + pct + owners + their portfolio pcts + article headline +
+article excerpt) and tells the model: *"Do NOT introduce ANY information
+not present in the FACT block — no extra percentages, no dates, no
+growth figures. Every number must come from a FACT block."* The model's
+only job is to phrase each block as one natural-sounding sentence. When
+a slot has no data (no positive movers, no relevant articles, etc.) the
+FACT block is marked `[skip — no data]` and the model omits that
+sentence rather than fabricating. The sentence-shape template requires
+a bracketed pct after every TOKEN so the fast-tier templater can still
+substitute live numbers later.
+
+#### Ownership QA backstop
+
+`detectOwnershipViolations(prose)` runs on every generated digest
+(portfolio + game) right after `cleanDigestProse`. It splits the prose
+into sentences, finds every (player_name, ticker) co-occurrence, and
+checks `TICKER_OWNERS[ticker]`. If a player is named in a sentence with
+a ticker they don't own AND no legitimate owner of that ticker is named
+in the same sentence (the second clause handles legitimate multi-player
+sentences like "TSLA helped Kevin and Rick"), the pair is flagged and
+logged via `logOwnershipViolations` → stderr → `/tmp/stock-game.log`
+with the sentence text. The digest still ships (we don't burn an
+already-generated AI call), but the log gives the user a paper trail
+to spot recurring failure modes and refine the prompt.
+
 #### Merge writer
 
 `writeOutputJSON` reads the existing `digests.json` via
@@ -786,13 +859,43 @@ Pulls Yahoo's `quoteSummary` modules (`assetProfile`, `summaryDetail`,
 `public/data/fundamentals.json`. Powers the three new sections on
 `/stock/[ticker]`:
 
-- **About card** — company description + key-stats grid (Market cap, P/E,
-  Forward P/E, EPS, 52-week range, Beta, Dividend yield, Sector / Industry,
-  Headquarters, Employees, Exchange, Website).
-- **Financials chart** — Quarterly/Annual toggle. Revenue / Gross profit /
-  Net income as grouped bars + Net margin as an overlaid line.
-- **Earnings chart** — Quarterly/Annual toggle. Scatter plot per period:
-  light-green dot = analyst estimate, brand-green dot = actual.
+- **About card** — company description (with Show more / Show less past
+  400 chars) + a 2-col key-stats grid (Market cap, P/E, Forward P/E, EPS,
+  52-week range, Beta, Dividend yield, Sector / Industry, Headquarters,
+  Employees, Exchange, Website). Rows whose Yahoo value is null don't
+  appear, so partial-coverage tickers don't show empty rows.
+- **Financials chart** — Quarterly / Annual toggle. Revenue (green) /
+  Gross profit (dark orange) / Net income (light orange) as grouped bars;
+  Net margin as a thin overlay line on its OWN scaled y-range (visual
+  trend indicator, not read off the dollar axis — same approach as
+  Robinhood, since margin % and dollar magnitudes are incomparable). A
+  solid theme-aware zero reference line draws across the chart whenever
+  the y-domain spans both signs, so positive vs. negative bars read at a
+  glance. Below the chart, a "Show numbers" button expands a per-period
+  card stack (most-recent on top) with the exact figures (Revenue /
+  Gross profit / Net income / Net margin) — net-margin can be 4-digit-%
+  for unprofitable companies and isn't readable off the chart axis.
+- **Earnings chart** — Quarterly only (no toggle; annual rollup was
+  ambiguous for partial-year companies and the cadence is quarterly
+  anyway). Per-period scatter: a lighter-green / slightly larger
+  Estimate dot drawn first, brand-green Actual dot drawn on top — when
+  they overlap concentrically the ring frames the actual; when they
+  stack vertically the gap reads as the surprise. No connector line
+  (earlier draft had one — added noise without information beyond what
+  the dot positions already show). The y-domain always clamps to
+  include 0 so all-negative-EPS companies (most of the growth-stage
+  roster) get a visible breakeven reference line at the top. Same
+  "Show numbers" expandable table as Financials, showing Estimate /
+  Actual / Surprise per quarter.
+
+Both charts' grid lines use `var(--chart-baseline)` and zero lines use
+`var(--chart-axis-label)` (already defined per-theme in `globals.css`)
+so they're visible in dark / light / twilight modes. The inner
+per-period cards in "Show numbers" use `bg-zinc-800/40` for the same
+reason — the bare-class overrides in `globals.css` flip the background
+between dark, white, and indigo correctly per theme; using a class
+without an override (e.g. `bg-zinc-950/60`) leaves a dark band in light
+mode that swallows the dark-overridden text colors inside.
 
 Every field is optional. Yahoo's coverage is uneven — micro caps + recent
 IPOs frequently lack some modules, and Yahoo's `incomeStatementHistory*`

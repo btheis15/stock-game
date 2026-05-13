@@ -53,20 +53,28 @@ Four things, on a phone screen:
    plain-English summary ("what happened today" for 1D, "the year's most
    important storyline" for 1Y, "the defining arc of the company since 2/5"
    for ALL), with a "Show more" tap target that reveals the full prose,
-   the underlying article sources (linked to the originals), the article
-   count, and a tiny "⬡ Summarized by Apple Intelligence" credit at the
-   bottom. The dot at the left of the card is a signal-quality indicator —
-   green when the underlying articles average a high relevance score,
-   yellow when middling. Below the digest are "Position" cards for each
-   player who owns the stock (Kevin and Rick both own NVDA, for example,
-   so NVDA's page shows both their positions). Below that, an **About**
-   card with the company's description + key statistics (market cap,
-   P/E, EPS, sector, 52-week range, dividend yield, headquarters,
-   employees, website), then a **Financials** chart with Quarterly /
-   Annual toggle showing Revenue, Gross profit, and Net income as
-   grouped bars with a Net margin line overlay, then an **Earnings**
-   chart with Quarterly / Annual toggle showing analyst estimate vs
-   actual EPS per period. Tickers Yahoo doesn't fully cover (some
+   the underlying article sources (linked to the originals), and the article
+   count. A tiny "⬡ Summarized by Apple Intelligence" credit sits inline on
+   the same row as the "DAILY BRIEFING" label (right-aligned), so the
+   attribution is always visible without expanding the card. The dot at the
+   left of the card is a signal-quality indicator — green when the
+   underlying articles average a high relevance score, yellow when
+   middling. Below the digest are "Position" cards for each player who
+   owns the stock (Kevin and Rick both own NVDA, for example, so NVDA's
+   page shows both their positions). Below that, an **About** card with the
+   company's description + key statistics (market cap, P/E, EPS, sector,
+   52-week range, dividend yield, headquarters, employees, website), then
+   a **Financials** chart with Quarterly / Annual toggle showing Revenue,
+   Gross profit, and Net income as grouped bars with a Net margin line
+   overlay and a solid zero reference line so positive vs. negative bars
+   read cleanly, then an **Earnings** chart (quarterly-only) showing
+   analyst estimate vs actual EPS per period as two dots stacked at the
+   same x — when they overlap concentrically the actual was near
+   consensus; when they stack vertically the gap reads as the surprise.
+   Both charts have a "Show numbers" toggle below them that expands a
+   stack of per-period cards with the exact figures — useful for
+   net-margin and surprise values that aren't readable off the chart.
+   Tickers Yahoo doesn't fully cover (some
    small caps and recent IPOs) hide whichever fields they're missing
    rather than blanking the section. Finally, a list of every
    dividend that stock has paid since 2/5.
@@ -227,6 +235,14 @@ Total runtime: ~6 min.
 A "Skip article fetch" checkbox on the scheduler skips RSS fetching + AI
 relevance scoring and just regenerates digests from the existing archive —
 useful when iterating on the prompt.
+
+A separate **"Re-run Game Briefings Only"** button on the scheduler
+fires `DIGEST_SCOPE=game` — regenerates *only* the 6 game-wide
+leaderboard briefings (1D/1W/1M/3M/1Y/ALL) from the existing article
+archive. No RSS, no per-stock or per-portfolio briefings. ~30 s. Useful
+for previewing prompt-tuning changes mid-day without sitting through
+the full daily run. The newly-generated 1D/1W/1M emit fresh templates
+so the next 15-min fast tier picks up the new prose with live pcts.
 
 The pipelines run independently — a long digest run never blocks the 15-min
 price tick. The refresh pipeline is the only thing that pushes to `main`;
