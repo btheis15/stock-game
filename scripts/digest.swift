@@ -84,7 +84,13 @@ let TICKER_NAMES: [String: String] = [
 ]
 
 let RELEVANCE_THRESHOLD = 6
-let DESC_TRUNCATE = 400
+// Per-article description truncation when an article is rendered into a
+// digest prompt. 300 chars × ~30 articles + the prompt template stays under
+// ~3K tokens, well within Apple Intelligence's on-device + PCC routing
+// thresholds. Earlier versions used 400 chars combined with uncapped
+// articles for 1D/1W, which let popular tickers (AMZN, AAPL) blow past
+// the context window with 100+ articles in a week.
+let DESC_TRUNCATE = 300
 
 // Player roster — mirrors lib/picks.ts on the web side. The IDs match the
 // route segments at /portfolio/{id}. If the roster changes there, change it
@@ -732,20 +738,29 @@ func loadArticlesInLastNDays(ticker: String, days: Int) -> [Article] {
     return out
 }
 
+// Per-window article caps. Every window now caps; the older "1D/1W return
+// everything" path hit Apple Intelligence's context window for newsy
+// tickers (100+ Yahoo articles for AMZN/AAPL in a week → 12K+ tokens →
+// "Exceeded model context window size"). Caps are tuned so 15 × 300-char
+// description × ~480 chars per article × prompt template stays under
+// ~2.5K tokens for every window.
+let ARTICLES_PER_WINDOW_CAP: [WindowKey: Int] = [
+    .d1: 15,
+    .w1: 15,
+    .m1: 20,
+    .m3: 25,
+    .y1: 24,
+    .all: 25,
+]
+
 func articlesForWindow(ticker: String, window: WindowKey, gameAge: Int) -> [Article] {
     let articles = loadArticlesInLastNDays(ticker: ticker, days: window.effectiveLookback(gameAge: gameAge))
-    switch window {
-    case .d1, .w1:
-        return articles                                   // all qualifying, dedup'd
-    case .m1:
-        return Array(articles.sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }.prefix(20))
-    case .m3:
-        return Array(articles.sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }.prefix(30))
-    case .y1:
-        return Array(articles.sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }.prefix(24))
-    case .all:
-        return Array(articles.sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }.prefix(30))
-    }
+    let cap = ARTICLES_PER_WINDOW_CAP[window] ?? 15
+    // Sort by relevance score (highest first), then keep the top N. Articles
+    // without a score sink to the bottom; they'll only be picked if the
+    // window is very article-light.
+    let sorted = articles.sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+    return Array(sorted.prefix(cap))
 }
 
 func daysOfDataAvailable(_ ticker: String) -> Int {
