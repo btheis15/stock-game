@@ -121,9 +121,25 @@ let TICKER_OWNERS: [String: [String]] = {
     return m
 }()
 
-func ownerSuffix(forTicker t: String) -> String {
-    let owners = TICKER_OWNERS[t] ?? []
-    return owners.isEmpty ? "" : "/\(owners.joined(separator: ","))"
+// Used inside prompts to make ticker ownership explicit. The previous form
+// "[ASTS/brian]" looked too much like a byline ("ASTS as reported by Brian"),
+// which led Apple Intelligence to write nonsense like "QCOM's investor day,
+// as reported by Brian, …" — Brian doesn't report; he holds. The new form
+// "[ASTS · held by Brian]" reads as a clear ownership annotation.
+func ownerLabel(forTicker t: String) -> String {
+    let ownerIds = TICKER_OWNERS[t] ?? []
+    if ownerIds.isEmpty { return "held by no one" }
+    let names: [String] = ownerIds.compactMap { id in
+        PLAYERS.first(where: { $0.id == id })?.name
+    }
+    switch names.count {
+    case 1: return "held by \(names[0])"
+    case 2: return "held by \(names[0]) and \(names[1])"
+    default:
+        let last = names.last!
+        let rest = names.dropLast().joined(separator: ", ")
+        return "held by \(rest), and \(last)"
+    }
 }
 
 // Sports/entertainment company list — exemption to "sports" rejection rule.
@@ -888,6 +904,102 @@ func cleanDigestProse(_ raw: String) -> String {
     return s.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
+// MARK: - Ownership QA
+//
+// Scans generated prose for (player, ticker) co-occurrences and verifies the
+// player actually owns the ticker per PLAYERS. Catches the worst class of
+// game/portfolio-digest hallucination — e.g. "ASTS dropped, hurting Kevin"
+// when only Brian owns ASTS — that the prompt rules can't fully prevent.
+//
+// Approach: sentence-by-sentence. Within a sentence, every player name found
+// and every ticker found are considered potentially related. If a (player,
+// ticker) pair is found where the player doesn't own that ticker AND no
+// player named in the same sentence DOES own it, the pair is flagged. The
+// "no other owner mentioned" guard handles legitimate multi-player sentences
+// like "TSLA helped both Kevin and Rick" — TSLA's owner *is* in the sentence
+// so the model wasn't wrong.
+//
+// We don't auto-reject — we log and return the prose. The user can spot
+// violations in the Mac mini log and refine the prompt or push a fix.
+// Returning a flagged-but-unchanged string is safer than failing the
+// digest entirely.
+struct OwnershipViolation {
+    let sentence: String
+    let player: String
+    let ticker: String
+}
+
+func detectOwnershipViolations(in prose: String) -> [OwnershipViolation] {
+    let knownTickers = Set(DEFAULT_TICKERS)
+    let nameToTickers: [String: Set<String>] = {
+        var m: [String: Set<String>] = [:]
+        for p in PLAYERS { m[p.name.lowercased()] = Set(p.tickers) }
+        return m
+    }()
+    // Split prose into sentences. The 3-sentence digests are short, so naive
+    // splitting on sentence-ending punctuation is fine.
+    let sentences = prose
+        .components(separatedBy: CharacterSet(charactersIn: ".!?"))
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+
+    let tickerPattern = #"\b([A-Z]{1,5})\b"#
+    var violations: [OwnershipViolation] = []
+    for sentence in sentences {
+        // Find ticker tokens
+        var foundTickers: [String] = []
+        if let regex = try? NSRegularExpression(pattern: tickerPattern) {
+            let ns = sentence as NSString
+            let matches = regex.matches(in: sentence, range: NSRange(location: 0, length: ns.length))
+            for m in matches {
+                let token = ns.substring(with: m.range(at: 1))
+                if knownTickers.contains(token) {
+                    foundTickers.append(token)
+                }
+            }
+        }
+        // Find player names (case-insensitive, whole-word)
+        var foundPlayers: [String] = []      // canonical first names (e.g. "Brian")
+        for p in PLAYERS {
+            let pattern = #"\b"# + NSRegularExpression.escapedPattern(for: p.name) + #"\b"#
+            if sentence.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil {
+                foundPlayers.append(p.name)
+            }
+        }
+        if foundTickers.isEmpty || foundPlayers.isEmpty { continue }
+        // For each ticker, decide whether the sentence has a legitimate owner.
+        for ticker in foundTickers {
+            let validOwnerNames = (TICKER_OWNERS[ticker] ?? []).compactMap { id in
+                PLAYERS.first(where: { $0.id == id })?.name
+            }
+            let validOwnerSet = Set(validOwnerNames)
+            let foundOwnerInSentence = foundPlayers.contains(where: { validOwnerSet.contains($0) })
+            if foundOwnerInSentence { continue }
+            // Every player named in this sentence is a non-owner of `ticker`.
+            // Flag all of them.
+            for player in foundPlayers {
+                if !validOwnerSet.contains(player) {
+                    violations.append(OwnershipViolation(
+                        sentence: sentence,
+                        player: player,
+                        ticker: ticker
+                    ))
+                }
+            }
+        }
+    }
+    return violations
+}
+
+// Helper used by the per-window digest path to surface violations in logs.
+// The prose is returned unchanged so the digest still ships; the violation
+// just goes to stderr where it's visible in /tmp/stock-game.log.
+func logOwnershipViolations(_ violations: [OwnershipViolation], context: String) {
+    for v in violations {
+        logErr("OWNERSHIP \(context): \"\(v.ticker)\" attributed to \(v.player), who doesn't hold it. Sentence: \(v.sentence)")
+    }
+}
+
 // MARK: - Per-ticker pipeline
 
 struct TickerOutcome {
@@ -1147,10 +1259,16 @@ func buildPortfolioPrompt(
     gameAge: Int
 ) -> String {
     let standingsBlock = formatUserStandingsBlock(movers, window: window)
+    // For the portfolio digest every article is already filtered to one of
+    // \(player.name)'s holdings (see portfolioArticlesForWindow), so the
+    // owner tag here would be redundant — and worse, putting "/brian" or
+    // similar next to a headline was reading like a byline to the model
+    // ("…as reported by Brian"). Tag with the ticker only; the player's
+    // ownership is implicit because the prompt is dedicated to them.
     var articleText = ""
     for (i, ta) in articles.enumerated() {
         let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
-        articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
+        articleText += "\(i + 1). [\(ta.ticker)] \(ta.article.title)\n\(desc)\n\n"
     }
     let scope: String
     switch window {
@@ -1162,22 +1280,29 @@ func buildPortfolioPrompt(
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
     return """
-    You are a financial analyst writing a portfolio briefing for \(player.name), a player in a stock-picking game. \(player.name)'s portfolio holds: \(player.tickers.joined(separator: ", ")).
+    You are a financial analyst writing a portfolio briefing for \(player.name), who is a player in a stock-picking game and the HOLDER of the portfolio below. \(player.name) is the reader; \(player.name) is NOT a journalist, NOT a research analyst, and did NOT report any of the news in the articles below. The articles come from external news sources (Yahoo Finance, Barchart, etc.) — never attribute a news event to \(player.name) or any other player.
 
-    STANDINGS — \(player.name)'s holdings this \(window.rawValue), ranked by $ contribution to portfolio (most positive at top, drags at bottom):
+    \(player.name)'s portfolio holds: \(player.tickers.joined(separator: ", ")).
+
+    STANDINGS — \(player.name)'s holdings for \(scope), ranked by contribution to portfolio (most positive at top, drags at bottom):
     \(standingsBlock)
 
-    Articles from the period (each tagged with [TICKER/owner]):
+    Articles from the period (each tagged with the ticker it relates to; every ticker shown is one \(player.name) holds):
     \(articleText)
 
-    Your reader can already see the STANDINGS table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those numbers — not to restate the numbers. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action. Subordinate the dollar amounts to the news event, not the other way around.
+    Your reader can already see the STANDINGS table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those numbers — not to restate the numbers. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action.
 
     Write exactly 3 sentences as a single paragraph of plain prose:
-    Sentence 1: Lead with the single most consequential news event behind \(player.name)'s top contributor (the #1 ticker in STANDINGS) — what happened, who reported it, what it implies. Then tie it to the $ impact on \(player.name)'s portfolio.
-    Sentence 2: Lead with the specific news event behind the biggest drag (from the Drag section of STANDINGS, or the smallest gainer if no drags exist) — what happened, what it implies. Then tie it to the $ impact.
+    Sentence 1: Lead with the single most consequential news event behind \(player.name)'s top contributor (the #1 ticker in STANDINGS) — what happened (cite the headline or core fact), what it implies for the business. Then tie it to the percentage impact on \(player.name)'s portfolio.
+    Sentence 2: Lead with the specific news event behind the biggest drag (from the Drag section of STANDINGS, or the smallest gainer if no drags exist) — what happened, what it implies. Then tie it to the percentage impact.
     Sentence 3: A specific forward-looking catalyst pulled from the article archive — an upcoming earnings date, regulatory milestone, product launch, or named risk for one of \(player.name)'s holdings. Be concrete: name the ticker and the catalyst, not "watch the market."
 
-    Hard rules: Refer only to tickers from \(player.name)'s portfolio. Quote dollar amounts and percentages from STANDINGS exactly — do not invent numbers. Do NOT use the structure "X drove the portfolio with $Y, Z was the drag with $W" — that's just restating the table. Open with the news event, every sentence. Do not preface the digest. Do not number the sentences. Do not use bullet points.
+    Hard rules:
+    - Refer only to tickers from \(player.name)'s portfolio listed above.
+    - Use PERCENTAGES only — never quote dollar amounts. Format every percentage as "+X.XX%" or "-X.XX%" (two decimals). Do not write any $ figure for moves, contributions, or drags.
+    - NEVER write phrases like "as reported by \(player.name)", "according to \(player.name)", "\(player.name) noted that", "\(player.name) reports", or any similar construction that treats the player as the news source. The player is the portfolio holder; news comes from outside sources, which you do not need to name.
+    - Do NOT use the structure "X drove the portfolio with +Y%, Z was the drag with -W%" — that's just restating the table. Open every sentence with the news event itself.
+    - Do not preface the digest. Do not number the sentences. Do not use bullet points.
     """
 }
 
@@ -1211,6 +1336,16 @@ func generatePortfolioDigestText(
         let session = LanguageModelSession()        // fresh session per (user, window)
         let response = try await session.respond(to: prompt)
         let text = cleanDigestProse(response.content)
+        if !text.isEmpty {
+            // QA: portfolio digests should reference only player.tickers.
+            // Anything else is a hallucination worth logging. We don't
+            // reject the digest — flagged prose still ships and the log
+            // gives the user signal to refine the prompt or push a fix.
+            let violations = detectOwnershipViolations(in: text).filter { v in
+                v.player == player.name
+            }
+            logOwnershipViolations(violations, context: "portfolio \(player.id) \(window.rawValue)")
+        }
         return text.isEmpty ? nil : text
     } catch {
         logErr("generatePortfolioDigestText error \(player.id) \(window.rawValue): \(error.localizedDescription)")
@@ -1484,6 +1619,11 @@ func computeStandings(data: PriceDataLite, window: WindowKey) -> [UserStanding] 
 // then appends a separate "Drag:" subsection for any negative-$ position
 // that wasn't already in the top 3.
 func formatUserStandingsBlock(_ um: UserMovers, window: WindowKey) -> String {
+    // Internal sort uses $ contribution (position size × return) so the
+    // ranking reflects what actually drives portfolio value — not just
+    // the highest-pct mover, which might be a small position. The output
+    // line itself only shows %, since the AI is forbidden from quoting
+    // dollar amounts and there's nothing else for the player to look at.
     let byDollars = um.movers.sorted { $0.dollars > $1.dollars }
     let topN = Array(byDollars.prefix(3))
     let topTickers = Set(topN.map { $0.ticker })
@@ -1493,11 +1633,8 @@ func formatUserStandingsBlock(_ um: UserMovers, window: WindowKey) -> String {
         .prefix(3)
 
     func line(_ m: TickerMove) -> String {
-        let dollarSign = m.dollars >= 0 ? "+" : "-"
-        let dollarMag = String(format: "%.0f", abs(m.dollars))
         let pctStr = String(format: "%+.2f%%", m.pct * 100)
-        let endStr = String(format: "%.2f", m.endClose)
-        return "\(m.ticker): \(dollarSign)$\(dollarMag) (\(pctStr), end price $\(endStr))"
+        return "\(m.ticker): \(pctStr)"
     }
 
     var lines: [String] = []
@@ -1564,6 +1701,25 @@ func playersBlockForPrompt() -> String {
     return lines.joined(separator: "\n")
 }
 
+// Per-ticker ownership table for the game-summary prompt. The model has
+// repeatedly hallucinated wrong (player, ticker) pairs (e.g. "ASTS dropped,
+// hurting Kevin" when only Brian owns ASTS). The fix that finally stuck was
+// putting an explicit ticker→owners lookup right next to the writing rules,
+// so the model can cross-check ownership *as it writes* rather than relying
+// on memory of the PLAYERS table earlier in the prompt.
+func ownershipTableForPrompt() -> String {
+    var lines: [String] = []
+    let tickers = DEFAULT_TICKERS
+    for t in tickers {
+        let names: [String] = (TICKER_OWNERS[t] ?? []).compactMap { id in
+            PLAYERS.first(where: { $0.id == id })?.name
+        }
+        guard !names.isEmpty else { continue }
+        lines.append("  \(t) → \(names.joined(separator: " + "))")
+    }
+    return lines.joined(separator: "\n")
+}
+
 func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int) -> String {
     let standingsBlock = formatStandingsBlock(standings)
     let scope: String
@@ -1578,18 +1734,21 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     var articleText = ""
     for (i, ta) in articles.enumerated() {
         let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
-        articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
+        articleText += "\(i + 1). [\(ta.ticker) · \(ownerLabel(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
     }
+    let playerNames = PLAYERS.map { $0.name }.joined(separator: ", ")
+    let exampleOwner = PLAYERS.first!.name
+    let exampleTickerForOwner = PLAYERS.first!.tickers.first ?? "ASTS"
     return """
-    You are commenting on the live leaderboard of a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000.
+    You are commenting on the live leaderboard of a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000. The players are the portfolio HOLDERS, not journalists — the news in this prompt comes from outside sources (Yahoo Finance, Barchart, etc.). Never attribute a news event to a player.
 
-    PLAYERS (this is the only source of truth for who owns what):
+    PLAYERS (only source of truth for who owns what):
     \(playersBlockForPrompt())
 
     LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to last):
     \(standingsBlock)
 
-    Most market-moving news from the period (each tagged [TICKER/owners], where owners are the player ids that hold that ticker):
+    Most market-moving news from the period. Each article line is prefixed with [TICKER · held by NAMES] — the NAMES list is the EXACT and COMPLETE set of players who own that ticker. If a player is not in that list, they DO NOT own the ticker.
     \(articleText)
 
     Your reader can already see the leaderboard and the standings table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those rankings — not to restate them. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action. The player and the percentage are the consequence of the news, not the headline.
@@ -1599,11 +1758,19 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     Sentence 2: Lead with the biggest drag event of \(scope) — same structure: specific catalyst from the article archive, what it implies, then tie it to the player it hurt and their portfolio % loss.
     Sentence 3: A specific forward-looking catalyst from the article archive that could move the standings — upcoming earnings date, FDA milestone, product launch, named macro risk. Tie it to the player whose holding it would affect.
 
-    PERCENTAGE FORMAT (MANDATORY): Every single percentage you write must be formatted as TOKEN [SIGN+DECIMAL%], where TOKEN is either a ticker symbol (uppercase, no surrounding punctuation) or a player's first name (\(PLAYERS.map { $0.name }.joined(separator: ", "))). Always include the sign and exactly two decimal places. Examples: ASTS [-10.23%], TSLA [+5.62%], \(PLAYERS.first!.name) [+8.45%]. Do NOT write "TSLA rose 5%" or "\(PLAYERS.first!.name) is up 8.45%" or "TSLA up about five percent" — always the bracketed form, no exceptions. Place the bracketed percentage immediately after its TOKEN, separated by one space. This format is parsed by an automated post-processor.
+    PERCENTAGE FORMAT (MANDATORY): Every single percentage you write must be formatted as TOKEN [SIGN+DECIMAL%], where TOKEN is either a ticker symbol (uppercase, no surrounding punctuation) or a player's first name (\(playerNames)). Always include the sign and exactly two decimal places. Examples: ASTS [-10.23%], TSLA [+5.62%], \(exampleOwner) [+8.45%]. Do NOT write "TSLA rose 5%" or "\(exampleOwner) is up 8.45%" or "TSLA up about five percent" — always the bracketed form, no exceptions. Place the bracketed percentage immediately after its TOKEN, separated by one space. This format is parsed by an automated post-processor. NEVER quote dollar amounts — only percentages.
 
-    Hard rules: Use the player names verbatim. Quote percentages from STANDINGS exactly — do not invent numbers or events. Do NOT use the structure "X is leading because of TICKER, Y is trailing because of TICKER" — that's just restating the standings table the reader already sees. Open every sentence with the news event, not the player or the percentage. Do not preface the digest. Do not number the sentences. Do not use bullet points.
+    OWNERSHIP TABLE (cross-check every (player, ticker) pair against this before writing it — this is the most common mistake to avoid):
+    \(ownershipTableForPrompt())
 
-    The PLAYERS section above is the only source of truth for which player owns which ticker. Before attributing a ticker move to a player, verify the ticker appears in that player's pick list. If a high-signal article relates to a ticker no one owns, you may omit it. Never invent ownership.
+    OWNERSHIP RULES (mandatory, no exceptions):
+    1. Before writing any sentence that pairs a player name with a ticker, find that ticker in the OWNERSHIP TABLE above and confirm the player's name appears on its row. If it does not, that pairing is FORBIDDEN.
+    2. A ticker can have multiple owners; in that case any of them is valid. A ticker with one owner is ONLY that one player's responsibility — never attribute it to anyone else.
+    3. Example of a FORBIDDEN sentence: "ASTS [-5.00%] dropped on bad earnings, hurting Kevin [-1.20%]" — ASTS is held by \(ownerLabel(forTicker: "ASTS").replacingOccurrences(of: "held by ", with: "")), not Kevin. The correct construction would name a player whose row in the OWNERSHIP TABLE lists ASTS.
+    4. If you cannot find a (catalyst, ticker, player) triple where the player legitimately owns the ticker, choose a different catalyst — never invent ownership.
+    5. NEVER write phrases like "as reported by \(exampleOwner)", "according to \(exampleOwner)", or any similar construction that treats a player as the news source. Players hold portfolios; they do not report news.
+
+    Other hard rules: Use the player names verbatim. Quote percentages from STANDINGS exactly — do not invent numbers or events. Do NOT use the structure "X is leading because of TICKER, Y is trailing because of TICKER" — that's just restating the standings table the reader already sees. Open every sentence with the news event, not the player or the percentage. Do not preface the digest. Do not number the sentences. Do not use bullet points.
     """
 }
 
@@ -1751,6 +1918,17 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                     digestText = cleanDigestProse(response.content)
                 } catch {
                     logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
+                }
+
+                // QA: the game digest cites multiple players and tickers; flag
+                // any (player, ticker) pair where the player doesn't hold the
+                // ticker AND no legitimate owner is named in the same sentence.
+                // Logged only — the digest still ships so we don't burn an
+                // already-generated AI run; the user can refine the prompt
+                // from the violation patterns in /tmp/stock-game.log.
+                if let d = digestText {
+                    let violations = detectOwnershipViolations(in: d)
+                    logOwnershipViolations(violations, context: "game \(w.rawValue)")
                 }
 
                 // For the templated windows, extract a placeholder template from
