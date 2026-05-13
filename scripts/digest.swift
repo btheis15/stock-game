@@ -717,6 +717,130 @@ func loadAllArchivedLinks(_ ticker: String) -> Set<String> {
     return seen
 }
 
+// MARK: - Hierarchical summaries (Phase 2)
+//
+// To keep window-digest prompts under Apple Intelligence's context window
+// (and to give the model a higher-signal input than 30-100 raw articles for
+// long windows), we summarize in layers:
+//
+//   Layer 0  raw articles            ~/StockDigests/articles/{T}/{YYYY-MM-DD}.json
+//   Layer 1  daily summary           ~/StockDigests/summaries/{T}/daily/{YYYY-MM-DD}.json
+//   Layer 2  weekly summary          ~/StockDigests/summaries/{T}/weekly/{YYYY-MM-DD}.json   (Monday of week)
+//   Layer 3  monthly summary         ~/StockDigests/summaries/{T}/monthly/{YYYY-MM}.json
+//
+// Each summary is generated once for a completed period and cached forever —
+// historical periods don't change, so re-reading from disk on later runs
+// costs nothing. The chain composes: daily → weekly → monthly → window
+// digest. Window digests for 1W use 7 daily summaries; 1M uses 4 weekly;
+// 3M uses 13 weekly OR 3 monthly; 1Y/ALL uses monthly. Each AI call has
+// bounded, small input (≤ 2 K chars) so no call can blow the context window
+// no matter how newsy the period was.
+
+struct DailySummary: Codable {
+    let ticker: String
+    let date: String          // YYYY-MM-DD
+    let summary: String
+    let generatedAt: String
+    let sourceArticleCount: Int
+    let aiEngine: String?
+}
+
+struct WeeklySummary: Codable {
+    let ticker: String
+    let weekStartMonday: String   // YYYY-MM-DD of the Monday
+    let summary: String
+    let generatedAt: String
+    let sourceDailyCount: Int
+    let aiEngine: String?
+}
+
+struct MonthlySummary: Codable {
+    let ticker: String
+    let yearMonth: String         // YYYY-MM
+    let summary: String
+    let generatedAt: String
+    let sourceWeeklyCount: Int
+    let aiEngine: String?
+}
+
+let SUMMARIES_DIR = ARCHIVE_DIR.appendingPathComponent("summaries")
+
+func summaryDirFor(_ ticker: String, layer: String) -> URL {
+    SUMMARIES_DIR.appendingPathComponent(ticker).appendingPathComponent(layer)
+}
+
+func dailySummaryFile(_ ticker: String, date: String) -> URL {
+    summaryDirFor(ticker, layer: "daily").appendingPathComponent("\(date).json")
+}
+
+func weeklySummaryFile(_ ticker: String, weekStartMonday: String) -> URL {
+    summaryDirFor(ticker, layer: "weekly").appendingPathComponent("\(weekStartMonday).json")
+}
+
+func monthlySummaryFile(_ ticker: String, yearMonth: String) -> URL {
+    summaryDirFor(ticker, layer: "monthly").appendingPathComponent("\(yearMonth).json")
+}
+
+func loadDailySummary(_ ticker: String, date: String) -> DailySummary? {
+    let url = dailySummaryFile(ticker, date: date)
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(DailySummary.self, from: data)
+}
+
+func loadWeeklySummary(_ ticker: String, weekStartMonday: String) -> WeeklySummary? {
+    let url = weeklySummaryFile(ticker, weekStartMonday: weekStartMonday)
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(WeeklySummary.self, from: data)
+}
+
+func loadMonthlySummary(_ ticker: String, yearMonth: String) -> MonthlySummary? {
+    let url = monthlySummaryFile(ticker, yearMonth: yearMonth)
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(MonthlySummary.self, from: data)
+}
+
+func writeSummary<T: Codable>(_ s: T, to url: URL) throws {
+    try FileManager.default.createDirectory(
+        at: url.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(s)
+    try data.write(to: url)
+}
+
+// --- Date helpers for summary layer keys ---------------------------------
+// All summary keys are anchored to America/New_York to match the rest of
+// the pipeline (intradayDate, trading-date logic, etc.). Using ET means the
+// daily summary for "2026-05-13" covers everything Yahoo published on the
+// ET calendar day, matching how the user thinks about market days.
+
+private let nyCalendar: Calendar = {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "America/New_York") ?? TimeZone(identifier: "UTC")!
+    return cal
+}()
+
+func mondayOfWeekFor(_ date: Date) -> Date {
+    // Gregorian weekday: 1=Sunday, 2=Monday, ..., 7=Saturday. Walk back to
+    // the most recent Monday at midnight ET.
+    var d = nyCalendar.startOfDay(for: date)
+    while nyCalendar.component(.weekday, from: d) != 2 {
+        d = nyCalendar.date(byAdding: .day, value: -1, to: d)!
+    }
+    return d
+}
+
+func mondayKey(_ date: Date) -> String {
+    dayFormatter.string(from: mondayOfWeekFor(date))
+}
+
+func yearMonthKey(_ date: Date) -> String {
+    let comps = nyCalendar.dateComponents([.year, .month], from: date)
+    return String(format: "%04d-%02d", comps.year ?? 0, comps.month ?? 0)
+}
+
 // MARK: - Time-window aggregation
 
 func loadArticlesInLastNDays(ticker: String, days: Int) -> [Article] {
@@ -866,11 +990,389 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     }
 }
 
+// MARK: - Intermediate summary prompts + generators (Phase 2)
+
+func buildDailySummaryPrompt(ticker: String, name: String, date: String, articles: [Article]) -> String {
+    var lines = ""
+    for (i, a) in articles.enumerated() {
+        let desc = String(a.description.prefix(DESC_TRUNCATE))
+        lines += "\(i + 1). \(a.title)\n\(desc)\n\n"
+    }
+    return """
+    Summarize one day of business news for \(ticker) (\(name)), \(date). \(articles.count) article(s) below.
+
+    Write 2-3 sentences capturing the day's key business developments. Focus on concrete events: earnings, guidance, M&A, regulatory actions, product launches, executive changes, analyst rating shifts. Skip generic market commentary, store openings, employee stories. If there's no material business news, write one sentence noting that the day was quiet for this ticker.
+
+    Plain prose, single paragraph, no preface, no numbered lists.
+
+    Articles:
+    \(lines)
+    """
+}
+
+func buildWeeklySummaryPrompt(ticker: String, name: String, weekStartMonday: String, weekEndSunday: String, dailies: [DailySummary]) -> String {
+    var lines = ""
+    for d in dailies {
+        lines += "\(d.date): \(d.summary)\n\n"
+    }
+    return """
+    Summarize one week of business news for \(ticker) (\(name)) covering \(weekStartMonday) through \(weekEndSunday). The daily summaries below are already filtered to material business developments.
+
+    Synthesize 3-4 sentences capturing the week's most important storylines — what changed, what was confirmed, what's new. Focus on themes that span multiple days; do NOT list day-by-day.
+
+    Plain prose, single paragraph, no preface.
+
+    Daily summaries:
+    \(lines)
+    """
+}
+
+func buildMonthlySummaryPrompt(ticker: String, name: String, yearMonth: String, weeklies: [WeeklySummary]) -> String {
+    var lines = ""
+    for w in weeklies {
+        lines += "Week of \(w.weekStartMonday): \(w.summary)\n\n"
+    }
+    return """
+    Summarize one month of business news for \(ticker) (\(name)) covering \(yearMonth). The weekly summaries below are already filtered to material business developments.
+
+    Write 4-5 sentences capturing the month's key narratives — what trajectories developed, what themes emerged, what stayed stable, what catalysts mattered most. Synthesize across weeks; do NOT list week-by-week.
+
+    Plain prose, single paragraph, no preface.
+
+    Weekly summaries:
+    \(lines)
+    """
+}
+
+func runAISummary(prompt: String) async throws -> String? {
+    let session = LanguageModelSession()
+    let response = try await session.respond(to: prompt)
+    let text = cleanDigestProse(response.content)
+    return text.isEmpty ? nil : text
+}
+
+func generateAndCacheDailySummary(_ ticker: String, date: String, articles: [Article]) async -> DailySummary? {
+    guard !articles.isEmpty else { return nil }
+    let name = TICKER_NAMES[ticker] ?? ticker
+    let prompt = buildDailySummaryPrompt(ticker: ticker, name: name, date: date, articles: articles)
+    do {
+        guard let text = try await runAISummary(prompt: prompt) else { return nil }
+        let s = DailySummary(
+            ticker: ticker, date: date, summary: text,
+            generatedAt: isoFormatter.string(from: Date()),
+            sourceArticleCount: articles.count,
+            aiEngine: "AppleIntelligence"
+        )
+        try writeSummary(s, to: dailySummaryFile(ticker, date: date))
+        vlog("  \(ticker) daily summary cached for \(date) (\(articles.count) articles)")
+        return s
+    } catch {
+        logErr("daily-summary error \(ticker) \(date): \(error.localizedDescription)")
+        return nil
+    }
+}
+
+func generateAndCacheWeeklySummary(_ ticker: String, weekStartMonday: String, dailies: [DailySummary]) async -> WeeklySummary? {
+    guard !dailies.isEmpty else { return nil }
+    let name = TICKER_NAMES[ticker] ?? ticker
+    // End-of-week = Monday + 6 days, formatted as YYYY-MM-DD
+    let weekEndSunday: String = {
+        guard let monday = parseDay(weekStartMonday),
+              let sunday = nyCalendar.date(byAdding: .day, value: 6, to: monday) else {
+            return weekStartMonday
+        }
+        return dayFormatter.string(from: sunday)
+    }()
+    let prompt = buildWeeklySummaryPrompt(
+        ticker: ticker, name: name,
+        weekStartMonday: weekStartMonday, weekEndSunday: weekEndSunday,
+        dailies: dailies
+    )
+    do {
+        guard let text = try await runAISummary(prompt: prompt) else { return nil }
+        let s = WeeklySummary(
+            ticker: ticker, weekStartMonday: weekStartMonday, summary: text,
+            generatedAt: isoFormatter.string(from: Date()),
+            sourceDailyCount: dailies.count,
+            aiEngine: "AppleIntelligence"
+        )
+        try writeSummary(s, to: weeklySummaryFile(ticker, weekStartMonday: weekStartMonday))
+        vlog("  \(ticker) weekly summary cached for week of \(weekStartMonday) (\(dailies.count) days)")
+        return s
+    } catch {
+        logErr("weekly-summary error \(ticker) \(weekStartMonday): \(error.localizedDescription)")
+        return nil
+    }
+}
+
+func generateAndCacheMonthlySummary(_ ticker: String, yearMonth: String, weeklies: [WeeklySummary]) async -> MonthlySummary? {
+    guard !weeklies.isEmpty else { return nil }
+    let name = TICKER_NAMES[ticker] ?? ticker
+    let prompt = buildMonthlySummaryPrompt(
+        ticker: ticker, name: name, yearMonth: yearMonth, weeklies: weeklies
+    )
+    do {
+        guard let text = try await runAISummary(prompt: prompt) else { return nil }
+        let s = MonthlySummary(
+            ticker: ticker, yearMonth: yearMonth, summary: text,
+            generatedAt: isoFormatter.string(from: Date()),
+            sourceWeeklyCount: weeklies.count,
+            aiEngine: "AppleIntelligence"
+        )
+        try writeSummary(s, to: monthlySummaryFile(ticker, yearMonth: yearMonth))
+        vlog("  \(ticker) monthly summary cached for \(yearMonth) (\(weeklies.count) weeks)")
+        return s
+    } catch {
+        logErr("monthly-summary error \(ticker) \(yearMonth): \(error.localizedDescription)")
+        return nil
+    }
+}
+
+// Cached-or-generate. These are the bread-and-butter entry points the
+// window-digest builders call. Each checks the on-disk cache first; if
+// missing, calls the layer below it to assemble inputs, then generates
+// + caches. The chain is daily ← raw articles, weekly ← daily summaries,
+// monthly ← weekly summaries.
+
+func getOrGenerateDailySummary(_ ticker: String, date: String) async -> DailySummary? {
+    if let cached = loadDailySummary(ticker, date: date) { return cached }
+    let articles = loadArchivedDay(ticker, day: date)
+    return await generateAndCacheDailySummary(ticker, date: date, articles: articles)
+}
+
+func getOrGenerateWeeklySummary(_ ticker: String, weekStartMonday: String) async -> WeeklySummary? {
+    if let cached = loadWeeklySummary(ticker, weekStartMonday: weekStartMonday) { return cached }
+    // Build the daily-summary list for Mon..Sun of this week
+    guard let monday = parseDay(weekStartMonday) else { return nil }
+    var dailies: [DailySummary] = []
+    for offset in 0..<7 {
+        guard let d = nyCalendar.date(byAdding: .day, value: offset, to: monday) else { continue }
+        let dateStr = dayFormatter.string(from: d)
+        if let s = await getOrGenerateDailySummary(ticker, date: dateStr) {
+            dailies.append(s)
+        }
+    }
+    return await generateAndCacheWeeklySummary(ticker, weekStartMonday: weekStartMonday, dailies: dailies)
+}
+
+func getOrGenerateMonthlySummary(_ ticker: String, yearMonth: String) async -> MonthlySummary? {
+    if let cached = loadMonthlySummary(ticker, yearMonth: yearMonth) { return cached }
+    // Build the weekly-summary list for every Monday that falls in this month
+    let parts = yearMonth.split(separator: "-")
+    guard parts.count == 2,
+          let y = Int(parts[0]), let m = Int(parts[1]),
+          let monthStart = nyCalendar.date(from: DateComponents(year: y, month: m, day: 1)),
+          let monthEnd = nyCalendar.date(byAdding: .month, value: 1, to: monthStart)
+    else { return nil }
+    var weeklies: [WeeklySummary] = []
+    var cursor = mondayOfWeekFor(monthStart)
+    while cursor < monthEnd {
+        let key = dayFormatter.string(from: cursor)
+        if let s = await getOrGenerateWeeklySummary(ticker, weekStartMonday: key) {
+            weeklies.append(s)
+        }
+        guard let next = nyCalendar.date(byAdding: .day, value: 7, to: cursor) else { break }
+        cursor = next
+    }
+    return await generateAndCacheMonthlySummary(ticker, yearMonth: yearMonth, weeklies: weeklies)
+}
+
+// Walk back N days from `endDate` (inclusive), collecting any cached or
+// lazy-generated daily summaries. Used by the 1W window-digest builder.
+func getRecentDailySummaries(_ ticker: String, endingAt endDate: Date, days: Int) async -> [DailySummary] {
+    var out: [DailySummary] = []
+    for offset in 0..<days {
+        guard let d = nyCalendar.date(byAdding: .day, value: -offset, to: endDate) else { continue }
+        let dateStr = dayFormatter.string(from: d)
+        if let s = await getOrGenerateDailySummary(ticker, date: dateStr) {
+            out.append(s)
+        }
+    }
+    return out.reversed()      // oldest first for the prompt
+}
+
+// Walk back N weeks from `endDate`'s Monday-of-week. Used by 1M and 3M.
+func getRecentWeeklySummaries(_ ticker: String, endingAt endDate: Date, weeks: Int) async -> [WeeklySummary] {
+    var out: [WeeklySummary] = []
+    var cursor = mondayOfWeekFor(endDate)
+    for _ in 0..<weeks {
+        let key = dayFormatter.string(from: cursor)
+        if let s = await getOrGenerateWeeklySummary(ticker, weekStartMonday: key) {
+            out.append(s)
+        }
+        guard let prev = nyCalendar.date(byAdding: .day, value: -7, to: cursor) else { break }
+        cursor = prev
+    }
+    return out.reversed()
+}
+
+// Walk back N months from `endDate`'s yearMonth. Used by 1Y and ALL.
+func getRecentMonthlySummaries(_ ticker: String, endingAt endDate: Date, months: Int) async -> [MonthlySummary] {
+    var out: [MonthlySummary] = []
+    var cursor = endDate
+    for _ in 0..<months {
+        let key = yearMonthKey(cursor)
+        if let s = await getOrGenerateMonthlySummary(ticker, yearMonth: key) {
+            out.append(s)
+        }
+        guard let prev = nyCalendar.date(byAdding: .month, value: -1, to: cursor) else { break }
+        cursor = prev
+    }
+    return out.reversed()
+}
+
+// MARK: - Window-digest prompt builders (Phase 2 — operate on summaries)
+
+func buildSummaryBackedWindowPrompt(
+    ticker: String,
+    window: WindowKey,
+    dailies: [DailySummary],
+    weeklies: [WeeklySummary],
+    monthlies: [MonthlySummary],
+    gameAge: Int
+) -> String? {
+    let name = TICKER_NAMES[ticker] ?? ticker
+
+    // Render the available material as a labeled block. The model's input
+    // is always small — the longest case (1Y / ALL with 12 monthly
+    // summaries) is ~3 K chars; everything else is smaller.
+    func renderDailies(_ items: [DailySummary]) -> String {
+        items.map { "\($0.date): \($0.summary)" }.joined(separator: "\n\n")
+    }
+    func renderWeeklies(_ items: [WeeklySummary]) -> String {
+        items.map { "Week of \($0.weekStartMonday): \($0.summary)" }.joined(separator: "\n\n")
+    }
+    func renderMonthlies(_ items: [MonthlySummary]) -> String {
+        items.map { "\($0.yearMonth): \($0.summary)" }.joined(separator: "\n\n")
+    }
+
+    switch window {
+    case .w1:
+        guard !dailies.isEmpty else { return nil }
+        return """
+        You are writing a 1-week briefing for an investor in \(ticker) (\(name)). The daily summaries below are already filtered to material business developments.
+
+        Daily summaries (past 7 days, oldest first):
+        \(renderDailies(dailies))
+
+        Write exactly 3 sentences synthesizing the week's story: (1) the most important business development, (2) what it implies for the company, (3) a forward-looking catalyst or risk based on these events. Plain prose, single paragraph, no preface, no numbered lists, no bullets.
+        """
+    case .m1:
+        let scope = gameAge < 30
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full month)"
+            : "over the past 30 days"
+        let weeklyBlock = weeklies.isEmpty ? "(none yet)" : renderWeeklies(weeklies)
+        let dailyBlock = dailies.isEmpty ? "" : "\n\nRecent daily summaries (current partial week):\n\(renderDailies(dailies))"
+        return """
+        You are writing a 1-month briefing for an investor in \(ticker) (\(name)) \(scope). The summaries below are already filtered to material business developments.
+
+        Weekly summaries (oldest first):
+        \(weeklyBlock)\(dailyBlock)
+
+        Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.
+        """
+    case .m3:
+        let scope = gameAge < 90
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full quarter)"
+            : "over the past 90 days"
+        let weeklyBlock = weeklies.isEmpty ? "(none yet)" : renderWeeklies(weeklies)
+        return """
+        You are writing a quarterly-style briefing for an investor in \(ticker) (\(name)) \(scope). The weekly summaries below are already filtered to material business developments.
+
+        Weekly summaries (oldest first):
+        \(weeklyBlock)
+
+        Write exactly 3 sentences: (1) the period's defining theme or catalyst, (2) major risks or opportunities that emerged, (3) how the investment thesis has evolved. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.
+        """
+    case .y1:
+        let isYoung = gameAge < 365
+        let scope = isYoung
+            ? "since the game's start on February 5, 2026 (the game has been running for \(gameAge) days, so this covers the entire holding period to date)"
+            : "over the past 12 months"
+        let monthlyBlock = monthlies.isEmpty ? "(none yet)" : renderMonthlies(monthlies)
+        return """
+        You are writing an annual-style briefing for an investor in \(ticker) (\(name)) \(scope). The monthly summaries below cover the period's most material business developments.
+
+        Monthly summaries (oldest first):
+        \(monthlyBlock)
+
+        Write exactly 3 sentences: (1) the period's most important storyline and its market impact, (2) how the company's competitive position or financial trajectory changed, (3) the long-term outlook based on this arc of events. Plain prose, single paragraph, no preface.
+        """
+    case .all:
+        let monthlyBlock = monthlies.isEmpty ? "(none yet)" : renderMonthlies(monthlies)
+        return """
+        You are writing a since-inception summary for an investor in \(ticker) (\(name)) since February 5, 2026 — the start of the tracking period (\(gameAge) days ago). The monthly summaries below cover the period's most material business developments.
+
+        Monthly summaries (oldest first):
+        \(monthlyBlock)
+
+        Write exactly 3 sentences: (1) the defining arc of the company since February 5, 2026 — biggest catalysts, pivots, or regime changes, (2) how the original investment thesis has evolved or been challenged, (3) the structural outlook from here. Be concrete and specific. Plain prose, single paragraph, no preface.
+        """
+    case .d1:
+        // 1D continues to use raw articles directly — small input, the user
+        // wants fine-grained "today" detail rather than a pre-summarized
+        // condensed take. Falls through to the legacy buildDigestPrompt
+        // path via generateDigestText's dispatcher.
+        return nil
+    }
+}
+
+// Master dispatcher. 1D still uses raw articles; everything else uses the
+// hierarchical summary chain. Falls back to the legacy raw-article path
+// if the summary-backed prompt returned nil (no data available yet for
+// the chain — happens before the first summary lands).
 func generateDigestText(ticker: String, window: WindowKey, articles: [Article], gameAge: Int) async -> String? {
+    let today = Date()
+    var dailies: [DailySummary] = []
+    var weeklies: [WeeklySummary] = []
+    var monthlies: [MonthlySummary] = []
+
+    switch window {
+    case .d1:
+        // No summary chain; use raw articles directly.
+        break
+    case .w1:
+        dailies = await getRecentDailySummaries(ticker, endingAt: today, days: 7)
+    case .m1:
+        weeklies = await getRecentWeeklySummaries(ticker, endingAt: today, weeks: 4)
+        // Plus any uncovered days in the current week (partial week the
+        // weekly cache hasn't been written for yet).
+        let mondayThisWeek = mondayOfWeekFor(today)
+        let daysIntoWeek = nyCalendar.dateComponents([.day], from: mondayThisWeek, to: today).day ?? 0
+        if daysIntoWeek > 0 {
+            dailies = await getRecentDailySummaries(ticker, endingAt: today, days: daysIntoWeek + 1)
+        }
+    case .m3:
+        weeklies = await getRecentWeeklySummaries(ticker, endingAt: today, weeks: 13)
+    case .y1:
+        monthlies = await getRecentMonthlySummaries(ticker, endingAt: today, months: 12)
+    case .all:
+        // Walk back to Feb 5, 2026 — game inception. Cap at 60 months as a
+        // safety bound; we re-evaluate this once the game crosses 5 years.
+        let monthsSinceStart = max(1, min(60, (gameAge + 29) / 30))
+        monthlies = await getRecentMonthlySummaries(ticker, endingAt: today, months: monthsSinceStart)
+    }
+
+    if let prompt = buildSummaryBackedWindowPrompt(
+        ticker: ticker, window: window,
+        dailies: dailies, weeklies: weeklies, monthlies: monthlies,
+        gameAge: gameAge
+    ) {
+        do {
+            return try await runAISummary(prompt: prompt)
+        } catch {
+            logErr("generateDigestText (summary path) error \(ticker) \(window.rawValue): \(error.localizedDescription)")
+            // Fall through to legacy raw-article path
+        }
+    }
+
+    // Legacy raw-article path. Used unconditionally for 1D, and as a
+    // fallback for other windows when no summaries are cached yet (very
+    // first run after Phase 2 deploy, or new ticker with no archive).
     guard !articles.isEmpty else { return nil }
     let prompt = buildDigestPrompt(ticker: ticker, window: window, articles: articles, gameAge: gameAge)
     do {
-        let session = LanguageModelSession()    // fresh session per (ticker, window)
+        let session = LanguageModelSession()
         let response = try await session.respond(to: prompt)
         let text = cleanDigestProse(response.content)
         return text.isEmpty ? nil : text
@@ -1130,6 +1632,15 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
 
     if args.fetchOnly {
         return TickerOutcome(ticker: ticker, windows: [:], aiEngineUsed: false)
+    }
+
+    // 5b. Generate today's daily summary (Phase 2 — hierarchical chain).
+    // Runs before the per-window digests so the 1W path below finds it in
+    // cache instead of triggering a lazy regeneration from raw articles.
+    // Skipped on weekly/game scopes — those don't fetch fresh articles, so
+    // there's no new daily summary to write.
+    if args.scope == .daily {
+        _ = await getOrGenerateDailySummary(ticker, date: today)
     }
 
     // 6. Generate digests for every window — concurrently. Apple Intelligence
