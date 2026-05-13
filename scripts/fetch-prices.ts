@@ -261,32 +261,40 @@ async function main() {
   }
 
   // Fetch today's intraday 15-min bars (best-effort; failures are silent so
-  // a single ticker hiccup doesn't kill the whole refresh)
+  // a single ticker hiccup doesn't kill the whole refresh).
+  //
+  // IMPORTANT: every iteration of this loop unconditionally overwrites
+  // `out[ticker].intraday` with bars from TODAY ONLY. The previous version
+  // had two failure modes that left stale yesterday's bars on a ticker:
+  //   1. `if (bars.length > 0)` guard — when Yahoo returned an empty array
+  //      for a single ticker (e.g. small caps with no pre-market trading),
+  //      we never touched out[ticker].intraday, so the previous run's
+  //      bars persisted.
+  //   2. `bars.slice(-26)` fallback — when Yahoo returned data but none of
+  //      it was from today (weekend / pre-open), we kept yesterday's
+  //      session.
+  // Both paths broke the Compare chart: a single ticker holding yesterday's
+  // bars dragged the player's whole intraday series back to yesterday
+  // morning while every other ticker's series started at today's 7am ET.
+  // Result: only the player whose tickers all had today's bars rendered
+  // cleanly; the rest got a confused multi-day series.
+  // Fix: always write today's bars (or []) — never persist yesterday's.
   console.log(`Fetching intraday ${INTRADAY_INTERVAL} bars for today...`);
+  const todayPrefix = todayInETDate();
+  const [sessionOpen, sessionClose] = extendedSessionBoundsET(todayPrefix);
   for (const ticker of tickersToFetch) {
     process.stdout.write(`  ${ticker}... `);
     const bars = await fetchIntraday(ticker);
-    if (bars.length > 0) {
-      const todayPrefix = todayInETDate();
-      const today = bars.filter((b) => b.t.slice(0, 10) === todayPrefix);
-      // Keep the extended session window (7:00 AM – 6:00 PM ET). Drops the
-      // noisy 4-7 AM and 6-8 PM bars Yahoo returns when includePrePost is
-      // on; everything inside the visible chart window stays.
-      const [sessionOpen, sessionClose] = extendedSessionBoundsET(todayPrefix);
-      const todayExtended = today.filter((b) => {
-        const t = new Date(b.t);
-        return t >= sessionOpen && t < sessionClose;
-      });
-      out[ticker].intraday =
-        todayExtended.length > 0
-          ? todayExtended
-          : today.length > 0
-            ? today
-            : bars.slice(-26); // fallback: last session (weekend / pre-7AM)
-      console.log(`${out[ticker].intraday?.length ?? 0} bars`);
-    } else {
-      console.log("none");
-    }
+    const today = bars.filter((b) => b.t.slice(0, 10) === todayPrefix);
+    // Trim to the extended session window (7:00 AM – 6:00 PM ET); drops the
+    // noisy 4-7 AM and 6-8 PM bars Yahoo returns with includePrePost.
+    const todayExtended = today.filter((b) => {
+      const t = new Date(b.t);
+      return t >= sessionOpen && t < sessionClose;
+    });
+    out[ticker].intraday =
+      todayExtended.length > 0 ? todayExtended : today;
+    console.log(`${out[ticker].intraday?.length ?? 0} bars`);
   }
 
   // Fetch past-week hourly bars (1h interval, ~8 day lookback). Used by the
