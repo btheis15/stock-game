@@ -1064,7 +1064,7 @@ func generateAndCacheDailySummary(_ ticker: String, date: String, articles: [Art
             aiEngine: "AppleIntelligence"
         )
         try writeSummary(s, to: dailySummaryFile(ticker, date: date))
-        vlog("  \(ticker) daily summary cached for \(date) (\(articles.count) articles)")
+        log("  \(ticker) daily summary cached for \(date) (\(articles.count) articles)")
         return s
     } catch {
         logErr("daily-summary error \(ticker) \(date): \(error.localizedDescription)")
@@ -1097,7 +1097,7 @@ func generateAndCacheWeeklySummary(_ ticker: String, weekStartMonday: String, da
             aiEngine: "AppleIntelligence"
         )
         try writeSummary(s, to: weeklySummaryFile(ticker, weekStartMonday: weekStartMonday))
-        vlog("  \(ticker) weekly summary cached for week of \(weekStartMonday) (\(dailies.count) days)")
+        log("  \(ticker) weekly summary cached for week of \(weekStartMonday) (\(dailies.count) days)")
         return s
     } catch {
         logErr("weekly-summary error \(ticker) \(weekStartMonday): \(error.localizedDescription)")
@@ -1120,7 +1120,7 @@ func generateAndCacheMonthlySummary(_ ticker: String, yearMonth: String, weeklie
             aiEngine: "AppleIntelligence"
         )
         try writeSummary(s, to: monthlySummaryFile(ticker, yearMonth: yearMonth))
-        vlog("  \(ticker) monthly summary cached for \(yearMonth) (\(weeklies.count) weeks)")
+        log("  \(ticker) monthly summary cached for \(yearMonth) (\(weeklies.count) weeks)")
         return s
     } catch {
         logErr("monthly-summary error \(ticker) \(yearMonth): \(error.localizedDescription)")
