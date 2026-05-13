@@ -12,6 +12,7 @@ or  npm run stockgame
 import json
 import os
 import py_compile
+import re
 import shutil
 import subprocess
 import sys
@@ -19,7 +20,7 @@ import threading
 import time
 import tkinter as tk
 from datetime import datetime, timedelta
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT_PATH = os.path.abspath(__file__)
@@ -39,6 +40,48 @@ CODE_CHECK_INTERVAL_MS = 60_000
 WEEKEND = {5, 6}
 SATURDAY = 5
 SUNDAY = 6
+
+# --- Briefing progress parsing ---------------------------------------------
+# digest.swift logs each phase line-by-line. We don't modify Swift; we parse
+# its existing stdout to drive a tk progress bar. The patterns below match
+# the exact log() output sites in scripts/digest.swift; touching those
+# formatters means updating these regexes.
+
+# Header — emitted once, gives us the ticker count and scope so we can
+# compute the total step count for the whole run.
+RE_PROGRESS_HEADER = re.compile(
+    r"Stock News Digest — (\d+) ticker\(s\), scope=(\w+)"
+)
+# RSS+Stage-2 phase completion line for one ticker:
+#   "  PFE: 20 fetched → 0 keyword-rejected → 1 AI-rejected (...) → 19 stored"
+RE_PROGRESS_RSS_DONE = re.compile(
+    r"^\s+[A-Z][A-Z0-9.\-]{0,5}:\s+\d+\s+fetched\s+→.*→\s+\d+\s+stored"
+)
+# Per-window completion for a ticker or a player portfolio. Same shape both:
+#   "  PFE 1W → ✓ (26 articles, maturity=partial)"
+#   "  Brian 1W → ✓ (...)"
+# Treats both "✓" and "—" as a completed step (— = insufficient data, still
+# a step done).
+RE_PROGRESS_WINDOW = re.compile(
+    r"^\s+[A-Za-z][A-Za-z']*\s+(?:1D|1W|1M|3M|1Y|ALL)\s+→\s+[✓—]"
+)
+# Game-summary windows:  "  Game 1D → ✓ (..)"
+RE_PROGRESS_GAME = re.compile(
+    r"^\s+Game\s+(?:1D|1W|1M|3M|1Y|ALL)\s+→\s+[✓—]"
+)
+# Output-written marker — appears once at the end of the swift run.
+RE_PROGRESS_DONE = re.compile(r"^✓\s+wrote\s+.*digests\.json")
+
+# Steps per scope for a 45-ticker / 5-player roster, broken out by phase.
+# These mirror digest.swift's runMain branching: daily fetches RSS for every
+# ticker then generates 1D+1W per ticker, 1D+1W per portfolio, and all 6
+# game windows; weekly skips RSS and generates 1M/3M/1Y/ALL per ticker + per
+# portfolio with no game windows; fast does template re-renders only and is
+# fast enough that no progress bar is useful.
+PROGRESS_STEPS_PER_TICKER = {"daily": 1 + 2, "weekly": 4, "fast": 0}        # RSS + per-window
+PROGRESS_STEPS_PER_PORTFOLIO = {"daily": 2, "weekly": 4, "fast": 0}
+PROGRESS_STEPS_GAME = {"daily": 6, "weekly": 0, "fast": 0}
+PLAYER_COUNT = 5
 
 
 class SchedulerApp:
@@ -89,6 +132,15 @@ class SchedulerApp:
         self.is_digest_running = False
         self.last_run_text = "—"
         self.last_run_ok = None
+
+        # Briefing progress — populated by the stdout reader thread while
+        # _run_digest is in flight, then frozen when the run ends. Kept in
+        # primitives so the reader thread can mutate them lock-free; the UI
+        # always polls them on the main thread via _on_main_thread.
+        self._progress_total = 0           # estimated total step count
+        self._progress_done = 0            # steps observed so far
+        self._progress_start_ts = 0.0      # time.monotonic at run start
+        self._progress_phase = ""          # human label for the current phase
 
         self.keep_awake_process = None
 
@@ -253,30 +305,45 @@ class SchedulerApp:
         self.next_digest_label.grid(row=12, column=0, columnspan=4, padx=5, pady=(8, 2))
         self.last_digest_label = tk.Label(self.root, text="Last briefing: —")
         self.last_digest_label.grid(row=13, column=0, columnspan=4, padx=5, pady=2)
+
+        # Progress bar — only visible while a briefing is mid-run. The reader
+        # thread updates self._progress_done as digest.swift's stdout streams
+        # in; _update_progress_ui (main-thread callback) reads the snapshot
+        # and refreshes both the bar and the label below it.
+        self.progress_bar = ttk.Progressbar(
+            self.root, orient="horizontal", mode="determinate", length=400
+        )
+        self.progress_label = tk.Label(
+            self.root, text="", fg="#aaa", font=("", 9)
+        )
+        # Hidden by default. Shown by _start_progress_ui; hidden again by
+        # _stop_progress_ui when the run ends.
+        # (grid_remove() preserves the row config so a later grid() re-shows.)
+
         self.repo_label = tk.Label(
             self.root,
             text=f"Script: {REFRESH_SCRIPT}",
             fg="#888",
             font=("", 9),
         )
-        self.repo_label.grid(row=14, column=0, columnspan=4, padx=5, pady=(0, 4))
+        self.repo_label.grid(row=16, column=0, columnspan=4, padx=5, pady=(0, 4))
 
     def _create_buttons(self):
         self.schedule_button = tk.Button(
             self.root, text="Schedule Run", command=self.schedule_task
         )
         self.schedule_button.grid(
-            row=15, column=0, columnspan=2, sticky="ew", padx=5, pady=5
+            row=17, column=0, columnspan=2, sticky="ew", padx=5, pady=5
         )
         self.run_now_button = tk.Button(
             self.root, text="Run Now", command=self.run_now
         )
         self.run_now_button.grid(
-            row=15, column=2, columnspan=2, sticky="ew", padx=5, pady=5
+            row=17, column=2, columnspan=2, sticky="ew", padx=5, pady=5
         )
 
         self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_task)
-        self.stop_button.grid(row=16, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
+        self.stop_button.grid(row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
 
         # Button label tracks the calendar-day scope so the user knows what
         # they're about to fire. Sat → "Run Briefing Now (weekly)"; weekday
@@ -290,14 +357,14 @@ class SchedulerApp:
             command=self.run_digest_now,
         )
         self.run_digest_button.grid(
-            row=17, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
+            row=19, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
         )
 
         self.open_log_button = tk.Button(
             self.root, text="Open Log", command=self.open_log
         )
         self.open_log_button.grid(
-            row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
+            row=20, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
         )
 
         # --- GitHub sync row (auto-pulled by the cron's `git pull --rebase` ---
@@ -310,7 +377,7 @@ class SchedulerApp:
             self.root,
             text="GitHub sync",
             font=("", 12, "bold"),
-        ).grid(row=19, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
+        ).grid(row=21, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
         self.auto_restart_var = tk.BooleanVar(value=True)
         tk.Checkbutton(
             self.root,
@@ -318,19 +385,19 @@ class SchedulerApp:
             variable=self.auto_restart_var,
             wraplength=380,
             justify="left",
-        ).grid(row=20, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
+        ).grid(row=22, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
         self.code_sync_label = tk.Label(
             self.root,
             text="Code: in sync with origin/main",
             fg="#0a7",
             font=("", 9),
         )
-        self.code_sync_label.grid(row=21, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
+        self.code_sync_label.grid(row=23, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
         self.restart_button = tk.Button(
             self.root, text="Restart now (pull + re-exec)", command=self.restart_now
         )
         self.restart_button.grid(
-            row=22, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
+            row=24, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
         )
 
     # ---------------- SCHEDULING ----------------
@@ -551,16 +618,51 @@ class SchedulerApp:
             env = os.environ.copy()
             env["DIGEST_MODE"] = mode
             env["DIGEST_SCOPE"] = scope
-            result = subprocess.run(["bash", DIGEST_SCRIPT], check=False, env=env)
+
+            # Estimate the total step count from the scope before the swift
+            # script's own header line lands. We re-derive once the header
+            # arrives in case the roster has changed (the swift script
+            # iterates DEFAULT_TICKERS which is its own hardcoded list).
+            self._progress_total = self._estimate_progress_total(scope)
+            self._progress_done = 0
+            self._progress_start_ts = time.monotonic()
+            self._progress_phase = "starting"
+            self._on_main_thread(self._start_progress_ui)
+
+            # Stream stdout line-by-line so we can drive the progress bar
+            # off log markers (no Swift changes needed). stderr is merged
+            # into stdout so warnings, ownership-violation lines, etc.
+            # still hit the log.
+            proc = subprocess.Popen(
+                ["bash", DIGEST_SCRIPT],
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=1,
+                text=True,
+            )
+            assert proc.stdout is not None
+            for raw in proc.stdout:
+                line = raw.rstrip()
+                # Mirror the line to our own stdout so /tmp/stock-game.log
+                # still gets the same content the old subprocess.run did.
+                print(line)
+                self._parse_progress_line(line)
+            proc.wait()
+            returncode = proc.returncode
+
             finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
-            if result.returncode == 0:
+            elapsed_min = (time.monotonic() - self._progress_start_ts) / 60.0
+            if returncode == 0:
                 self.last_digest_ok = True
-                self.last_digest_text = f"Last briefing: {finish_time} ({scope}) ✓"
-                print(f"Briefing completed at {finish_time} (scope={scope}).")
+                self.last_digest_text = (
+                    f"Last briefing: {finish_time} ({scope}) ✓ — ran {elapsed_min:.1f} min"
+                )
+                print(f"Briefing completed at {finish_time} (scope={scope}, {elapsed_min:.1f} min).")
             else:
                 self.last_digest_ok = False
                 self.last_digest_text = (
-                    f"Last briefing failed: {finish_time} ({scope}) (exit {result.returncode})"
+                    f"Last briefing failed: {finish_time} ({scope}) (exit {returncode})"
                 )
                 print(self.last_digest_text)
             self._on_main_thread(
@@ -568,12 +670,14 @@ class SchedulerApp:
                 text=self.last_digest_text,
                 fg="#0a7" if self.last_digest_ok else "#c33",
             )
+            self._on_main_thread(self._stop_progress_ui)
         except Exception as e:
             self.last_digest_text = f"Briefing error: {e}"
             print(self.last_digest_text)
             self._on_main_thread(
                 self.last_digest_label.config, text=self.last_digest_text, fg="#c33"
             )
+            self._on_main_thread(self._stop_progress_ui)
 
     def update_next_digest_label(self):
         if self.digest_scheduled_time:
@@ -582,6 +686,109 @@ class SchedulerApp:
             self.next_digest_label.config(text=f"Next briefing: {when} ({scope})")
         else:
             self.next_digest_label.config(text="No briefing scheduled.")
+
+    # ---------------- BRIEFING PROGRESS ----------------
+    def _estimate_progress_total(self, scope, ticker_count=None):
+        """Rough total-step estimate before the swift header lands. Refined
+        once we see "Stock News Digest — N ticker(s)" with the real N."""
+        if ticker_count is None:
+            ticker_count = 45            # current roster size; refined from header
+        st = (
+            ticker_count * PROGRESS_STEPS_PER_TICKER.get(scope, 0)
+            + PLAYER_COUNT * PROGRESS_STEPS_PER_PORTFOLIO.get(scope, 0)
+            + PROGRESS_STEPS_GAME.get(scope, 0)
+        )
+        return max(st, 1)
+
+    def _parse_progress_line(self, line):
+        """Pattern-match the line against the known progress markers. Each
+        match increments self._progress_done (or recomputes total). Called
+        from the stdout reader thread; UI updates are scheduled on the
+        main thread."""
+        m = RE_PROGRESS_HEADER.search(line)
+        if m:
+            ticker_count = int(m.group(1))
+            scope = m.group(2)
+            self._progress_total = self._estimate_progress_total(scope, ticker_count)
+            self._progress_phase = "fetching"
+            self._on_main_thread(self._update_progress_ui)
+            return
+        if RE_PROGRESS_RSS_DONE.match(line):
+            self._progress_done += 1
+            self._progress_phase = "fetching news"
+            self._on_main_thread(self._update_progress_ui)
+            return
+        if RE_PROGRESS_GAME.match(line):
+            self._progress_done += 1
+            self._progress_phase = "game-wide briefing"
+            self._on_main_thread(self._update_progress_ui)
+            return
+        if RE_PROGRESS_WINDOW.match(line):
+            self._progress_done += 1
+            # Heuristic phase label: if the previous line was "• Brian's
+            # portfolio: start", we're in portfolios; otherwise per-stock.
+            # The label is cosmetic; the bar percent is the load-bearing
+            # signal.
+            if "'s portfolio:" in (self._progress_phase or "") or "portfolio" in line:
+                self._progress_phase = "portfolio briefings"
+            else:
+                self._progress_phase = "per-stock briefings"
+            self._on_main_thread(self._update_progress_ui)
+            return
+        if "'s portfolio: start" in line:
+            self._progress_phase = "portfolio briefings"
+            self._on_main_thread(self._update_progress_ui)
+            return
+        if RE_PROGRESS_DONE.match(line):
+            # Force the bar to 100% in case some steps under-counted.
+            self._progress_done = self._progress_total
+            self._progress_phase = "done"
+            self._on_main_thread(self._update_progress_ui)
+            return
+
+    def _start_progress_ui(self):
+        """Show the bar + label and reset to 0%. Called on the main thread."""
+        self.progress_bar["value"] = 0
+        self.progress_bar["maximum"] = self._progress_total
+        self.progress_bar.grid(row=14, column=0, columnspan=4, padx=5, pady=(2, 0), sticky="ew")
+        self.progress_label.grid(row=15, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w")
+        self.progress_label.config(text=f"Starting briefing… (0 / {self._progress_total})")
+
+    def _update_progress_ui(self):
+        """Refresh bar + label from current state. Called on the main thread."""
+        total = max(self._progress_total, 1)
+        done = min(self._progress_done, total)
+        self.progress_bar["maximum"] = total
+        self.progress_bar["value"] = done
+        pct = (done / total) * 100.0
+        elapsed = max(time.monotonic() - self._progress_start_ts, 0.1)
+        if done > 0:
+            per_step = elapsed / done
+            remaining_sec = max(per_step * (total - done), 0)
+            eta = self._format_eta(remaining_sec)
+        else:
+            eta = "—"
+        phase = self._progress_phase or "running"
+        self.progress_label.config(
+            text=f"{phase}: {done} / {total} ({pct:.0f}%) · ETA {eta}"
+        )
+
+    def _stop_progress_ui(self):
+        """Hide the bar + label. Called on the main thread when the run ends."""
+        self.progress_bar.grid_remove()
+        self.progress_label.grid_remove()
+
+    @staticmethod
+    def _format_eta(seconds):
+        """Human-friendly ETA — "45s", "3 min", "2h 12m"."""
+        if seconds < 60:
+            return f"{int(seconds)}s"
+        minutes = seconds / 60.0
+        if minutes < 60:
+            return f"{minutes:.0f} min"
+        hours = int(minutes // 60)
+        mins = int(minutes - hours * 60)
+        return f"{hours}h {mins}m"
 
     # ---------------- RUNNERS ----------------
     def _run_with_guard(self):
