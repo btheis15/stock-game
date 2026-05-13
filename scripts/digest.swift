@@ -32,6 +32,7 @@ let DEFAULT_TICKERS = [
     "TSLA","NVDA","AVGO","MRVL","CRDO","PLTR","ORCL","ZS","VST","VRT",
     "COHR","CRWV","GFS","GOOGL","NBIS","QBTS","RKLB","S",
     "PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD",
+    "ASML","OKLO","GLUE","VVOS","HUT","AMRZ","SMR","ZBRA",
 ]
 
 let TICKER_NAMES: [String: String] = [
@@ -72,6 +73,14 @@ let TICKER_NAMES: [String: String] = [
     "WMT": "Walmart",
     "PFE": "Pfizer",
     "HD": "Home Depot",
+    "ASML": "ASML Holding",
+    "OKLO": "Oklo",
+    "GLUE": "Monte Rosa Therapeutics",
+    "VVOS": "Vivos Therapeutics",
+    "HUT": "Hut 8",
+    "AMRZ": "Amrize",
+    "SMR": "NuScale Power",
+    "ZBRA": "Zebra Technologies",
 ]
 
 let RELEVANCE_THRESHOLD = 6
@@ -95,6 +104,8 @@ let PLAYERS: [PlayerRoster] = [
         tickers: ["COHR","CRWV","GFS","GOOGL","NBIS","QBTS","NVDA","RKLB","S","TSLA"]),
     PlayerRoster(id: "lee",    name: "Lee",
         tickers: ["PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD","AAPL"]),
+    PlayerRoster(id: "gene",   name: "Gene",
+        tickers: ["ASML","CRSP","OKLO","GLUE","VVOS","HUT","AMRZ","SMR","RKLB","ZBRA"]),
 ]
 
 // Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
@@ -1570,12 +1581,12 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
         articleText += "\(i + 1). [\(ta.ticker)\(ownerSuffix(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
     }
     return """
-    You are commenting on the live leaderboard of a 4-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000.
+    You are commenting on the live leaderboard of a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000.
 
     PLAYERS (this is the only source of truth for who owns what):
     \(playersBlockForPrompt())
 
-    LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to 4th):
+    LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to last):
     \(standingsBlock)
 
     Most market-moving news from the period (each tagged [TICKER/owners], where owners are the player ids that hold that ticker):
@@ -1588,7 +1599,7 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     Sentence 2: Lead with the biggest drag event of \(scope) — same structure: specific catalyst from the article archive, what it implies, then tie it to the player it hurt and their portfolio % loss.
     Sentence 3: A specific forward-looking catalyst from the article archive that could move the standings — upcoming earnings date, FDA milestone, product launch, named macro risk. Tie it to the player whose holding it would affect.
 
-    PERCENTAGE FORMAT (MANDATORY): Every single percentage you write must be formatted as TOKEN [SIGN+DECIMAL%], where TOKEN is either a ticker symbol (uppercase, no surrounding punctuation) or a player's first name (Brian, Kevin, Rick, or Lee). Always include the sign and exactly two decimal places. Examples: ASTS [-10.23%], TSLA [+5.62%], Brian [+8.45%], Lee [-2.10%]. Do NOT write "TSLA rose 5%" or "Brian is up 8.45%" or "TSLA up about five percent" — always the bracketed form, no exceptions. Place the bracketed percentage immediately after its TOKEN, separated by one space. This format is parsed by an automated post-processor.
+    PERCENTAGE FORMAT (MANDATORY): Every single percentage you write must be formatted as TOKEN [SIGN+DECIMAL%], where TOKEN is either a ticker symbol (uppercase, no surrounding punctuation) or a player's first name (\(PLAYERS.map { $0.name }.joined(separator: ", "))). Always include the sign and exactly two decimal places. Examples: ASTS [-10.23%], TSLA [+5.62%], \(PLAYERS.first!.name) [+8.45%]. Do NOT write "TSLA rose 5%" or "\(PLAYERS.first!.name) is up 8.45%" or "TSLA up about five percent" — always the bracketed form, no exceptions. Place the bracketed percentage immediately after its TOKEN, separated by one space. This format is parsed by an automated post-processor.
 
     Hard rules: Use the player names verbatim. Quote percentages from STANDINGS exactly — do not invent numbers or events. Do NOT use the structure "X is leading because of TICKER, Y is trailing because of TICKER" — that's just restating the standings table the reader already sees. Open every sentence with the news event, not the player or the percentage. Do not preface the digest. Do not number the sentences. Do not use bullet points.
 

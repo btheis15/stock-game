@@ -42,10 +42,11 @@
 | **Kevin** | `#5AC8FA` (blue) | TSLA NVDA AVGO MRVL CRDO PLTR ORCL ZS VST VRT | $10,000 |
 | **Rick** | `#FF9F0A` (orange) | COHR CRWV GFS GOOGL NBIS QBTS NVDA RKLB S TSLA | $10,000 |
 | **Lee** | `#BF5AF2` (purple) | PEP GM TAP VZ UL DKS WMT PFE HD AAPL | $10,000 |
+| **Gene** | `#FF375F` (pink) | ASML CRSP OKLO GLUE VVOS HUT AMRZ SMR RKLB ZBRA | $10,000 |
 
-Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. Players don't share share counts even when they hold the same ticker (NVDA / TSLA are picked by both Kevin and Rick, AAPL by both Brian and Lee — same prices, independent positions, computed via `sharesFor(userId, series)`).
+Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. Players don't share share counts even when they hold the same ticker (NVDA / TSLA: Kevin + Rick; AAPL: Brian + Lee; CRSP: Brian + Gene; RKLB: Rick + Gene — same prices, independent positions, computed via `sharesFor(userId, series)`).
 
-`ALL_TICKERS` is the dedup set across all players (37 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD).
+`ALL_TICKERS` is the dedup set across all players (45 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, ASML, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, ZBRA).
 
 ## 3. Data layout
 
@@ -182,9 +183,9 @@ Functions exported:
 /tee-times                 → TeeTimesView (deep-link landing → Inshalla CC on foreUP)
 ```
 
-All page routes are marked `dynamic = "force-static"` so they SSG. **46 static pages, no dynamic routes.**
+All page routes are marked `dynamic = "force-static"` so they SSG. **55 static pages, no dynamic routes.**
 
-(46 = 4 portfolio + 37 stock + 1 home + 1 stocks + 1 tee-times + 1 _not-found + 1 layout shim. The digest panel renders client-side from `/digests.json`, no extra routes.)
+(55 = 5 portfolio + 45 stock + 1 home + 1 stocks + 1 tee-times + 1 _not-found + 1 layout shim. The digest panel renders client-side from `/digests.json`, no extra routes.)
 
 ## 6. Components
 
@@ -277,17 +278,19 @@ components/
                         documented in docs/embedding-third-party-booking.md §1–§7.
 
   GameSummaryPanel    The DigestPanel reused on `/`, fed by `useDigests().getGameDigest(range)`.
-                      Sits between the 2x2 leaderboard and InsightsCard. Three sentences
+                      Sits between the leaderboard and InsightsCard. Three sentences
                       explaining who's leading and why, who's lagging, and what to watch —
                       grounded in actual portfolio percentages from prices.json (the digest
                       pipeline ports analyzeRange to Swift to compute standings, then the
                       LLM is given the standings + top-relevance articles as context).
-  CompareView.tsx     Home view. Defaults to 1D. 4 lines, ALL ranges normalized to
-                      (value - baseline) / baseline so every line starts at y=0 and the
+  CompareView.tsx     Home view. Defaults to 1D. One line per player, ALL ranges normalized
+                      to (value - baseline) / baseline so every line starts at y=0 and the
                       visual order matches the leaderboard ranking. baseline=0 dashed line
                       gives the 0% reference. Headline: "{leader} leads" or "It's a tie".
-                      Range pct + signed gain-difference gap below. 2x2 leaderboard cards with
-                      1st/2nd/3rd/4th badges. InsightsCard renders for every range (1D included).
+                      Range pct + signed gain-difference gap below. Leaderboard renders as
+                      a sports-standings style stack of <UserRow>s (rank + color dot + name
+                      + gap + value), scales to N players automatically. InsightsCard renders
+                      for every range (1D included).
                       Three data-source paths in `ranged`:
                         • 1D → intraday[u.id].points (15-min bars, today's session)
                         • 1W → weekly[u.id] (hourly bars, past 5 trading days; compactX=true)
@@ -403,7 +406,7 @@ components/
            pushes to main. Required status check for branch protection.
 
 [Vercel]   Next.js production build
-   │           reads prices.json at build time → 46 static HTML pages prerendered
+   │           reads prices.json at build time → 55 static HTML pages prerendered
    │           Cache-Control: public, max-age=0, must-revalidate (set in next.config.ts)
    ▼
 [iPhone]   PWA refreshes on next tap
@@ -463,7 +466,7 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
    │         guard so the model never invents ownership
    │
    └─ write public/digests.json
-        - holdings: 37 tickers × 6 windows
+        - holdings: 45 tickers × 6 windows
         - portfolios: 4 users × 6 windows
         - game: 6 windows
         - ~600 KB total
@@ -471,13 +474,13 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
 
 The launchd plist (to be installed at `~/Library/LaunchAgents/com.stockgame.digest.plist`) runs `digest.swift` then chains to `cron-update.sh` so the same git-pull/commit/push machinery picks up `digests.json` and triggers the GitHub→Vercel webhook. No separate sync script needed.
 
-End-to-end runtime: ~10 minutes for 37 tickers from cold archive (scaled from earlier 29-ticker / ~8 min benchmark; HON 13s test: fetch + 2-stage filter + 3 mature digests).
+End-to-end runtime: ~12 minutes for 45 tickers from cold archive (scaled from earlier 29-ticker / ~8 min benchmark; HON 13s test: fetch + 2-stage filter + 3 mature digests).
 
 `scripts/digest.swift` flags:
 
 | Flag | Effect |
 |---|---|
-| (no args) | full pipeline, all 37 tickers, default `~/Repos/stock-game/public/digests.json` |
+| (no args) | full pipeline, all 45 tickers, default `~/Repos/stock-game/public/digests.json` |
 | `HON AAPL ...` | restrict to listed tickers |
 | `--check` | probe Apple Intelligence availability and exit |
 | `--dry-run` | fetch + filter + score; write nothing |
@@ -656,7 +659,7 @@ scripts/
 
 public/
   data/prices.json             The canonical price snapshot (committed).
-  digests.json                 Per-ticker AI news digests, 6 windows × 37 tickers (committed).
+  digests.json                 Per-ticker AI news digests, 6 windows × 45 tickers (committed).
   manifest.webmanifest         PWA manifest.
   icon-*.png, apple-touch-icon.png, favicon.png, og.png
 

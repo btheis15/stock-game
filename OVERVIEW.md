@@ -1,10 +1,10 @@
 # Stock Game — Overview
 
-A friendly stock-picking competition between four people, tracked daily since
+A friendly stock-picking competition between five people, tracked daily since
 **February 5, 2026**. Each player gets a $100,000 paper portfolio, divided
 evenly across their picks. The app is a mobile-first PWA that anyone can open
 in Safari and add to their iPhone home screen — it looks and behaves like
-Robinhood, except instead of one portfolio you see all four overlaid on the
+Robinhood, except instead of one portfolio you see every player overlaid on the
 same chart with a leaderboard underneath.
 
 The point is twofold:
@@ -112,7 +112,7 @@ think about staleness.
 
 ---
 
-## The four players
+## The five players
 
 | Player | Color | Picks | Per-pick allocation |
 |---|---|---|---|
@@ -120,13 +120,14 @@ think about staleness.
 | **Kevin** | blue | TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT | $10,000 |
 | **Rick** | orange | COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA | $10,000 |
 | **Lee** | purple | PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, AAPL | $10,000 |
+| **Gene** | pink | ASML, CRSP, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, RKLB, ZBRA | $10,000 |
 
 A few notes on this:
 - The "$10k per pick" rule comes from "$100k total ÷ 10 picks."
-- Kevin and Rick both own NVDA and TSLA; Brian and Lee both own AAPL.
-  Even though they share prices, they each have their own independent
-  share count (because each spent their own $10k buying it at the 2/5
-  close).
+- Several tickers are jointly held: NVDA + TSLA by Kevin and Rick, AAPL
+  by Brian and Lee, CRSP by Brian and Gene, RKLB by Rick and Gene. Joint
+  owners share prices but each has their own independent share count
+  (each spent their own $10k buying it at the 2/5 close).
 - Buying happens at the **2026-02-05 closing price**, partial shares allowed.
   Once a share count is set on Feb 5, it doesn't change unless a corporate
   action (spin-off, split) modifies it.
@@ -428,7 +429,7 @@ minute (the auto-refresh-on-resume logic kicks in).
 ### Share the link with new players
 Just text them `stock-game-gamma.vercel.app`. The OG preview card shows the
 title, "Loser pays for golf — tracked since Feb 5, 2026," and a stylized
-mini chart with all four players' colors. They open it in Safari, tap
+mini chart with every player's color. They open it in Safari, tap
 Share → Add to Home Screen, and it lives on their home screen as a
 full-screen app.
 

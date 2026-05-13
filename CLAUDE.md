@@ -210,16 +210,17 @@ components receive prepared series and only do range-filtering and scrub.
    raw $ value for the leaderboard. Don't break this — pct on chart, $
    in stats.
 7. `chartSeries: ChartSeries[]` — every range is normalized to
-   `(value - baseline) / baseline` so all four lines start at y=0 and the
+   `(value - baseline) / baseline` so all N lines start at y=0 and the
    visual order matches the leaderboard ranking. baseline=0 dashed line is
    passed for every range as the 0% reference.
 8. `xDomain: [Date, Date] | undefined` — for 1D, `sessionBoundsForDate(intradayDate)`
    forces the axis to span the full trading session even when only part is filled.
 9. Render header (`{leader.user.name} leads` or `It's a tie`), gap pct +
    gap $, optional `<MarketStateBadge>`, `<ScrubChart>`, `<RangeTabs>`,
-   2x2 leaderboard cards (`<UserCard>` with 1st/2nd/3rd/4th badges and
-   ranked-by-pct ordering), `<InsightsCard>` (rendered for every range
-   including 1D — `app/page.tsx` precomputes a 1D analysis too), Game rules.
+   sports-standings-style leaderboard (`<UserRow>` stack — rank + color dot +
+   name + gap-to-leader + value; auto-scales to N players), `<InsightsCard>`
+   (rendered for every range including 1D — `app/page.tsx` precomputes a
+   1D analysis too), Game rules.
 
 ### §5.2. Portfolio drill-down (`/portfolio/[user]`)
 
@@ -248,7 +249,7 @@ components receive prepared series and only do range-filtering and scrub.
 
 **Server side** (`app/stock/[ticker]/page.tsx`):
 1. `generateStaticParams()` returns `{ticker}` for every entry in
-   `ALL_TICKERS` (currently 37).
+   `ALL_TICKERS` (currently 45).
 2. Look up `data.tickers[upper]`, 404 if missing.
 3. Render `<HeaderBack />` (no title — natural "back" target depends on
    how you arrived) + `<StockView series intradayDate />`.
@@ -496,7 +497,7 @@ report involves the 1D view, work through all 5:
    `sessionBoundsForDate(intradayDate)` returns `[09:30 ET, 16:00 ET]` as
    UTC dates. The line covers only the elapsed portion.
 4. **Compare-view normalization**: `chartSeries.data` plots
-   `(value - baseline) / baseline` so all four players' lines start at 0%.
+   `(value - baseline) / baseline` so every player's line starts at 0%.
    This is now done for every range, not just 1D. Stats rehydrate the
    $ value via `ranged[u.id][scrub.index].value`.
 5. **Live state**: `isMarketLive(series.intraday)` checks if the most
@@ -880,14 +881,16 @@ cheaper.
    - No code change. Run: npm run fetch-prices -- --full
    - This fetches the new tickers' history and rewrites prices.json.
 
-4. components: NO CHANGES NEEDED. The compare grid auto-stretches to N
-   players (currently a 2x2 grid; if N exceeds 4, refactor UserCard
-   layout in CompareView from grid-cols-2 to grid-cols-{N|2}).
+4. components: NO CHANGES NEEDED. CompareView's leaderboard renders as a
+   sports-standings <UserRow> stack — auto-scales to N players. (Older
+   versions used a 2x2 grid that needed refactoring past 4 players; that
+   was replaced by the stacked-row layout, so the doc reflects the
+   current code, not the historical constraint.)
 
 5. STATE.md: update the Players table.
    OVERVIEW.md: update the players table.
 
-6. Test: npm run build. Verify all 4 (now N) /portfolio routes are SSG'd.
+6. Test: npm run build. Verify every player's /portfolio route is SSG'd.
 
 7. Commit, push, verify on staging. The next morning's digest-update.sh
    run will populate the new player's portfolio digests + add any new
