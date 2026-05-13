@@ -4,7 +4,7 @@
     "1D" : {
       "aiEngine" : "AppleIntelligence",
       "articleCount" : 15,
-      "avgRelevanceScore" : 9.266666666666667,
+      "avgRelevanceScore" : 9.133333333333333,
       "dataMaturity" : "full",
       "dateRange" : {
         "from" : "2026-05-12",
@@ -12,9 +12,23 @@
       },
       "daysOfData" : 3,
       "daysRequired" : 1,
-      "digest" : "The biggest drag event of the day was [AVGO · held by Kevin], which saw a 40% increase since April. This was a big concern for Kevin, who lost 4.68% of his portfolio. Kevin's portfolio is heavily weighted toward tech stocks, and this sharp rise in Broadcom was a big blow to his performance. The most consequential news event of the day was [HUT · held by Gene], which saw a 92.14% increase in its share price. This was a huge boost for Gene, who gained 0.13% of his portfolio. Gene's portfolio is heavily weighted toward AI and data center stocks, and this surge in Hut 8 was a big win for him. A specific forward-looking catalyst from the article archive that could move the standings is [TSLA · held by Kevin and Rick], which has seen a 30% increase since April. This is a big concern for Rick, who lost 6.24% of his portfolio. Rick's portfolio is heavily weighted toward tech stocks, and this sharp rise in Tesla was a big blow to his performance.",
-      "generatedAt" : "2026-05-13T14:47:33.231Z",
+      "digest" : "US equity futures were mixed pre-bell Wednesday as Nvidia (NVDA) stock rose ahead of a globally significant meeting, driving NBIS (NBIS window pct: +16.54%) and helping Rick (portfolio +5.08%) with his portfolio. Kevin (portfolio +0.41%) pulled CRDO (CRDO window pct: -5.56%) and dragged his portfolio, and Brian (portfolio +0.89%) looked ahead, with QCOM (QCOM window pct: +1.80%) poised to move for him.",
+      "generatedAt" : "2026-05-13T15:39:16.418Z",
       "sources" : [
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/12\/up-nearly-40-since-april-began-is-broadcom-stock\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Up Nearly 40% Since April Began, Is Broadcom Stock Still a Buy?"
+        },
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/13\/nvidia-will-soon-make-more-than-apple-and-microsoft-combined\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "Nvidia Will Soon Make More than Apple and Microsoft Combined"
+        },
         {
           "date" : "2026-05-13",
           "link" : "https:\/\/finance.yahoo.com\/news\/why-vertiv-vrt-becoming-more-105705982.html?.tsrc=rss",
@@ -38,20 +52,6 @@
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/12\/up-nearly-40-since-april-began-is-broadcom-stock\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Up Nearly 40% Since April Began, Is Broadcom Stock Still a Buy?"
-        },
-        {
-          "date" : "2026-05-13",
           "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
           "score" : 10,
           "source" : "barchart.com",
@@ -59,17 +59,17 @@
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/13\/nvidia-will-soon-make-more-than-apple-and-microsoft-combined\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "247wallst.com",
-          "title" : "Nvidia Will Soon Make More than Apple and Microsoft Combined"
-        },
-        {
-          "date" : "2026-05-13",
           "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
           "score" : 10,
           "source" : "Motley Fool",
           "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
+        },
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-pre-125556760.html?.tsrc=rss",
+          "score" : 9,
+          "source" : "Yahoo Finance",
+          "title" : "US Equity Futures Mixed Pre-Bell as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
         }
       ]
     },
@@ -84,9 +84,30 @@
       },
       "daysOfData" : 3,
       "daysRequired" : 1,
-      "digest" : "The most consequential news of the past month was the $9.8 billion lease agreement signed by Hut 8, which will enable the construction of a new data center campus in Texas. That agreement drove up Hut 8 shares and propelled Gene into third place on the leaderboard. Gene's portfolio increased by 16.80% and he now holds a total of 10.51% of the top 10 stocks on the leaderboard. The biggest drag on the standings was the 11.47% decrease in Kevin's portfolio. The news that US equity futures were slightly lower pre-bell as President Donald Trump rejected Iran's response to a peace proposal, and oil prices rose, drove down Kevin's portfolio. This move pushed Kevin out of the top 5 and into 6th place on the leaderboard. The next big move on the leaderboard could come from the upcoming earnings date for ASML, which is scheduled for June 24. ASML's earnings report is expected to be a key catalyst for the stock's performance, and it could have a significant impact on the standings.",
-      "generatedAt" : "2026-05-13T14:47:33.231Z",
+      "digest" : "On May 11, 2026, AI and chip stocks fueled fresh records as surging oil and valuation warnings tested nerves. Rick, who owns a portfolio with a 32.39% increase, and Gene, who owns a portfolio with a 17.26% increase, were the strongest positive movers of this past month. Brian, who owns a portfolio with an 8.45% increase, is a forward-looking catalyst to watch for QCOM, which has seen a 63.03% increase and a 5.74% increase in his portfolio.",
+      "generatedAt" : "2026-05-13T15:39:16.418Z",
       "sources" : [
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
+        },
+        {
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/m\/77cd0e94-2ac0-323b-9210-824ed82a9688\/nvidia-stock-heads-for-record.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Nvidia Stock Heads for Record as AI Push Expands"
+        },
+        {
+          "date" : "2026-05-12",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/12\/the-ai-data-center-backlash-is-growing-kevin-olearys-1-billion-stratos-project-reveals-why\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "The AI Data Center Backlash Is Growing. Kevin O’Leary’s $1 Billion Stratos Project Reveals Why"
+        },
         {
           "date" : "2026-05-13",
           "link" : "https:\/\/finance.yahoo.com\/news\/why-vertiv-vrt-becoming-more-105705982.html?.tsrc=rss",
@@ -103,45 +124,24 @@
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/us-equity-futures-slightly-lower-130151715.html?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/08\/qualcomm-just-ripped-70-in-a-month-is-it-time-to-sell-in-may-and-go-away\/?.tsrc=rss",
           "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Slightly Lower Pre-Bell as Trump Rejects Iran's Response to Peace Proposal, Oil Prices Rise"
-        },
-        {
-          "date" : "2026-05-12",
-          "link" : "https:\/\/finance.yahoo.com\/m\/219c9e5f-bb5e-3e5c-9052-2d5ebdc91ef8\/this-ai-stock-is-now-worth.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "This AI Stock Is Now Worth More Than Tesla, Meta And Walmart"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/10\/my-top-3-quantum-computing-stocks-for-may-2026\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "My Top 3 Quantum Computing Stocks for May 2026"
+          "source" : "247wallst.com",
+          "title" : "Qualcomm Just Ripped 70% in a Month. Is It Time to Sell in May and Go Away?"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/13\/heres-why-stock-is-a-buy-before-date\/?.tsrc=rss",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Here's Why Tesla Stock Is a Buy Before 2031"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
+          "source" : "barchart.com",
+          "title" : "Dear Qualcomm Stock Fans, Mark Your Calendars for June 24"
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/qualcomm-stock-just-doubled-breakout-193600970.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ast-spacemobile-provides-business-first-203000787.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Qualcomm Stock Just Doubled: Breakout or Blow-Off?"
+          "title" : "AST SpaceMobile Provides Business Update and First Quarter 2026 Results"
         }
       ]
     },
@@ -156,9 +156,31 @@
       },
       "daysOfData" : 3,
       "daysRequired" : 7,
-      "digest" : "Hut 8 signed a $9.8 billion lease for its Beacon Point data center campus in Texas, with the first phase covering 352 megawatts of IT capacity. This move underscores the growing importance of AI infrastructure, benefiting Gene, whose portfolio increased by +1.27%, and Rick, whose portfolio increased by +4.27%. Conversely, the news of Nvidia's earnings beat caused Kevin's portfolio to decrease by +0.68%, while Brian's portfolio decreased by -1.40%.",
-      "generatedAt" : "2026-05-13T14:47:33.231Z",
+      "digest" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise drove RKLB [+46.44%] and helped Rick (+5.67%) and Gene (+1.67%). Nvidia Stock Heads for Record as AI Push Expands pulled CRWV [-20.39%] and dragged Rick (+5.67%). Looking ahead, Dear Qualcomm Stock Fans, Mark Your Calendars for June 24 could move QCOM [+11.11%] for Brian (-1.05%).",
+      "digestTemplate" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise drove RKLB {{RKLB}} and helped Rick (+5.67%) and Gene (+1.67%). Nvidia Stock Heads for Record as AI Push Expands pulled CRWV {{CRWV}} and dragged Rick (+5.67%). Looking ahead, Dear Qualcomm Stock Fans, Mark Your Calendars for June 24 could move QCOM {{QCOM}} for Brian (-1.05%).",
+      "generatedAt" : "2026-05-13T15:39:16.418Z",
       "sources" : [
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
+        },
+        {
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/m\/77cd0e94-2ac0-323b-9210-824ed82a9688\/nvidia-stock-heads-for-record.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Nvidia Stock Heads for Record as AI Push Expands"
+        },
+        {
+          "date" : "2026-05-12",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/12\/the-ai-data-center-backlash-is-growing-kevin-olearys-1-billion-stratos-project-reveals-why\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "The AI Data Center Backlash Is Growing. Kevin O’Leary’s $1 Billion Stratos Project Reveals Why"
+        },
         {
           "date" : "2026-05-13",
           "link" : "https:\/\/finance.yahoo.com\/news\/why-vertiv-vrt-becoming-more-105705982.html?.tsrc=rss",
@@ -175,45 +197,24 @@
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/us-equity-futures-slightly-lower-130151715.html?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/08\/qualcomm-just-ripped-70-in-a-month-is-it-time-to-sell-in-may-and-go-away\/?.tsrc=rss",
           "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Slightly Lower Pre-Bell as Trump Rejects Iran's Response to Peace Proposal, Oil Prices Rise"
-        },
-        {
-          "date" : "2026-05-12",
-          "link" : "https:\/\/finance.yahoo.com\/m\/219c9e5f-bb5e-3e5c-9052-2d5ebdc91ef8\/this-ai-stock-is-now-worth.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "This AI Stock Is Now Worth More Than Tesla, Meta And Walmart"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/10\/my-top-3-quantum-computing-stocks-for-may-2026\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "My Top 3 Quantum Computing Stocks for May 2026"
+          "source" : "247wallst.com",
+          "title" : "Qualcomm Just Ripped 70% in a Month. Is It Time to Sell in May and Go Away?"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/13\/heres-why-stock-is-a-buy-before-date\/?.tsrc=rss",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Here's Why Tesla Stock Is a Buy Before 2031"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
+          "source" : "barchart.com",
+          "title" : "Dear Qualcomm Stock Fans, Mark Your Calendars for June 24"
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/qualcomm-stock-just-doubled-breakout-193600970.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ast-spacemobile-provides-business-first-203000787.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Qualcomm Stock Just Doubled: Breakout or Blow-Off?"
+          "title" : "AST SpaceMobile Provides Business Update and First Quarter 2026 Results"
         }
       ]
     },
@@ -228,8 +229,8 @@
       },
       "daysOfData" : 3,
       "daysRequired" : 1,
-      "digest" : "The most consequential news event of since the game's start on February 5, 2026, was the $9.8 billion lease agreement signed by Hut 8 (HUT) for its Beacon Point data center campus in Texas, with the first phase covering 352 megawatts of IT capacity. This deal significantly boosted Hut 8's stock, which was held by Gene, who saw his portfolio increase by +19.12%. The biggest drag event of since the game's start on February 5, 2026, was the rejection of Iran's response to a peace proposal by President Donald Trump, which led to a slight decrease in US equity futures. This event negatively impacted Kevin, who saw his portfolio decrease by +44.18%. A specific forward-looking catalyst from the article archive that could move the standings is the upcoming investor day for Qualcomm (QCOM), which is scheduled for June 24. This event could impact Brian, who holds a significant stake in QCOM and whose portfolio has increased by +3.40%.",
-      "generatedAt" : "2026-05-13T14:47:33.231Z",
+      "digest" : "Rick made a significant move with NBIS, which went up by 182.36%, pushing his portfolio up by 60.22%. Meanwhile, Gene experienced a big decline with VVOS, which dropped by 49.52%, causing his portfolio to fall by 19.59%. Looking ahead, Brian is excited about QCOM, which has risen by 56.97%, boosting his portfolio by 3.77%.",
+      "generatedAt" : "2026-05-13T15:39:16.418Z",
       "sources" : [
         {
           "date" : "2026-05-13",
@@ -246,13 +247,6 @@
           "title" : "HUT Stock Alert: Hut 8 Signs $9.8 Billion Lease for AI Data Center"
         },
         {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/us-equity-futures-slightly-lower-130151715.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Slightly Lower Pre-Bell as Trump Rejects Iran's Response to Peace Proposal, Oil Prices Rise"
-        },
-        {
           "date" : "2026-05-12",
           "link" : "https:\/\/finance.yahoo.com\/m\/219c9e5f-bb5e-3e5c-9052-2d5ebdc91ef8\/this-ai-stock-is-now-worth.html?.tsrc=rss",
           "score" : 10,
@@ -260,32 +254,39 @@
           "title" : "This AI Stock Is Now Worth More Than Tesla, Meta And Walmart"
         },
         {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/10\/my-top-3-quantum-computing-stocks-for-may-2026\/?.tsrc=rss",
+          "date" : "2026-05-12",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/12\/the-ai-data-center-backlash-is-growing-kevin-olearys-1-billion-stratos-project-reveals-why\/?.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "My Top 3 Quantum Computing Stocks for May 2026"
+          "source" : "247wallst.com",
+          "title" : "The AI Data Center Backlash Is Growing. Kevin O’Leary’s $1 Billion Stratos Project Reveals Why"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/13\/heres-why-stock-is-a-buy-before-date\/?.tsrc=rss",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
           "score" : 10,
           "source" : "Motley Fool",
-          "title" : "Here's Why Tesla Stock Is a Buy Before 2031"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
+          "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/qualcomm-stock-just-doubled-breakout-193600970.html?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/08\/qualcomm-just-ripped-70-in-a-month-is-it-time-to-sell-in-may-and-go-away\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "Qualcomm Just Ripped 70% in a Month. Is It Time to Sell in May and Go Away?"
+        },
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
+          "score" : 10,
+          "source" : "barchart.com",
+          "title" : "Dear Qualcomm Stock Fans, Mark Your Calendars for June 24"
+        },
+        {
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ast-spacemobile-provides-business-first-203000787.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Qualcomm Stock Just Doubled: Breakout or Blow-Off?"
+          "title" : "AST SpaceMobile Provides Business Update and First Quarter 2026 Results"
         }
       ]
     },
@@ -300,9 +301,30 @@
       },
       "daysOfData" : 3,
       "daysRequired" : 1,
-      "digest" : "The most consequential catalyst of the past quarter was the $9.8 billion lease agreement signed by Hut 8 for its Beacon Point data center campus in Texas, with the first phase covering 352 megawatts of IT capacity. This deal significantly boosted Hut 8's stock, causing Gene's portfolio to rise by 14.31% and placing him in third place. The biggest drag event of the quarter was the FDA rejection of Hut 8's proposed AI infrastructure, which negatively impacted his stock and led to a 51.68% loss in his portfolio, dropping him to fourth place. A forward-looking catalyst that could move the standings is the upcoming investor day for Qualcomm, scheduled for June 24, which could provide a roadmap for AI-driven growth acceleration and potentially boost the stock of the players who hold it.",
-      "generatedAt" : "2026-05-13T14:47:33.231Z",
+      "digest" : "Nebius Group, a player in Rick's portfolio, saw its stock rise by 132.46%, as the company is taking the initiative to dominate the future of AI inference. Gene, who holds VVOS, experienced a significant decline of 51.15%, marking the biggest drag of the past quarter. Looking ahead, Qualcomm's stock is expected to rise by 54.51%, driven by upcoming investor day, which will provide a roadmap for AI-driven growth acceleration.",
+      "generatedAt" : "2026-05-13T15:39:16.418Z",
       "sources" : [
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
+        },
+        {
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/m\/77cd0e94-2ac0-323b-9210-824ed82a9688\/nvidia-stock-heads-for-record.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Nvidia Stock Heads for Record as AI Push Expands"
+        },
+        {
+          "date" : "2026-05-12",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/12\/the-ai-data-center-backlash-is-growing-kevin-olearys-1-billion-stratos-project-reveals-why\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "The AI Data Center Backlash Is Growing. Kevin O’Leary’s $1 Billion Stratos Project Reveals Why"
+        },
         {
           "date" : "2026-05-13",
           "link" : "https:\/\/finance.yahoo.com\/news\/why-vertiv-vrt-becoming-more-105705982.html?.tsrc=rss",
@@ -319,45 +341,24 @@
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/us-equity-futures-slightly-lower-130151715.html?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/08\/qualcomm-just-ripped-70-in-a-month-is-it-time-to-sell-in-may-and-go-away\/?.tsrc=rss",
           "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Slightly Lower Pre-Bell as Trump Rejects Iran's Response to Peace Proposal, Oil Prices Rise"
-        },
-        {
-          "date" : "2026-05-12",
-          "link" : "https:\/\/finance.yahoo.com\/m\/219c9e5f-bb5e-3e5c-9052-2d5ebdc91ef8\/this-ai-stock-is-now-worth.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "This AI Stock Is Now Worth More Than Tesla, Meta And Walmart"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/10\/my-top-3-quantum-computing-stocks-for-may-2026\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "My Top 3 Quantum Computing Stocks for May 2026"
+          "source" : "247wallst.com",
+          "title" : "Qualcomm Just Ripped 70% in a Month. Is It Time to Sell in May and Go Away?"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/13\/heres-why-stock-is-a-buy-before-date\/?.tsrc=rss",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Here's Why Tesla Stock Is a Buy Before 2031"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
+          "source" : "barchart.com",
+          "title" : "Dear Qualcomm Stock Fans, Mark Your Calendars for June 24"
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/qualcomm-stock-just-doubled-breakout-193600970.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ast-spacemobile-provides-business-first-203000787.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Qualcomm Stock Just Doubled: Breakout or Blow-Off?"
+          "title" : "AST SpaceMobile Provides Business Update and First Quarter 2026 Results"
         }
       ]
     },
@@ -372,9 +373,30 @@
       },
       "daysOfData" : 3,
       "daysRequired" : 1,
-      "digest" : "[HUT · held by Gene] Why Vertiv (VRT) Is Becoming More Important to AI Data Center Buildouts led to Gene's +19.12% portfolio, with HUT +139.86% as the top-performing ticker. [TSLA · held by Kevin and Rick] Here's Why Tesla Stock Is a Buy Before 2031 caused Kevin's +44.18% portfolio to drop by -13.96% and -2.11%, with ZS and VST as the top-performing and top-performing-worst-performing tickers. [QCOM · held by Brian] Qualcomm Just Ripped 70% in a Month led to Brian's +3.40% portfolio to increase by +56.27% and +19.16%, with QCOM and AMZN as the top-performing and top-performing-worst-performing tickers.",
-      "generatedAt" : "2026-05-13T14:47:33.231Z",
+      "digest" : "Nebius Group's stock surged by 182.36% since February 5, 2026, propelled by its proactive stance in AI inference, boosting Rick's portfolio by 60.22%. Meanwhile, VVOS's stock plummeted by 49.52%, causing Gene's portfolio to lose 19.59%. Looking forward, Qualcomm's upcoming investor day on June 24 could significantly impact Brian's portfolio by 56.97%.",
+      "generatedAt" : "2026-05-13T15:39:16.418Z",
       "sources" : [
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
+        },
+        {
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/m\/77cd0e94-2ac0-323b-9210-824ed82a9688\/nvidia-stock-heads-for-record.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Nvidia Stock Heads for Record as AI Push Expands"
+        },
+        {
+          "date" : "2026-05-12",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/12\/the-ai-data-center-backlash-is-growing-kevin-olearys-1-billion-stratos-project-reveals-why\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "The AI Data Center Backlash Is Growing. Kevin O’Leary’s $1 Billion Stratos Project Reveals Why"
+        },
         {
           "date" : "2026-05-13",
           "link" : "https:\/\/finance.yahoo.com\/news\/why-vertiv-vrt-becoming-more-105705982.html?.tsrc=rss",
@@ -391,50 +413,29 @@
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/us-equity-futures-slightly-lower-130151715.html?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/08\/qualcomm-just-ripped-70-in-a-month-is-it-time-to-sell-in-may-and-go-away\/?.tsrc=rss",
           "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Slightly Lower Pre-Bell as Trump Rejects Iran's Response to Peace Proposal, Oil Prices Rise"
-        },
-        {
-          "date" : "2026-05-12",
-          "link" : "https:\/\/finance.yahoo.com\/m\/219c9e5f-bb5e-3e5c-9052-2d5ebdc91ef8\/this-ai-stock-is-now-worth.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "This AI Stock Is Now Worth More Than Tesla, Meta And Walmart"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/10\/my-top-3-quantum-computing-stocks-for-may-2026\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "My Top 3 Quantum Computing Stocks for May 2026"
+          "source" : "247wallst.com",
+          "title" : "Qualcomm Just Ripped 70% in a Month. Is It Time to Sell in May and Go Away?"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/13\/heres-why-stock-is-a-buy-before-date\/?.tsrc=rss",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Here's Why Tesla Stock Is a Buy Before 2031"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
+          "source" : "barchart.com",
+          "title" : "Dear Qualcomm Stock Fans, Mark Your Calendars for June 24"
         },
         {
           "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/qualcomm-stock-just-doubled-breakout-193600970.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ast-spacemobile-provides-business-first-203000787.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Qualcomm Stock Just Doubled: Breakout or Blow-Off?"
+          "title" : "AST SpaceMobile Provides Business Update and First Quarter 2026 Results"
         }
       ]
     }
   },
-  "generatedAt" : "2026-05-13T15:30:25.649Z",
+  "generatedAt" : "2026-05-13T15:40:30.608Z",
   "holdings" : {
     "AAPL" : {
       "1D" : {
