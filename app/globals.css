@@ -162,7 +162,100 @@ button {
   border-color: #e4e4e7 !important; /* zinc-200 */
 }
 
-/* Smooth surface/text transitions when the theme flips at market open/close. */
+/*
+ * TWILIGHT THEME — toggled by ThemeController on
+ * <html data-theme="twilight"> during pre-market (7:00 - 9:30 AM ET) and
+ * after-hours (4:00 - 6:00 PM ET) sessions on weekdays. Cool indigo /
+ * deep-blue palette that visually sits between the dark default (closed)
+ * and the light theme (regular hours) — evokes dawn / dusk.
+ *
+ * Same override strategy as the light theme: remap the small set of zinc /
+ * black utility classes the codebase uses instead of introducing new
+ * tokens.
+ */
+:root[data-theme="twilight"] {
+  --background: #0b1024; /* deep midnight indigo */
+  --foreground: #e0e7ff; /* indigo-100 — soft cool white */
+  --chart-baseline: rgba(199, 210, 254, 0.18);
+  --chart-scrub-line: rgba(199, 210, 254, 0.5);
+  --chart-axis-label: rgba(199, 210, 254, 0.55);
+  color-scheme: dark;
+}
+
+:root[data-theme="twilight"] .bg-black,
+:root[data-theme="twilight"] .bg-zinc-950 {
+  background-color: #0b1024 !important; /* page bg */
+}
+
+:root[data-theme="twilight"] .bg-black\/85,
+:root[data-theme="twilight"] .bg-black\/95 {
+  background-color: rgb(11 16 36 / 0.92) !important;
+}
+
+:root[data-theme="twilight"] .bg-zinc-900,
+:root[data-theme="twilight"] .bg-zinc-900\/95,
+:root[data-theme="twilight"] .bg-zinc-900\/70,
+:root[data-theme="twilight"] .bg-zinc-900\/50 {
+  background-color: #161e3d !important; /* card surface — indigo-950 leaning */
+}
+
+:root[data-theme="twilight"] .bg-zinc-800,
+:root[data-theme="twilight"] .bg-zinc-800\/80 {
+  background-color: #1f2a52 !important; /* small pills, ticker badges */
+}
+
+:root[data-theme="twilight"] .bg-zinc-800\/60,
+:root[data-theme="twilight"] .bg-zinc-800\/40 {
+  background-color: rgb(31 42 82 / 0.7) !important; /* pressed state */
+}
+
+:root[data-theme="twilight"] .bg-zinc-700 {
+  background-color: #2d3a6b !important;
+}
+
+:root[data-theme="twilight"] .bg-zinc-600 {
+  background-color: #4b5895 !important; /* closed-state dot */
+}
+
+:root[data-theme="twilight"] .text-white {
+  color: #e0e7ff !important; /* indigo-100 */
+}
+
+:root[data-theme="twilight"] .text-zinc-200 {
+  color: #c7d2fe !important; /* indigo-200 */
+}
+
+:root[data-theme="twilight"] .text-zinc-300 {
+  color: #a5b4fc !important; /* indigo-300 */
+}
+
+:root[data-theme="twilight"] .text-zinc-400 {
+  color: #818cf8 !important; /* indigo-400 — muted captions */
+}
+
+:root[data-theme="twilight"] .text-zinc-500 {
+  color: #8b94c8 !important; /* cool muted */
+}
+
+:root[data-theme="twilight"] .text-zinc-600 {
+  color: #6b75ad !important;
+}
+
+:root[data-theme="twilight"] .text-zinc-700 {
+  color: #4b5895 !important; /* subtlest */
+}
+
+:root[data-theme="twilight"] .border-zinc-800,
+:root[data-theme="twilight"] .border-zinc-900 {
+  border-color: #283260 !important; /* indigo-tinted divider */
+}
+
+:root[data-theme="twilight"] .divide-zinc-800 > *,
+:root[data-theme="twilight"] .divide-zinc-800\/70 > * {
+  border-color: #283260 !important;
+}
+
+/* Smooth surface/text transitions when the theme flips at session boundaries. */
 :root,
 body,
 .bg-black,
@@ -179,6 +272,7 @@ body,
 .text-zinc-200,
 .text-zinc-300,
 .text-zinc-400,
+.text-zinc-500,
 .text-zinc-600,
 .text-zinc-700,
 .border-zinc-800,

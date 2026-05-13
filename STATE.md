@@ -75,7 +75,7 @@ TickerSeries {
   startClose: number              // close on START_DATE (immutable after first fetch)
   closes: { date, close }[]       // daily, sorted ascending
   dividends?: { date, amount }[]  // per-share cash dividends since START_DATE
-  intraday?: { t (ISO UTC), close }[]  // today's 15-min bars, regular session only (9:30 AM – 4:00 PM ET)
+  intraday?: { t (ISO UTC), close }[]  // today's 15-min bars, extended session (7:00 AM – 6:00 PM ET, incl. pre-market + after-hours)
   weekly?:   { t (ISO UTC), close }[]  // 1-hour bars over past ~8 days, regular session only (used by 1W view)
 }
 ```
@@ -167,8 +167,10 @@ Functions exported:
 | `buildHoldingRows(userId, data)` | Holdings table rows for `PortfolioView`. Now includes `rangeStats: Record<Range, {pct, dollars, endClose}>` per holding so the holdings list reflects the active range. |
 | `filterRange(points, range)` | Slice daily points to last N days; for 1D returns full set (caller substitutes intraday). |
 | `rangeBounds(tradingDates, range)` | Start/end date strings of a range. 1D = (last-2 trading day, last trading day). |
-| `sessionBoundsForDate(intradayDateUTC)` | UTC `[open, close]` for the regular US session on that date (DST heuristic). |
+| `sessionBoundsForDate(intradayDateUTC)` | UTC `[start, end]` for the extended US session (7:00 AM – 6:00 PM ET) on that date (DST heuristic). |
 | `isMarketLive(intraday)` | True iff most-recent bar < 30 min old; naturally handles weekends/holidays. |
+| `getMarketSessionState(now?)` | `"premarket" \| "open" \| "afterhours" \| "closed"` (DST-aware via IANA `America/New_York`). Drives theme + badge. |
+| `isUsMarketOpen(now?)` | Backward-compat wrapper = `getMarketSessionState() === "open"`. |
 | `fmtUSD / fmtSignedUSD / fmtPct / fmtDateLong / fmtDateShort / fmtTimeOfDay` | Formatters. |
 
 `STARTING_PORTFOLIO_DOLLARS = 100_000`.
@@ -193,8 +195,9 @@ All page routes are marked `dynamic = "force-static"` so they SSG. **55 static p
 app/layout.tsx        Root: <html>, metadata, dynamic SITE_URL from VERCEL_PROJECT_PRODUCTION_URL,
                       OG card, viewport, loads PriceData server-side to render Footer with
                       "data through" timestamp, mounts <PullToRefresh /> + <InstallHint /> + <TabBar />
-                      + <ThemeController /> (passed the latest intraday bar's timestamp from any one
-                      ticker, used to flip <html data-theme="light"> when the market is open).
+                      + <ThemeController /> (calendar-driven: flips <html> between dark,
+                      `data-theme="twilight"` for pre-market/after-hours, and
+                      `data-theme="light"` during regular hours).
 
 components/
   ScrubChart.tsx      Pointer-driven scrub chart. Props:
@@ -238,12 +241,16 @@ components/
                         (b) Visibility change: if hidden > 60s and becomes visible → reload
                       Touches that start inside an <svg> or [data-no-ptr] element are ignored
                       so chart scrubbing isn't hijacked.
-  MarketStateBadge.tsx  "● Market open" (green, pulsing dot) or "● Market closed" (zinc).
-                        Renders "Last updated HH:MM" inline next to it (from `data.generatedAt`).
-  ThemeController.tsx   Client-only. Sets `<html data-theme="light">` while the market is open
-                        (last intraday bar < 30 min old, mirroring `isMarketLive`); clears it
-                        otherwise. Re-evaluates every 60 seconds so the page flips themes when
-                        the market crosses open/close without needing a manual reload.
+  MarketStateBadge.tsx  Four-state badge driven by `getMarketSessionState()`: "● Market open"
+                        (green, pulsing), "● Pre-market" / "● After hours" (indigo, pulsing),
+                        or "● Market closed" (zinc). Renders "Last updated HH:MM" inline
+                        next to it (from `data.generatedAt`).
+  ThemeController.tsx   Client-only. Sets `<html data-theme="light">` during regular hours,
+                        `data-theme="twilight"` during pre-market / after-hours, and clears the
+                        attribute (dark default) overnight/weekends. Driven by
+                        `getMarketSessionState()` — DST-aware calendar check, no snapshot data.
+                        Re-evaluates every 60s so the page flips at session boundaries without
+                        a manual reload.
   TeeTimesView.tsx      Tee Times tab. Three sections:
 
                         1. Deep-link landing for foreUP booking. Quick Book card (Today /
@@ -354,7 +361,7 @@ components/
 - Scrub state lifted to parent via `onScrub` callback (refs avoid the React 19 update-loop bug).
 - `liveEndpoint` draws two concentric circles at the most recent point; ring expands and fades (`livePulseRing` keyframe), fill brightness oscillates (`livePulseFill`).
 - Compare (all ranges): `chartSeries.data` is normalized to fractional pct from the range's baseline so every line starts at 0% and the line order matches the leaderboard. Stats rehydrate the dollar value by indexing back into the raw `ranged[u.id]` points by `scrub.index`. baseline=0 is passed for the dashed reference line on every range.
-- `xDomain` overrides Visx auto-domain; for 1D we pass `sessionBoundsForDate(intradayDate)` which returns `[09:30 ET, 16:00 ET]` as UTC dates, with a coarse DST heuristic (Mar–Nov = EDT).
+- `xDomain` overrides Visx auto-domain; for 1D we pass `sessionBoundsForDate(intradayDate)` which returns `[07:00 ET, 18:00 ET]` as UTC dates (extended session, pre-market through after-hours), with a coarse DST heuristic (Mar–Nov = EDT).
 - `compactX` switches to an index-based x-scale (one slot per data point) so the 1W view's overnight + weekend gaps disappear. Pointer-handler branches: in compactX mode the inverted x is rounded to the nearest data slot; in time mode the existing bisector logic runs. Tick computation also branches (`computeXTicksTime` vs `computeXTicksCompact`).
 - X-axis tick labels: `--chart-axis-label` CSS var (rgba(255,255,255,0.4) dark / rgba(24,24,27,0.55) light). First and last labels are clamped inward by `LABEL_EDGE_PAD` (12px) so the text doesn't hug the screen edges. The data line / area / scrub still extend edge-to-edge.
 
@@ -571,9 +578,9 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **`metadataBase`** in `app/layout.tsx` resolves dynamically from `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → localhost fallback. Don't hardcode the vercel.app domain.
 - **Site URL is `stock-game-gamma.vercel.app`.** Vercel assigned this; we don't control it. README + OG metadata don't depend on it (dynamic).
 - **iCloud + git is forbidden — repo lives at `~/Repos/stock-game`.** iCloud silently writes `<file> 2` duplicates inside `.git/`, `node_modules/`, `.next/`, etc., which poisons `git fetch` (`fatal: bad object refs/remotes/origin/main 2`) and silently aborts every cron fire. Both Mac mini and laptop clone to `~/Repos/stock-game`; the iCloud Desktop folder keeps absolute symlinks to the canonical docs only. See CLAUDE.md §13.2 for full setup.
-- **Theme system.** `globals.css` keeps the dark palette as the default `:root` and overrides a handful of zinc/black/white utility classes under `:root[data-theme="light"]` (Robinhood-light: zinc-50 page bg, white cards, zinc-200 borders, zinc-900 text). `<ThemeController>` mounts in the layout and toggles `<html data-theme="light">` whenever `isMarketLive` is true (re-evaluated every 60s). Player accents and gain/loss greens are unchanged across themes. If you add a new component, reuse the existing zinc utility classes — those flip automatically. New hex literals (e.g. `bg-[#xxx]`) won't.
+- **Theme system.** `globals.css` keeps the dark palette as the default `:root` and overrides the same handful of zinc/black/white utility classes under two alternate themes: `:root[data-theme="light"]` (Robinhood-light: zinc-50 page bg, white cards, zinc-200 borders, zinc-900 text) and `:root[data-theme="twilight"]` (cool deep-indigo midnight palette with indigo-100/200/300 text — used during pre-market and after-hours). `<ThemeController>` mounts in the layout and switches `<html data-theme>` based on `getMarketSessionState()` (re-evaluated every 60s). Player accents and gain/loss greens are unchanged across themes. If you add a new component, reuse the existing zinc utility classes — those flip automatically across all three themes. New hex literals (e.g. `bg-[#xxx]`) won't.
 - **DST heuristic** in `sessionBoundsForDate` is coarse (Mar–Nov = EDT). Wrong on the few transition days; harmless for the visual axis.
-- **Today's intraday bars are regular session only.** `scripts/fetch-prices.ts` filters bars to `9:30 AM ≤ t < 4:00 PM ET` via `sessionBoundsET()` so the chart's last point is the 4:00 PM close, not an after-hours print. The 3:00 PM CT (= 4:00 PM ET market-close) fire captures the closing bar; the optional 3:15 PM CT fire is a backup that picks it up if Yahoo's bar wasn't ready at the close. Either way, the data ends at the close.
+- **Today's intraday bars cover the extended session.** `scripts/fetch-prices.ts` requests `includePrePost: true` from Yahoo and keeps bars in `7:00 AM ≤ t < 6:00 PM ET` via `extendedSessionBoundsET()` so the 1D chart shows pre-market (7:00 – 9:30 AM ET) and after-hours (4:00 – 6:00 PM ET) moves alongside the regular session. The `ThemeController` applies `data-theme="twilight"` during those windows; `MarketStateBadge` displays "Pre-market" / "Market open" / "After hours" / "Market closed".
 - **Weekly hourly bars are also regular-session-only.** `fetchWeeklyHourly()` pulls 1h bars for the past 8 days, then `filterToRegularSession()` drops pre-market, after-hours, and weekend bars (DST-aware ET hour-of-day check). At render time `lib/portfolio.ts` further drops Yahoo's "live partial" bars (any bar whose timestamp doesn't end with `:00.000Z`) so 1W plot points all sit at clean hourly intervals.
 - **`isMarketLive`** = bar < 30 min old. Doesn't know about market holidays; relies on Yahoo not returning fresh bars on those days.
 - **No client-side polling.** All "live" feel comes from PullToRefresh's resume-reload + the scheduler's 15-min cadence. The chart's blink is purely visual; data is static between reloads.

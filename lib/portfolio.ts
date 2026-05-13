@@ -98,10 +98,14 @@ export function filterRange<T extends { date: string }>(points: T[], range: Rang
   return idx <= 0 ? points : points.slice(idx);
 }
 
-// Regular US trading session in UTC (9:30 AM ET = 14:30 UTC, 4:00 PM ET = 21:00 UTC).
-// DST shifts this by 1 hour but for visual axis it's close enough.
-export const SESSION_START_UTC_HOURS = 14.5;
-export const SESSION_END_UTC_HOURS = 21;
+// Extended US trading session: 7:00 AM ET (pre-market start) → 6:00 PM ET
+// (after-hours end). The chart axis and intraday fetch both use this wider
+// window so pre-market and after-hours moves are visible on the 1D view.
+// Regular session is the 9:30 AM – 4:00 PM ET subset.
+export const EXTENDED_SESSION_START_HOUR_ET = 7;
+export const EXTENDED_SESSION_END_HOUR_ET = 18;
+export const REGULAR_SESSION_START_HOUR_ET = 9.5;
+export const REGULAR_SESSION_END_HOUR_ET = 16;
 
 export function intradayPortfolioSeries(
   data: PriceData,
@@ -305,19 +309,24 @@ export function isMarketLive(intraday: IntradayBar[] | undefined): boolean {
   return now - lastBar.getTime() < LIVE_MAX_LAG_MS;
 }
 
+export type MarketSessionState =
+  | "premarket" // Mon-Fri 7:00 - 9:30 AM ET
+  | "open" // Mon-Fri 9:30 AM - 4:00 PM ET
+  | "afterhours" // Mon-Fri 4:00 - 6:00 PM ET
+  | "closed"; // Everything else (overnight, weekends)
+
 /**
- * Calendar-based "is the US stock market in regular trading hours right now?"
- * Mon-Fri, 9:30 AM - 4:00 PM ET. DST-aware via the "America/New_York" IANA
- * zone (no manual EDT/EST heuristic). Doesn't handle market holidays
- * (Thanksgiving, NYE closures, etc.) — would need a maintained calendar; for
- * now those will show "Market open" until we add a holiday table.
+ * Calendar-based market session state for the current moment in ET.
+ * DST-aware via the "America/New_York" IANA zone. Doesn't account for market
+ * holidays (Thanksgiving, NYE closures, etc.) — would need a maintained
+ * calendar; for now those will report "open" during normal hours.
  *
- * Use this for the user-facing "Market open" badge and the
- * dark→light theme switch. Don't use it for the chart's pulsing endpoint —
- * that wants `isMarketLive` (data freshness), since a stale-data session
- * shouldn't show a pulsing "live" dot even if calendar says open.
+ * Use this for the user-facing badge and the theme switch. Don't use it for
+ * the chart's pulsing endpoint — that wants `isMarketLive` (data freshness),
+ * since a stale-data session shouldn't show a pulsing "live" dot even if
+ * calendar says open.
  */
-export function isUsMarketOpen(now: Date = new Date()): boolean {
+export function getMarketSessionState(now: Date = new Date()): MarketSessionState {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     weekday: "short",
@@ -329,9 +338,20 @@ export function isUsMarketOpen(now: Date = new Date()): boolean {
   const weekday = parts.find((p) => p.type === "weekday")?.value;
   const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
   const minute = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
-  if (weekday === "Sat" || weekday === "Sun") return false;
+  if (weekday === "Sat" || weekday === "Sun") return "closed";
   const minutes = hour * 60 + minute;
-  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
+  if (minutes >= 7 * 60 && minutes < 9 * 60 + 30) return "premarket";
+  if (minutes >= 9 * 60 + 30 && minutes < 16 * 60) return "open";
+  if (minutes >= 16 * 60 && minutes < 18 * 60) return "afterhours";
+  return "closed";
+}
+
+/**
+ * Convenience wrapper preserved for callers that only need the regular-hours
+ * boolean. Equivalent to `getMarketSessionState() === "open"`.
+ */
+export function isUsMarketOpen(now: Date = new Date()): boolean {
+  return getMarketSessionState(now) === "open";
 }
 
 export function pctChange(start: number, end: number): number {
@@ -388,20 +408,26 @@ export function fmtTimeOfDay(iso: string): string {
 }
 
 /**
- * Returns today's regular US trading session bounds as a [start, end] tuple
- * in UTC. Uses today's date for the data's intraday timestamps (or the most
- * recent intraday date in the snapshot).
+ * Returns the extended US trading session bounds (7:00 AM – 6:00 PM ET) for
+ * the given ET date, as a [start, end] tuple in UTC. The wider window covers
+ * pre-market (7:00 – 9:30 AM ET) and after-hours (4:00 – 6:00 PM ET) so the
+ * 1D chart axis spans every period bars may arrive in.
  */
 export function sessionBoundsForDate(intradayDateUTC: string): [Date, Date] {
-  // Eastern Time market hours: 9:30 AM - 4:00 PM ET. ET is UTC-5 (winter)
-  // or UTC-4 (summer). Use UTC-4 May-Oct, UTC-5 Nov-Apr as a rough heuristic.
+  // ET is UTC-5 (winter) or UTC-4 (summer). Use UTC-4 Mar-Nov, UTC-5
+  // Dec-Feb as a rough heuristic. Wrong on the 4 DST transition days per
+  // year; harmless for axis rendering.
   const dt = new Date(intradayDateUTC + "T00:00:00Z");
   const month = dt.getUTCMonth(); // 0-indexed
-  const isEDT = month >= 2 && month <= 10; // Mar-Nov is mostly EDT
+  const isEDT = month >= 2 && month <= 10;
   const offset = isEDT ? 4 : 5; // hours behind UTC
-  const open = new Date(`${intradayDateUTC}T${String(9 + offset).padStart(2, "0")}:30:00Z`);
-  const close = new Date(`${intradayDateUTC}T${String(16 + offset).padStart(2, "0")}:00:00Z`);
-  return [open, close];
+  const start = new Date(
+    `${intradayDateUTC}T${String(7 + offset).padStart(2, "0")}:00:00Z`
+  );
+  const end = new Date(
+    `${intradayDateUTC}T${String(18 + offset).padStart(2, "0")}:00:00Z`
+  );
+  return [start, end];
 }
 
 export function rangeBounds(
