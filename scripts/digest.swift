@@ -1719,8 +1719,161 @@ func ownershipTableForPrompt() -> String {
     return lines.joined(separator: "\n")
 }
 
-func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int) -> String {
-    let standingsBlock = formatStandingsBlock(standings)
+// --- Game-summary facts-first layer (Phase 4) -------------------------------
+//
+// The freeform prompt that used to drive the game-wide digest had Apple
+// Intelligence pick its own "top mover" and "drag" and "forward catalyst"
+// from a raw article list — which produced hallucinations like
+//   • "biggest drag event of the day saw a 40% increase in April"
+//   • "TSLA has seen a 30% increase since April, this is a big concern
+//      for Rick, who lost 6.24% of his portfolio"
+// (Neither April figure was in the inputs; the AI confabulated.)
+//
+// New approach: Swift computes the three structured anchors deterministically
+// from prices.json + the article archive, hands them to the model as labeled
+// FACT blocks, and the model's job is just to rephrase each block into one
+// natural-sounding sentence — no inference required. The model can't invent
+// percentages or dates because none are present to draw from outside the
+// FACTS.
+
+struct GameAnchor {
+    let ticker: String
+    let tickerPct: Double                          // window pct, e.g. 0.052
+    let owners: [(name: String, portfolioPct: Double)]   // every player who holds it
+    let article: TaggedArticle?                    // best-relevance article for ticker
+}
+
+struct GameDigestFacts {
+    let topMover: GameAnchor?              // most positive ticker in the window
+    let topDrag:  GameAnchor?              // most negative ticker in the window
+    let forwardCatalyst: GameAnchor?       // an owned-ticker article hinting at future events
+}
+
+// Future-event keywords scanned in article titles/descriptions to pick the
+// sentence-3 anchor. Tuned for financial news cadence: earnings calendar,
+// regulatory milestones, product launches, scheduled events.
+let FUTURE_EVENT_KEYWORDS: [String] = [
+    "upcoming", "expected", "expects", "preview", "ahead of", "schedule",
+    "scheduled", "set to", "anticipated", "forecast", "outlook", "guidance",
+    "plans to", "will report", "next quarter", "next month", "to launch",
+    "to release", "fda decision", "pdufa", "investor day", "earnings call",
+    "will host", "to host", "will announce", "to announce", "this fall",
+    "this spring", "this summer", "this winter", "in q1", "in q2", "in q3",
+    "in q4",
+]
+
+func computeGameDigestFacts(
+    data: PriceDataLite,
+    window: WindowKey,
+    standings: [UserStanding],
+    articles: [TaggedArticle]
+) -> GameDigestFacts {
+    // Per-ticker window pct, computed directly from prices.json so the
+    // numbers in the prompt are exactly what the chart shows.
+    let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
+    var tickerPctMap: [String: Double] = [:]
+    for t in allTickers {
+        guard let s = data.tickers[t] else { continue }
+        let r = rangeCloses(series: s, data: data, window: window)
+        if r.start != 0 { tickerPctMap[t] = (r.end - r.start) / r.start }
+    }
+    let sortedByPct = tickerPctMap.sorted { $0.value > $1.value }
+
+    // Quick-lookup for an owner's portfolio pct in this window.
+    var portfolioPctById: [String: Double] = [:]
+    for s in standings { portfolioPctById[s.player.id] = s.pct }
+
+    func bestArticle(for ticker: String) -> TaggedArticle? {
+        articles
+            .filter { $0.ticker == ticker }
+            .max(by: {
+                ($0.article.relevanceScore ?? 0) < ($1.article.relevanceScore ?? 0)
+            })
+    }
+
+    func ownersFor(_ ticker: String) -> [(name: String, portfolioPct: Double)] {
+        let ids = TICKER_OWNERS[ticker] ?? []
+        return ids.compactMap { id in
+            guard let player = PLAYERS.first(where: { $0.id == id }) else { return nil }
+            let pct = portfolioPctById[id] ?? 0
+            return (name: player.name, portfolioPct: pct)
+        }
+    }
+
+    func anchor(forTicker ticker: String, withArticle override: TaggedArticle? = nil) -> GameAnchor? {
+        guard let pct = tickerPctMap[ticker] else { return nil }
+        let owners = ownersFor(ticker)
+        guard !owners.isEmpty else { return nil }       // skip un-owned tickers
+        return GameAnchor(
+            ticker: ticker,
+            tickerPct: pct,
+            owners: owners,
+            article: override ?? bestArticle(for: ticker)
+        )
+    }
+
+    let topMover = sortedByPct.first.flatMap { anchor(forTicker: $0.key) }
+    let topDrag  = sortedByPct.last.flatMap  { anchor(forTicker: $0.key) }
+
+    // Forward catalyst: prefer an article whose text mentions a future
+    // event AND covers a ticker not already used in sentences 1-2. Fall
+    // back to highest-relevance unused article. Same-ticker reuse is
+    // allowed only if no alternative exists at all.
+    let usedTickers = Set([topMover?.ticker, topDrag?.ticker].compactMap { $0 })
+    let futureArticles = articles.filter { ta in
+        let text = (ta.article.title + " " + ta.article.description).lowercased()
+        return FUTURE_EVENT_KEYWORDS.contains { text.contains($0) }
+    }
+    let pickFuture: TaggedArticle? = {
+        if let unused = futureArticles
+            .filter({ !usedTickers.contains($0.ticker) })
+            .sorted(by: {
+                ($0.article.relevanceScore ?? 0) > ($1.article.relevanceScore ?? 0)
+            })
+            .first { return unused }
+        if let unused = articles
+            .filter({ !usedTickers.contains($0.ticker) })
+            .sorted(by: {
+                ($0.article.relevanceScore ?? 0) > ($1.article.relevanceScore ?? 0)
+            })
+            .first { return unused }
+        return futureArticles.first
+    }()
+    let forwardCatalyst: GameAnchor? = pickFuture.flatMap { ta in
+        anchor(forTicker: ta.ticker, withArticle: ta)
+    }
+
+    return GameDigestFacts(
+        topMover: topMover,
+        topDrag: topDrag,
+        forwardCatalyst: forwardCatalyst
+    )
+}
+
+// Render one GameAnchor into a labeled FACT block the model can transform
+// into one sentence. The model is told to use ONLY these numbers and the
+// ONE article excerpt — no extrapolation.
+func renderFactBlock(_ anchor: GameAnchor?, label: String, intent: String) -> String {
+    guard let a = anchor else {
+        return "FACT \(label) — \(intent):\n  [skip — no data for this slot; omit this sentence]\n"
+    }
+    let tickerPctStr = String(format: "%+.2f%%", a.tickerPct * 100)
+    let ownerList = a.owners.map { o in
+        "\(o.name) (portfolio \(String(format: "%+.2f%%", o.portfolioPct * 100)))"
+    }.joined(separator: ", ")
+    let title = a.article?.article.title ?? "(no article available — describe the move generically without inventing causes)"
+    let excerpt = String((a.article?.article.description ?? "").prefix(280))
+    return """
+    FACT \(label) — \(intent):
+      Ticker: \(a.ticker)
+      \(a.ticker) window pct: \(tickerPctStr)
+      Held by (only these players — never attribute to anyone else): \(ownerList)
+      Article headline: \(title)
+      Article excerpt: \(excerpt)
+    """
+}
+
+func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int, data: PriceDataLite) -> String {
     let scope: String
     switch window {
     case .d1:  scope = "today"
@@ -1730,46 +1883,48 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     case .y1:  scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "this past year"
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
-    var articleText = ""
-    for (i, ta) in articles.enumerated() {
-        let desc = String(ta.article.description.prefix(DESC_TRUNCATE))
-        articleText += "\(i + 1). [\(ta.ticker) · \(ownerLabel(forTicker: ta.ticker))] \(ta.article.title)\n\(desc)\n\n"
-    }
+    // Compute the three structured anchors. The prompt is templated around
+    // them — the model rephrases, doesn't invent.
+    let facts = computeGameDigestFacts(
+        data: data,
+        window: window,
+        standings: standings,
+        articles: articles
+    )
+    let topMoverBlock = renderFactBlock(facts.topMover, label: "1", intent: "the strongest positive mover of \(scope)")
+    let topDragBlock  = renderFactBlock(facts.topDrag,  label: "2", intent: "the biggest drag of \(scope)")
+    let forwardBlock  = renderFactBlock(facts.forwardCatalyst, label: "3", intent: "a forward-looking catalyst to watch")
+
     let playerNames = PLAYERS.map { $0.name }.joined(separator: ", ")
     let exampleOwner = PLAYERS.first!.name
-    let exampleTickerForOwner = PLAYERS.first!.tickers.first ?? "ASTS"
+
     return """
-    You are commenting on the live leaderboard of a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000. The players are the portfolio HOLDERS, not journalists — the news in this prompt comes from outside sources (Yahoo Finance, Barchart, etc.). Never attribute a news event to a player.
+    You are writing a 3-sentence summary of the live leaderboard standings for a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000. The players are HOLDERS of portfolios — they did NOT write or report any of the news below. Players just own stocks; the news comes from outside sources.
 
     PLAYERS (only source of truth for who owns what):
     \(playersBlockForPrompt())
 
-    LIVE STANDINGS for \(scope) (sorted by portfolio %, ranked 1st to last):
-    \(standingsBlock)
+    You will be given THREE structured FACT blocks below — one for each sentence. Each block already names the ticker, the percentage, which player(s) the move belongs to, and the article headline that describes the cause. Your job is to convert each FACT block into ONE natural-sounding sentence. Do NOT introduce ANY information that is not present in the FACT block — no extra percentages, no dates that aren't in the headline, no events that aren't in the headline. If a FACT block says "[skip — no data]", omit that sentence entirely and write fewer sentences. Never invent.
 
-    Most market-moving news from the period. Each article line is prefixed with [TICKER · held by NAMES] — the NAMES list is the EXACT and COMPLETE set of players who own that ticker. If a player is not in that list, they DO NOT own the ticker.
-    \(articleText)
+    \(topMoverBlock)
 
-    Your reader can already see the leaderboard and the standings table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those rankings — not to restate them. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action. The player and the percentage are the consequence of the news, not the headline.
+    \(topDragBlock)
 
-    Write exactly 3 sentences as a single paragraph of plain prose:
-    Sentence 1: Lead with the single most consequential news event of \(scope) — name the specific catalyst (cite the headline or core fact from the article archive), the ticker, what it implies for the business. Then tie it to the player it helped and their portfolio %.
-    Sentence 2: Lead with the biggest drag event of \(scope) — same structure: specific catalyst from the article archive, what it implies, then tie it to the player it hurt and their portfolio % loss.
-    Sentence 3: A specific forward-looking catalyst from the article archive that could move the standings — upcoming earnings date, FDA milestone, product launch, named macro risk. Tie it to the player whose holding it would affect.
+    \(forwardBlock)
 
-    PERCENTAGE FORMAT (MANDATORY): Every single percentage you write must be formatted as TOKEN [SIGN+DECIMAL%], where TOKEN is either a ticker symbol (uppercase, no surrounding punctuation) or a player's first name (\(playerNames)). Always include the sign and exactly two decimal places. Examples: ASTS [-10.23%], TSLA [+5.62%], \(exampleOwner) [+8.45%]. Do NOT write "TSLA rose 5%" or "\(exampleOwner) is up 8.45%" or "TSLA up about five percent" — always the bracketed form, no exceptions. Place the bracketed percentage immediately after its TOKEN, separated by one space. This format is parsed by an automated post-processor. NEVER quote dollar amounts — only percentages.
+    PERCENTAGE FORMAT (MANDATORY): every percentage you write must be in the form TOKEN [SIGN+DECIMAL%]: ASTS [-10.23%], TSLA [+5.62%], \(exampleOwner) [+8.45%]. Always two decimals, always an explicit + or - sign. Never write "5%", "about 5 percent", "30% increase", or a date that isn't from the FACT block headline. Every percentage you use must be one of the ones explicitly supplied above. The valid player TOKENs are: \(playerNames).
 
-    OWNERSHIP TABLE (cross-check every (player, ticker) pair against this before writing it — this is the most common mistake to avoid):
-    \(ownershipTableForPrompt())
+    Sentence shape — natural prose, not robotic, but ground every fact in the FACT block:
+    Sentence 1: <one-clause paraphrase of the FACT 1 headline as a news event>, driving <FACT 1 ticker> [<FACT 1 ticker pct>] and helping <FACT 1 owners> with their portfolio at <each owner's portfolio pct>.
+    Sentence 2: <one-clause paraphrase of the FACT 2 headline>, pulling <FACT 2 ticker> [<FACT 2 ticker pct>] and dragging <FACT 2 owners> to <portfolio pcts>.
+    Sentence 3: Looking ahead, <one-clause paraphrase of the FACT 3 headline> could affect <FACT 3 ticker> for <FACT 3 owners>.
 
-    OWNERSHIP RULES (mandatory, no exceptions):
-    1. Before writing any sentence that pairs a player name with a ticker, find that ticker in the OWNERSHIP TABLE above and confirm the player's name appears on its row. If it does not, that pairing is FORBIDDEN.
-    2. A ticker can have multiple owners; in that case any of them is valid. A ticker with one owner is ONLY that one player's responsibility — never attribute it to anyone else.
-    3. Example of a FORBIDDEN sentence: "ASTS [-5.00%] dropped on bad earnings, hurting Kevin [-1.20%]" — ASTS is held by \(ownerLabel(forTicker: "ASTS").replacingOccurrences(of: "held by ", with: "")), not Kevin. The correct construction would name a player whose row in the OWNERSHIP TABLE lists ASTS.
-    4. If you cannot find a (catalyst, ticker, player) triple where the player legitimately owns the ticker, choose a different catalyst — never invent ownership.
-    5. NEVER write phrases like "as reported by \(exampleOwner)", "according to \(exampleOwner)", or any similar construction that treats a player as the news source. Players hold portfolios; they do not report news.
-
-    Other hard rules: Use the player names verbatim. Quote percentages from STANDINGS exactly — do not invent numbers or events. Do NOT use the structure "X is leading because of TICKER, Y is trailing because of TICKER" — that's just restating the standings table the reader already sees. Open every sentence with the news event, not the player or the percentage. Do not preface the digest. Do not number the sentences. Do not use bullet points.
+    Hard rules:
+    - Do NOT invent percentages, dates, growth figures ("40% increase in April"), or events. Every number must come verbatim from a FACT block.
+    - Do NOT attribute any news to a player ("as reported by Brian", "according to Kevin"). Players hold portfolios; news comes from outside sources.
+    - Do NOT mention dollar amounts.
+    - Use the exact player names supplied; do not abbreviate or pluralize ("the Kevins").
+    - Write the three sentences as a single paragraph of plain prose. Do not preface, do not number, do not bullet.
     """
 }
 
@@ -1909,7 +2064,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
             }
 
             group.addTask {
-                let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge)
+                let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
                 var digestText: String? = nil
                 do {
                     let session = LanguageModelSession()

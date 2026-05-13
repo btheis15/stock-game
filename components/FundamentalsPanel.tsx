@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bar, Circle, LinePath, Line } from "@visx/shape";
+import { Bar, Circle, LinePath } from "@visx/shape";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import { curveMonotoneX } from "@visx/curve";
 import { ParentSize } from "@visx/responsive";
@@ -23,7 +23,15 @@ import type {
 const REVENUE_COLOR = "#00C805";        // Robinhood green
 const GROSS_PROFIT_COLOR = "#F26B3A";   // dark orange
 const NET_INCOME_COLOR = "#F4A87E";     // light orange
-const MARGIN_LINE_COLOR = "#FFFFFF";    // contrasts against zinc-900 bg
+// The Net margin line + dots need to read on BOTH the dark and light theme
+// backgrounds. Pure white worked on dark but vanished on light, and pure
+// black does the opposite. globals.css already exposes --foreground (white
+// in dark mode, near-black in light mode) and --background (the inverse),
+// so the line uses --foreground for max contrast and the dot fills use
+// --background so each dot reads as a hollow circle ringed by the line's
+// color — same look in both themes.
+const MARGIN_LINE_VAR = "var(--foreground, #71717a)";
+const MARGIN_DOT_FILL_VAR = "var(--background, #0a0a0a)";
 const EST_DOT_COLOR = "#7CCB80";        // light green = estimate
 const ACT_DOT_COLOR = "#00C805";        // brand green = actual
 
@@ -223,7 +231,7 @@ function FinancialsLegend() {
     ["Revenue", REVENUE_COLOR, "square"],
     ["Gross profit", GROSS_PROFIT_COLOR, "square"],
     ["Net income", NET_INCOME_COLOR, "square"],
-    ["Net margin", MARGIN_LINE_COLOR, "line"],
+    ["Net margin", MARGIN_LINE_VAR, "line"],
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-zinc-400">
@@ -426,7 +434,7 @@ function FinancialsChart({
               (xScale(rows.indexOf(r)) ?? 0) + groupBandWidth / 2
             }
             y={(r) => marginScale(r.netMargin as number)}
-            stroke={MARGIN_LINE_COLOR}
+            stroke={MARGIN_LINE_VAR}
             strokeWidth={1.5}
             curve={curveMonotoneX}
           />
@@ -438,8 +446,8 @@ function FinancialsChart({
               cx={(xScale(i) ?? 0) + groupBandWidth / 2}
               cy={marginScale(r.netMargin)}
               r={3}
-              fill="#0a0a0a"
-              stroke={MARGIN_LINE_COLOR}
+              fill={MARGIN_DOT_FILL_VAR}
+              stroke={MARGIN_LINE_VAR}
               strokeWidth={1.5}
             />
           ) : null
@@ -487,31 +495,26 @@ function EarningsSection({
   fundamentals: TickerFundamentals;
   accentColor: string;
 }) {
-  const [g, setG] = useState<Granularity>("quarterly");
-  const rows = g === "quarterly" ? f.earnings.quarterly : f.earnings.annual;
-  const recent = rows.slice(-5);
+  // Quarterly-only (annual rollup was ambiguous when companies have partial
+  // years and the user didn't want the toggle here — earnings cadence is
+  // quarterly anyway).
+  const recent = f.earnings.quarterly.slice(-5);
   return (
     <div className="px-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-[15px] font-semibold text-zinc-300">Earnings</h2>
-        <GranularityTabs value={g} onChange={setG} />
       </div>
       <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
         <EarningsLegend />
         {recent.length === 0 ? (
           <p className="text-[12px] text-zinc-500 mt-4">
-            No {g} earnings data available.
+            No quarterly earnings data available.
           </p>
         ) : (
           <div className="mt-3">
             <ParentSize debounceTime={50}>
               {({ width }) => (
-                <EarningsChart
-                  width={width}
-                  height={220}
-                  rows={recent}
-                  granularity={g}
-                />
+                <EarningsChart width={width} height={220} rows={recent} />
               )}
             </ParentSize>
           </div>
@@ -546,12 +549,10 @@ function EarningsChart({
   width,
   height,
   rows,
-  granularity,
 }: {
   width: number;
   height: number;
   rows: EarningsRow[];
-  granularity: Granularity;
 }) {
   const PAD_LEFT = 44;
   const PAD_RIGHT = 8;
@@ -634,36 +635,30 @@ function EarningsChart({
             </text>
           </g>
         ))}
-        {/* Connector lines between estimate and actual per period (subtle) */}
-        {rows.map((r, i) => {
-          if (r.epsActual == null || r.epsEstimate == null) return null;
-          const cx = (xScale(i) ?? 0) + groupBandWidth / 2;
-          return (
-            <Line
-              key={`c-${i}`}
-              from={{ x: cx - 8, y: yScale(r.epsEstimate) }}
-              to={{ x: cx + 8, y: yScale(r.epsActual) }}
-              stroke="#27272a"
-              strokeWidth={1}
-            />
-          );
-        })}
-        {/* Dots */}
+        {/* Dots — estimate and actual at the SAME x position so the user can
+            read the surprise at a glance: stacked vertically when the actual
+            missed/beat by a lot, overlapping (concentric) when the actual
+            landed near consensus. No connector line — earlier draft used
+            one but it added visual noise without conveying meaning beyond
+            what dot positions already show. Estimate drawn first so the
+            actual sits on top; estimate is slightly larger so when they
+            overlap the lighter estimate's ring frames the darker actual. */}
         {rows.map((r, i) => {
           const cx = (xScale(i) ?? 0) + groupBandWidth / 2;
           return (
             <g key={`d-${i}`}>
               {r.epsEstimate != null && (
                 <Circle
-                  cx={cx - 8}
+                  cx={cx}
                   cy={yScale(r.epsEstimate)}
-                  r={5}
+                  r={6}
                   fill={EST_DOT_COLOR}
+                  fillOpacity={0.7}
                 />
               )}
               {r.epsActual != null && (
                 <Circle
-                  cx={cx + 8}
+                  cx={cx}
                   cy={yScale(r.epsActual)}
                   r={5}
                   fill={ACT_DOT_COLOR}
@@ -674,7 +669,7 @@ function EarningsChart({
         })}
         {/* X-axis labels */}
         {rows.map((r, i) => {
-          const { primary, secondary } = fmtPeriodLabel(r.date, granularity);
+          const { primary, secondary } = fmtPeriodLabel(r.date, "quarterly");
           const cx = (xScale(i) ?? 0) + groupBandWidth / 2;
           return (
             <g key={`x-${i}`}>
