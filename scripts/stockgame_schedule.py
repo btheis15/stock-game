@@ -78,9 +78,9 @@ RE_PROGRESS_DONE = re.compile(r"^✓\s+wrote\s+.*digests\.json")
 # game windows; weekly skips RSS and generates 1M/3M/1Y/ALL per ticker + per
 # portfolio with no game windows; fast does template re-renders only and is
 # fast enough that no progress bar is useful.
-PROGRESS_STEPS_PER_TICKER = {"daily": 1 + 2, "weekly": 4, "fast": 0}        # RSS + per-window
-PROGRESS_STEPS_PER_PORTFOLIO = {"daily": 2, "weekly": 4, "fast": 0}
-PROGRESS_STEPS_GAME = {"daily": 6, "weekly": 0, "fast": 0}
+PROGRESS_STEPS_PER_TICKER = {"daily": 1 + 2, "weekly": 4, "fast": 0, "game": 0}        # RSS + per-window
+PROGRESS_STEPS_PER_PORTFOLIO = {"daily": 2, "weekly": 4, "fast": 0, "game": 0}
+PROGRESS_STEPS_GAME = {"daily": 6, "weekly": 0, "fast": 0, "game": 6}
 PLAYER_COUNT = 5
 
 
@@ -360,11 +360,24 @@ class SchedulerApp:
             row=19, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
         )
 
+        # Game-only re-run: regenerates the 6 game-wide leaderboard digests
+        # (1D/1W/1M/3M/1Y/ALL) from the existing article archive. Skips RSS
+        # fetch, per-stock briefings, and per-portfolio briefings. Takes ~30 s
+        # so it's safe to fire mid-day while validating prompt tweaks.
+        self.run_game_digest_button = tk.Button(
+            self.root,
+            text="Re-run Game Briefings Only",
+            command=self.run_game_digest_now,
+        )
+        self.run_game_digest_button.grid(
+            row=20, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 5)
+        )
+
         self.open_log_button = tk.Button(
             self.root, text="Open Log", command=self.open_log
         )
         self.open_log_button.grid(
-            row=20, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
+            row=21, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
         )
 
         # --- GitHub sync row (auto-pulled by the cron's `git pull --rebase` ---
@@ -377,7 +390,7 @@ class SchedulerApp:
             self.root,
             text="GitHub sync",
             font=("", 12, "bold"),
-        ).grid(row=21, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
+        ).grid(row=22, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
         self.auto_restart_var = tk.BooleanVar(value=True)
         tk.Checkbutton(
             self.root,
@@ -385,19 +398,19 @@ class SchedulerApp:
             variable=self.auto_restart_var,
             wraplength=380,
             justify="left",
-        ).grid(row=22, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
+        ).grid(row=23, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
         self.code_sync_label = tk.Label(
             self.root,
             text="Code: in sync with origin/main",
             fg="#0a7",
             font=("", 9),
         )
-        self.code_sync_label.grid(row=23, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
+        self.code_sync_label.grid(row=24, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
         self.restart_button = tk.Button(
             self.root, text="Restart now (pull + re-exec)", command=self.restart_now
         )
         self.restart_button.grid(
-            row=24, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
+            row=25, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
         )
 
     # ---------------- SCHEDULING ----------------
@@ -527,6 +540,29 @@ class SchedulerApp:
             )
             return
         threading.Thread(target=self._run_digest_with_guard, daemon=True).start()
+
+    def run_game_digest_now(self):
+        """Manual trigger for the game-only scope. Regenerates the 6 game-wide
+        leaderboard digests from the existing article archive (~30 s). Useful
+        for previewing prompt-tuning changes without sitting through the full
+        daily run."""
+        if not self._try_start_digest():
+            messagebox.showwarning(
+                "Briefing Running",
+                "A briefing is already running. Wait for it to finish, then try again.",
+            )
+            return
+        threading.Thread(
+            target=self._run_digest_with_guard_for_scope,
+            args=("game",),
+            daemon=True,
+        ).start()
+
+    def _run_digest_with_guard_for_scope(self, scope):
+        try:
+            self._run_digest(scope=scope)
+        finally:
+            self._finish_digest()
 
     # ---------------- DAILY DIGEST ----------------
     def _digest_scope_for_day(self, weekday):

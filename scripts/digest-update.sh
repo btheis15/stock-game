@@ -34,13 +34,13 @@ DIGEST_MODE="${DIGEST_MODE:-full}"
 DIGEST_SCOPE="${DIGEST_SCOPE:-daily}"
 
 case "$DIGEST_SCOPE" in
-  daily|weekly) ;;
+  daily|weekly|game) ;;
   fast)
     log "scope=fast belongs in cron-update.sh, not this script — skipping"
     exit 0
     ;;
   *)
-    log "unknown DIGEST_SCOPE='$DIGEST_SCOPE' (expected daily|weekly|fast)"
+    log "unknown DIGEST_SCOPE='$DIGEST_SCOPE' (expected daily|weekly|game|fast)"
     exit 2
     ;;
 esac
@@ -84,7 +84,7 @@ swift_args=(
   "--output" "$REPO_DIR/public/digests.json"
   "--scope"  "$DIGEST_SCOPE"
 )
-if [ "$DIGEST_MODE" = "digests-only" ] || [ "$DIGEST_SCOPE" = "weekly" ]; then
+if [ "$DIGEST_MODE" = "digests-only" ] || [ "$DIGEST_SCOPE" = "weekly" ] || [ "$DIGEST_SCOPE" = "game" ]; then
   swift_args+=("--digests-only")
   log "running digest pipeline — scope=$DIGEST_SCOPE, digests-only (no RSS fetch)"
 else

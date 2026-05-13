@@ -192,7 +192,7 @@ let ERROR_LOG_FILE = ARCHIVE_DIR.appendingPathComponent("digest-error.log")
 //          for both holdings and portfolios: 1M / 3M / 1Y / ALL. Game digests
 //          are not touched (they refresh daily / fast).
 enum Scope: String {
-    case fast, daily, weekly
+    case fast, daily, weekly, game
 }
 
 struct Args {
@@ -2331,6 +2331,16 @@ func runMain() async {
         portfolioWindows = PORTFOLIO_WINDOWS_WEEKLY
         gameWindows = []                    // game is owned by daily + fast tiers
         skipFetch = true                    // weekly never refetches RSS
+    case .game:
+        // Game-only: re-runs every game-window (1D/1W/1M/3M/1Y/ALL) with the
+        // existing article archive — no RSS fetch, no per-stock or per-portfolio
+        // work. Used as a manual "redo the leaderboard digests" trigger from
+        // the scheduler so prompt-tuning changes can be validated without
+        // sitting through the full 8-minute daily run.
+        holdingsWindows = []
+        portfolioWindows = []
+        gameWindows = WindowKey.allCases
+        skipFetch = true
     case .fast:
         // Unreachable — handled above.
         return
