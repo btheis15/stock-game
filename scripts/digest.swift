@@ -1914,10 +1914,10 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
 
     PERCENTAGE FORMAT (MANDATORY): every percentage you write must be in the form TOKEN [SIGN+DECIMAL%]: ASTS [-10.23%], TSLA [+5.62%], \(exampleOwner) [+8.45%]. Always two decimals, always an explicit + or - sign. Never write "5%", "about 5 percent", "30% increase", or a date that isn't from the FACT block headline. Every percentage you use must be one of the ones explicitly supplied above. The valid player TOKENs are: \(playerNames).
 
-    Sentence shape — natural prose, not robotic, but ground every fact in the FACT block:
-    Sentence 1: <one-clause paraphrase of the FACT 1 headline as a news event>, driving <FACT 1 ticker> [<FACT 1 ticker pct>] and helping <FACT 1 owners> with their portfolio at <each owner's portfolio pct>.
-    Sentence 2: <one-clause paraphrase of the FACT 2 headline>, pulling <FACT 2 ticker> [<FACT 2 ticker pct>] and dragging <FACT 2 owners> to <portfolio pcts>.
-    Sentence 3: Looking ahead, <one-clause paraphrase of the FACT 3 headline> could affect <FACT 3 ticker> for <FACT 3 owners>.
+    Sentence shape — natural prose, not robotic, but ground every fact in the FACT block. Each sentence MUST cite the ticker with its bracketed pct AND each owner with their bracketed portfolio pct (the bracketed numbers are parsed by an automated system that swaps them with live values every 15 minutes — if you skip a bracket, that value will be stuck on this morning's number all day):
+    Sentence 1: <one-clause paraphrase of the FACT 1 headline as a news event>, driving <FACT 1 ticker> [<FACT 1 ticker pct>] and helping <FACT 1 owners> with their portfolio at <each owner's portfolio pct in brackets>.
+    Sentence 2: <one-clause paraphrase of the FACT 2 headline>, pulling <FACT 2 ticker> [<FACT 2 ticker pct>] and dragging <FACT 2 owners> [<each owner's portfolio pct>].
+    Sentence 3: Looking ahead, <one-clause paraphrase of the FACT 3 headline> could move <FACT 3 ticker> [<FACT 3 ticker pct>] for <FACT 3 owners> [<each owner's portfolio pct>].
 
     Hard rules:
     - Do NOT invent percentages, dates, growth figures ("40% increase in April"), or events. Every number must come verbatim from a FACT block.
