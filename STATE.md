@@ -146,6 +146,38 @@ Each `GameAnchor` carries `ticker`, `tickerPct`, owners with their portfolio pct
 
 **Ownership QA backstop.** `detectOwnershipViolations(prose)` runs on every generated digest (portfolio + game) sentence-by-sentence. For each (player, ticker) co-occurrence it checks whether the player is in `TICKER_OWNERS[ticker]`; if not, and no legitimate owner is named in the same sentence, the violation is logged via `logOwnershipViolations` → stderr → `/tmp/stock-game.log` with the sentence + offending pair. The digest still ships (we don't burn an already-generated AI call), but the log gives a paper trail to spot patterns and tune the prompt.
 
+**Per-window article caps (Phase 1 — prevents context-window errors).** Every window now caps the raw-article input via `ARTICLES_PER_WINDOW_CAP = [.d1: 15, .w1: 15, .m1: 20, .m3: 25, .y1: 24, .all: 25]`, sorted by `relevanceScore` desc. Combined with `DESC_TRUNCATE = 300`, the worst-case raw-article prompt stays under ~2.5 K tokens — safely inside Apple Intelligence's on-device + PCC routing limits no matter how newsy a period is. Before this cap, `.d1` and `.w1` returned ALL archived articles; newsy weeks for popular tickers (AMZN, AAPL with 100+ Yahoo articles per week) hit `Exceeded model context window size` errors.
+
+**Hierarchical chain-of-summaries (Phase 2 — long-window quality + scalability).** For windows ≥ 1W the digest pipeline now consumes pre-summarized, cached intermediate layers instead of raw articles. Four-layer chain stored outside the repo at `~/StockDigests/`:
+
+| Layer | Path | Generated from | When written |
+|---|---|---|---|
+| 0 — raw articles | `articles/{T}/{YYYY-MM-DD}.json` (existing) | Yahoo RSS + 2-stage filter | Every daily-tier fetch |
+| 1 — daily summary | `summaries/{T}/daily/{YYYY-MM-DD}.json` | Layer 0 for that ticker + date | Daily tier auto-writes today's; chain lazy-writes others |
+| 2 — weekly summary | `summaries/{T}/weekly/{YYYY-MM-DD}.json` (Mon of week) | 7 daily summaries | First time a 1M+ window needs the week |
+| 3 — monthly summary | `summaries/{T}/monthly/{YYYY-MM}.json` | 4 weekly summaries | First time a 1Y / ALL window needs the month |
+
+Each summary file is `{ ticker, key, summary, generatedAt, sourceCount, aiEngine }`. **Completed periods don't change**, so once written, every level reads from disk cache forever. Window-digest inputs map cleanly to one layer each:
+
+- 1D → raw articles (still — small input, fine-grained detail desired)
+- 1W → 7 daily summaries
+- 1M → 4 weekly summaries + the current partial week's daily summaries
+- 3M → 13 weekly summaries
+- 1Y → 12 monthly summaries
+- ALL → every monthly summary since 2026-02-05
+
+**Cached-or-generate helpers** (`getOrGenerateDailySummary`, `getOrGenerateWeeklySummary`, `getOrGenerateMonthlySummary`) check disk cache first; on miss, generate by calling the layer below and chaining down. This is the "lazy backfill" behavior — the first 1M digest ever generated for a ticker triggers a chain that writes the 4 weekly summaries it needs, which in turn write the ~28 daily summaries those weeks need, all cached for next time.
+
+**Cadence at steady state:**
+- Daily tier (Mon–Fri): always generates today's daily summary first (~2 s × 45 tickers ≈ 2 min); then 1D digest from raw articles; then 1W digest from cached daily summaries. ~25-30 min total.
+- Weekly tier (Sat): generates last week's weekly summary + any uncovered prior weeklies for 1M coverage; on the first Saturday of each month, also writes the prior month's monthly summary. ~10-15 min steady-state.
+
+**Backfill cost** (one-time, the very first Saturday after Phase 2 ships): ~2-3 hours while the chain populates ~3 months of cache per ticker. After that single backfill the cache is built and every subsequent run is fast.
+
+**Quality benefit for long windows:** 1Y and ALL go from "summarize top 24-30 raw articles from the period" to "synthesize 12 monthly summaries each built from 4 weekly summaries each built from 7 daily summaries each built from that day's articles." Every storyline of every week survives through the chain instead of being dropped at the article-count cap.
+
+**Fallback:** if the chain returns no data (first-ever run for a new ticker, missing archive days, etc.), the dispatcher falls back to the legacy raw-article path with the Phase 1 caps, so windows always generate something.
+
 ## 4. Portfolio math (`lib/portfolio.ts`)
 
 Every per-user portfolio value at date D is:

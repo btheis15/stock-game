@@ -663,10 +663,31 @@ Defensive ordering:
   - **Sunday** → skipped.
   - The "Weekdays only" checkbox additionally suppresses the Saturday
     weekly fire when on.
-- Buttons: Schedule Run / Run Now / Stop / Open Log / Run Briefing Now /
-  Restart now (pull + re-exec). "Run Briefing Now" uses today's
-  calendar-day scope (Sat → weekly, otherwise daily) and the button label
-  reflects that scope.
+- Buttons:
+  - **Schedule Run / Run Now / Stop** — price-refresh controls (the
+    15-min cron-update.sh chain).
+  - **Run Daily Briefing / Run Weekly Briefing** — explicit-scope
+    manual briefing triggers. Force the named scope regardless of which
+    day it is. The scheduled morning timer still auto-picks (Mon-Fri
+    daily, Sat weekly); these buttons override that for one-shot runs.
+  - **Re-run Game Only** — fires `DIGEST_SCOPE=game`, regenerating
+    the 6 game-wide leaderboard digests in ~30 s from the existing
+    archive. No RSS, no per-stock or per-portfolio work. For previewing
+    prompt-tuning changes mid-day.
+  - **Run All Briefings (Daily + Weekly)** — chains daily → weekly
+    back-to-back under the same digest lock. Combined steady-state
+    runtime: ~40-45 min. First time it's fired after Phase 2 ships:
+    ~3-4 hours while the chain-of-summaries cache lazy-backfills
+    (~3 months × 45 tickers of daily + weekly + monthly summaries).
+  - **Open Log** — opens `/tmp/stock-game.log` in the default viewer.
+  - **Restart now (pull + re-exec)** — forces a `git pull` + py_compile
+    + `os.execv` to pick up a freshly-pushed scheduler.py. See "GitHub
+    sync" below.
+
+  Every manual briefing button refuses if any briefing is already
+  running, surfacing a warning dialog. All four route through
+  `_fire_briefing_scope(scope)` (or `_run_all_with_guard` for "Run All")
+  under a single `digest_lock` so concurrent clicks can't double-fire.
 - Status labels: "Next refresh: ...", "Last run: ✓...", "Next briefing:
   ... (daily|weekly)", "Last briefing: ... (scope) ✓", and "Code: in sync
   / update pending / re-launching".
@@ -842,6 +863,110 @@ with the sentence text. The digest still ships (we don't burn an
 already-generated AI call), but the log gives the user a paper trail
 to spot recurring failure modes and refine the prompt.
 
+#### Per-window article caps (Phase 1)
+
+`ARTICLES_PER_WINDOW_CAP = [.d1: 15, .w1: 15, .m1: 20, .m3: 25, .y1: 24,
+.all: 25]` (with `DESC_TRUNCATE = 300`) bounds every raw-article prompt
+under ~2.5 K tokens. Articles are sorted by `relevanceScore` desc and
+capped via `prefix(N)`. Before this cap, `.d1` and `.w1` returned ALL
+qualifying articles; newsy weeks for popular tickers (AMZN, AAPL with
+100+ Yahoo articles per week) hit Apple Intelligence's context window
+and the AI call errored with `Exceeded model context window size`.
+This cap is the safety net for the legacy raw-article path. The Phase 2
+chain-of-summaries path below avoids the issue entirely by feeding
+small, pre-summarized inputs instead.
+
+#### Hierarchical chain-of-summaries (Phase 2)
+
+For windows ≥ 1W, the digest pipeline doesn't feed raw articles to the
+AI at all. Instead it summarizes in cached, write-once layers and
+chains them upward. Layout outside the repo at `~/StockDigests/`:
+
+```
+articles/{T}/{YYYY-MM-DD}.json          Layer 0  raw Yahoo articles (existing)
+summaries/{T}/daily/{YYYY-MM-DD}.json   Layer 1  daily summary (NEW)
+summaries/{T}/weekly/{YYYY-MM-DD}.json  Layer 2  weekly summary (NEW; key = Mon-of-week)
+summaries/{T}/monthly/{YYYY-MM}.json    Layer 3  monthly summary (NEW)
+```
+
+Each summary file is a tiny JSON: `{ ticker, key, summary, generatedAt,
+sourceCount, aiEngine }`. Completed periods don't change (yesterday's
+news is fixed), so the cache is permanent — once written, every later
+run reads from disk.
+
+**Window → input mapping:**
+
+| Window | AI input |
+|---|---|
+| 1D | raw articles (capped) — small + needs detail |
+| 1W | 7 daily summaries |
+| 1M | 4 weekly summaries + current partial-week daily summaries |
+| 3M | 13 weekly summaries |
+| 1Y | 12 monthly summaries |
+| ALL | every monthly summary since 2026-02-05 (~3-60 months) |
+
+**Cached-or-generate helpers:**
+- `getOrGenerateDailySummary(ticker, date)` — checks `dailySummaryFile`;
+  on miss, loads raw articles for that day and calls
+  `generateAndCacheDailySummary` (one AI call, ~2 s).
+- `getOrGenerateWeeklySummary(ticker, mondayKey)` — checks weekly cache;
+  on miss, calls `getOrGenerateDailySummary` for each of the 7 days
+  Mon-Sun (recursive chain), then `generateAndCacheWeeklySummary`.
+- `getOrGenerateMonthlySummary(ticker, yearMonth)` — checks monthly
+  cache; on miss, walks every Monday-of-week that falls in the month,
+  calls `getOrGenerateWeeklySummary` for each, then
+  `generateAndCacheMonthlySummary`.
+
+The chain is recursive: a 1Y digest request that finds no monthly
+cache for a ticker triggers `getOrGenerateMonthlySummary` for each of
+12 months, each of which in turn triggers 4-5 weeklies, each of which
+triggers 7 dailies. On the very first 1Y digest ever requested for a
+ticker, that's a few hundred AI calls to populate the cache. All
+subsequent 1Y digests read everything from disk and only make 1 AI
+call (the 1Y digest itself).
+
+**Date helpers** (`mondayOfWeekFor`, `mondayKey`, `yearMonthKey`)
+anchor every summary key to America/New_York to match the rest of the
+pipeline's market-day semantics. Weekly cache files are keyed by the
+Monday's date in ISO format (e.g. `2026-05-11.json` = week of May 11-17).
+
+**Steady-state cadence:**
+- Daily tier: always generates today's daily summary right after the
+  archive write (`processTicker` step 5b, only in `args.scope == .daily`).
+  Then 1D from raw articles + 1W from cached daily summaries. ~25-30 min
+  total for 45 tickers.
+- Weekly tier: lazy chain populates last week's weekly + (on first Sat
+  of month) prior month's monthly + 1M/3M/1Y/ALL window digests.
+  ~10-15 min steady-state.
+
+**First-run backfill cost** (one-time): ~2-3 hours the first Saturday
+weekly tier fires after Phase 2 ships, while the chain populates
+~90 daily + ~13 weekly + ~12 monthly summaries per ticker. After that
+the cache is built and every subsequent weekly run is fast. Backfill
+can be front-loaded by manually firing `DIGEST_SCOPE=weekly bash
+scripts/digest-update.sh` (or the "Run Weekly Briefing" UI button) at
+any convenient time before the next Saturday.
+
+**Quality benefit for long windows:** 1Y / ALL now synthesize across
+12 structured monthly summaries (each built from 4 weekly summaries
+each built from 7 daily summaries each built from that day's articles)
+instead of "top 24-30 raw articles from the period." Every storyline
+of every week survives through the chain instead of being dropped at
+the article-count cap.
+
+**Fallback path:** if `buildSummaryBackedWindowPrompt` returns nil (no
+cached summaries available AND no chain backfill possible — e.g.
+brand-new ticker, missing archive directory), `generateDigestText`
+falls back to the legacy raw-article path using
+`buildDigestPrompt(ticker, window, articles, gameAge)` with the Phase 1
+caps. So windows always generate something even before the cache is
+populated.
+
+**Visibility:** every cache write logs to `/tmp/stock-game.log` via
+`log` (not `vlog`) so the user can watch the chain populate during a
+backfill — look for lines like `AMZN daily summary cached for
+2026-04-15 (8 articles)`.
+
 #### Merge writer
 
 `writeOutputJSON` reads the existing `digests.json` via
@@ -890,8 +1015,12 @@ Pulls Yahoo's `quoteSummary` modules (`assetProfile`, `summaryDetail`,
 
 Both charts' grid lines use `var(--chart-baseline)` and zero lines use
 `var(--chart-axis-label)` (already defined per-theme in `globals.css`)
-so they're visible in dark / light / twilight modes. The inner
-per-period cards in "Show numbers" use `bg-zinc-800/40` for the same
+so they're visible in dark / light / twilight modes. The zero line is
+drawn WITHOUT a y-axis label (no "0" / "$0" text) — a fixed-position
+zero label would collide with whichever evenly-spaced y-tick happens
+to land closest to zero, producing overlapping illegible numbers. The
+line position itself is the signal. The inner per-period cards in
+"Show numbers" use `bg-zinc-800/40` for the same theme-awareness
 reason — the bare-class overrides in `globals.css` flip the background
 between dark, white, and indigo correctly per theme; using a class
 without an override (e.g. `bg-zinc-950/60`) leaves a dark band in light

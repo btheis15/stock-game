@@ -236,13 +236,43 @@ A "Skip article fetch" checkbox on the scheduler skips RSS fetching + AI
 relevance scoring and just regenerates digests from the existing archive —
 useful when iterating on the prompt.
 
-A separate **"Re-run Game Briefings Only"** button on the scheduler
-fires `DIGEST_SCOPE=game` — regenerates *only* the 6 game-wide
-leaderboard briefings (1D/1W/1M/3M/1Y/ALL) from the existing article
-archive. No RSS, no per-stock or per-portfolio briefings. ~30 s. Useful
-for previewing prompt-tuning changes mid-day without sitting through
-the full daily run. The newly-generated 1D/1W/1M emit fresh templates
-so the next 15-min fast tier picks up the new prose with live pcts.
+**Manual briefing buttons (mid-day, on demand):** the scheduler now has
+four explicit-scope buttons for one-shot runs that override whatever the
+calendar-day timer would normally fire:
+
+- **Run Daily Briefing** — forces a daily-tier run (1D + 1W per-stock,
+  1D + 1W per-portfolio, all 6 game windows). Useful if you want today's
+  briefing regenerated mid-day, e.g. after a roster change or a prompt
+  tweak. ~25-30 min.
+- **Run Weekly Briefing** — forces a weekly-tier run (1M / 3M / 1Y /
+  ALL per-stock + per-portfolio). ~10-15 min steady-state; ~2-3 hours
+  the first time it's fired after the Phase 2 chain-of-summaries
+  refactor ships (one-time backfill, see below).
+- **Re-run Game Only** — ~30 s; regenerates just the 6 game-wide
+  leaderboard briefings from the existing archive. For prompt-tuning
+  previews. Newly-generated 1D/1W/1M emit fresh templates so the next
+  15-min fast tier picks up the new prose with live pcts.
+- **Run All Briefings (Daily + Weekly)** — chains the two back-to-back
+  under the same digest lock. Total: ~40-45 min steady-state. The
+  "do everything now" button.
+
+**Hierarchical chain-of-summaries** is how the digest pipeline keeps
+long-window briefings (1M / 3M / 1Y / ALL) high-signal without
+overflowing Apple Intelligence's context window or generating thin
+"top 24 articles" summaries. Each ticker has cached layers in
+`~/StockDigests/summaries/{T}/`:
+
+- **Daily summaries** — written every daily run for that day, ~2 s each.
+- **Weekly summaries** — written the first time a 1M+ digest needs the
+  week, combines that week's 7 daily summaries.
+- **Monthly summaries** — written when a 1Y / ALL digest needs the
+  month, combines the 4 weekly summaries in that month.
+
+Completed periods don't change, so each layer caches forever — a 1Y
+digest run reads 12 monthly summaries from disk and makes exactly one
+AI call (the final synthesis). The first weekly run after this
+architecture ships does a one-time backfill (~2-3 hours) populating
+~3 months of cache; every subsequent weekly run is fast.
 
 The pipelines run independently — a long digest run never blocks the 15-min
 price tick. The refresh pipeline is the only thing that pushes to `main`;
