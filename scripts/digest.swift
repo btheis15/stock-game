@@ -1588,41 +1588,43 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
         var aiRejected: [Int] = []
         var aiErrors = 0
         // Count articles that actually need an AI call (the hard-accept path
-        // skipped earlier already has a score). This is the silent stretch
-        // the user couldn't tell was active — log a heads-up before it
-        // starts so /tmp/stock-game.log shows continuous progress instead
-        // of an apparent freeze.
+        // already has a score). This is the silent stretch the user couldn't
+        // tell was active — log a heads-up before it starts AND log every
+        // article-scoring decision as it lands so /tmp/stock-game.log shows
+        // continuous progress instead of an apparent freeze. ~20 lines per
+        // ticker × 45 tickers = ~900 lines per daily run; the noise is
+        // worth the "I can see it's still working" feedback.
         let toScore = stage1.filter { $0.relevanceScore == nil }.count
         if toScore > 0 {
             log("  \(ticker): scoring \(toScore) article\(toScore == 1 ? "" : "s") via Apple Intelligence…")
         }
+        var scoredCount = 0
         for var a in stage1 {
             if a.relevanceScore != nil {
                 stage2.append(a)
                 continue
             }
             if let s = await scoreArticleAI(a, ticker: ticker) {
+                scoredCount += 1
                 a.relevanceScore = s.score
                 a.relevanceReason = s.reason
                 a.aiEngine = "AppleIntelligence"
                 if s.score >= RELEVANCE_THRESHOLD {
                     a.passedAIFilter = true
                     stage2.append(a)
-                    if verboseEnabled {
-                        vlog("  \(ticker) ✓ \(s.score): \(a.title.prefix(80))")
-                    }
+                    log("    [\(scoredCount)/\(toScore)] ✓ \(s.score)/10  \(a.title.prefix(60))")
                 } else {
                     a.passedAIFilter = false
                     aiRejected.append(s.score)
-                    if verboseEnabled {
-                        vlog("  \(ticker) ✗ AI(\(s.score)): \(a.title.prefix(80))")
-                    }
+                    log("    [\(scoredCount)/\(toScore)] ✗ \(s.score)/10  \(a.title.prefix(60))")
                 }
             } else {
                 // Fail open — keep the article, mark unscored
+                scoredCount += 1
                 aiErrors += 1
                 a.passedAIFilter = nil
                 stage2.append(a)
+                log("    [\(scoredCount)/\(toScore)] ⚠ scoring failed  \(a.title.prefix(60))")
             }
         }
 
