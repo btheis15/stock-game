@@ -992,14 +992,32 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
 
 // MARK: - Intermediate summary prompts + generators (Phase 2)
 
+// Cap + tighter truncation for the daily-summary prompt. Originally
+// uncapped, this path was the last remaining context-window risk: very
+// newsy days for popular tickers (AAPL/AMZN/TSLA with 25-30 articles)
+// would push past the on-device limit and the AI call would error
+// with "Exceeded model context window size". Phase 1's
+// ARTICLES_PER_WINDOW_CAP covered the window-digest paths but not this
+// one. The cap is generous enough that nothing material is dropped —
+// it's already pre-filtered by Stage-2 relevance scoring upstream, and
+// we sort by score desc so the strongest signal makes the cut.
+let DAILY_SUMMARY_ARTICLE_CAP = 15
+let DAILY_SUMMARY_DESC_TRUNCATE = 200
+
 func buildDailySummaryPrompt(ticker: String, name: String, date: String, articles: [Article]) -> String {
+    let topArticles = articles
+        .sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+        .prefix(DAILY_SUMMARY_ARTICLE_CAP)
     var lines = ""
-    for (i, a) in articles.enumerated() {
-        let desc = String(a.description.prefix(DESC_TRUNCATE))
+    for (i, a) in topArticles.enumerated() {
+        let desc = String(a.description.prefix(DAILY_SUMMARY_DESC_TRUNCATE))
         lines += "\(i + 1). \(a.title)\n\(desc)\n\n"
     }
+    let totalNote = articles.count > DAILY_SUMMARY_ARTICLE_CAP
+        ? " (top \(DAILY_SUMMARY_ARTICLE_CAP) by relevance out of \(articles.count) archived)"
+        : ""
     return """
-    Summarize one day of business news for \(ticker) (\(name)), \(date). \(articles.count) article(s) below.
+    Summarize one day of business news for \(ticker) (\(name)), \(date). \(min(articles.count, DAILY_SUMMARY_ARTICLE_CAP)) article(s) below\(totalNote).
 
     Write 2-3 sentences capturing the day's key business developments. Focus on concrete events: earnings, guidance, M&A, regulatory actions, product launches, executive changes, analyst rating shifts. Skip generic market commentary, store openings, employee stories. If there's no material business news, write one sentence noting that the day was quiet for this ticker.
 
@@ -1569,6 +1587,15 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
         var stage2: [Article] = []
         var aiRejected: [Int] = []
         var aiErrors = 0
+        // Count articles that actually need an AI call (the hard-accept path
+        // skipped earlier already has a score). This is the silent stretch
+        // the user couldn't tell was active — log a heads-up before it
+        // starts so /tmp/stock-game.log shows continuous progress instead
+        // of an apparent freeze.
+        let toScore = stage1.filter { $0.relevanceScore == nil }.count
+        if toScore > 0 {
+            log("  \(ticker): scoring \(toScore) article\(toScore == 1 ? "" : "s") via Apple Intelligence…")
+        }
         for var a in stage1 {
             if a.relevanceScore != nil {
                 stage2.append(a)
