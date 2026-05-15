@@ -156,9 +156,9 @@
       },
       "daysOfData" : 4,
       "daysRequired" : 7,
-      "digest" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise drove RKLB [+25.68%] and helped Rick [+8.84%] and Gene [+3.63%] with their portfolios at +12.80% and +8.35%. Nvidia Stock Heads for Record as AI Push Expands pulled CRWV [+0.06%] and dragged Rick [+8.84%] and Lee [-1.48%] with their portfolios at +12.80% and +10.23%. Looking ahead, Dear Qualcomm Stock Fans, Mark Your Calendars for June 24 could move QCOM [-8.68%] and help Brian [-2.90%] with his portfolio at -0.08%.",
+      "digest" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise drove RKLB [+19.83%] and helped Rick [+5.63%] and Gene [-0.34%] with their portfolios at +12.80% and +8.35%. Nvidia Stock Heads for Record as AI Push Expands pulled CRWV [-4.68%] and dragged Rick [+5.63%] and Lee [-1.85%] with their portfolios at +12.80% and +10.23%. Looking ahead, Dear Qualcomm Stock Fans, Mark Your Calendars for June 24 could move QCOM [-7.72%] and help Brian [-4.98%] with his portfolio at -0.08%.",
       "digestTemplate" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise drove RKLB {{RKLB}} and helped Rick {{user:rick}} and Gene {{user:gene}} with their portfolios at +12.80% and +8.35%. Nvidia Stock Heads for Record as AI Push Expands pulled CRWV {{CRWV}} and dragged Rick {{user:rick}} and Lee {{user:lee}} with their portfolios at +12.80% and +10.23%. Looking ahead, Dear Qualcomm Stock Fans, Mark Your Calendars for June 24 could move QCOM {{QCOM}} and help Brian {{user:brian}} with his portfolio at -0.08%.",
-      "generatedAt" : "2026-05-15T13:30:42.072Z",
+      "generatedAt" : "2026-05-15T13:45:43.962Z",
       "sources" : [
         {
           "date" : "2026-05-13",
@@ -435,7 +435,7 @@
       ]
     }
   },
-  "generatedAt" : "2026-05-15T13:30:42.072Z",
+  "generatedAt" : "2026-05-15T13:45:43.962Z",
   "holdings" : {
     "AAPL" : {
       "1D" : {
