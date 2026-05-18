@@ -366,6 +366,16 @@ components/
                       In 1W mode: chart is weekly hourly $; compactX=true collapses overnight
                       + weekend gaps; weekly series falls back to filtered daily closes if no
                       weekly data is present (older snapshots).
+                      A gray S&P 500 comparison line is added to the chart whenever SPY data
+                      is in the snapshot, SCALED to share the player's range-start dollar
+                      value (scale = playerStart / baselineStart) so the two lines start at
+                      the same anchor and divergence reads as relative performance. The pct
+                      is also surfaced in PriceHeader as a "vs S&P 500 +X.XX%" sub-row (via
+                      its new optional `compareTo` prop) — same gray dot, green/red pct
+                      coloring. Lookup of the scrubbed baseline $ uses `scrub.index` against
+                      the raw baselineRanged series rather than scrub.values (which would
+                      report the scaled chart value); the displayed pct is identical either
+                      way (scaling cancels) but the indirection is clearer this way.
                       Holding rows show pct + signed $ for the ACTIVE range (read from
                       `holding.rangeStats[range]`) and re-sort by that range's pct.
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + DigestPanel + N

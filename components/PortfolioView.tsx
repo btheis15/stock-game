@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ScrubChart, type ScrubState } from "./ScrubChart";
+import { ScrubChart, type ChartSeries, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { PriceHeader } from "./PriceHeader";
 import {
@@ -15,7 +15,7 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
-import { TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
+import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
 import { useDigests } from "@/lib/digests";
@@ -38,6 +38,12 @@ interface Props {
   intraday: IntradayResult;
   /** Past-week hourly bars; null falls back to filtered daily closes for 1W. */
   weekly: PortfolioPoint[] | null;
+  /** S&P 500 (SPY) benchmark curves — same shape as the player ones, drawn
+   *  alongside the player line on the chart and summarized as "vs S&P 500
+   *  +X.XX%" in PriceHeader. Null on any path → no overlay for that path. */
+  baselineDaily: PortfolioPoint[] | null;
+  baselineIntraday: IntradayResult | null;
+  baselineWeekly: PortfolioPoint[] | null;
   intradayDate: string;
   generatedAt: string;
   holdings: HoldingRow[];
@@ -48,6 +54,9 @@ export function PortfolioView({
   series,
   intraday,
   weekly,
+  baselineDaily,
+  baselineIntraday,
+  baselineWeekly,
   intradayDate,
   generatedAt,
   holdings,
@@ -58,7 +67,12 @@ export function PortfolioView({
   const { loading: digestsLoading, getPortfolioDigest } = useDigests();
 
   const isIntraday = range === "1D";
-  const isWeeklyHourly = range === "1W" && weekly != null;
+  const hasBaseline = baselineDaily != null;
+  // Keep compactX consistent: only enable it when the baseline has weekly data
+  // too, otherwise we'd mix hourly-spaced player points with daily-spaced
+  // baseline points. Mirrors the same guard in CompareView.
+  const isWeeklyHourly =
+    range === "1W" && weekly != null && (!hasBaseline || baselineWeekly != null);
   const live = useMemo(
     () => isIntraday && lastPointIsLive(intraday.points),
     [isIntraday, intraday]
@@ -69,6 +83,16 @@ export function PortfolioView({
     if (isWeeklyHourly) return weekly!;
     return filterRange(series, range);
   }, [series, intraday, weekly, range, isIntraday, isWeeklyHourly]);
+
+  // Raw baseline series for the active range (unscaled $). Null if SPY data
+  // isn't present in this snapshot OR the active range's baseline path is
+  // empty.
+  const baselineRanged = useMemo<PortfolioPoint[] | null>(() => {
+    if (!hasBaseline) return null;
+    if (isIntraday) return baselineIntraday?.points ?? null;
+    if (isWeeklyHourly) return baselineWeekly;
+    return filterRange(baselineDaily!, range);
+  }, [hasBaseline, isIntraday, isWeeklyHourly, baselineIntraday, baselineWeekly, baselineDaily, range]);
 
   const baselineValue = isIntraday
     ? intraday.previousClose
@@ -82,7 +106,56 @@ export function PortfolioView({
       : fmtDateLong(scrub.date)
     : null;
 
+  // Baseline pct used by PriceHeader's "vs S&P 500" sub-row. Compares the
+  // baseline's value at the scrub index (or its last point) against its range
+  // start. Read from baselineRanged (raw $) rather than scrub.values, since
+  // the chart series scales the baseline line — that scaling cancels in a pct
+  // calc but reading the raw series avoids the indirection.
+  const baselineStartValue =
+    isIntraday && baselineIntraday
+      ? baselineIntraday.previousClose
+      : baselineRanged?.[0]?.value ?? 0;
+  const baselineLastValue =
+    baselineRanged?.[baselineRanged.length - 1]?.value ?? baselineStartValue;
+  const baselineCurrent = (() => {
+    if (!baselineRanged) return baselineLastValue;
+    const idx = scrub?.index;
+    if (idx != null && baselineRanged[idx]) return baselineRanged[idx].value;
+    return baselineLastValue;
+  })();
+  const baselinePct =
+    baselineStartValue === 0
+      ? 0
+      : (baselineCurrent - baselineStartValue) / baselineStartValue;
+
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
+
+  // Chart series: the player's raw $ line, plus (when SPY data is available)
+  // a scaled S&P 500 line that starts at the SAME range-start $ as the
+  // player. Scaling = playerStart / baselineStart, so the baseline line
+  // visually answers "if you'd invested this much in SPY at range start,
+  // where would it be now?" — divergence from the player line is exactly
+  // relative performance. Without scaling, the two lines would start at
+  // different $ values and the y-extents wouldn't be comparable.
+  const chartSeries = useMemo<ChartSeries[]>(() => {
+    const out: ChartSeries[] = [
+      { id: userId, color: user.color, data: ranged },
+    ];
+    if (
+      baselineRanged &&
+      baselineRanged.length > 0 &&
+      baselineStartValue > 0 &&
+      baselineValue > 0
+    ) {
+      const scale = baselineValue / baselineStartValue;
+      out.push({
+        id: BASELINE.id,
+        color: BASELINE.color,
+        data: baselineRanged.map((p) => ({ date: p.date, value: p.value * scale })),
+      });
+    }
+    return out;
+  }, [userId, user.color, ranged, baselineRanged, baselineValue, baselineStartValue]);
 
   const sorted = useMemo(
     () =>
@@ -100,12 +173,17 @@ export function PortfolioView({
         value={value}
         baseline={baselineValue}
         scrubDate={scrubLabel}
+        compareTo={
+          baselineRanged && baselineRanged.length > 0
+            ? { label: BASELINE.name, pct: baselinePct, color: BASELINE.color }
+            : null
+        }
       />
 
       {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
 
       <ScrubChart
-        series={[{ id: userId, color: user.color, data: ranged }]}
+        series={chartSeries}
         onScrub={setScrub}
         height={260}
         xDomain={xDomain}
