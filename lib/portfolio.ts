@@ -9,6 +9,7 @@ import type {
   TickerSeries,
 } from "./types";
 import {
+  BASELINE,
   STARTING_PORTFOLIO_DOLLARS,
   USER_LIST,
   USERS,
@@ -76,6 +77,54 @@ export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint
     }
     return { date, value: total };
   });
+}
+
+/**
+ * Baseline ("S&P 500") portfolio: $100k of SPY bought at the START_DATE close,
+ * plus dividend reinvestment-equivalent cash (kept as cash, same as the human
+ * players' dividend handling — neither side compounds). Mirrors
+ * `portfolioSeries` so the resulting curve plots on the same axis as the
+ * human players. Returns [] if SPY data isn't present yet (first-ever fetch
+ * hasn't run, or older snapshot).
+ */
+export function baselinePortfolioSeries(data: PriceData): PortfolioPoint[] {
+  const s = data.tickers[BASELINE.ticker];
+  if (!s) return [];
+  const shares = STARTING_PORTFOLIO_DOLLARS / s.startClose;
+  return data.tradingDates.map((date) => ({
+    date,
+    value: shares * lastKnownClose(s, date) + dividendsReceived(s, shares, date),
+  }));
+}
+
+export function intradayBaselineSeries(
+  data: PriceData
+): { points: PortfolioPoint[]; previousClose: number } | null {
+  const s = data.tickers[BASELINE.ticker];
+  if (!s) return null;
+  const shares = STARTING_PORTFOLIO_DOLLARS / s.startClose;
+
+  const intradayDate = data.intradayDate ?? "";
+  const prevDates = data.tradingDates.filter((d) => d < intradayDate);
+  const prevDate =
+    prevDates[prevDates.length - 1] ??
+    data.tradingDates[data.tradingDates.length - 1];
+  const previousClose = shares * lastKnownClose(s, prevDate);
+
+  const points = (s.intraday ?? []).map((b) => ({
+    date: b.t,
+    value: shares * b.close,
+  }));
+  return { points, previousClose };
+}
+
+export function weeklyBaselineSeries(data: PriceData): PortfolioPoint[] | null {
+  const s = data.tickers[BASELINE.ticker];
+  if (!s) return null;
+  const series = weeklyTickerSeries(s);
+  if (!series) return null;
+  const shares = STARTING_PORTFOLIO_DOLLARS / s.startClose;
+  return series.map((p) => ({ date: p.date, value: shares * p.value }));
 }
 
 export const RANGE_DAYS: Record<Range, number | "all" | "intraday"> = {

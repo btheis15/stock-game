@@ -17,7 +17,7 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
-import { USER_LIST, type UserId } from "@/lib/picks";
+import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
@@ -37,22 +37,57 @@ interface Props {
   intraday: Record<UserId, IntradayResult>;
   /** Past-week hourly bars per user; null falls back to filtered daily closes. */
   weekly: Record<UserId, PortfolioPoint[] | null>;
+  /** S&P 500 (SPY) benchmark curves. Each may be null if SPY data isn't in
+   *  the current snapshot yet — the view hides the baseline row + line in
+   *  that case rather than blocking the page. */
+  baselineDaily: PortfolioPoint[] | null;
+  baselineIntraday: IntradayResult | null;
+  baselineWeekly: PortfolioPoint[] | null;
   intradayDate: string;
   generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
 }
 
-export function CompareView({ series, intraday, weekly, intradayDate, generatedAt, analyses }: Props) {
+interface RankedEntry {
+  id: string;
+  name: string;
+  color: string;
+  href: string | null;
+  value: number;
+  pct: number;
+  baseline: number;
+}
+
+export function CompareView({
+  series,
+  intraday,
+  weekly,
+  baselineDaily,
+  baselineIntraday,
+  baselineWeekly,
+  intradayDate,
+  generatedAt,
+  analyses,
+}: Props) {
   const [range, setRange] = useState<Range>("1D");
   const { loading: digestsLoading, getGameDigest } = useDigests();
   const [scrub, setScrub] = useState<ScrubState | null>(null);
 
   const isIntraday = range === "1D";
+  // Whether we have SPY data at all in this snapshot. Drives an extra row in
+  // the leaderboard and an extra line on the chart. If the baseline lacks the
+  // path the active range needs (e.g. weekly hourly bars), we fall back to its
+  // daily-close curve, matching the player-fallback behavior.
+  const hasBaseline = baselineDaily != null;
   // Use the hourly weekly series for 1W when we have it. Falls back to
   // filtered daily closes when no weekly data is present (older snapshots
-  // pre-dating the weekly-fetch addition).
+  // pre-dating the weekly-fetch addition). Baseline must also have weekly
+  // data to enable the compactX chart — otherwise we'd mix hourly-spaced
+  // player lines with a daily-spaced baseline line.
   const isWeeklyHourly =
-    range === "1W" && USER_LIST.every((u) => weekly[u.id] != null);
+    range === "1W" &&
+    USER_LIST.every((u) => weekly[u.id] != null) &&
+    (!hasBaseline || baselineWeekly != null);
   const live = useMemo(
     () => isIntraday && lastPointIsLive(intraday[USER_LIST[0].id].points),
     [isIntraday, intraday]
@@ -70,8 +105,18 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
     return out;
   }, [series, intraday, weekly, range, isIntraday, isWeeklyHourly]);
 
+  // Same shape as `ranged` but for the SPY baseline. null when SPY data isn't
+  // available, or when the intraday path is selected and SPY has no intraday
+  // bars yet (rare — usually fetched in the same cron run as everyone else).
+  const baselineRanged = useMemo<PortfolioPoint[] | null>(() => {
+    if (!hasBaseline) return null;
+    if (isIntraday) return baselineIntraday?.points ?? null;
+    if (isWeeklyHourly) return baselineWeekly;
+    return filterRange(baselineDaily!, range);
+  }, [hasBaseline, isIntraday, isWeeklyHourly, baselineIntraday, baselineWeekly, baselineDaily, range]);
+
   const stats = useMemo(() => {
-    return USER_LIST.map((u) => {
+    const entries: RankedEntry[] = USER_LIST.map((u) => {
       const pts = ranged[u.id];
       const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
       const lastVal = pts[pts.length - 1]?.value ?? baseline;
@@ -82,9 +127,40 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
         scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
       const value = scrubDollar ?? lastVal;
       const pct = baseline === 0 ? 0 : (value - baseline) / baseline;
-      return { user: u, value, pct, baseline };
-    }).sort((a, b) => b.pct - a.pct);
-  }, [ranged, scrub, intraday, isIntraday]);
+      return {
+        id: u.id,
+        name: u.name,
+        color: u.color,
+        href: `/portfolio/${u.id}`,
+        value,
+        pct,
+        baseline,
+      };
+    });
+    if (baselineRanged && baselineRanged.length > 0) {
+      const pts = baselineRanged;
+      const baseline =
+        isIntraday && baselineIntraday
+          ? baselineIntraday.previousClose
+          : pts[0]?.value ?? 0;
+      const lastVal = pts[pts.length - 1]?.value ?? baseline;
+      const scrubIdx = scrub?.index;
+      const scrubDollar =
+        scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
+      const value = scrubDollar ?? lastVal;
+      const pct = baseline === 0 ? 0 : (value - baseline) / baseline;
+      entries.push({
+        id: BASELINE.id,
+        name: BASELINE.name,
+        color: BASELINE.color,
+        href: null,
+        value,
+        pct,
+        baseline,
+      });
+    }
+    return entries.sort((a, b) => b.pct - a.pct);
+  }, [ranged, baselineRanged, scrub, intraday, baselineIntraday, isIntraday]);
 
   const leader = stats[0];
   const second = stats[1];
@@ -118,6 +194,21 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
       })),
     };
   });
+  if (baselineRanged && baselineRanged.length > 0) {
+    const pts = baselineRanged;
+    const baseline =
+      isIntraday && baselineIntraday
+        ? baselineIntraday.previousClose
+        : pts[0]?.value ?? 0;
+    chartSeries.push({
+      id: BASELINE.id,
+      color: BASELINE.color,
+      data: pts.map((p) => ({
+        date: p.date,
+        value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
+      })),
+    });
+  }
 
   return (
     <div className="pb-24">
@@ -126,11 +217,11 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
           Compare
         </div>
         <h1 className="text-[22px] leading-tight font-semibold text-white">
-          {gapPct === 0 ? "It's a tie" : `${leader.user.name} leads`}
+          {gapPct === 0 ? "It's a tie" : `${leader.name} leads`}
         </h1>
         <div
           className="text-[34px] font-semibold tracking-tight mt-1"
-          style={{ color: leader.user.color }}
+          style={{ color: leader.color }}
         >
           {fmtPct(gapPct)}
         </div>
@@ -152,7 +243,7 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
         compactX={isWeeklyHourly}
       />
 
-      <RangeTabs value={range} onChange={setRange} accent={leader.user.color} />
+      <RangeTabs value={range} onChange={setRange} accent={leader.color} />
 
       {/* Briefing sits ABOVE the leaderboard now — it's the narrative
           context for what the rankings below show, so reading top-down
@@ -176,14 +267,14 @@ export function CompareView({ series, intraday, weekly, intradayDate, generatedA
             const gap = i === 0 ? 0 : leaderGain - rangeGain;
             return (
               <UserRow
-                key={s.user.id}
-                name={s.user.name}
-                color={s.user.color}
+                key={s.id}
+                name={s.name}
+                color={s.color}
                 value={s.value}
                 pct={s.pct}
                 gap={gap}
                 place={i + 1}
-                href={`/portfolio/${s.user.id}`}
+                href={s.href}
               />
             );
           })}
@@ -223,16 +314,15 @@ function UserRow({
   pct: number;
   gap: number; // $ behind the leader in this range's gain; 0 when place === 1
   place: number;
-  href: string;
+  // Null for the S&P 500 baseline row — it has no drill-down page so we
+  // render a plain div instead of a tappable Link.
+  href: string | null;
 }) {
   const positive = pct >= 0;
   const deltaColor = positive ? "#00C805" : "#FF453A";
   const isLeader = place === 1;
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
-    >
+  const inner = (
+    <>
       <div className="w-6 text-center text-[14px] font-semibold text-zinc-500 tabular-nums shrink-0">
         {place}
       </div>
@@ -268,6 +358,19 @@ function UserRow({
           {fmtPct(pct)}
         </div>
       </div>
+    </>
+  );
+  if (href == null) {
+    return (
+      <div className="flex items-center gap-3 px-3 py-3">{inner}</div>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
+    >
+      {inner}
     </Link>
   );
 }

@@ -151,6 +151,16 @@ A few notes on this:
 - Dividends are tracked. When AAPL pays $0.26/share, Brian's portfolio
   picks up `36.24 shares × $0.26 = $9.42` in cash — added to his total.
 
+There's also a **sixth "player" in the standings: the S&P 500**, shown
+in gray. It's not a real player — there's no portfolio drill-down, no
+news digests, no per-stock detail page — but its $100k-invested-in-SPY-on-Feb-5
+curve sits on the Compare chart and slots into the leaderboard wherever
+its range performance lands. So if the market is up 4% on the month and
+two players are beating it, the S&P 500 row shows up in 3rd. The
+benchmark uses SPY (the ETF) under the hood so dividend payouts are
+included the same way they are for every player's holdings — a fair
+total-return comparison.
+
 ---
 
 ## Where the news digests come from

@@ -15,7 +15,7 @@
 import YahooFinance from "yahoo-finance2";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ALL_TICKERS, START_DATE, TICKER_NAMES } from "../lib/picks";
+import { ALL_TICKERS, BASELINE, START_DATE, TICKER_NAMES } from "../lib/picks";
 import { getSpinoffTickers, SPINOFFS } from "../lib/events";
 import type {
   DailyClose,
@@ -238,7 +238,11 @@ async function main() {
   const existing = loadExisting();
   const mode = existing ? "incremental" : FULL ? "full (forced)" : "full (no prior data)";
   const spinoffChildren = getSpinoffTickers();
-  const tickersToFetch = [...ALL_TICKERS, ...spinoffChildren];
+  // BASELINE (SPY) rides alongside the player tickers but stays off ALL_TICKERS
+  // so it doesn't leak into the /stocks list or the digest pipeline. We still
+  // need its daily / intraday / weekly bars so the Compare leaderboard can
+  // plot a S&P 500 line.
+  const tickersToFetch = [...ALL_TICKERS, ...spinoffChildren, BASELINE.ticker];
   console.log(
     `Fetching prices for ${tickersToFetch.length} tickers — mode: ${mode}` +
       (spinoffChildren.length ? ` (incl. ${spinoffChildren.length} spin-off)` : "")
