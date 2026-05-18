@@ -369,13 +369,19 @@ components/
                       A gray S&P 500 comparison line is added to the chart whenever SPY data
                       is in the snapshot, SCALED to share the player's range-start dollar
                       value (scale = playerStart / baselineStart) so the two lines start at
-                      the same anchor and divergence reads as relative performance. The pct
-                      is also surfaced in PriceHeader as a "vs S&P 500 +X.XX%" sub-row (via
-                      its new optional `compareTo` prop) — same gray dot, green/red pct
-                      coloring. Lookup of the scrubbed baseline $ uses `scrub.index` against
-                      the raw baselineRanged series rather than scrub.values (which would
-                      report the scaled chart value); the displayed pct is identical either
-                      way (scaling cancels) but the indirection is clearer this way.
+                      the same anchor and divergence reads as relative performance. The
+                      player's EXCESS return over the benchmark (playerPct − baselinePct) is
+                      surfaced in PriceHeader as a "+X.XX% vs S&P 500" sub-row (via its new
+                      optional `compareTo` prop) — same gray dot, green/red pct coloring.
+                      Sign-first labeling: the pct describes the PLAYER's relative
+                      performance, not the benchmark's absolute return; reading "vs S&P 500
+                      +5.60%" instead of "+5.60% vs S&P 500" was the original (buggy) order
+                      and made every player's row show SPY's own pct — fixed by inverting
+                      the math + label order. Lookup of the scrubbed baseline $ uses
+                      `scrub.index` against the raw baselineRanged series rather than
+                      scrub.values (which would report the scaled chart value); the
+                      displayed pct is identical either way (scaling cancels) but the
+                      indirection is clearer this way.
                       Holding rows show pct + signed $ for the ACTIVE range (read from
                       `holding.rangeStats[range]`) and re-sort by that range's pct.
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + DigestPanel + N

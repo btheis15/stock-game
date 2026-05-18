@@ -106,11 +106,13 @@ export function PortfolioView({
       : fmtDateLong(scrub.date)
     : null;
 
-  // Baseline pct used by PriceHeader's "vs S&P 500" sub-row. Compares the
-  // baseline's value at the scrub index (or its last point) against its range
-  // start. Read from baselineRanged (raw $) rather than scrub.values, since
-  // the chart series scales the baseline line — that scaling cancels in a pct
-  // calc but reading the raw series avoids the indirection.
+  // Excess return shown in PriceHeader's "vs S&P 500" sub-row — the player's
+  // range pct MINUS the S&P 500's range pct over the same window, so it
+  // answers "am I beating the market, and by how much?" Each player sees a
+  // different number (not SPY's absolute pct). Read both the player and the
+  // baseline values from the raw $ series via scrub.index, since the chart
+  // scales the baseline line — scaling cancels in pct calculations but
+  // reading the raw series sidesteps the indirection entirely.
   const baselineStartValue =
     isIntraday && baselineIntraday
       ? baselineIntraday.previousClose
@@ -123,10 +125,13 @@ export function PortfolioView({
     if (idx != null && baselineRanged[idx]) return baselineRanged[idx].value;
     return baselineLastValue;
   })();
+  const playerPct =
+    baselineValue === 0 ? 0 : (value - baselineValue) / baselineValue;
   const baselinePct =
     baselineStartValue === 0
       ? 0
       : (baselineCurrent - baselineStartValue) / baselineStartValue;
+  const excessVsBaselinePct = playerPct - baselinePct;
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
@@ -175,7 +180,7 @@ export function PortfolioView({
         scrubDate={scrubLabel}
         compareTo={
           baselineRanged && baselineRanged.length > 0
-            ? { label: BASELINE.name, pct: baselinePct, color: BASELINE.color }
+            ? { label: BASELINE.name, pct: excessVsBaselinePct, color: BASELINE.color }
             : null
         }
       />
