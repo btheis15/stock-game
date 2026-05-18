@@ -14,8 +14,11 @@ interface Props {
   fractionDigits?: number;
   /**
    * Optional secondary comparison row, rendered below the primary delta/pct
-   * line. Used by PortfolioView to show "vs S&P 500 +X.XX%" so the gray
-   * baseline line on the chart has a label + a precise number at a glance.
+   * line. Used by PortfolioView to show the player's EXCESS return over a
+   * benchmark — e.g. "+5.60% vs S&P 500" means the player is beating the
+   * market by 5.60 percentage points. `pct` is signed (negative when
+   * trailing). Sign-first labeling avoids the ambiguity where readers might
+   * otherwise interpret the number as the benchmark's absolute return.
    * Hidden when null/undefined so other views (StockView, etc.) don't grow
    * an empty row.
    */
@@ -67,13 +70,13 @@ export function PriceHeader({
             style={{ backgroundColor: compareTo.color }}
           />
           <span>
-            vs {compareTo.label}{" "}
             <span
               className="tabular-nums"
               style={{ color: compareTo.pct >= 0 ? "#00C805" : "#FF453A" }}
             >
               {fmtPct(compareTo.pct)}
-            </span>
+            </span>{" "}
+            vs {compareTo.label}
           </span>
         </div>
       )}
