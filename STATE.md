@@ -48,6 +48,8 @@ Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. P
 
 `ALL_TICKERS` is the dedup set across all players (45 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, ASML, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, ZBRA).
 
+**Baseline (S&P 500).** `lib/picks.ts` also exports `BASELINE = { id: "sp500", name: "S&P 500", color: "#9CA3AF", ticker: "SPY" }` — a read-only market benchmark rendered alongside the human players on the Compare leaderboard + chart. It competes head-to-head ($100k of SPY at the Feb-5 close + dividend cash, same math as a human portfolio with one holding), so if SPY's range pct lands 3rd, the leaderboard shows it 3rd. Explicitly NOT a User: it's not in `USER_LIST` / `TICKER_OWNERS` / `ALL_TICKERS`, has no `/portfolio` page, no `/stock/SPY` page, and no digest entries. SPY rides the price-fetch pipeline as a special-cased extra ticker in `fetch-prices.ts` (`tickersToFetch = [...ALL_TICKERS, ...spinoffChildren, BASELINE.ticker]`) so daily / intraday / weekly bars all land in `prices.json` next to the players, but stays absent from the digest pipeline (Swift's `DEFAULT_TICKERS` is hardcoded and intentionally excludes it). Helpers `baselinePortfolioSeries`, `intradayBaselineSeries`, `weeklyBaselineSeries` in `lib/portfolio.ts` produce the curves the Compare view consumes; all three return null/empty if SPY isn't in the snapshot yet (graceful fallback — the row + line just don't render until the next cron tick fetches it).
+
 ## 3. Data layout
 
 Three committed canonical artifacts:
@@ -346,6 +348,16 @@ components/
                         • 1D → intraday[u.id].points (15-min bars, today's session)
                         • 1W → weekly[u.id] (hourly bars, past 5 trading days; compactX=true)
                         • else → filterRange(series[u.id], range) (daily closes)
+                      An additional non-clickable S&P 500 row + line is appended to the chart
+                      and leaderboard when SPY data is present in the snapshot (props
+                      `baselineDaily` / `baselineIntraday` / `baselineWeekly`). It uses the
+                      same data-source rules as the player paths (intraday / weekly-hourly /
+                      filtered-daily). UserRow renders a plain <div> instead of <Link> when
+                      `href` is null — that's the only structural difference from a player
+                      row. If SPY's weekly bars are missing while player weeklies are present
+                      the view falls back to daily closes for 1W so all lines share the same
+                      x-axis treatment (compactX is only enabled when every line has weekly
+                      data, baseline included).
   PortfolioView.tsx   Per-user. Defaults to 1D. PriceHeader + ScrubChart + RangeTabs +
                       DigestPanel (portfolio-rollup digest, between RangeTabs and Holdings)
                       + Holdings list.
@@ -354,6 +366,16 @@ components/
                       In 1W mode: chart is weekly hourly $; compactX=true collapses overnight
                       + weekend gaps; weekly series falls back to filtered daily closes if no
                       weekly data is present (older snapshots).
+                      A gray S&P 500 comparison line is added to the chart whenever SPY data
+                      is in the snapshot, SCALED to share the player's range-start dollar
+                      value (scale = playerStart / baselineStart) so the two lines start at
+                      the same anchor and divergence reads as relative performance. The pct
+                      is also surfaced in PriceHeader as a "vs S&P 500 +X.XX%" sub-row (via
+                      its new optional `compareTo` prop) — same gray dot, green/red pct
+                      coloring. Lookup of the scrubbed baseline $ uses `scrub.index` against
+                      the raw baselineRanged series rather than scrub.values (which would
+                      report the scaled chart value); the displayed pct is identical either
+                      way (scaling cancels) but the indirection is clearer this way.
                       Holding rows show pct + signed $ for the ACTIVE range (read from
                       `holding.rangeStats[range]`) and re-sort by that range's pct.
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + DigestPanel + N

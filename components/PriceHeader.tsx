@@ -12,6 +12,14 @@ interface Props {
   scrubDate?: string | null;
   accent?: string;
   fractionDigits?: number;
+  /**
+   * Optional secondary comparison row, rendered below the primary delta/pct
+   * line. Used by PortfolioView to show "vs S&P 500 +X.XX%" so the gray
+   * baseline line on the chart has a label + a precise number at a glance.
+   * Hidden when null/undefined so other views (StockView, etc.) don't grow
+   * an empty row.
+   */
+  compareTo?: { label: string; pct: number; color: string } | null;
 }
 
 export function PriceHeader({
@@ -23,6 +31,7 @@ export function PriceHeader({
   scrubDate,
   accent,
   fractionDigits = 2,
+  compareTo,
 }: Props) {
   const delta = value - baseline;
   const pct = baseline === 0 ? 0 : delta / baseline;
@@ -51,6 +60,23 @@ export function PriceHeader({
           • {scrubDate}
         </span>
       </div>
+      {compareTo && (
+        <div className="flex items-center gap-2 mt-1 text-[12px] font-medium text-zinc-400">
+          <div
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: compareTo.color }}
+          />
+          <span>
+            vs {compareTo.label}{" "}
+            <span
+              className="tabular-nums"
+              style={{ color: compareTo.pct >= 0 ? "#00C805" : "#FF453A" }}
+            >
+              {fmtPct(compareTo.pct)}
+            </span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

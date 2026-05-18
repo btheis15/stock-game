@@ -2,8 +2,11 @@ import { CompareView } from "@/components/CompareView";
 import { loadPriceData } from "@/lib/data";
 import {
   analyzeRange,
+  baselinePortfolioSeries,
+  intradayBaselineSeries,
   intradayPortfolioSeries,
   portfolioSeries,
+  weeklyBaselineSeries,
   weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
@@ -29,11 +32,20 @@ export default async function Page() {
   const analyses = Object.fromEntries(
     ALL_RANGES.map((r) => [r, analyzeRange(data, r)])
   ) as Record<Range, RangeAnalysis>;
+  // S&P 500 baseline curves — null on each path if SPY data isn't in the
+  // snapshot yet (e.g. first deploy after this feature ships, before the
+  // next price-refresh cron tick). CompareView is tolerant of nulls.
+  const baselineDaily = baselinePortfolioSeries(data);
+  const baselineIntraday = intradayBaselineSeries(data);
+  const baselineWeekly = weeklyBaselineSeries(data);
   return (
     <CompareView
       series={series}
       intraday={intraday}
       weekly={weekly}
+      baselineDaily={baselineDaily.length > 0 ? baselineDaily : null}
+      baselineIntraday={baselineIntraday}
+      baselineWeekly={baselineWeekly}
       intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
       generatedAt={data.generatedAt}
       analyses={analyses}

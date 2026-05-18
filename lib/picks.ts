@@ -71,6 +71,30 @@ export const ALL_TICKERS: string[] = [
   ...new Set(USER_LIST.flatMap((u) => u.tickers)),
 ];
 
+// Read-only market benchmark rendered alongside the human players on the
+// Compare leaderboard + chart. Treated as a "player" for ranking purposes
+// (its $100k-in-SPY-since-Feb-5 curve competes head-to-head) but explicitly
+// NOT a User — it has no portfolio drill-down page, no digest entries, no
+// stock detail, and never appears as a ticker owner. SPY is the implementation
+// vehicle (an actual ETF with dividends, so the comparison reflects total
+// return, not just price); we surface it to users under the more familiar
+// "S&P 500" label.
+export interface Baseline {
+  id: string;
+  name: string;
+  color: string;
+  colorRgb: string;
+  ticker: string;
+}
+
+export const BASELINE: Baseline = {
+  id: "sp500",
+  name: "S&P 500",
+  color: "#9CA3AF",
+  colorRgb: "156, 163, 175",
+  ticker: "SPY",
+};
+
 export const TICKER_NAMES: Record<string, string> = {
   ASTS: "AST SpaceMobile",
   AMZN: "Amazon",
