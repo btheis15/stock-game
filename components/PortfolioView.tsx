@@ -19,6 +19,8 @@ import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
 import { useDigests } from "@/lib/digests";
+import { PortfolioComposition } from "./PortfolioComposition";
+import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -47,6 +49,7 @@ interface Props {
   intradayDate: string;
   generatedAt: string;
   holdings: HoldingRow[];
+  composition: PortfolioCompositionData;
 }
 
 export function PortfolioView({
@@ -60,6 +63,7 @@ export function PortfolioView({
   intradayDate,
   generatedAt,
   holdings,
+  composition,
 }: Props) {
   const user = USERS[userId];
   const [range, setRange] = useState<Range>("1D");
@@ -260,6 +264,8 @@ export function PortfolioView({
           })}
         </div>
       </div>
+
+      <PortfolioComposition composition={composition} accentColor={user.color} />
     </div>
   );
 }
