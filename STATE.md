@@ -384,6 +384,27 @@ components/
                       indirection is clearer this way.
                       Holding rows show pct + signed $ for the ACTIVE range (read from
                       `holding.rangeStats[range]`) and re-sort by that range's pct.
+                      Below the Holdings list: <PortfolioComposition /> — the interactive
+                      donut breakdown (Sector / Industry / Market cap tabs) + a
+                      "Claude analysis" About-this-portfolio card. Server-computed
+                      composition is passed in via `composition` prop (see
+                      `lib/portfolio-composition.ts`).
+  PortfolioComposition.tsx  Bottom-of-portfolio donut chart + "About this portfolio"
+                      analysis card. Three views via pill toggle: Sector / Industry /
+                      Market cap. Donut is raw SVG arc paths with framer-motion pop-out +
+                      dim animation on slice select; center readout shows total $ + # of
+                      positions, or the selected slice's $ + portfolio share. Below the
+                      donut: a list of slices with mini-bars + portfolio %s; selecting a
+                      slice swaps the list for a per-ticker breakdown (each row is a Link
+                      to /stock/{ticker}). Bottom card is the "Claude analysis" panel —
+                      static style chip + headline + 1 paragraph (with "Read full
+                      analysis" expand for 2 more) + theme chips. Intentionally
+                      number-free: no percentages, dollar amounts, or concentration
+                      metrics — it's the editorial layer about WHAT each player is
+                      investing in (themes, types of companies). The donut + breakdown
+                      list above handle the live numerical side. Narrative lives in
+                      `PER_USER_ANALYSIS` in lib/portfolio-composition.ts (hand-written
+                      per UserId, edit there to change wording).
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + DigestPanel + N
                       Position cards (one per owner) + Dividends list (per-share, market-level).
                       DigestPanel sits between RangeTabs and the Position cards and re-renders
@@ -728,6 +749,8 @@ components/                    Client components (mostly)
   ScrubChart.tsx               (315 LOC) The chart. Owns scrub state, accepts xDomain + liveEndpoint.
   CompareView.tsx              Compare page logic. 1D normalizes lines.
   PortfolioView.tsx            Per-user page logic. Anchor-deep-link supported.
+  PortfolioComposition.tsx     Bottom-of-portfolio donut chart (Sector / Industry / Market
+                               cap) + Claude-analysis About-this-portfolio card.
   StockView.tsx                Per-ticker page logic. N Position cards.
   StocksListView.tsx           Filterable ticker list.
   DigestPanel.tsx              Per-stock news-digest card (Robinhood-style).
@@ -741,6 +764,14 @@ lib/                           Pure logic, no React
   events.ts                    Spin-off events (currently empty).
   types.ts                     All TS interfaces.
   portfolio.ts                 (337 LOC) All math + formatters.
+  portfolio-composition.ts     Server-side aggregator: holdings + fundamentals →
+                               sector / industry / market-cap slices + hand-written
+                               (per UserId) "About this portfolio" narrative. The
+                               narrative is intentionally number-free and stable; edit
+                               PER_USER_ANALYSIS to change a player's blurb. Consumed
+                               by PortfolioComposition.tsx on /portfolio/[user].
+  fundamentals.ts              Client-safe formatters for fundamentals data.
+  fundamentals-data.ts         Server-only loader for public/data/fundamentals.json.
   data.ts                      Server-side loader of public/data/prices.json.
   digests.ts                   Digest types + `useDigests()` client hook (module-level
                                cache → /digests.json fetched once per session).

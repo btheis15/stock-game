@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { HeaderBack } from "@/components/HeaderBack";
 import { PortfolioView } from "@/components/PortfolioView";
 import { loadPriceData } from "@/lib/data";
+import { loadFundamentalsData } from "@/lib/fundamentals-data";
+import { buildPortfolioComposition } from "@/lib/portfolio-composition";
 import {
   baselinePortfolioSeries,
   buildHoldingRows,
@@ -41,6 +43,8 @@ export default async function Page({
   const baselineDaily = baselinePortfolioSeries(data);
   const baselineIntraday = intradayBaselineSeries(data);
   const baselineWeekly = weeklyBaselineSeries(data);
+  const fundamentals = await loadFundamentalsData();
+  const composition = buildPortfolioComposition(userId, holdings, fundamentals);
   return (
     <>
       <HeaderBack title="Compare" />
@@ -55,6 +59,7 @@ export default async function Page({
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
         generatedAt={data.generatedAt}
         holdings={holdings}
+        composition={composition}
       />
     </>
   );

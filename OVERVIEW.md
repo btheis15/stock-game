@@ -44,7 +44,19 @@ Four things, on a phone screen:
    range — three sentences referencing their actual tickers, with the same
    "Show more" expand-for-sources affordance as the per-stock digest. Below
    that, a list of every holding they have, sorted by performance for the
-   active range.
+   active range. Scroll past the holdings and there's a **portfolio
+   breakdown** donut chart with three views (Sector / Industry / Market
+   cap) — tap a slice (or its row) to see exactly which tickers fill that
+   bucket. Below the donut sits an **About this portfolio** card with a
+   "✦ Claude analysis" attribution — a hand-written, one-time summary
+   of *what* that player is investing in: a one-line investor-archetype
+   chip (e.g. "Tech barbell", "AI buildout — picks and shovels",
+   "Defensive value"), a headline, and 2-3 paragraphs of expandable
+   commentary describing the themes and types of companies in the
+   portfolio. Intentionally number-free — no percentages or dollar
+   amounts. The donut + breakdown list above handle the live numerical
+   side; this card is the editorial layer that stays the same as prices
+   move around.
 
 3. **Per-stock detail.** Tap any holding row, or any individual stock inside
    a "What's driving it" card, and you see that stock's price chart plus —
