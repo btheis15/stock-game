@@ -397,10 +397,14 @@ components/
                       donut: a list of slices with mini-bars + portfolio %s; selecting a
                       slice swaps the list for a per-ticker breakdown (each row is a Link
                       to /stock/{ticker}). Bottom card is the "Claude analysis" panel —
-                      style chip + headline + paragraphs (1 visible, "Read full analysis"
-                      reveals 2-3 more) + theme chips + highlight grid. Narrative is
-                      generated server-side by `writeAnalysis()` in
-                      lib/portfolio-composition.ts (heuristic, not a live LLM call).
+                      static style chip + headline + 1 paragraph (with "Read full
+                      analysis" expand for 2 more) + theme chips. Intentionally
+                      number-free: no percentages, dollar amounts, or concentration
+                      metrics — it's the editorial layer about WHAT each player is
+                      investing in (themes, types of companies). The donut + breakdown
+                      list above handle the live numerical side. Narrative lives in
+                      `PER_USER_ANALYSIS` in lib/portfolio-composition.ts (hand-written
+                      per UserId, edit there to change wording).
   StockView.tsx       Per-ticker. PriceHeader + ScrubChart + RangeTabs + DigestPanel + N
                       Position cards (one per owner) + Dividends list (per-share, market-level).
                       DigestPanel sits between RangeTabs and the Position cards and re-renders
@@ -761,9 +765,11 @@ lib/                           Pure logic, no React
   types.ts                     All TS interfaces.
   portfolio.ts                 (337 LOC) All math + formatters.
   portfolio-composition.ts     Server-side aggregator: holdings + fundamentals →
-                               sector / industry / market-cap slices + heuristic
-                               "About this portfolio" narrative. Consumed by
-                               PortfolioComposition.tsx on /portfolio/[user].
+                               sector / industry / market-cap slices + hand-written
+                               (per UserId) "About this portfolio" narrative. The
+                               narrative is intentionally number-free and stable; edit
+                               PER_USER_ANALYSIS to change a player's blurb. Consumed
+                               by PortfolioComposition.tsx on /portfolio/[user].
   fundamentals.ts              Client-safe formatters for fundamentals data.
   fundamentals-data.ts         Server-only loader for public/data/fundamentals.json.
   data.ts                      Server-side loader of public/data/prices.json.

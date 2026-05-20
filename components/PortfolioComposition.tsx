@@ -490,38 +490,16 @@ function AboutThisPortfolio({
               {analysis.themes.map((t) => (
                 <div
                   key={t.name}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-zinc-800/70 border border-zinc-700/60"
+                  className="inline-flex items-center px-2.5 py-1 rounded-full bg-zinc-800/70 border border-zinc-700/60"
                 >
                   <span className="text-[11px] font-medium text-zinc-200">
                     {t.name}
-                  </span>
-                  <span className="text-[10px] text-zinc-500">
-                    {t.tickers.length}
                   </span>
                 </div>
               ))}
             </div>
           </div>
         )}
-
-        <div className="relative grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
-          {analysis.highlights.map((h) => (
-            <div
-              key={h.label}
-              className="rounded-lg bg-zinc-800/40 border border-zinc-800 px-2.5 py-1.5"
-            >
-              <div className="text-[10px] uppercase tracking-wide text-zinc-500">
-                {h.label}
-              </div>
-              <div
-                className="text-[12px] font-semibold tabular-nums truncate"
-                style={{ color: h.tone === "accent" ? accentColor : undefined }}
-              >
-                {h.value}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
