@@ -86,6 +86,34 @@ const FUNDAMENTALS_OVERRIDES: Record<string, TickerFundamentals> = {
   },
 };
 
+// Yahoo classifications we know are stale. Audited 2026-05-21 against
+// primary sources (10-Q filings, company press releases) — these are the
+// cases where Yahoo's bucket no longer matches what the company actually
+// does today. Each entry is MERGED on top of the loaded Yahoo entry so we
+// keep their financials/market cap/etc. and only override the labels.
+const CLASSIFICATION_OVERRIDES: Record<
+  string,
+  Pick<TickerFundamentals, "sector" | "industry"> & {
+    description?: string;
+    reason: string;
+  }
+> = {
+  // NBIS: Yahoo still classifies as Communication Services / Internet
+  // Content & Information — a legacy from the Yandex spinoff era. Per
+  // Nebius's 2026 disclosures ("AI cloud company building full-stack
+  // infrastructure for the global AI industry") the business is now GPU
+  // cloud / AI infrastructure, directly comparable to CoreWeave (CRWV).
+  // Reclassifying to match CRWV.
+  NBIS: {
+    sector: "Technology",
+    industry: "Software - Infrastructure",
+    description:
+      "Nebius Group N.V. is an AI cloud company building full-stack infrastructure for the global AI industry. Based in Amsterdam and listed on Nasdaq, Nebius integrates NVIDIA GPU accelerators with InfiniBand networking and Kubernetes/Slurm orchestration into pre-optimized clusters serving startups and enterprises training and deploying AI models. The group also includes Avride (autonomous delivery robots) and TripleTen (edtech).",
+    reason:
+      "Yahoo's 'Internet Content & Information' is legacy from the Yandex spinoff era; the company has fully pivoted to AI/GPU cloud infrastructure.",
+  },
+};
+
 let cached: FundamentalsData | null = null;
 
 export async function loadFundamentalsData(): Promise<FundamentalsData | null> {
@@ -95,9 +123,24 @@ export async function loadFundamentalsData(): Promise<FundamentalsData | null> {
     const raw = await readFile(file, "utf8");
     const parsed = JSON.parse(raw) as FundamentalsData;
     // Patch in overrides for any ticker missing from the fetched snapshot. We
-    // never overwrite a real Yahoo entry — overrides are pure fallbacks.
+    // never overwrite a real Yahoo entry at THIS step — these are fallbacks
+    // for tickers Yahoo can't return at all.
     for (const [t, override] of Object.entries(FUNDAMENTALS_OVERRIDES)) {
       if (!parsed.tickers[t]) parsed.tickers[t] = override;
+    }
+    // Now overlay any classification corrections on top of Yahoo's data.
+    // Each entry intentionally rewrites sector/industry (and optionally the
+    // description) while preserving every other field — financials, market
+    // cap, earnings, etc. — that Yahoo returned correctly.
+    for (const [t, fix] of Object.entries(CLASSIFICATION_OVERRIDES)) {
+      const existing = parsed.tickers[t];
+      if (!existing) continue;
+      parsed.tickers[t] = {
+        ...existing,
+        sector: fix.sector,
+        industry: fix.industry,
+        description: fix.description ?? existing.description,
+      };
     }
     cached = parsed;
     return cached;
