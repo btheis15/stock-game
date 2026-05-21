@@ -26,11 +26,20 @@ const FUNDAMENTALS_OVERRIDES: Record<string, TickerFundamentals> = {
   HUT: {
     ticker: "HUT",
     name: "Hut 8 Corp",
+    // Self-described in 2026 SEC filings as "an energy infrastructure platform
+    // integrating power, digital infrastructure, and compute at scale to fuel
+    // next-generation, energy-intensive technologies such as AI, high-performance
+    // computing, and ASIC compute." Operating segments: Power, Digital
+    // Infrastructure, Compute, Other. The Bitcoin-miner framing is legacy —
+    // the current business is power-dense data centers for AI/HPC compute, with
+    // ASIC mining as one workload tenant. Classified here as Technology /
+    // Information Technology Services (matches how Simply Wall St catalogs them
+    // and what the customer-facing product actually is).
     description:
-      "Hut 8 Corp is a vertically integrated operator of large-scale energy infrastructure and one of North America's largest Bitcoin mining companies. It owns and operates power-dense data centers across the US and Canada, and is expanding its footprint into high-performance computing and AI compute services in addition to digital-asset mining.",
-    sector: "Financial Services",
-    industry: "Capital Markets",
-    website: "https://hut8.io",
+      "Hut 8 Corp is an energy infrastructure platform integrating power, digital infrastructure, and compute at scale to fuel next-generation, energy-intensive technologies such as AI, high-performance computing, and ASIC compute. The company develops, commercializes, and operates industrial-scale energy and data center infrastructure across the US and Canada through a power-first approach, organized around four segments: Power, Digital Infrastructure, Compute, and Other.",
+    sector: "Technology",
+    industry: "Information Technology Services",
+    website: "https://hut8.com",
     employees: 130,
     headquarters: "Miami, FL",
     marketCap: 3_500_000_000,
@@ -47,8 +56,18 @@ const FUNDAMENTALS_OVERRIDES: Record<string, TickerFundamentals> = {
   OKLO: {
     ticker: "OKLO",
     name: "Oklo Inc.",
+    // Verified from 2026 10-Q + company materials: Oklo is a nuclear power
+    // company developing the Aurora Powerhouse, a compact sodium-cooled fast
+    // reactor (15-75 MWe, modeled after EBR-II, uses metallic HALEU fuel).
+    // The company plans to be designer, builder, owner, AND operator of the
+    // plants, selling both electricity and radioisotopes — targeting off-grid
+    // data centers, remote communities, industrial sites, and military bases.
+    // Pre-revenue today, so the sector fit is Industrials / Specialty
+    // Industrial Machinery (matches SMR/NuScale's existing classification);
+    // once commercial plants are operating, peers might re-classify to
+    // Utilities / Independent Power Producers.
     description:
-      "Oklo Inc. designs and plans to commercialize advanced fission power plants based on a compact fast-reactor design. Backed by OpenAI's Sam Altman and headquartered in Santa Clara, the company is targeting next-generation small modular reactors for data center, industrial, and grid applications, with a build-own-operate model for selling clean power on long-term contracts.",
+      "Oklo Inc. is a nuclear power company developing the Aurora Powerhouse — a compact sodium-cooled fast reactor designed for 15 to 75 MWe of output, modeled after Experimental Breeder Reactor II and powered by metallic HALEU fuel. Backed by OpenAI's Sam Altman and headquartered in Santa Clara, Oklo plans to be the designer, builder, owner, and operator of its powerhouses, selling electricity and radioisotopes to off-grid data centers, remote communities, industrial sites, and military bases.",
     sector: "Industrials",
     industry: "Specialty Industrial Machinery",
     website: "https://oklo.com",
