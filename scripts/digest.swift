@@ -33,6 +33,7 @@ let DEFAULT_TICKERS = [
     "COHR","CRWV","GFS","GOOGL","NBIS","QBTS","RKLB","S",
     "PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD",
     "ASML","OKLO","GLUE","VVOS","HUT","AMRZ","SMR","ZBRA",
+    "F","STLA","TM","HMC",
 ]
 
 let TICKER_NAMES: [String: String] = [
@@ -81,6 +82,10 @@ let TICKER_NAMES: [String: String] = [
     "AMRZ": "Amrize",
     "SMR": "NuScale Power",
     "ZBRA": "Zebra Technologies",
+    "F": "Ford",
+    "STLA": "Stellantis",
+    "TM": "Toyota",
+    "HMC": "Honda",
 ]
 
 let RELEVANCE_THRESHOLD = 6
@@ -112,6 +117,8 @@ let PLAYERS: [PlayerRoster] = [
         tickers: ["PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD","AAPL"]),
     PlayerRoster(id: "gene",   name: "Gene",
         tickers: ["ASML","CRSP","OKLO","GLUE","VVOS","HUT","AMRZ","SMR","RKLB","ZBRA"]),
+    PlayerRoster(id: "legacyauto", name: "Legacy Auto",
+        tickers: ["F","GM","STLA","TM","HMC"]),
 ]
 
 // Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
