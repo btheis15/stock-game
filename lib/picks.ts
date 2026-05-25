@@ -1,4 +1,4 @@
-export type UserId = "brian" | "kevin" | "rick" | "lee" | "gene";
+export type UserId = "brian" | "kevin" | "rick" | "lee" | "gene" | "legacyauto";
 
 export interface User {
   id: UserId;
@@ -47,9 +47,16 @@ export const USERS: Record<UserId, User> = {
     colorRgb: "255, 55, 95",
     tickers: ["ASML", "CRSP", "OKLO", "GLUE", "VVOS", "HUT", "AMRZ", "SMR", "RKLB", "ZBRA"],
   },
+  legacyauto: {
+    id: "legacyauto",
+    name: "Legacy Auto",
+    color: "#FFD60A",
+    colorRgb: "255, 214, 10",
+    tickers: ["F", "GM", "STLA", "TM", "HMC"],
+  },
 };
 
-export const USER_LIST: User[] = [USERS.brian, USERS.kevin, USERS.rick, USERS.lee, USERS.gene];
+export const USER_LIST: User[] = [USERS.brian, USERS.kevin, USERS.rick, USERS.lee, USERS.gene, USERS.legacyauto];
 
 export function perHoldingDollars(userId: UserId): number {
   const u = USERS[userId];
@@ -141,4 +148,8 @@ export const TICKER_NAMES: Record<string, string> = {
   AMRZ: "Amrize",
   SMR: "NuScale Power",
   ZBRA: "Zebra Technologies",
+  F: "Ford",
+  STLA: "Stellantis",
+  TM: "Toyota",
+  HMC: "Honda",
 };

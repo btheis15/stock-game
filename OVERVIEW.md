@@ -1,8 +1,9 @@
 # Stock Game — Overview
 
-A friendly stock-picking competition between five people, tracked daily since
-**February 5, 2026**. Each player gets a $100,000 paper portfolio, divided
-evenly across their picks. The app is a mobile-first PWA that anyone can open
+A friendly stock-picking competition between five people (plus a "Legacy
+Auto" themed portfolio for comparison), tracked daily since **February 5,
+2026**. Each player gets a $100,000 paper portfolio, divided evenly
+across their picks. The app is a mobile-first PWA that anyone can open
 in Safari and add to their iPhone home screen — it looks and behaves like
 Robinhood, except instead of one portfolio you see every player overlaid on the
 same chart with a leaderboard underneath.
@@ -23,11 +24,12 @@ The point is twofold:
 
 Four things, on a phone screen:
 
-1. **Compare** (home tab). Four colored lines on one chart: Brian green, Kevin
-   blue, Rick orange, Lee purple. Drag your finger across the chart and the
-   header above updates with the gap (in dollars and percent) at that exact
-   moment. Below the chart is a 2×2 leaderboard showing 1st through 4th place
-   with each player's current portfolio value. Below that, a **game-wide
+1. **Compare** (home tab). One colored line per portfolio on a shared chart:
+   Brian green, Kevin blue, Rick orange, Lee purple, Gene pink, Legacy Auto
+   yellow, plus a grey S&P 500 baseline. Drag your finger across the chart
+   and the header above updates with the gap (in dollars and percent) at
+   that exact moment. Below the chart is a sports-standings leaderboard
+   showing 1st through last place with each portfolio's current value. Below that, a **game-wide
    AI briefing** scoped to the active range — three sentences explaining
    *why* the standings look the way they do, citing actual percentages
    ("Rick is leading the leaderboard with +10.12% portfolio, driven by
@@ -141,7 +143,7 @@ think about staleness.
 
 ---
 
-## The five players
+## The six players
 
 | Player | Color | Picks | Per-pick allocation |
 |---|---|---|---|
@@ -150,13 +152,17 @@ think about staleness.
 | **Rick** | orange | COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA | $10,000 |
 | **Lee** | purple | PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, AAPL | $10,000 |
 | **Gene** | pink | ASML, CRSP, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, RKLB, ZBRA | $10,000 |
+| **Legacy Auto** | yellow | F, GM, STLA, TM, HMC | $20,000 |
 
 A few notes on this:
-- The "$10k per pick" rule comes from "$100k total ÷ 10 picks."
+- Per-pick allocation is `$100k ÷ number of picks` — 10 picks → $10k each;
+  Legacy Auto's 5 picks → $20k each. Every player starts with the same
+  $100k total.
 - Several tickers are jointly held: NVDA + TSLA by Kevin and Rick, AAPL
-  by Brian and Lee, CRSP by Brian and Gene, RKLB by Rick and Gene. Joint
-  owners share prices but each has their own independent share count
-  (each spent their own $10k buying it at the 2/5 close).
+  by Brian and Lee, CRSP by Brian and Gene, RKLB by Rick and Gene, GM by
+  Lee and Legacy Auto. Joint owners share prices but each has their own
+  independent share count (each spent their own per-pick dollars buying
+  it at the 2/5 close).
 - Buying happens at the **2026-02-05 closing price**, partial shares allowed.
   Once a share count is set on Feb 5, it doesn't change unless a corporate
   action (spin-off, split) modifies it.

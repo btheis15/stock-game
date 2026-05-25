@@ -21,6 +21,7 @@ export default async function Page({
   if (!ALL_TICKERS.includes(upper)) notFound();
   const data = await loadPriceData();
   const series = data.tickers[upper];
+  if (!series) notFound();
   // Fundamentals load is best-effort — missing file or missing ticker just
   // hides the About/Financials/Earnings sections in the view.
   const fundamentals = await loadFundamentalsForTicker(upper);
