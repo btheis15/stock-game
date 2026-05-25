@@ -53,7 +53,13 @@ export function dividendsReceived(
 
 export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint[] {
   const tickers = USERS[userId].tickers;
-  const seriesByTicker = tickers.map((t) => data.tickers[t]);
+  // Filter out tickers missing from prices.json — handles the transient state
+  // right after a roster change, where picks.ts lists a ticker the cron hasn't
+  // fetched yet. The next fetch-prices run populates them and the curve fills
+  // in. Without this guard, the SSG build crashes on `undefined.startClose`.
+  const seriesByTicker = tickers
+    .map((t) => data.tickers[t])
+    .filter((s): s is TickerSeries => s != null);
   const userSpinoffs = SPINOFFS.filter((s) =>
     USERS[userId].tickers.includes(s.parentTicker)
   );
@@ -161,7 +167,9 @@ export function intradayPortfolioSeries(
   userId: UserId
 ): { points: PortfolioPoint[]; previousClose: number } {
   const tickers = USERS[userId].tickers;
-  const seriesByTicker = tickers.map((t) => data.tickers[t]);
+  const seriesByTicker = tickers
+    .map((t) => data.tickers[t])
+    .filter((s): s is TickerSeries => s != null);
 
   // Find previous trading day (last entry in tradingDates that's before today's intraday date)
   const intradayDate = data.intradayDate ?? "";
@@ -266,7 +274,9 @@ export function weeklyPortfolioSeries(
   userId: UserId
 ): PortfolioPoint[] | null {
   const tickers = USERS[userId].tickers;
-  const seriesByTicker = tickers.map((t) => data.tickers[t]);
+  const seriesByTicker = tickers
+    .map((t) => data.tickers[t])
+    .filter((s): s is TickerSeries => s != null);
   const haveWeekly = seriesByTicker.some((s) => (s.weekly?.length ?? 0) > 0);
   if (!haveWeekly) return null;
 
@@ -547,6 +557,7 @@ export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
     let endTotal = 0;
     for (const t of u.tickers) {
       const s = data.tickers[t];
+      if (!s) continue;
       const shares = sharesFor(u.id, s);
       const { startClose, endClose } = rangeCloses(s, data, range);
       const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
@@ -587,8 +598,9 @@ export function buildHoldingRows(
   userId: UserId,
   data: PriceData
 ): HoldingRow[] {
-  return USERS[userId].tickers.map((t) => {
+  return USERS[userId].tickers.flatMap((t) => {
     const s = data.tickers[t];
+    if (!s || s.closes.length === 0) return [];
     const last = s.closes[s.closes.length - 1];
     const currentClose = last.close;
     const shares = sharesFor(userId, s);
@@ -612,16 +624,18 @@ export function buildHoldingRows(
       };
     }
 
-    return {
-      ticker: t,
-      shares,
-      startClose: s.startClose,
-      currentClose,
-      costBasis,
-      currentValue,
-      pl,
-      plPct,
-      rangeStats,
-    };
+    return [
+      {
+        ticker: t,
+        shares,
+        startClose: s.startClose,
+        currentClose,
+        costBasis,
+        currentValue,
+        pl,
+        plPct,
+        rangeStats,
+      },
+    ];
   });
 }

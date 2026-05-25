@@ -363,6 +363,16 @@ const PER_USER_ANALYSIS: Record<
       "Amrize (the new spin-off from Holcim's North American cement business) is the odd one out — pure industrial-materials cash flow, providing a non-frontier counterweight to everything else. Read together, the portfolio looks like a \"what if\" deck where each name represents a different version of the future, and the question is which ones get built.",
     ],
   },
+  legacyauto: {
+    styleLabel: "Legacy automakers",
+    headline:
+      "Legacy Auto is a themed basket of the established global car manufacturers — the ICE-era incumbents still navigating the EV transition.",
+    paragraphs: [
+      "The five names cover the three regions that built the modern auto industry: Detroit (Ford and GM), Stuttgart-via-Italy (Stellantis — the Chrysler/Peugeot/Fiat combine), and Japan (Toyota and Honda). Each runs a multi-decade-old manufacturing footprint with deep dealer networks, established supplier relationships, and the cash flow that comes from selling tens of millions of vehicles a year.",
+      "The implicit thesis is mean reversion: that the market has over-rewarded the EV pure-plays and under-priced the incumbents who actually know how to build cars at scale, manage warranties, and turn factories profitable. Toyota's hybrid-first transition strategy looks especially well-positioned if EV adoption proves slower than the bull case; Ford and GM have both pulled back on EV capex while keeping their truck franchises healthy.",
+      "There's no growth-tech ballast here — no diversification away from the cycle. The book is built for the scenario where global auto demand stays roughly flat, hybrids outsell pure EVs through the late-2020s, and the incumbents reclaim some of the multiple they've ceded to Tesla and BYD. If that view is wrong, every name in the basket moves together.",
+    ],
+  },
 };
 
 function writeAnalysis(input: AnalysisInput): PortfolioAnalysis {
