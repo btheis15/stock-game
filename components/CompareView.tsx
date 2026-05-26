@@ -137,8 +137,13 @@ export function CompareView({
         baseline,
       };
     });
-    if (baselineRanged && baselineRanged.length > 0) {
-      const pts = baselineRanged;
+    if (hasBaseline) {
+      // Always include SPY in the leaderboard when we have its data, even if
+      // the active range's points array is empty (e.g. 1D pre-market or on a
+      // market-closed day — no intraday bars yet). Mirrors how players are
+      // pushed unconditionally above so the row shows with +0.00% rather
+      // than vanishing from the standings.
+      const pts = baselineRanged ?? [];
       const baseline =
         isIntraday && baselineIntraday
           ? baselineIntraday.previousClose
