@@ -1,0 +1,47 @@
+name: seed-prices
+
+# Manual one-shot price fetch + commit to main. Trigger via the Actions tab
+# (workflow_dispatch). Use this when:
+#   * a new ticker was just added to lib/picks.ts and the Mac mini cron hasn't
+#     populated its history yet (or has stopped firing)
+#   * the Mac mini scheduler is down for maintenance
+#
+# Routine 15-min price refresh still happens on the Mac mini via
+# scripts/cron-update.sh — this workflow is an unblock path, not a replacement.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # We push back to main; need full history so the push fast-forwards.
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm install --legacy-peer-deps
+
+      - name: Fetch prices (incremental)
+        run: npm run fetch-prices
+
+      - name: Commit + push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/prices.json
+          if git diff --staged --quiet; then
+            echo "No price changes to commit."
+          else
+            git commit -m "data: $(date -u +%Y-%m-%dT%H:%M:%SZ) (manual seed)"
+            git push origin HEAD:main
+          fi
