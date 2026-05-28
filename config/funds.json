@@ -22,6 +22,29 @@
           "weight": 0.333
         }
       ]
+    },
+    {
+      "id": "test-d5t9c",
+      "name": "Test",
+      "creator": "Brian",
+      "color": "#F472B6",
+      "createdAt": "2026-05-28T17:58:12.497Z",
+      "updatedAt": "2026-05-28T17:58:12.497Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "VOO",
+          "weight": 0.334
+        },
+        {
+          "ticker": "VGHCX",
+          "weight": 0.333
+        },
+        {
+          "ticker": "VIGAX",
+          "weight": 0.333
+        }
+      ]
     }
   ]
 }
