@@ -57,9 +57,11 @@ export default async function Page() {
   const baselineWeekly = weeklyBaselineSeries(data);
 
   // Per-fund curves. fetch-prices.ts unions fund tickers into ALL_TICKERS so
-  // prices.json should already have what we need. A just-created fund whose
-  // tickers haven't been fetched yet returns empty arrays — CompareView
-  // skips plotting that fund's line until the next cron tick fills in.
+  // prices.json should already have what we need. In the window between
+  // creating a fund with a brand-new ticker and the next cron tick backfilling
+  // its history, that holding has no prices yet — the series builders hold it
+  // flat at its allocated principal (weight × $100k) so the fund still totals
+  // the full $100k instead of showing only the fetched holdings' value.
   const fundSeriesMap: Record<string, PortfolioPoint[]> = {};
   const fundIntradayMap: Record<string, { points: PortfolioPoint[]; previousClose: number } | null> = {};
   const fundWeeklyMap: Record<string, PortfolioPoint[] | null> = {};
