@@ -1,6 +1,22 @@
 {
   "funds": [
     {
+      "id": "legacy-auto",
+      "name": "Legacy Auto",
+      "creator": "System",
+      "color": "#FFD60A",
+      "createdAt": "2026-02-05T00:00:00.000Z",
+      "updatedAt": "2026-02-05T00:00:00.000Z",
+      "deletedAt": null,
+      "holdings": [
+        { "ticker": "F", "weight": 0.2 },
+        { "ticker": "GM", "weight": 0.2 },
+        { "ticker": "STLA", "weight": 0.2 },
+        { "ticker": "TM", "weight": 0.2 },
+        { "ticker": "HMC", "weight": 0.2 }
+      ]
+    },
+    {
       "id": "test-9e344",
       "name": "Test",
       "creator": "Brian",

@@ -3,10 +3,19 @@ import { HeaderBack } from "@/components/HeaderBack";
 import { StockView } from "@/components/StockView";
 import { loadPriceData } from "@/lib/data";
 import { loadFundamentalsForTicker } from "@/lib/fundamentals-data";
+import { activeFundTickers } from "@/lib/funds";
 import { ALL_TICKERS } from "@/lib/picks";
 
-export function generateStaticParams() {
-  return ALL_TICKERS.map((ticker) => ({ ticker }));
+// Player picks + active-fund holdings (e.g. the Legacy Auto comparison fund's
+// Ford / Toyota / Honda, which no player owns). StockView already renders a
+// no-owner state, so fund-only tickers get a working detail page.
+async function browsableTickers(): Promise<string[]> {
+  const fundTickers = await activeFundTickers();
+  return [...new Set([...ALL_TICKERS, ...fundTickers])];
+}
+
+export async function generateStaticParams() {
+  return (await browsableTickers()).map((ticker) => ({ ticker }));
 }
 
 export const dynamic = "force-static";
@@ -18,7 +27,7 @@ export default async function Page({
 }) {
   const { ticker } = await params;
   const upper = ticker.toUpperCase();
-  if (!ALL_TICKERS.includes(upper)) notFound();
+  if (!(await browsableTickers()).includes(upper)) notFound();
   const data = await loadPriceData();
   const series = data.tickers[upper];
   if (!series) notFound();

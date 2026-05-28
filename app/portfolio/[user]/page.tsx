@@ -1,27 +1,30 @@
 import { notFound } from "next/navigation";
 import { HeaderBack } from "@/components/HeaderBack";
-import { PortfolioView } from "@/components/PortfolioView";
+import { PortfolioView, type CompSeries } from "@/components/PortfolioView";
 import { loadPriceData } from "@/lib/data";
+import { loadActiveFunds } from "@/lib/funds";
 import { loadFundamentalsData } from "@/lib/fundamentals-data";
 import { buildPortfolioComposition } from "@/lib/portfolio-composition";
 import {
   baselinePortfolioSeries,
   buildHoldingRows,
+  fundSeries as buildFundSeries,
   intradayBaselineSeries,
+  intradayFundSeries,
   intradayPortfolioSeries,
   portfolioSeries,
   weeklyBaselineSeries,
+  weeklyFundSeries,
   weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import { USER_LIST, type UserId } from "@/lib/picks";
 
-export function generateStaticParams() {
-  return USER_LIST.map((u) => ({ user: u.id }));
-}
-
 const VALID_USERS = new Set(USER_LIST.map((u) => u.id as string));
 
-export const dynamic = "force-static";
+// Dynamic (not force-static) because the page now reads active funds from
+// config/funds.json to offer them as comparison overlays — a freshly-saved
+// fund should appear without waiting for a redeploy. Mirrors app/page.tsx.
+export const dynamic = "force-dynamic";
 
 export default async function Page({
   params,
@@ -43,6 +46,34 @@ export default async function Page({
   const baselineDaily = baselinePortfolioSeries(data);
   const baselineIntraday = intradayBaselineSeries(data);
   const baselineWeekly = weeklyBaselineSeries(data);
+
+  // The other players, available as toggle-on comparison overlays. Same three
+  // curves the Compare page builds, minus the current player (always shown).
+  const players: CompSeries[] = USER_LIST.filter((u) => u.id !== userId).map(
+    (u) => ({
+      id: u.id,
+      name: u.name,
+      color: u.color,
+      daily: portfolioSeries(data, u.id),
+      intraday: intradayPortfolioSeries(data, u.id),
+      weekly: weeklyPortfolioSeries(data, u.id),
+    })
+  );
+
+  // Active funds (incl. the Legacy Auto comparison), same overlay shape.
+  const activeFunds = await loadActiveFunds();
+  const funds = activeFunds.map((f) => ({
+    id: f.id,
+    name: f.name,
+    color: f.color,
+    daily: buildFundSeries(data, f),
+    intraday: intradayFundSeries(data, f),
+    weekly: weeklyFundSeries(data, f),
+    pending: f.holdings
+      .filter((h) => data.tickers[h.ticker] == null)
+      .map((h) => h.ticker),
+  }));
+
   const fundamentals = await loadFundamentalsData();
   const composition = buildPortfolioComposition(userId, holdings, fundamentals);
   return (
@@ -56,6 +87,8 @@ export default async function Page({
         baselineDaily={baselineDaily.length > 0 ? baselineDaily : null}
         baselineIntraday={baselineIntraday}
         baselineWeekly={baselineWeekly}
+        players={players}
+        funds={funds}
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
         generatedAt={data.generatedAt}
         holdings={holdings}
