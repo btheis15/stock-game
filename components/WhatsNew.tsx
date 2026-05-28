@@ -62,16 +62,30 @@ export function WhatsNew() {
         type="button"
         onClick={handleOpen}
         aria-label={hasUnseen ? "What's new — new updates" : "What's new"}
-        className="relative -mt-1 -mr-1 w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-800/60 transition-colors"
+        className={`relative -mt-1 -mr-1 inline-flex items-center gap-1.5 rounded-full border pl-2 pr-2.5 py-1 text-[12px] font-semibold transition-colors ${
+          hasUnseen
+            ? "text-white"
+            : "border-zinc-700 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-zinc-600 active:bg-zinc-800"
+        }`}
+        style={
+          hasUnseen
+            ? {
+                color: "#ffffff",
+                borderColor: "rgba(0, 200, 5, 0.45)",
+                backgroundColor: "rgba(0, 200, 5, 0.10)",
+              }
+            : undefined
+        }
       >
         <BellIcon ring={hasUnseen} />
+        <span>What&apos;s new</span>
         {hasUnseen && (
           <span
-            className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full ring-2"
+            className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2"
             style={{
               backgroundColor: "var(--gain)",
-              // ringed in the page background color so the dot reads as a
-              // floating badge in both dark and light themes.
+              // ringed in the page background so the dot reads as a floating
+              // badge in both dark and light themes.
               ["--tw-ring-color" as string]: "var(--background)",
             }}
           />
@@ -327,7 +341,7 @@ function Chevron({ expanded }: { expanded: boolean }) {
 
 function BellIcon({ ring }: { ring: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden>
+    <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5" aria-hidden>
       <path
         d="M18 8a6 6 0 10-12 0c0 5-2 6-2 6h16s-2-1-2-6"
         stroke="currentColor"

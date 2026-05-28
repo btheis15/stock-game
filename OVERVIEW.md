@@ -39,7 +39,8 @@ Four things, on a phone screen:
    three dragging them down. Each row shows the ticker, the stock's current
    share price, the % move for the range, and the per-share dollar move
    ("points up/down"). In the top-right corner of the Compare header there's
-   a **bell icon** — a "What's new" feed. Tapping it slides up a sheet listing
+   a **"What's new" pill** (a small bell + label that turns green when there's
+   an unseen update) — a recent-updates feed. Tapping it slides up a sheet listing
    the major updates to the app from the last 30 days (new tabs, new charts,
    new ways to compare), each written in plain English with a one-tap expand
    explaining what the feature is and how to use it. A small green dot on the

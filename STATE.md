@@ -291,8 +291,9 @@ components/
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
-  WhatsNew.tsx        Bell icon (top-right of the Compare header) + slide-up "What's new"
-                      sheet. Lists major user-facing updates from the last 30 days, sourced
+  WhatsNew.tsx        "What's new" pill (top-right of the Compare header — bell icon + label;
+                      turns green-tinted with an unread dot when there's an unseen update)
+                      + slide-up sheet. Lists major user-facing updates from the last 30 days, sourced
                       from `lib/changelog.ts` (`recentEntries()`). Each card expands inline
                       (framer-motion height animation) to a plain-language explanation of the
                       feature and how to use it. An unread dot (—gain green) shows when the
@@ -362,7 +363,7 @@ components/
                       a sports-standings style stack of <UserRow>s (rank + color dot + name
                       + gap + value), scales to N players automatically. InsightsCard renders
                       for every range (1D included). The "Compare" eyebrow row carries a
-                      <WhatsNew /> bell on its right edge (recent-updates sheet).
+                      <WhatsNew /> pill on its right edge (recent-updates sheet).
                       Three data-source paths in `ranged`:
                         • 1D → intraday[u.id].points (15-min bars, today's session)
                         • 1W → weekly[u.id] (hourly bars, past 5 trading days; compactX=true)
