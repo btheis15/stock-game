@@ -9,11 +9,26 @@
       "updatedAt": "2026-02-05T00:00:00.000Z",
       "deletedAt": null,
       "holdings": [
-        { "ticker": "F", "weight": 0.2 },
-        { "ticker": "GM", "weight": 0.2 },
-        { "ticker": "STLA", "weight": 0.2 },
-        { "ticker": "TM", "weight": 0.2 },
-        { "ticker": "HMC", "weight": 0.2 }
+        {
+          "ticker": "F",
+          "weight": 0.2
+        },
+        {
+          "ticker": "GM",
+          "weight": 0.2
+        },
+        {
+          "ticker": "STLA",
+          "weight": 0.2
+        },
+        {
+          "ticker": "TM",
+          "weight": 0.2
+        },
+        {
+          "ticker": "HMC",
+          "weight": 0.2
+        }
       ]
     },
     {
@@ -55,6 +70,57 @@
         {
           "ticker": "VIGAX",
           "weight": 0.5
+        }
+      ]
+    },
+    {
+      "id": "health-care-oddgl",
+      "name": "Health Care",
+      "creator": "Dr. Fauchi",
+      "color": "#FB923C",
+      "createdAt": "2026-05-28T21:52:44.480Z",
+      "updatedAt": "2026-05-28T21:52:44.480Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "LLY",
+          "weight": 0.1
+        },
+        {
+          "ticker": "JNJ",
+          "weight": 0.1
+        },
+        {
+          "ticker": "ABBV",
+          "weight": 0.1
+        },
+        {
+          "ticker": "UNH",
+          "weight": 0.1
+        },
+        {
+          "ticker": "MRK",
+          "weight": 0.1
+        },
+        {
+          "ticker": "NVO",
+          "weight": 0.1
+        },
+        {
+          "ticker": "TMO",
+          "weight": 0.1
+        },
+        {
+          "ticker": "ISRG",
+          "weight": 0.1
+        },
+        {
+          "ticker": "ABT",
+          "weight": 0.1
+        },
+        {
+          "ticker": "DHR",
+          "weight": 0.1
         }
       ]
     }
