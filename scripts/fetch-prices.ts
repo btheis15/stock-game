@@ -115,9 +115,15 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     .map(([date, amount]) => ({ date, amount }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // Prefer the curated roster short name (e.g. "NVIDIA"); fall back to Yahoo's
+  // company name from the chart meta so fund-only tickers — which aren't in
+  // TICKER_NAMES — still get a real display name instead of the bare symbol.
+  const yahooName =
+    result.meta?.longName?.trim() || result.meta?.shortName?.trim() || undefined;
+
   return {
     ticker: plan.ticker,
-    name: TICKER_NAMES[plan.ticker] ?? plan.ticker,
+    name: TICKER_NAMES[plan.ticker] ?? yahooName ?? plan.ticker,
     startClose,
     closes: merged,
     dividends,

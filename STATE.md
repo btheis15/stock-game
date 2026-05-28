@@ -218,7 +218,8 @@ Functions exported:
 | `weeklyTickerSeries(series)` | Single-ticker weekly hourly series; same filtering + trimming. |
 | `analyzeRange(data, range)` | Per-user range-pct + per-ticker movers + global top gainers/losers. Now handles `1D` via prev-day close → latest intraday bar. |
 | `rangeCloses(series, data, range)` | Single ticker's start/end close for a range. 1D = (prev-day close, latest intraday); other ranges = `lastKnownClose` at the range bounds. |
-| `buildHoldingRows(userId, data)` | Holdings table rows for `PortfolioView`. Now includes `rangeStats: Record<Range, {pct, dollars, endClose}>` per holding so the holdings list reflects the active range. |
+| `buildHoldingRows(userId, data)` | Holdings table rows for `PortfolioView`. Includes `rangeStats: Record<Range, {pct, dollars, endClose}>` per holding so the list reflects the active range, plus `name` (= `TickerSeries.name` from the snapshot) so the row shows the company name. |
+| `buildFundHoldingRows(fund, data)` | Same `HoldingRow` shape for a fund's drill-down (`FundView`); shares from fund weights. Also carries `name` from the snapshot — fund-only tickers (not in `TICKER_NAMES`) rely on the Yahoo name `fetch-prices` now stores in `TickerSeries.name`. |
 | `filterRange(points, range)` | Slice daily points to last N days; for 1D returns full set (caller substitutes intraday). |
 | `rangeBounds(tradingDates, range)` | Start/end date strings of a range. 1D = (last-2 trading day, last trading day). |
 | `sessionBoundsForDate(intradayDateUTC)` | UTC `[start, end]` for the extended US session (7:00 AM – 6:00 PM ET) on that date (DST heuristic). |
@@ -802,6 +803,9 @@ lib/                           Pure logic, no React
 
 scripts/
   fetch-prices.ts              Yahoo Finance fetcher. Incremental + today's 15-min intraday + past-week 1h hourly + dividends + spin-off children.
+                               TickerSeries.name = TICKER_NAMES[ticker] ?? chart-meta longName/shortName ?? ticker,
+                               so fund-only tickers (absent from TICKER_NAMES) still get a real company name. Rebuilt
+                               every fetch, so a name fix lands on the next cron tick without a --full run.
   digest.swift                 Apple Intelligence news-digest pipeline. Single file,
                                no third-party deps. Run via `swift digest.swift [...]`.
                                Loads `public/data/prices.json` BEFORE Phase 2 so the
