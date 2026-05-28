@@ -61,6 +61,10 @@ export interface HoldingRangeStat {
 
 export interface HoldingRow {
   ticker: string;
+  /** Company display name from the snapshot (TickerSeries.name): the curated
+   *  short name for roster tickers, else Yahoo's longName/shortName for
+   *  fund-only tickers, else the bare ticker. */
+  name: string;
   shares: number;
   startClose: number;
   currentClose: number;

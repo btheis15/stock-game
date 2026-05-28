@@ -32,11 +32,7 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
-import {
-  BASELINE,
-  STARTING_PORTFOLIO_DOLLARS,
-  TICKER_NAMES,
-} from "@/lib/picks";
+import { BASELINE, STARTING_PORTFOLIO_DOLLARS } from "@/lib/picks";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -275,7 +271,7 @@ export function FundView({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-semibold text-white truncate">
-                      {TICKER_NAMES[h.ticker] ?? h.ticker}
+                      {h.name}
                     </div>
                     <div className="text-[11px] text-zinc-500 tabular-nums">
                       {fmtPct(weightPct)} • {h.shares.toFixed(2)} shares •{" "}

@@ -772,6 +772,7 @@ export function buildHoldingRows(
     return [
       {
         ticker: t,
+        name: s.name,
         shares,
         startClose: s.startClose,
         currentClose,
@@ -817,6 +818,7 @@ export function buildFundHoldingRows(fund: Fund, data: PriceData): HoldingRow[] 
     return [
       {
         ticker: h.ticker,
+        name: s.name,
         shares,
         startClose: s.startClose,
         currentClose,
