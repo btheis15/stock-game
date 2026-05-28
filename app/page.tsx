@@ -65,10 +65,19 @@ export default async function Page() {
   const fundSeriesMap: Record<string, PortfolioPoint[]> = {};
   const fundIntradayMap: Record<string, { points: PortfolioPoint[]; previousClose: number } | null> = {};
   const fundWeeklyMap: Record<string, PortfolioPoint[] | null> = {};
+  // Per-fund list of holding tickers not in the snapshot yet. While non-empty,
+  // those holdings are valued flat at their allocated principal (see
+  // unfetchedHoldingDollars in lib/portfolio.ts) and the fund's live gain/loss
+  // is partial — CompareView surfaces a "updates next refresh" note so the
+  // user isn't confused by an off-looking number.
+  const fundPending: Record<string, string[]> = {};
   for (const f of allKnownFunds) {
     fundSeriesMap[f.id] = buildFundSeries(data, f);
     fundIntradayMap[f.id] = intradayFundSeries(data, f);
     fundWeeklyMap[f.id] = weeklyFundSeries(data, f);
+    fundPending[f.id] = f.holdings
+      .filter((h) => data.tickers[h.ticker] == null)
+      .map((h) => h.ticker);
   }
 
   return (
@@ -83,6 +92,7 @@ export default async function Page() {
       fundSeries={fundSeriesMap}
       fundIntraday={fundIntradayMap}
       fundWeekly={fundWeeklyMap}
+      fundPending={fundPending}
       intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
       generatedAt={data.generatedAt}
       analyses={analyses}
