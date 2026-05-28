@@ -140,6 +140,21 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
     setHoldings((prev) => prev.filter((h) => h.ticker !== ticker));
   }
 
+  // Distribute 100% across N holdings on the 0.1% grid with the
+  // remainder added back to the first M holdings so the total lands
+  // exactly at 100.0%. Without this, N=3 → [33.3, 33.3, 33.3] = 99.9%
+  // and the save button stays disabled with an "off by 0.10%" warning.
+  // For N=3 → [33.4, 33.3, 33.3]. For N=7 → six holdings at 14.3 + one
+  // at 14.2 (sum exactly 100.0).
+  function equalSplitWeights(n: number): number[] {
+    if (n === 0) return [];
+    const baseTenths = Math.floor(1000 / n);
+    const remainder = 1000 - baseTenths * n;
+    return Array.from({ length: n }, (_, i) =>
+      (i < remainder ? baseTenths + 1 : baseTenths) / 1000
+    );
+  }
+
   function addHolding(r: TickerSearchResult) {
     setHoldings((prev) => {
       if (prev.some((h) => h.ticker === r.symbol)) return prev;
@@ -151,15 +166,24 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
         ...prev,
         { ticker: r.symbol, name: r.name, type: r.type, weight: 0 },
       ];
-      const equal = clampWeight(1 / next.length);
-      return next.map((h) => ({ ...h, weight: equal }));
+      const weights = equalSplitWeights(next.length);
+      return next.map((h, i) => ({ ...h, weight: weights[i] }));
     });
   }
 
   function equalSplit() {
     if (holdings.length === 0) return;
-    const equal = clampWeight(1 / holdings.length);
-    setHoldings((prev) => prev.map((h) => ({ ...h, weight: equal })));
+    // Blur any focused weight input so its in-flight draft commits
+    // before we overwrite the weights — without this, the user's
+    // half-typed value would re-commit on blur and override the split.
+    if (
+      typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement
+    ) {
+      document.activeElement.blur();
+    }
+    const weights = equalSplitWeights(holdings.length);
+    setHoldings((prev) => prev.map((h, i) => ({ ...h, weight: weights[i] })));
   }
 
   async function save() {
@@ -541,6 +565,35 @@ function StepWeights({
   totalWeight: number;
   equalSplit: () => void;
 }) {
+  // Per-ticker "draft" string. While present, the input renders this
+  // value verbatim — so backspaces, partial decimals like "33.", and
+  // pasted values stay intact until the user leaves the field. When the
+  // user blurs (or commits via Enter), the draft is parsed, clamped to
+  // the 0.001 grid, written back via setHoldingWeight, and the draft
+  // entry is cleared so the input falls back to the formatted weight.
+  //
+  // Was a bug before: the input value was `fmtPct(h.weight, 1)`, so
+  // every onChange round-tripped the value through clampWeight + format,
+  // which collapsed "33." into "33.0" mid-type and made backspacing
+  // useless. Drafts decouple the typed string from the canonical
+  // numeric weight until the user actually finishes.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  function commitDraft(ticker: string) {
+    const raw = drafts[ticker];
+    setDrafts((d) => {
+      const next = { ...d };
+      delete next[ticker];
+      return next;
+    });
+    if (raw === undefined) return;
+    const cleaned = raw.replace(/[^0-9.]/g, "");
+    if (cleaned === "" || cleaned === ".") return; // empty / "." → keep prior weight
+    const n = parseFloat(cleaned);
+    if (!isFinite(n)) return;
+    setHoldingWeight(ticker, n / 100);
+  }
+
   const off = Math.abs(totalWeight - 1) > WEIGHT_TOLERANCE;
   return (
     <div className="space-y-3">
@@ -571,11 +624,17 @@ function StepWeights({
               <input
                 type="text"
                 inputMode="decimal"
-                value={fmtPct(h.weight, 1).replace("%", "")}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/[^0-9.]/g, "");
-                  const frac = pctToFraction(v);
-                  if (frac !== null) setHoldingWeight(h.ticker, frac);
+                value={drafts[h.ticker] ?? fmtPct(h.weight, 1).replace("%", "")}
+                onChange={(e) =>
+                  setDrafts((d) => ({ ...d, [h.ticker]: e.target.value }))
+                }
+                onBlur={() => commitDraft(h.ticker)}
+                onKeyDown={(e) => {
+                  // Enter commits without forcing the user to tab out.
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
                 }}
                 className="w-20 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-[14px] text-right text-white focus:outline-none focus:border-zinc-600 tabular-nums"
               />
