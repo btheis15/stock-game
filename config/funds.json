@@ -1,4 +1,27 @@
 {
-  "_comment": "User-created comparison funds. Open game — anyone can create / edit / delete via the Compare page UI; the server action in app/api/funds/ writes here through the GitHub Contents API (requires GITHUB_TOKEN env var on Vercel). Soft-delete via `deletedAt`; the Manage view's Archive tab lets the creator restore within 7 days. Validate locally: `python3 scripts/validate-funds.py`.",
-  "funds": []
+  "funds": [
+    {
+      "id": "test-9e344",
+      "name": "Test",
+      "creator": "Brian",
+      "color": "#14B8A6",
+      "createdAt": "2026-05-28T16:52:29.898Z",
+      "updatedAt": "2026-05-28T16:52:29.898Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "VGHCX",
+          "weight": 0.334
+        },
+        {
+          "ticker": "VOO",
+          "weight": 0.333
+        },
+        {
+          "ticker": "BOND",
+          "weight": 0.333
+        }
+      ]
+    }
+  ]
 }
