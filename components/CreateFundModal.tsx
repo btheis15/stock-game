@@ -424,9 +424,17 @@ function StepSearch({
           `/api/search-tickers?q=${encodeURIComponent(q.trim())}`,
           { signal: ac.signal }
         );
-        if (!res.ok) throw new Error(`Search failed (${res.status})`);
-        const body = (await res.json()) as { results: TickerSearchResult[] };
-        setResults(body.results);
+        const body = (await res.json().catch(() => ({}))) as {
+          results?: TickerSearchResult[];
+          error?: string;
+        };
+        if (!res.ok) {
+          // Show the upstream error message when the proxy supplies one,
+          // so future Yahoo flakiness reads clearly instead of just
+          // "(502)". Falls back to the status code if no body.
+          throw new Error(body.error ?? `Search failed (${res.status})`);
+        }
+        setResults(body.results ?? []);
       } catch (e) {
         if ((e as { name?: string }).name === "AbortError") return;
         setSearchErr(e instanceof Error ? e.message : "search failed");
