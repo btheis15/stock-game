@@ -179,6 +179,54 @@ let PLAYERS: [PlayerRoster] = {
     }
 }()
 
+// --- User-created funds (config/funds.json) ---------------------------------
+// Read at startup; loaded array stays in memory for the duration of the
+// process. Empty array when the file is missing or all funds are archived.
+//
+// Soft-deleted funds within the 7-day restore window stay in the file too,
+// but only ACTIVE funds (deletedAt == nil) get AI digests — once archived,
+// the existing prose just sits frozen until restored.
+
+struct RawFundHolding: Codable {
+    let ticker: String
+    let weight: Double
+}
+
+struct RawFund: Codable {
+    let id: String
+    let name: String
+    let creator: String?
+    let color: String
+    let createdAt: String
+    let updatedAt: String
+    let deletedAt: String?
+    let holdings: [RawFundHolding]
+}
+
+struct RawFundsFile: Codable {
+    let funds: [RawFund]
+}
+
+let FUNDS_JSON_URL: URL = {
+    let scriptPath = URL(fileURLWithPath: CommandLine.arguments.first ?? #filePath)
+    let scriptsDir = scriptPath.deletingLastPathComponent()
+    let repoDir = scriptsDir.deletingLastPathComponent()
+    return repoDir.appendingPathComponent("config/funds.json")
+}()
+
+func loadFundsFromDisk() -> [RawFund] {
+    guard let data = try? Data(contentsOf: FUNDS_JSON_URL) else { return [] }
+    guard let parsed = try? JSONDecoder().decode(RawFundsFile.self, from: data) else {
+        fputs("⚠ funds.json failed to parse — fund digests will be skipped this run\n", stderr)
+        return []
+    }
+    return parsed.funds
+}
+
+// Active funds for digest generation. Archived funds keep their existing
+// prose; restoring re-enables digest generation on the next run.
+let ACTIVE_FUNDS: [RawFund] = loadFundsFromDisk().filter { $0.deletedAt == nil }
+
 // Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
 // with their owner so the LLM sees ownership inline (e.g. "[NVDA/kevin,rick]").
 // Owners preserve PLAYERS iteration order so the tag is deterministic.
@@ -345,6 +393,12 @@ let HOLDING_WINDOWS_DAILY: [WindowKey]  = [.d1, .w1]
 let HOLDING_WINDOWS_WEEKLY: [WindowKey] = [.m1, .m3, .y1, .all]
 let PORTFOLIO_WINDOWS_DAILY: [WindowKey]  = [.d1, .w1]
 let PORTFOLIO_WINDOWS_WEEKLY: [WindowKey] = [.m1, .m3, .y1, .all]
+// User-created funds get a deliberately tighter set: 1D + 1W only. No
+// long-window history — funds are lighter-weight than players (2-sentence
+// prose, no company brief), so the morning chunked run doesn't balloon
+// as the fund count grows.
+let FUND_WINDOWS_DAILY: [WindowKey] = [.d1, .w1]
+let TEMPLATED_FUND_WINDOWS: Set<WindowKey> = [.d1, .w1]
 
 // Game digests emitted with a `digestTemplate` (rendered & live-substituted
 // by the fast tier on every cron tick). The other game windows are regenerated
@@ -507,6 +561,12 @@ struct OutputJSON: Codable {
     // explain *why* the standings look the way they do, citing player names,
     // specific tickers, and percentages from the live price data.
     var game: [String: WindowDigest]?
+    // Per-fund short briefings (Phase 4). Key is the fund id from
+    // config/funds.json. Only 1D + 1W windows are stored — funds are
+    // intentionally lighter weight than player portfolios (2 sentences,
+    // no company brief, no long-window history) so the morning chunked
+    // run doesn't balloon as the fund count grows.
+    var funds: [String: [String: WindowDigest]]?
 }
 
 // Game inception. Every multi-day window's lookback is capped at the elapsed
@@ -2637,6 +2697,212 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int,
     return PortfolioOutcome(userId: player.id, windows: perWindow)
 }
 
+// MARK: - User-created funds (Phase 4 — short-form)
+//
+// Mirrors processPortfolio but with weighted holdings + a tighter prompt.
+// Funds are deliberately lighter-weight than players:
+//   - 1D + 1W only (no long-window history)
+//   - 2-sentence prose (vs 3)
+//   - No company-brief prepend
+//   - No fact-extraction layer
+//   - No long-window stale sweep
+//
+// What we keep: placeholder injection, so the fast tier swaps live pcts
+// every 15 min the same way it does for players + the game digest.
+
+struct FundOutcome {
+    let id: String
+    let windows: [String: WindowDigest]
+}
+
+// Live shares of one ticker in this fund: $ allocated to the ticker /
+// startClose at game-inception. Returns 0 when the ticker isn't in the
+// fund or its price series isn't in prices.json yet.
+func fundShares(fund: RawFund, ticker: String, data: PriceDataLite) -> Double {
+    guard let h = fund.holdings.first(where: { $0.ticker == ticker }) else { return 0 }
+    guard let s = data.tickers[ticker] else { return 0 }
+    return STARTING_PORTFOLIO_DOLLARS * h.weight / s.startClose
+}
+
+struct FundMovers {
+    let pct: Double
+    let movers: [TickerMove]
+}
+
+func computeFundMovers(fund: RawFund, data: PriceDataLite, window: WindowKey) -> FundMovers {
+    var moves: [TickerMove] = []
+    var totalStart = 0.0
+    var totalEnd = 0.0
+    for h in fund.holdings {
+        guard let s = data.tickers[h.ticker] else { continue }
+        let r = rangeCloses(series: s, data: data, window: window)
+        if r.start == 0 { continue }
+        let shares = STARTING_PORTFOLIO_DOLLARS * h.weight / s.startClose
+        let pct = (r.end - r.start) / r.start
+        let dollars = shares * (r.end - r.start)
+        moves.append(TickerMove(ticker: h.ticker, pct: pct, dollars: dollars, endClose: r.end))
+        // Anchor the fund's start/end at the window boundary across all
+        // currently-priced holdings; weight-zero or missing-ticker
+        // holdings are simply excluded.
+        totalStart += shares * r.start
+        totalEnd += shares * r.end
+    }
+    let pct = totalStart == 0 ? 0 : (totalEnd - totalStart) / totalStart
+    return FundMovers(pct: pct, movers: moves)
+}
+
+func formatFundStandingsBlock(_ fm: FundMovers) -> String {
+    let byDollars = fm.movers.sorted { $0.dollars > $1.dollars }
+    let topN = Array(byDollars.prefix(3))
+    let topNTickers = Set(topN.map { $0.ticker })
+    let drags = byDollars
+        .filter { $0.dollars < 0 && !topNTickers.contains($0.ticker) }
+        .reversed()
+        .prefix(2)
+    var lines: [String] = []
+    for (i, m) in topN.enumerated() {
+        lines.append("  \(i + 1). \(m.ticker): \(String(format: "%+.2f%%", m.pct * 100))")
+    }
+    if !drags.isEmpty {
+        lines.append("  Drag:")
+        for d in drags {
+            lines.append("    \(d.ticker): \(String(format: "%+.2f%%", d.pct * 100))")
+        }
+    }
+    return lines.joined(separator: "\n")
+}
+
+func buildFundDigestPrompt(
+    fund: RawFund,
+    window: WindowKey,
+    movers: FundMovers,
+    gameAge: Int
+) -> String {
+    let scope: String
+    switch window {
+    case .d1: scope = "today"
+    case .w1: scope = "this past week"
+    default: scope = "the active range"
+    }
+    // Comma list of all holdings with their allocations, capped to keep
+    // the prompt tight even when a fund holds 20+ tickers.
+    let holdingsLine = fund.holdings
+        .prefix(20)
+        .map { "\($0.ticker) (\(String(format: "%.1f", $0.weight * 100))%)" }
+        .joined(separator: ", ")
+    return """
+    You are writing a brief 2-sentence market summary for the user-created comparison fund "\(fund.name)" \(scope). The fund is a $100,000 paper portfolio split across the holdings below at the Feb 5, 2026 close (day \(gameAge) of the game).
+
+    Holdings (with allocations): \(holdingsLine)
+
+    STANDINGS — top movers in this fund for \(scope):
+    \(formatFundStandingsBlock(movers))
+
+    Write exactly 2 sentences explaining what's driving the fund's range performance: sentence 1 describes the dominant driver (a specific holding's news or move), sentence 2 covers a secondary contributor or drag. Mention the ticker SYMBOL (e.g. AAPL, VTI) of each cited holding so a downstream system can swap in the live percentage.
+
+    Hard rules (read carefully — load-bearing):
+    - DO NOT include any percentages, dollar amounts, or other specific numbers. Numbers are added automatically by a downstream system.
+    - Use ticker SYMBOLS, not company names where the symbol is the standard reference.
+    - Plain prose, single paragraph, no preface, no numbered lists, no bullets.
+    """
+}
+
+func processFund(
+    _ fund: RawFund,
+    data: PriceDataLite,
+    gameAge: Int,
+    windows: [WindowKey] = FUND_WINDOWS_DAILY
+) async -> FundOutcome {
+    log("• Fund \"\(fund.name)\" (\(fund.id)): start (\(fund.holdings.count) holdings)")
+    var perWindow: [String: WindowDigest] = [:]
+    let nowISO = isoFormatter.string(from: Date())
+    let daysAvail = fund.holdings
+        .map { daysOfDataAvailable($0.ticker) }
+        .max() ?? 0
+
+    let entries: [(String, WindowDigest)] = await withTaskGroup(
+        of: (String, WindowDigest).self
+    ) { group -> [(String, WindowDigest)] in
+        for w in windows {
+            let movers = computeFundMovers(fund: fund, data: data, window: w)
+            let hasAnyData = movers.movers.contains { abs($0.dollars) > 0.01 }
+            let effRequired = w.effectiveDaysRequired(gameAge: gameAge)
+            let maturity = dataMaturity(daysOfData: daysAvail, daysRequired: effRequired)
+            // Skip if we have no price data at all (just-created fund whose
+            // tickers haven't been fetched yet) or the window is too young.
+            if !hasAnyData || maturity == "insufficient" {
+                let key = w.rawValue
+                group.addTask {
+                    return (key, WindowDigest(
+                        digest: nil,
+                        articleCount: 0,
+                        dateRange: nil,
+                        avgRelevanceScore: nil,
+                        generatedAt: nowISO,
+                        aiEngine: nil,
+                        dataMaturity: maturity,
+                        daysOfData: daysAvail,
+                        daysRequired: effRequired,
+                        sources: nil
+                    ))
+                }
+                continue
+            }
+            group.addTask {
+                let prompt = buildFundDigestPrompt(fund: fund, window: w, movers: movers, gameAge: gameAge)
+                var digestText: String? = nil
+                do {
+                    let session = LanguageModelSession()
+                    let response = try await session.respond(to: prompt)
+                    digestText = cleanDigestProse(response.content)
+                } catch {
+                    logErr("processFund error \(fund.id) \(w.rawValue): \(error.localizedDescription)")
+                }
+                // Same template-injection step as portfolios + game — we
+                // ask the AI to mention ticker symbols, then post-process
+                // to add {{TICKER}} placeholders that the fast tier swaps
+                // for live pcts every 15 min.
+                var templateText: String? = nil
+                if let d = digestText, TEMPLATED_FUND_WINDOWS.contains(w) {
+                    if proseContainsHallucinatedPcts(d) {
+                        logErr("processFund \(fund.id) \(w.rawValue): hallucinated pct in prose — \(d.prefix(160))")
+                    }
+                    let fundTickers = Set(fund.holdings.map { $0.ticker })
+                    let t = injectDigestPlaceholders(d, tickers: fundTickers, userByName: [:])
+                    if t.contains("{{") {
+                        templateText = t
+                    } else {
+                        logErr("processFund \(fund.id) \(w.rawValue): no ticker mentioned — fast tier won't refresh this window.")
+                    }
+                }
+                log("  Fund \(fund.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—")\(templateText != nil ? " [template]" : "")")
+                return (w.rawValue, WindowDigest(
+                    digest: digestText,
+                    articleCount: 0,
+                    dateRange: nil,
+                    avgRelevanceScore: nil,
+                    generatedAt: nowISO,
+                    aiEngine: digestText != nil ? "AppleIntelligence" : nil,
+                    dataMaturity: maturity,
+                    daysOfData: daysAvail,
+                    daysRequired: effRequired,
+                    sources: nil,
+                    digestTemplate: templateText
+                ))
+            }
+        }
+        var collected: [(String, WindowDigest)] = []
+        for await result in group {
+            collected.append(result)
+        }
+        return collected
+    }
+    for (k, v) in entries {
+        perWindow[k] = v
+    }
+    return FundOutcome(id: fund.id, windows: perWindow)
+}
+
 // MARK: - Game-wide leaderboard analysis (Phase 3)
 
 // Mirror of the relevant slice of public/data/prices.json. We only decode the
@@ -3408,11 +3674,16 @@ func writeOutputJSON(
     _ outcomes: [TickerOutcome],
     portfolios: [PortfolioOutcome],
     game: GameOutcome?,
+    funds: [FundOutcome],
     existing: OutputJSON?,
     to outputURL: URL
 ) throws {
     let validTickers = Set(DEFAULT_TICKERS)
     let validUserIds = Set(PLAYERS.map { $0.id })
+    // Fund IDs visible across the file (active + archived-within-window) so
+    // the merge step preserves archived entries' prose. Funds not in the
+    // current funds.json at all (e.g. file truncated) get dropped.
+    let knownFundIds = Set(loadFundsFromDisk().map { $0.id })
 
     // Holdings: start with existing (filtered to current roster), overlay
     // any per-window updates from this run.
@@ -3456,12 +3727,30 @@ func writeOutputJSON(
         }
     }
 
+    // Funds: merge pattern mirrors portfolios. Funds removed from
+    // funds.json entirely get dropped here; soft-deleted funds still in
+    // the file keep their entries (the UI hides them anyway).
+    var fundsBlock: [String: [String: WindowDigest]] = [:]
+    if let ex = existing, let fb = ex.funds {
+        for (fid, w) in fb where knownFundIds.contains(fid) {
+            fundsBlock[fid] = w
+        }
+    }
+    for f in funds where !f.windows.isEmpty {
+        var merged = fundsBlock[f.id] ?? [:]
+        for (k, v) in f.windows {
+            merged[k] = v
+        }
+        fundsBlock[f.id] = merged
+    }
+
     let out = OutputJSON(
         generatedAt: isoFormatter.string(from: Date()),
         aiEngine: "AppleIntelligence",
         holdings: holdings,
         portfolios: portfolioBlock.isEmpty ? nil : portfolioBlock,
-        game: gameBlock.isEmpty ? nil : gameBlock
+        game: gameBlock.isEmpty ? nil : gameBlock,
+        funds: fundsBlock.isEmpty ? nil : fundsBlock
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -3470,7 +3759,7 @@ func writeOutputJSON(
     let parent = outputURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
     try data.write(to: outputURL)
-    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios, \(gameBlock.count) game windows)")
+    log("✓ wrote \(outputURL.path)  (\(holdings.count) tickers, \(portfolioBlock.count) portfolios, \(gameBlock.count) game windows, \(fundsBlock.count) funds)")
 }
 
 // MARK: - Fast tier (template re-render)
@@ -3495,6 +3784,7 @@ func runFastTier(args: Args) async {
     var gameRendered = 0
     var portfolioRendered = 0
     var holdingsRendered = 0
+    var fundsRendered = 0
 
     // Game windows
     var gameBlock = existing.game ?? [:]
@@ -3541,9 +3831,28 @@ func runFastTier(args: Args) async {
     }
     existing.holdings = holdingsBlock
 
+    // Per-fund windows — same pattern. Funds keep their archived prose
+    // (fast tier doesn't archive/restore; it just re-renders templates
+    // for whatever's in the file).
+    if var fundsBlock = existing.funds {
+        for (fid, windows) in fundsBlock {
+            var updated = windows
+            for w in TEMPLATED_FUND_WINDOWS {
+                let key = w.rawValue
+                guard var wd = updated[key], let template = wd.digestTemplate else { continue }
+                wd.digest = renderGameDigestTemplate(template, window: w, data: priceData)
+                wd.generatedAt = nowISO
+                updated[key] = wd
+                fundsRendered += 1
+            }
+            fundsBlock[fid] = updated
+        }
+        existing.funds = fundsBlock.isEmpty ? nil : fundsBlock
+    }
+
     existing.generatedAt = nowISO
     if args.dryRun {
-        log("DRY RUN — would re-render \(gameRendered) game + \(portfolioRendered) portfolio + \(holdingsRendered) holding window(s).")
+        log("DRY RUN — would re-render \(gameRendered) game + \(portfolioRendered) portfolio + \(holdingsRendered) holding + \(fundsRendered) fund window(s).")
         return
     }
     let encoder = JSONEncoder()
@@ -3551,7 +3860,7 @@ func runFastTier(args: Args) async {
     do {
         let data = try encoder.encode(existing)
         try data.write(to: args.outputPath)
-        log("✓ fast tier rendered \(gameRendered) game + \(portfolioRendered) portfolio + \(holdingsRendered) holding window(s).")
+        log("✓ fast tier rendered \(gameRendered) game + \(portfolioRendered) portfolio + \(holdingsRendered) holding + \(fundsRendered) fund window(s).")
     } catch {
         logErr("Fast tier: failed to write \(args.outputPath.path): \(error.localizedDescription)")
     }
@@ -3948,6 +4257,25 @@ func runMain() async {
         log("Skipping game-wide summary (subset run).")
     }
 
+    // Phase 4: per-fund short briefings. Only runs in the all-tickers slot
+    // (daily / finalize), same as portfolios + game. Skipped for chunks
+    // since funds aggregate across tickers, not per-ticker.
+    var fundOutcomes: [FundOutcome] = []
+    if !portfolioWindows.isEmpty, runAllTickers, let pd = priceData, !ACTIVE_FUNDS.isEmpty {
+        let gameAge = gameAgeInDays()
+        log("Phase 4: generating digests for \(ACTIVE_FUNDS.count) active fund(s).")
+        for fund in ACTIVE_FUNDS {
+            let f = await processFund(fund, data: pd, gameAge: gameAge, windows: FUND_WINDOWS_DAILY)
+            fundOutcomes.append(f)
+        }
+    } else if ACTIVE_FUNDS.isEmpty {
+        log("Skipping fund digests (no active funds in config/funds.json).")
+    } else if portfolioWindows.isEmpty {
+        log("Skipping fund digests for scope=\(args.scope.rawValue).")
+    } else if !runAllTickers {
+        log("Skipping fund digests (subset run).")
+    }
+
     // Stale long-window sweep — finalize-only. Picks the K oldest 1M/3M/1Y/ALL
     // summaries across holdings + portfolios and regenerates them, so the
     // weekly tier doesn't have to do everything in one Saturday batch. K comes
@@ -3971,7 +4299,7 @@ func runMain() async {
 
     let existing = loadExistingDigests(at: args.outputPath)
     do {
-        try writeOutputJSON(outcomes, portfolios: portfolios, game: game, existing: existing, to: args.outputPath)
+        try writeOutputJSON(outcomes, portfolios: portfolios, game: game, funds: fundOutcomes, existing: existing, to: args.outputPath)
     } catch {
         logErr("Failed to write output JSON: \(error.localizedDescription)")
         exit(1)
@@ -4027,6 +4355,24 @@ func runMain() async {
             holdingsBlock[ticker] = updated
         }
         refreshed.holdings = holdingsBlock
+
+        // Per-fund template render — keeps live pcts current in the fund
+        // briefings as soon as the daily run finishes, instead of waiting
+        // for the next 15-min fast-tier tick.
+        if var fundsBlock = refreshed.funds {
+            for (fid, windows) in fundsBlock {
+                var updated = windows
+                for w in TEMPLATED_FUND_WINDOWS {
+                    let key = w.rawValue
+                    guard var wd = updated[key], let tmpl = wd.digestTemplate else { continue }
+                    wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd)
+                    wd.generatedAt = nowISO
+                    updated[key] = wd
+                }
+                fundsBlock[fid] = updated
+            }
+            refreshed.funds = fundsBlock.isEmpty ? nil : fundsBlock
+        }
 
         refreshed.generatedAt = nowISO
         let encoder = JSONEncoder()
