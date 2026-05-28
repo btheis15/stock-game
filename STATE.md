@@ -291,6 +291,15 @@ components/
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
+  WhatsNew.tsx        Bell icon (top-right of the Compare header) + slide-up "What's new"
+                      sheet. Lists major user-facing updates from the last 30 days, sourced
+                      from `lib/changelog.ts` (`recentEntries()`). Each card expands inline
+                      (framer-motion height animation) to a plain-language explanation of the
+                      feature and how to use it. An unread dot (—gain green) shows when the
+                      newest entry is more recent than the localStorage `stockgame.whatsNewSeen`
+                      marker; opening the sheet marks all current entries seen. Escape / backdrop
+                      / Close all dismiss; body scroll locks while open. z-[100] above the TabBar,
+                      matching the funds modals. Respects prefers-reduced-motion.
   PullToRefresh.tsx   Two refresh paths in one client component:
                         (a) Pull at scrollY=0, drag past 70px, release → location.reload()
                         (b) Visibility change: if hidden > 60s and becomes visible → reload
@@ -352,7 +361,8 @@ components/
                       Range pct + signed gain-difference gap below. Leaderboard renders as
                       a sports-standings style stack of <UserRow>s (rank + color dot + name
                       + gap + value), scales to N players automatically. InsightsCard renders
-                      for every range (1D included).
+                      for every range (1D included). The "Compare" eyebrow row carries a
+                      <WhatsNew /> bell on its right edge (recent-updates sheet).
                       Three data-source paths in `ranged`:
                         • 1D → intraday[u.id].points (15-min bars, today's session)
                         • 1W → weekly[u.id] (hourly bars, past 5 trading days; compactX=true)
@@ -766,10 +776,14 @@ components/                    Client components (mostly)
   InsightsCard.tsx             "What's driving it" per-user breakdown, ranked.
   TeeTimesView.tsx             Inshalla CC tee-time iframe with header + Open-in-Safari fallback.
   ThemeController.tsx          Toggles light/dark theme based on isMarketLive.
+  WhatsNew.tsx                 Bell + "What's new" recent-updates sheet (last-30-days changelog).
   RangeTabs / TabBar / HeaderBack / PriceHeader / Footer / InstallHint / PullToRefresh / MarketStateBadge
 
 lib/                           Pure logic, no React
   picks.ts                     Players, tickers, colors, ticker → owners[] map.
+  changelog.ts                 Hand-curated, plain-language "What's new" entries (the source
+                               of truth for WhatsNew.tsx). Add an entry per MAJOR user-facing
+                               feature; `recentEntries()` filters to RECENT_WINDOW_DAYS (30).
   events.ts                    Spin-off events (currently empty).
   types.ts                     All TS interfaces.
   portfolio.ts                 (337 LOC) All math + formatters.

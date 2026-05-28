@@ -23,6 +23,7 @@ import {
 import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
+import { WhatsNew } from "./WhatsNew";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -381,8 +382,11 @@ export function CompareView({
   return (
     <div className="pb-24">
       <div className="px-4 pt-2 pb-3">
-        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1">
-          Compare
+        <div className="flex items-start justify-between">
+          <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1">
+            Compare
+          </div>
+          <WhatsNew />
         </div>
         <h1 className="text-[22px] leading-tight font-semibold text-white">
           {!hasAny

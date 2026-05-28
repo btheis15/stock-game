@@ -38,7 +38,15 @@ Four things, on a phone screen:
    it" — for each player, the top three holdings boosting them and the bottom
    three dragging them down. Each row shows the ticker, the stock's current
    share price, the % move for the range, and the per-share dollar move
-   ("points up/down").
+   ("points up/down"). In the top-right corner of the Compare header there's
+   a **bell icon** — a "What's new" feed. Tapping it slides up a sheet listing
+   the major updates to the app from the last 30 days (new tabs, new charts,
+   new ways to compare), each written in plain English with a one-tap expand
+   explaining what the feature is and how to use it. A small green dot on the
+   bell means there's something you haven't seen yet; it clears once you open
+   the sheet. The list is curated by hand in `lib/changelog.ts` — only
+   genuinely notable, user-facing changes show up, so the feed never floods
+   with the every-15-minute data refreshes happening behind the scenes.
 
 2. **Per-player drill-down.** Tap a leaderboard card — or the *name* in any
    "What's driving it" card — and you land on that player's portfolio. Same
