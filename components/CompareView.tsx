@@ -110,20 +110,19 @@ export function CompareView({
   );
 
   // Filter entries grouped for the FilterSheet:
-  //   - Players: every human player, default ON, EXCEPT "legacyauto" — it's
-  //     a themed comparison portfolio rather than a real player, so the
-  //     default-on policy that fits the other five would just clutter the
-  //     chart. Users opt it in via the filter sheet.
+  //   - Players: every human player, default ON. (Legacy Auto used to be a
+  //     default-OFF pseudo-player here; it's now a real comparison fund in
+  //     config/funds.json and lands in the Funds group instead.)
   //   - Baseline: S&P 500, default ON when data is present.
-  //   - Funds: user-created, default OFF so the chart doesn't get crowded
-  //     as funds accumulate; users opt in their own fund.
+  //   - Funds: user-created + the Legacy Auto comparison, default OFF so the
+  //     chart doesn't get crowded as funds accumulate; users opt in their own.
   const filterChips: FilterChipDef[] = useMemo(() => {
     const chips: FilterChipDef[] = USER_LIST.map((u) => ({
       id: u.id,
       name: u.name,
       color: u.color,
       group: "Players" as const,
-      defaultOn: u.id !== "legacyauto",
+      defaultOn: true,
     }));
     if (baselineDaily != null) {
       chips.push({

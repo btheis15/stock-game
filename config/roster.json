@@ -44,13 +44,6 @@
       "color": "#FF375F",
       "color_rgb": "255, 55, 95",
       "tickers": ["ASML", "CRSP", "OKLO", "GLUE", "VVOS", "HUT", "AMRZ", "SMR", "RKLB", "ZBRA"]
-    },
-    {
-      "id": "legacyauto",
-      "name": "Legacy Auto",
-      "color": "#FFD60A",
-      "color_rgb": "255, 214, 10",
-      "tickers": ["F", "GM", "STLA", "TM", "HMC"]
     }
   ],
   "ticker_names": {

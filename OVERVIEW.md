@@ -25,8 +25,9 @@ The point is twofold:
 Four things, on a phone screen:
 
 1. **Compare** (home tab). One colored line per portfolio on a shared chart:
-   Brian green, Kevin blue, Rick orange, Lee purple, Gene pink, Legacy Auto
-   yellow, plus a grey S&P 500 baseline. Drag your finger across the chart
+   Brian green, Kevin blue, Rick orange, Lee purple, Gene pink, plus a grey
+   S&P 500 baseline and any opt-in funds (incl. the yellow Legacy Auto
+   comparison basket). Drag your finger across the chart
    and the header above updates with the gap (in dollars and percent) at
    that exact moment. Below the chart is a sports-standings leaderboard
    showing 1st through last place with each portfolio's current value. Below that, a **game-wide
@@ -41,7 +42,12 @@ Four things, on a phone screen:
 
 2. **Per-player drill-down.** Tap a leaderboard card — or the *name* in any
    "What's driving it" card — and you land on that player's portfolio. Same
-   big chart, but only their line. Below the chart, a **portfolio briefing**
+   big chart, their line by default — but a **Compare** pill above the chart
+   lets you overlay any of the other players, the S&P 500, or any fund (incl.
+   Legacy Auto) right on top, with a little legend showing each line's return
+   for the range. Each overlay is scaled to start where this player started,
+   so the lines fan out by relative performance. Below the chart, a
+   **portfolio briefing**
    summarizing what's happening across that player's holdings for the active
    range — three sentences referencing their actual tickers, with the same
    "Show more" expand-for-sources affordance as the per-stock digest. Below
@@ -143,7 +149,7 @@ think about staleness.
 
 ---
 
-## The six players
+## The five players
 
 | Player | Color | Picks | Per-pick allocation |
 |---|---|---|---|
@@ -152,17 +158,19 @@ think about staleness.
 | **Rick** | orange | COHR, CRWV, GFS, GOOGL, NBIS, QBTS, NVDA, RKLB, S, TSLA | $10,000 |
 | **Lee** | purple | PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, AAPL | $10,000 |
 | **Gene** | pink | ASML, CRSP, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, RKLB, ZBRA | $10,000 |
-| **Legacy Auto** | yellow | F, GM, STLA, TM, HMC | $20,000 |
+
+**Legacy Auto** (yellow — F, GM, STLA, TM, HMC) used to be a sixth player but
+is now a **comparison fund**: a themed basket you can toggle on as an overlay
+rather than a player competing for the top of the leaderboard. It works
+exactly like a custom-created fund (equal 20% weights, same $100k math).
 
 A few notes on this:
-- Per-pick allocation is `$100k ÷ number of picks` — 10 picks → $10k each;
-  Legacy Auto's 5 picks → $20k each. Every player starts with the same
-  $100k total.
+- Per-pick allocation is `$100k ÷ number of picks` — 10 picks → $10k each.
+  Every player starts with the same $100k total.
 - Several tickers are jointly held: NVDA + TSLA by Kevin and Rick, AAPL
-  by Brian and Lee, CRSP by Brian and Gene, RKLB by Rick and Gene, GM by
-  Lee and Legacy Auto. Joint owners share prices but each has their own
-  independent share count (each spent their own per-pick dollars buying
-  it at the 2/5 close).
+  by Brian and Lee, CRSP by Brian and Gene, RKLB by Rick and Gene. Joint
+  owners share prices but each has their own independent share count (each
+  spent their own per-pick dollars buying it at the 2/5 close).
 - Buying happens at the **2026-02-05 closing price**, partial shares allowed.
   Once a share count is set on Feb 5, it doesn't change unless a corporate
   action (spin-off, split) modifies it.

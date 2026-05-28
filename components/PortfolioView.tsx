@@ -21,6 +21,12 @@ import { DigestPanel } from "./DigestPanel";
 import { useDigests } from "@/lib/digests";
 import { PortfolioComposition } from "./PortfolioComposition";
 import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
+import {
+  useFundsFilter,
+  FilterToolbar,
+  FilterSheet,
+  type FilterChipDef,
+} from "./FundsFilter";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -34,6 +40,28 @@ interface IntradayResult {
   previousClose: number;
 }
 
+/** A line that can be overlaid on this player's chart for comparison — another
+ *  player, the S&P 500 baseline, or a fund. Same three curves the Compare page
+ *  builds. */
+export interface CompSeries {
+  id: string;
+  name: string;
+  color: string;
+  daily: PortfolioPoint[];
+  intraday: IntradayResult | null;
+  weekly: PortfolioPoint[] | null;
+}
+
+type CompGroup = FilterChipDef["group"];
+interface CompEntity extends CompSeries {
+  group: CompGroup;
+  defaultOn: boolean;
+}
+
+// Storage key distinct from the Compare page so portfolio overlays and the
+// Compare filter don't share toggles (you usually want fewer overlays here).
+const PORTFOLIO_FILTER_KEY = "stockgame.portfolio.filter";
+
 interface Props {
   userId: UserId;
   series: PortfolioPoint[];
@@ -46,6 +74,10 @@ interface Props {
   baselineDaily: PortfolioPoint[] | null;
   baselineIntraday: IntradayResult | null;
   baselineWeekly: PortfolioPoint[] | null;
+  /** Other players, available as toggle-on comparison overlays (default off). */
+  players: CompSeries[];
+  /** Active funds (incl. Legacy Auto), comparison overlays (default off). */
+  funds: CompSeries[];
   intradayDate: string;
   generatedAt: string;
   holdings: HoldingRow[];
@@ -60,6 +92,8 @@ export function PortfolioView({
   baselineDaily,
   baselineIntraday,
   baselineWeekly,
+  players,
+  funds,
   intradayDate,
   generatedAt,
   holdings,
@@ -68,6 +102,8 @@ export function PortfolioView({
   const user = USERS[userId];
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const { isOn, setOn } = useFundsFilter(PORTFOLIO_FILTER_KEY);
   const { loading: digestsLoading, getPortfolioDigest } = useDigests();
 
   const isIntraday = range === "1D";
@@ -139,32 +175,112 @@ export function PortfolioView({
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
-  // Chart series: the player's raw $ line, plus (when SPY data is available)
-  // a scaled S&P 500 line that starts at the SAME range-start $ as the
-  // player. Scaling = playerStart / baselineStart, so the baseline line
-  // visually answers "if you'd invested this much in SPY at range start,
-  // where would it be now?" — divergence from the player line is exactly
-  // relative performance. Without scaling, the two lines would start at
-  // different $ values and the y-extents wouldn't be comparable.
-  const chartSeries = useMemo<ChartSeries[]>(() => {
-    const out: ChartSeries[] = [
-      { id: userId, color: user.color, data: ranged },
-    ];
-    if (
-      baselineRanged &&
-      baselineRanged.length > 0 &&
-      baselineStartValue > 0 &&
-      baselineValue > 0
-    ) {
-      const scale = baselineValue / baselineStartValue;
-      out.push({
+  // Every line that CAN be overlaid: the other players (default off), the
+  // S&P 500 baseline (default on — preserves the historical "vs market"
+  // overlay), and the funds (default off). The current player is never in
+  // this list; it's always drawn.
+  const comparisonEntities = useMemo<CompEntity[]>(() => {
+    const list: CompEntity[] = players.map((p) => ({
+      ...p,
+      group: "Players",
+      defaultOn: false,
+    }));
+    if (hasBaseline) {
+      list.push({
         id: BASELINE.id,
+        name: BASELINE.name,
         color: BASELINE.color,
-        data: baselineRanged.map((p) => ({ date: p.date, value: p.value * scale })),
+        daily: baselineDaily!,
+        intraday: baselineIntraday,
+        weekly: baselineWeekly,
+        group: "Baseline",
+        defaultOn: true,
       });
     }
-    return out;
-  }, [userId, user.color, ranged, baselineRanged, baselineValue, baselineStartValue]);
+    for (const f of funds) list.push({ ...f, group: "Funds", defaultOn: false });
+    return list;
+  }, [players, funds, hasBaseline, baselineDaily, baselineIntraday, baselineWeekly]);
+
+  const filterChips = useMemo<FilterChipDef[]>(
+    () =>
+      comparisonEntities.map((e) => ({
+        id: e.id,
+        name: e.name,
+        color: e.color,
+        group: e.group,
+        defaultOn: e.defaultOn,
+      })),
+    [comparisonEntities]
+  );
+
+  const visibleComparisons = useMemo(
+    () => comparisonEntities.filter((e) => isOn(e.id, e.defaultOn)),
+    [comparisonEntities, isOn]
+  );
+  const baselineOn = hasBaseline && isOn(BASELINE.id, true);
+
+  // The current player's $ line, plus each visible comparison scaled to start
+  // at the SAME range-start $ as the player (scale = playerStart / entityStart).
+  // A scaled line's divergence from the player line is exactly relative
+  // performance — same trick the single S&P 500 overlay always used, now
+  // generalized to N lines. lineMeta carries name/color for the legend.
+  const { chartSeries, lineMeta } = useMemo(() => {
+    const out: ChartSeries[] = [{ id: userId, color: user.color, data: ranged }];
+    const meta: Record<string, { name: string; color: string }> = {
+      [userId]: { name: user.name, color: user.color },
+    };
+    for (const e of visibleComparisons) {
+      const r = isIntraday
+        ? e.intraday?.points ?? []
+        : isWeeklyHourly
+          ? e.weekly ?? filterRange(e.daily, range)
+          : filterRange(e.daily, range);
+      if (r.length === 0) continue;
+      const eStart = isIntraday
+        ? e.intraday?.previousClose ?? r[0]?.value ?? 0
+        : r[0]?.value ?? 0;
+      if (eStart <= 0 || baselineValue <= 0) continue;
+      const scale = baselineValue / eStart;
+      out.push({
+        id: e.id,
+        color: e.color,
+        data: r.map((p) => ({ date: p.date, value: p.value * scale })),
+      });
+      meta[e.id] = { name: e.name, color: e.color };
+    }
+    return { chartSeries: out, lineMeta: meta };
+  }, [
+    userId,
+    user.color,
+    user.name,
+    ranged,
+    visibleComparisons,
+    isIntraday,
+    isWeeklyHourly,
+    range,
+    baselineValue,
+  ]);
+
+  // Legend / mini-leaderboard for the lines on the chart. Every line starts at
+  // baselineValue (the player's range start) by construction, so each line's
+  // range pct is (v − baselineValue) / baselineValue — scrub-aware via the
+  // chart's reported values. Sorted best-to-worst.
+  const legend = useMemo(() => {
+    const rows = chartSeries.map((s) => {
+      const scrubV = scrub?.values.find((v) => v.id === s.id)?.value;
+      const lastV = s.data[s.data.length - 1]?.value ?? baselineValue;
+      const v = scrubV ?? lastV;
+      const m = lineMeta[s.id];
+      return {
+        id: s.id,
+        name: m.name,
+        color: m.color,
+        pct: baselineValue > 0 ? (v - baselineValue) / baselineValue : 0,
+        isPlayer: s.id === userId,
+      };
+    });
+    return rows.sort((a, b) => b.pct - a.pct);
+  }, [chartSeries, lineMeta, scrub, baselineValue, userId]);
 
   const sorted = useMemo(
     () =>
@@ -183,13 +299,20 @@ export function PortfolioView({
         baseline={baselineValue}
         scrubDate={scrubLabel}
         compareTo={
-          baselineRanged && baselineRanged.length > 0
+          baselineOn && baselineRanged && baselineRanged.length > 0
             ? { label: BASELINE.name, pct: excessVsBaselinePct, color: BASELINE.color }
             : null
         }
       />
 
       {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
+
+      <FilterToolbar
+        chips={filterChips}
+        isOn={isOn}
+        onOpenFilter={() => setFilterOpen(true)}
+        label="Compare"
+      />
 
       <ScrubChart
         series={chartSeries}
@@ -200,6 +323,35 @@ export function PortfolioView({
         baseline={baselineValue}
         compactX={isWeeklyHourly}
       />
+
+      {visibleComparisons.length > 0 && (
+        <div className="px-4 mt-1">
+          <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+            {legend.map((row) => (
+              <div key={row.id} className="flex items-center gap-3 px-3 py-2.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: row.color }}
+                />
+                <span className="flex-1 min-w-0 text-[14px] font-medium text-zinc-200 truncate">
+                  {row.name}
+                  {row.isPlayer && (
+                    <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                      You
+                    </span>
+                  )}
+                </span>
+                <span
+                  className="text-[13px] font-semibold tabular-nums"
+                  style={{ color: row.pct >= 0 ? "#00C805" : "#FF453A" }}
+                >
+                  {fmtPct(row.pct)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <RangeTabs value={range} onChange={setRange} accent={user.color} />
 
@@ -266,6 +418,14 @@ export function PortfolioView({
       </div>
 
       <PortfolioComposition composition={composition} accentColor={user.color} />
+
+      <FilterSheet
+        open={filterOpen}
+        chips={filterChips}
+        isOn={isOn}
+        setOn={setOn}
+        onClose={() => setFilterOpen(false)}
+      />
     </div>
   );
 }

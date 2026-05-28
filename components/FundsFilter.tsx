@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "stockgame.compare.filter";
+const DEFAULT_STORAGE_KEY = "stockgame.compare.filter";
 
 export interface FilterChipDef {
   id: string;
@@ -33,7 +33,7 @@ export interface FundsFilterState {
   toggles: Record<string, boolean>;
 }
 
-export function useFundsFilter(): {
+export function useFundsFilter(storageKey: string = DEFAULT_STORAGE_KEY): {
   state: FundsFilterState;
   isOn: (id: string, defaultOn: boolean) => boolean;
   setOn: (id: string, on: boolean) => void;
@@ -42,7 +42,7 @@ export function useFundsFilter(): {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as FundsFilterState;
         if (parsed && typeof parsed.toggles === "object") {
@@ -52,7 +52,7 @@ export function useFundsFilter(): {
     } catch {
       // Ignore corrupt storage — user gets defaults.
     }
-  }, []);
+  }, [storageKey]);
 
   const isOn = useCallback(
     (id: string, defaultOn: boolean) => {
@@ -66,14 +66,14 @@ export function useFundsFilter(): {
     setState((prev) => {
       const next = { toggles: { ...prev.toggles, [id]: on } };
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        window.localStorage.setItem(storageKey, JSON.stringify(next));
       } catch {
         // Storage full / disabled / private mode — preference still
         // applies for this session, just doesn't persist.
       }
       return next;
     });
-  }, []);
+  }, [storageKey]);
 
   return { state, isOn, setOn };
 }
@@ -85,12 +85,17 @@ export function FilterToolbar({
   onOpenFilter,
   onCreate,
   onManage,
+  label = "Show",
 }: {
   chips: FilterChipDef[];
   isOn: (id: string, defaultOn: boolean) => boolean;
   onOpenFilter: () => void;
-  onCreate: () => void;
-  onManage: () => void;
+  // Omitted on the portfolio page, which only filters comparison overlays —
+  // fund creation / management lives on the Compare tab.
+  onCreate?: () => void;
+  onManage?: () => void;
+  /** Verb in the pill, e.g. "Show" (Compare) or "Compare" (portfolio). */
+  label?: string;
 }) {
   const visibleCount = chips.filter((c) => isOn(c.id, c.defaultOn)).length;
   return (
@@ -102,23 +107,27 @@ export function FilterToolbar({
       >
         <FilterIcon />
         <span>
-          Show {visibleCount} of {chips.length}
+          {label} {visibleCount} of {chips.length}
         </span>
       </button>
       <div className="flex-1" />
-      <button
-        onClick={onCreate}
-        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-black"
-      >
-        + Fund
-      </button>
-      <button
-        onClick={onManage}
-        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-zinc-400"
-        aria-label="Manage funds"
-      >
-        Manage
-      </button>
+      {onCreate && (
+        <button
+          onClick={onCreate}
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-black"
+        >
+          + Fund
+        </button>
+      )}
+      {onManage && (
+        <button
+          onClick={onManage}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-zinc-400"
+          aria-label="Manage funds"
+        >
+          Manage
+        </button>
+      )}
     </div>
   );
 }

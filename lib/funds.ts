@@ -148,6 +148,16 @@ export async function allFundTickers(): Promise<string[]> {
   return [...set];
 }
 
+/** Unique tickers held by ACTIVE funds only. Used to make fund holdings
+ *  browsable on the Stocks tab / stock detail pages even when no player owns
+ *  them (e.g. the Legacy Auto comparison fund's Ford / Toyota / Honda). */
+export async function activeFundTickers(): Promise<string[]> {
+  const funds = await loadActiveFunds();
+  const set = new Set<string>();
+  for (const f of funds) for (const h of f.holdings) set.add(h.ticker);
+  return [...set];
+}
+
 /** Dollars allocated to a single holding at start_date. */
 export function dollarsForHolding(h: FundHolding): number {
   return STARTING_PORTFOLIO_DOLLARS * h.weight;

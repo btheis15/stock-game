@@ -168,8 +168,6 @@ let EMBEDDED_PLAYERS: [PlayerRoster] = [
         tickers: ["PEP","GM","TAP","VZ","UL","DKS","WMT","PFE","HD","AAPL"]),
     PlayerRoster(id: "gene",   name: "Gene",
         tickers: ["ASML","CRSP","OKLO","GLUE","VVOS","HUT","AMRZ","SMR","RKLB","ZBRA"]),
-    PlayerRoster(id: "legacyauto", name: "Legacy Auto",
-        tickers: ["F","GM","STLA","TM","HMC"]),
 ]
 
 let PLAYERS: [PlayerRoster] = {
