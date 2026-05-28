@@ -34,6 +34,28 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 log() { echo "[$(ts)] $*"; }
 
+# --- Cross-pipeline git lock --------------------------------------------
+# cron-update.sh and digest-update.sh can be fired by the scheduler at the
+# same minute (e.g. 7:00 AM is both a 15-min refresh tick and the default
+# briefing time). Both scripts touch git, and concurrent git
+# fetch/pull/commit/push on the same repo races on .git/index.lock and
+# refs locks — under `set -e` the loser aborts the whole pipeline. macOS
+# has no flock(1), so we use mkdir as the atomic primitive.
+GIT_LOCK_DIR="/tmp/stock-game-git.lock"
+acquire_git_lock() {
+  local timeout=300 elapsed=0
+  while ! mkdir "$GIT_LOCK_DIR" 2>/dev/null; do
+    if [ "$elapsed" -ge "$timeout" ]; then
+      log "git lock held for >${timeout}s by another pipeline — aborting"
+      return 1
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+}
+release_git_lock() { rmdir "$GIT_LOCK_DIR" 2>/dev/null || true; }
+trap release_git_lock EXIT
+
 log "starting update in $REPO_DIR"
 
 # Pause marker — `touch scripts/.pause` halts the schedule cleanly.
@@ -53,10 +75,12 @@ fi
 # Sync with origin/main before doing work — handles laptop merges so our push
 # always fast-forwards. --autostash protects against any accidental WIP.
 log "rebasing onto origin/main"
+acquire_git_lock || exit 1
 pre_rebase_sha="$(git rev-parse HEAD)"
 git fetch origin main
 git pull --rebase --autostash origin main
 post_rebase_sha="$(git rev-parse HEAD)"
+release_git_lock
 
 # If laptop changed dependencies (package-lock.json or package.json) or
 # node_modules is missing, install before running the fetch script. This
@@ -94,8 +118,10 @@ fi
 status_lines="$(git status --porcelain public/data/prices.json public/digests.json)"
 if [ -n "$status_lines" ]; then
   log "data and/or digests changed — committing"
+  acquire_git_lock || exit 1
   git add public/data/prices.json public/digests.json
   git commit -m "data: $(ts)"
+  release_git_lock
 else
   log "no data change since last run"
 fi
@@ -113,6 +139,7 @@ if [ "$unpushed" -eq 0 ]; then
 else
   log "pushing $unpushed commit(s) to origin/main"
   push_attempts=0
+  acquire_git_lock || exit 1
   while ! git push 2>&1; do
     push_attempts=$((push_attempts + 1))
     if [ "$push_attempts" -ge 5 ]; then
@@ -123,6 +150,7 @@ else
     git fetch origin main
     git pull --rebase --autostash origin main
   done
+  release_git_lock
 fi
 
 # Vercel auto-deploys from the GitHub webhook on push to main. If that

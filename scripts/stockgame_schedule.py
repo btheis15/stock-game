@@ -9,6 +9,7 @@ Run:
 or  npm run stockgame
 """
 
+import collections
 import json
 import os
 import py_compile
@@ -27,6 +28,101 @@ SCRIPT_PATH = os.path.abspath(__file__)
 REFRESH_SCRIPT = os.path.join(REPO_DIR, "scripts", "cron-update.sh")
 DIGEST_SCRIPT = os.path.join(REPO_DIR, "scripts", "digest-update.sh")
 LOG_FILE = "/tmp/stock-game.log"
+# Cross-pipeline git lock — must match the path cron-update.sh and
+# digest-update.sh use. Three pipelines (refresh, digest, scheduler's own
+# pulls) all touch git on independent cadences; without serialization their
+# concurrent fetches race on .git/FETCH_HEAD and produce duplicate-entry
+# corruption ("Cannot rebase onto multiple branches"). mkdir is the atomic
+# primitive — macOS doesn't have flock(1).
+GIT_LOCK_DIR = "/tmp/stock-game-git.lock"
+
+
+def acquire_git_lock(timeout_seconds=300):
+    """Try to claim the cross-pipeline git lock. Returns True on success,
+    False if another pipeline held it for >timeout_seconds."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            os.mkdir(GIT_LOCK_DIR)
+            return True
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(1)
+
+
+def release_git_lock():
+    try:
+        os.rmdir(GIT_LOCK_DIR)
+    except OSError:
+        pass
+
+
+# --- Retry-with-backoff for pipeline runs -------------------------------
+# Both the refresh and the digest pipelines occasionally fail for transient
+# reasons (git lock contention right at the start, Apple Intelligence
+# briefly unavailable, network blip, etc.). One-shot "we tried, it failed,
+# wait for the next scheduled run" wastes a whole tick / chunk. The list
+# below drives an initial attempt + N retries spaced by these many seconds.
+# Total max wait: 30 + 90 + 180 = 300 s (5 min), comfortably below the
+# 15-min refresh cadence and the 60-min chunk cadence.
+RETRY_BACKOFFS_SECONDS = [30, 90, 180]
+
+# Keep the tail of subprocess output so a failure can be diagnosed without
+# replaying the whole transcript. 40 lines comfortably captures the typical
+# bash/swift "things went bad" tail (git error block + final exit line).
+MAX_OUTPUT_LINES_FOR_DIAGNOSIS = 40
+
+# Known error signatures that map to a short human-readable cause. Walked
+# in order against the last lines of output; first match wins. Order is
+# important — put the most specific patterns first so a generic "git" hit
+# doesn't beat a specific "FETCH_HEAD" hit.
+ERROR_SIGNATURES = [
+    ("Cannot rebase onto multiple branches",        "git FETCH_HEAD race (concurrent fetches)"),
+    ("There is no candidate for rebasing",          "git FETCH_HEAD race (no for-merge entry)"),
+    ("Unable to create '.git/index.lock'",          "git index.lock contention"),
+    ("git lock held for >",                         "another pipeline held the cross-pipeline lock past the timeout"),
+    ("non-fast-forward",                            "git push rejected — non-fast-forward (laptop / phone pushed something newer)"),
+    ("refusing to merge unrelated histories",       "git divergent histories"),
+    ("Apple Intelligence unavailable",              "Apple Intelligence unavailable (device asleep, signed out, or PCC down)"),
+    ("modelNotReady",                               "Apple Intelligence model not ready yet"),
+    ("Could not load prices.json",                  "prices.json missing or unreadable"),
+    ("yahoo-finance2",                              "Yahoo Finance fetch error"),
+    ("ETIMEDOUT",                                   "network timeout"),
+    ("ECONNRESET",                                  "network connection reset"),
+    ("EAI_AGAIN",                                   "DNS resolution failure"),
+    ("getaddrinfo ENOTFOUND",                       "DNS resolution failure"),
+    ("npm ERR",                                     "npm install / run error"),
+    ("scripts/.pause exists",                       "scripts/.pause file present — pipeline is intentionally paused"),
+    ("current branch is",                           "not on main branch — pipeline refuses to run"),
+    ("push failed after 5 retries",                 "git push retry loop in cron-update.sh exhausted"),
+    ("Exceeded model context window size",          "Apple Intelligence prompt too long"),
+]
+
+
+def diagnose_failure(last_output_lines):
+    """Walk the tail of subprocess output looking for known error signatures.
+    Returns a short human-readable cause string, or a generic fallback if
+    nothing matched. The cause is what the UI label + log line surface so
+    the user can tell at a glance whether the failure is transient (worth
+    retrying) or something requiring attention."""
+    if not last_output_lines:
+        return "no output captured"
+    blob = "\n".join(last_output_lines)
+    for needle, cause in ERROR_SIGNATURES:
+        if needle in blob:
+            return cause
+    # Common shell-error tails — fall back to the last non-empty line if
+    # nothing matched a known pattern, since the script's own final error
+    # message is usually the most useful signal.
+    for line in reversed(last_output_lines):
+        s = line.strip()
+        if s:
+            # Truncate long lines so they fit in the UI label
+            return f"unknown — last log line: {s[:120]}"
+    return "unknown error (no output)"
+
+
 # Persisted schedule state so the auto-restart on GitHub update is seamless —
 # stockgame_schedule.py re-execs, then on launch re-applies whatever schedule
 # was active before. Lives outside the repo so it doesn't leak into commits.
@@ -78,10 +174,15 @@ RE_PROGRESS_DONE = re.compile(r"^✓\s+wrote\s+.*digests\.json")
 # game windows; weekly skips RSS and generates 1M/3M/1Y/ALL per ticker + per
 # portfolio with no game windows; fast does template re-renders only and is
 # fast enough that no progress bar is useful.
-PROGRESS_STEPS_PER_TICKER = {"daily": 1 + 2, "weekly": 4, "fast": 0, "game": 0}        # RSS + per-window
-PROGRESS_STEPS_PER_PORTFOLIO = {"daily": 2, "weekly": 4, "fast": 0, "game": 0}
-PROGRESS_STEPS_GAME = {"daily": 6, "weekly": 0, "fast": 0, "game": 6}
+PROGRESS_STEPS_PER_TICKER = {"daily": 1 + 2, "weekly": 4, "fast": 0, "game": 0, "finalize": 0}        # RSS + per-window
+PROGRESS_STEPS_PER_PORTFOLIO = {"daily": 2, "weekly": 4, "fast": 0, "game": 0, "finalize": 2}
+PROGRESS_STEPS_GAME = {"daily": 6, "weekly": 0, "fast": 0, "game": 6, "finalize": 6}
 PLAYER_COUNT = 5
+# Total ticker count assumed by the progress estimator before swift's header
+# line lands and refines it. Used by chunked mode to divide the roster into
+# N approximately-equal slices. Stays in sync with DEFAULT_TICKERS in
+# digest.swift — swift is authoritative for the actual partitioning.
+DEFAULT_TICKER_COUNT = 45
 
 
 class SchedulerApp:
@@ -116,6 +217,16 @@ class SchedulerApp:
         self.digest_minutes = None
         self.last_digest_text = "—"
         self.last_digest_ok = None
+        # Chunked-morning mode: when on, the daily briefing is split into N
+        # passes throughout the morning (each does a slice of tickers + their
+        # per-ticker digests only) plus one "finalize" pass at the end that
+        # regenerates per-portfolio + game digests against the now-complete
+        # per-ticker archive. Saturday's weekly tier is unaffected. These
+        # describe the NEXT scheduled fire so _fire_digest knows what to do.
+        self.digest_kind = None         # "daily" | "weekly" | "chunk" | "finalize"
+        self.digest_chunk_index = None  # 0-indexed when kind=="chunk"
+        self.digest_chunk_total = None  # total chunks when kind=="chunk"
+        self.digest_stale_max = 0       # # of oldest long-window summaries to sweep in finalize
 
         # Two independent locks: the price refresh (cron-update.sh) and the
         # digest pipeline (digest-update.sh) are allowed to run concurrently
@@ -275,6 +386,57 @@ class SchedulerApp:
             justify="left",
         ).grid(row=8, column=0, columnspan=4, padx=5, pady=(8, 4), sticky="w")
 
+        # Chunked morning mode — split the daily run into N per-ticker passes
+        # across the morning, then one finalize pass for portfolio + game.
+        # Avoids the single 25-30 min stretch on the Mac mini. Saturday's
+        # weekly tier is unaffected (still a single shot).
+        self.chunked_mode_var = tk.BooleanVar(value=False)
+        self.chunk_count_var = tk.StringVar(value="5")
+        self.chunk_interval_var = tk.StringVar(value="60")
+        chunked_frame = tk.Frame(self.root)
+        chunked_frame.grid(
+            row=9, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w"
+        )
+        tk.Checkbutton(
+            chunked_frame,
+            text="Split daily run into",
+            variable=self.chunked_mode_var,
+            command=self._on_chunked_toggle,
+        ).pack(side="left")
+        tk.Spinbox(
+            chunked_frame, from_=2, to=12, width=3,
+            textvariable=self.chunk_count_var,
+        ).pack(side="left", padx=(2, 2))
+        tk.Label(chunked_frame, text="chunks every").pack(side="left")
+        tk.Spinbox(
+            chunked_frame, from_=15, to=180, increment=15, width=4,
+            textvariable=self.chunk_interval_var,
+        ).pack(side="left", padx=(2, 2))
+        tk.Label(
+            chunked_frame,
+            text="min (+ 1 interval for portfolio/game finalize)",
+        ).pack(side="left")
+
+        # Stale long-window sweep — each finalize pass refreshes the K oldest
+        # 1M/3M/1Y/ALL summaries. Spreads the weekly-tier work across the
+        # weekdays so long windows don't sit a full week between regens.
+        # Set to 0 to disable. 15 means a 45-ticker × 4-window roster cycles
+        # in ~12 weekdays (~2.5 weeks).
+        self.stale_max_var = tk.StringVar(value="15")
+        stale_frame = tk.Frame(self.root)
+        stale_frame.grid(
+            row=10, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w"
+        )
+        tk.Label(stale_frame, text="Refresh").pack(side="left")
+        tk.Spinbox(
+            stale_frame, from_=0, to=60, increment=5, width=3,
+            textvariable=self.stale_max_var,
+        ).pack(side="left", padx=(2, 2))
+        tk.Label(
+            stale_frame,
+            text="oldest long-window summaries (1M/3M/1Y/ALL) per finalize (0 = off)",
+        ).pack(side="left")
+
     def _create_status_labels(self):
         # Compact reference card so the cadence is visible at a glance —
         # mirrors the three tiers the digest pipeline runs on.
@@ -295,16 +457,16 @@ class SchedulerApp:
             justify="left",
             anchor="w",
         )
-        self.cadence_label.grid(row=9, column=0, columnspan=4, padx=5, pady=(8, 6), sticky="w")
+        self.cadence_label.grid(row=11, column=0, columnspan=4, padx=5, pady=(8, 6), sticky="w")
 
         self.next_run_label = tk.Label(self.root, text="No refresh scheduled.")
-        self.next_run_label.grid(row=10, column=0, columnspan=4, padx=5, pady=(6, 2))
+        self.next_run_label.grid(row=12, column=0, columnspan=4, padx=5, pady=(6, 2))
         self.last_run_label = tk.Label(self.root, text="Last run: —")
-        self.last_run_label.grid(row=11, column=0, columnspan=4, padx=5, pady=2)
+        self.last_run_label.grid(row=13, column=0, columnspan=4, padx=5, pady=2)
         self.next_digest_label = tk.Label(self.root, text="No briefing scheduled.")
-        self.next_digest_label.grid(row=12, column=0, columnspan=4, padx=5, pady=(8, 2))
+        self.next_digest_label.grid(row=14, column=0, columnspan=4, padx=5, pady=(8, 2))
         self.last_digest_label = tk.Label(self.root, text="Last briefing: —")
-        self.last_digest_label.grid(row=13, column=0, columnspan=4, padx=5, pady=2)
+        self.last_digest_label.grid(row=15, column=0, columnspan=4, padx=5, pady=2)
 
         # Progress bar — only visible while a briefing is mid-run. The reader
         # thread updates self._progress_done as digest.swift's stdout streams
@@ -326,24 +488,24 @@ class SchedulerApp:
             fg="#888",
             font=("", 9),
         )
-        self.repo_label.grid(row=16, column=0, columnspan=4, padx=5, pady=(0, 4))
+        self.repo_label.grid(row=18, column=0, columnspan=4, padx=5, pady=(0, 4))
 
     def _create_buttons(self):
         self.schedule_button = tk.Button(
             self.root, text="Schedule Run", command=self.schedule_task
         )
         self.schedule_button.grid(
-            row=17, column=0, columnspan=2, sticky="ew", padx=5, pady=5
+            row=19, column=0, columnspan=2, sticky="ew", padx=5, pady=5
         )
         self.run_now_button = tk.Button(
             self.root, text="Run Now", command=self.run_now
         )
         self.run_now_button.grid(
-            row=17, column=2, columnspan=2, sticky="ew", padx=5, pady=5
+            row=19, column=2, columnspan=2, sticky="ew", padx=5, pady=5
         )
 
         self.stop_button = tk.Button(self.root, text="Stop", command=self.stop_task)
-        self.stop_button.grid(row=18, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
+        self.stop_button.grid(row=20, column=0, columnspan=4, sticky="ew", padx=5, pady=5)
 
         # Explicit per-scope briefing buttons. Each forces a specific scope
         # regardless of which day it is. The scheduled morning timer still
@@ -369,14 +531,14 @@ class SchedulerApp:
             command=lambda: self._fire_briefing_scope("daily"),
         )
         self.run_daily_briefing_button.grid(
-            row=19, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
+            row=21, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
         )
         self.run_weekly_briefing_button = tk.Button(
             self.root, text="Run Weekly Briefing",
             command=lambda: self._fire_briefing_scope("weekly"),
         )
         self.run_weekly_briefing_button.grid(
-            row=19, column=2, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
+            row=21, column=2, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
         )
 
         self.run_game_briefing_button = tk.Button(
@@ -384,21 +546,21 @@ class SchedulerApp:
             command=lambda: self._fire_briefing_scope("game"),
         )
         self.run_game_briefing_button.grid(
-            row=20, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
+            row=22, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
         )
         self.run_all_briefings_button = tk.Button(
             self.root, text="Run All Briefings (Daily + Weekly)",
             command=self.run_all_briefings_now,
         )
         self.run_all_briefings_button.grid(
-            row=20, column=2, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
+            row=22, column=2, columnspan=2, sticky="ew", padx=5, pady=(0, 5)
         )
 
         self.open_log_button = tk.Button(
             self.root, text="Open Log", command=self.open_log
         )
         self.open_log_button.grid(
-            row=21, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
+            row=23, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 4)
         )
 
         # --- GitHub sync row (auto-pulled by the cron's `git pull --rebase` ---
@@ -411,7 +573,7 @@ class SchedulerApp:
             self.root,
             text="GitHub sync",
             font=("", 12, "bold"),
-        ).grid(row=22, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
+        ).grid(row=24, column=0, columnspan=4, padx=5, pady=(12, 2), sticky="w")
         self.auto_restart_var = tk.BooleanVar(value=True)
         tk.Checkbutton(
             self.root,
@@ -419,19 +581,19 @@ class SchedulerApp:
             variable=self.auto_restart_var,
             wraplength=380,
             justify="left",
-        ).grid(row=23, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
+        ).grid(row=25, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="w")
         self.code_sync_label = tk.Label(
             self.root,
             text="Code: in sync with origin/main",
             fg="#0a7",
             font=("", 9),
         )
-        self.code_sync_label.grid(row=24, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
+        self.code_sync_label.grid(row=26, column=0, columnspan=4, padx=5, pady=(2, 4), sticky="w")
         self.restart_button = tk.Button(
             self.root, text="Restart now (pull + re-exec)", command=self.restart_now
         )
         self.restart_button.grid(
-            row=25, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
+            row=27, column=0, columnspan=4, sticky="ew", padx=5, pady=(0, 8)
         )
 
     # ---------------- SCHEDULING ----------------
@@ -476,13 +638,14 @@ class SchedulerApp:
             self.digest_minutes = self._parse_minutes(
                 self.digest_hour_var, self.digest_minute_var, self.digest_ampm_var
             )
-            digest_target = self._next_daily_digest_time(now)
-            self._schedule_digest_at(digest_target)
+            digest_event = self._next_digest_event(now)
+            self._schedule_digest_at(digest_event)
 
             self.update_next_run_label()
             self.update_next_digest_label()
             self.schedule_button.config(state=tk.DISABLED)
-            print(f"Scheduled refresh at {target_time}; first briefing at {digest_target}.")
+            digest_when = digest_event[0] if digest_event else None
+            print(f"Scheduled refresh at {target_time}; first briefing at {digest_when}.")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -539,6 +702,10 @@ class SchedulerApp:
         self.run_end_minutes = None
         self.window_wraps_midnight = False
         self.digest_minutes = None
+        self.digest_kind = None
+        self.digest_chunk_index = None
+        self.digest_chunk_total = None
+        self.digest_stale_max = 0
         self.update_next_run_label()
         self.update_next_digest_label()
         self.schedule_button.config(state=tk.NORMAL)
@@ -610,146 +777,285 @@ class SchedulerApp:
             return None
         return "daily"
 
-    def _next_daily_digest_time(self, now):
-        """Next datetime to fire a digest. Today at the configured time if it
-        hasn't passed yet, otherwise tomorrow. Always skips Sunday. When
-        weekdays-only is on, also skips Saturday — otherwise Saturday runs the
-        weekly slow tier."""
+    def _read_chunked_config(self):
+        """Coerce the UI variables for chunked mode into validated ints.
+        Returns (chunked_enabled, num_chunks, interval_min, stale_max)."""
+        enabled = bool(self.chunked_mode_var.get())
+        try:
+            num_chunks = int(self.chunk_count_var.get())
+        except (ValueError, TypeError):
+            num_chunks = 5
+        num_chunks = max(2, min(12, num_chunks))
+        try:
+            interval_min = int(self.chunk_interval_var.get())
+        except (ValueError, TypeError):
+            interval_min = 60
+        interval_min = max(15, min(180, interval_min))
+        try:
+            stale_max = int(self.stale_max_var.get())
+        except (ValueError, TypeError):
+            stale_max = 15
+        stale_max = max(0, min(60, stale_max))
+        return enabled, num_chunks, interval_min, stale_max
+
+    def _next_digest_event(self, now):
+        """Next digest event to fire. Returns a tuple
+        (fire_time, kind, chunk_index, chunk_total, stale_max) or None.
+
+        kind ∈ {"daily", "weekly", "chunk", "finalize"}.
+          - "daily" / "weekly": non-chunked single-shot run.
+          - "chunk":  one of N per-ticker passes that morning. chunk_index
+            and chunk_total are set; stale sweep is reserved for finalize.
+          - "finalize": post-chunks pass that regenerates portfolios + game
+            and (if stale_max > 0) refreshes the K oldest long-window
+            summaries.
+
+        Always skips Sunday. Saturday runs the weekly tier as a single shot
+        regardless of chunked mode (chunked mode applies to Mon-Fri only).
+        """
         if self.digest_minutes is None:
             return None
-        candidate = datetime(now.year, now.month, now.day) + timedelta(minutes=self.digest_minutes)
-        if candidate <= now:
-            candidate += timedelta(days=1)
+
+        chunked, num_chunks, interval_min, stale_max = self._read_chunked_config()
+        today_start = datetime(now.year, now.month, now.day) + timedelta(minutes=self.digest_minutes)
+
+        day_offset = 0
         while True:
-            scope = self._digest_scope_for_day(candidate.weekday())
-            if scope is None:
-                candidate += timedelta(days=1)
+            day_start = today_start + timedelta(days=day_offset)
+            scope = self._digest_scope_for_day(day_start.weekday())
+            if scope is None:                        # Sunday → next day
+                day_offset += 1
                 continue
             if scope == "weekly" and self.weekdays_only_var.get():
-                candidate += timedelta(days=1)
+                day_offset += 1
                 continue
-            break
-        return candidate
 
-    def _schedule_digest_at(self, run_at):
-        if run_at is None:
+            if scope == "weekly" or not chunked:
+                if day_start > now:
+                    return (day_start, scope, None, None, 0)
+                day_offset += 1
+                continue
+
+            # Daily + chunked mode: schedule N chunks + 1 finalize across the
+            # morning. Each chunk i fires at digest_minutes + i*interval_min;
+            # finalize fires one interval after the last chunk.
+            for i in range(num_chunks):
+                t = day_start + timedelta(minutes=i * interval_min)
+                if t > now:
+                    return (t, "chunk", i, num_chunks, 0)
+            finalize_t = day_start + timedelta(minutes=num_chunks * interval_min)
+            if finalize_t > now:
+                return (finalize_t, "finalize", None, None, stale_max)
+            day_offset += 1
+
+    def _schedule_digest_at(self, event):
+        """Arm the digest timer for the next event. `event` is the tuple
+        returned by _next_digest_event. Stores kind/chunk/stale fields so
+        the UI can render them; the timer thread receives them as args so
+        a later re-arm doesn't race with the still-pending fire."""
+        if event is None:
+            self.digest_kind = None
+            self.digest_chunk_index = None
+            self.digest_chunk_total = None
+            self.digest_stale_max = 0
             return
+        run_at, kind, chunk_i, chunk_n, stale_max = event
         delay = max(0.0, (run_at - datetime.now()).total_seconds())
         self.digest_timer = threading.Timer(
-            delay, self._fire_digest, args=(run_at,)
+            delay, self._fire_digest, args=(run_at, kind, chunk_i, chunk_n, stale_max),
         )
         self.digest_timer.daemon = True
         self.digest_timer.start()
         self.digest_scheduled_time = run_at
+        self.digest_kind = kind
+        self.digest_chunk_index = chunk_i
+        self.digest_chunk_total = chunk_n
+        self.digest_stale_max = stale_max
 
-    def _fire_digest(self, scheduled_for):
+    def _fire_digest(self, scheduled_for, kind, chunk_i, chunk_n, stale_max):
         # Independent of the refresh lock — digest can run while the 15-min
-        # stock refresh is firing on its own cadence. The bash scripts handle
-        # the git push race (they commit different files and retry on
-        # non-fast-forward push).
+        # stock refresh is firing on its own cadence. The bash scripts'
+        # cross-pipeline git lock serializes the actual git operations.
         if self._wait_and_start_digest():
             try:
-                scope = self._digest_scope_for_day(scheduled_for.weekday())
-                if scope is None:
-                    print("Skipping briefing (Sunday).")
+                if kind == "chunk":
+                    self._run_digest(scope="daily", chunk=(chunk_i, chunk_n))
+                elif kind == "finalize":
+                    self._run_digest(scope="finalize", stale_max=stale_max)
+                elif kind in ("daily", "weekly"):
+                    self._run_digest(scope=kind)
                 else:
-                    self._run_digest(scope=scope)
+                    print(f"Unknown digest kind: {kind}")
             finally:
                 self._finish_digest()
         else:
             print("Skipped scheduled briefing: prior briefing still running.")
 
-        # Re-arm for the next weekday.
-        next_run = self._next_daily_digest_time(datetime.now() + timedelta(minutes=1))
-        self._schedule_digest_at(next_run)
+        # Re-arm for the next event.
+        next_event = self._next_digest_event(datetime.now() + timedelta(minutes=1))
+        self._schedule_digest_at(next_event)
         self._on_main_thread(self.update_next_digest_label)
 
-    def _run_digest(self, scope=None):
+    def _on_chunked_toggle(self):
+        """User flipped the chunked-mode toggle (or changed chunk count /
+        interval). Re-compute the next event in place so the UI reflects
+        the change immediately. Only re-arms if a digest schedule is already
+        active — otherwise the change just persists into the next
+        Schedule Run."""
+        if self.digest_timer is None or self.digest_minutes is None:
+            return
+        self.digest_timer.cancel()
+        self.digest_timer = None
+        next_event = self._next_digest_event(datetime.now())
+        self._schedule_digest_at(next_event)
+        self.update_next_digest_label()
+
+    def _run_digest(self, scope=None, chunk=None, stale_max=0):
+        """Run the digest bash script, retrying transient failures. Three
+        attempts (initial + 2 retries) with 30s / 90s / 180s backoff. The
+        progress bar resets per attempt; last_digest_label tells the user
+        which attempt is running. Once exhausted, gives up cleanly so the
+        next scheduled chunk / finalize / daily can run."""
         if not os.path.exists(DIGEST_SCRIPT):
             print(f"Digest script not found: {DIGEST_SCRIPT}")
             return
         if scope is None:
             scope = self._digest_scope_for_day(datetime.now().weekday()) or "daily"
+
+        mode = "digests-only" if self.skip_fetch_var.get() else "full"
+        chunk_label = f" chunk={chunk[0] + 1}/{chunk[1]}" if chunk is not None else ""
+        stale_label = f" stale_max={stale_max}" if stale_max and stale_max > 0 else ""
+
+        # Estimate progress total once per dispatch — doesn't change across
+        # retries since the chunk's ticker count is fixed.
+        chunk_tickers = None
+        if chunk is not None:
+            chunk_size = (DEFAULT_TICKER_COUNT + chunk[1] - 1) // chunk[1]
+            start_idx = min(chunk[0] * chunk_size, DEFAULT_TICKER_COUNT)
+            end_idx = min(start_idx + chunk_size, DEFAULT_TICKER_COUNT)
+            chunk_tickers = end_idx - start_idx
+        progress_total = self._estimate_progress_total(scope, chunk_tickers)
+
+        # Pass scope + mode through env — digest-update.sh reads them and
+        # picks the right --scope / --digests-only / --chunk flags for
+        # digest.swift. DIGEST_STALE_MAX is consumed by the finalize scope's
+        # stale-sweep step.
+        env = os.environ.copy()
+        env["DIGEST_MODE"] = mode
+        env["DIGEST_SCOPE"] = scope
+        if chunk is not None:
+            env["DIGEST_CHUNK"] = f"{chunk[0]}/{chunk[1]}"
+        if stale_max and stale_max > 0:
+            env["DIGEST_STALE_MAX"] = str(stale_max)
+
+        max_attempts = len(RETRY_BACKOFFS_SECONDS) + 1
+        last_failure_msg = "unknown error"
         try:
-            start_time = datetime.now().strftime("%m/%d/%Y %-I:%M:%S%p")
-            mode = "digests-only" if self.skip_fetch_var.get() else "full"
-            print(f"Briefing started at {start_time} (scope={scope}, mode={mode}).")
-            self._on_main_thread(
-                self.last_digest_label.config,
-                text=f"Briefing running… (started {start_time}, scope={scope}, mode={mode})",
-                fg="#aaa",
-            )
-            # Pass scope + mode through env — digest-update.sh reads both and
-            # picks the right --scope / --digests-only flags for digest.swift.
-            env = os.environ.copy()
-            env["DIGEST_MODE"] = mode
-            env["DIGEST_SCOPE"] = scope
+            for attempt in range(1, max_attempts + 1):
+                start_time = datetime.now().strftime("%m/%d/%Y %-I:%M:%S%p")
+                attempt_tag = f" (attempt {attempt}/{max_attempts})" if attempt > 1 else ""
+                print(f"Briefing started at {start_time}{attempt_tag} (scope={scope}{chunk_label}{stale_label}, mode={mode}).")
+                self._on_main_thread(
+                    self.last_digest_label.config,
+                    text=f"Briefing running…{attempt_tag} (started {start_time}, scope={scope}{chunk_label}{stale_label}, mode={mode})",
+                    fg="#aaa",
+                )
 
-            # Estimate the total step count from the scope before the swift
-            # script's own header line lands. We re-derive once the header
-            # arrives in case the roster has changed (the swift script
-            # iterates DEFAULT_TICKERS which is its own hardcoded list).
-            self._progress_total = self._estimate_progress_total(scope)
-            self._progress_done = 0
-            self._progress_start_ts = time.monotonic()
-            self._progress_phase = "starting"
-            self._on_main_thread(self._start_progress_ui)
+                # Reset progress bar for each attempt so the user sees it
+                # climb fresh — the right signal that we're starting over.
+                self._progress_total = progress_total
+                self._progress_done = 0
+                self._progress_start_ts = time.monotonic()
+                self._progress_phase = "starting" if attempt == 1 else f"retrying (attempt {attempt})"
+                self._on_main_thread(self._start_progress_ui)
 
-            # Stream stdout line-by-line so we can drive the progress bar
-            # off log markers (no Swift changes needed). stderr is merged
-            # into stdout so warnings, ownership-violation lines, etc.
-            # still hit the log.
-            proc = subprocess.Popen(
-                ["bash", DIGEST_SCRIPT],
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                bufsize=1,
-                text=True,
-            )
-            assert proc.stdout is not None
-            for raw in proc.stdout:
-                line = raw.rstrip()
-                # Mirror the line to our own stdout so /tmp/stock-game.log
-                # still gets the same content the old subprocess.run did.
-                print(line)
-                self._parse_progress_line(line)
-            proc.wait()
-            returncode = proc.returncode
+                recent_lines = collections.deque(maxlen=MAX_OUTPUT_LINES_FOR_DIAGNOSIS)
+                returncode = -1
+                exception_msg = None
+                try:
+                    # Stream stdout line-by-line so we can drive the progress
+                    # bar off log markers. stderr merged into stdout so
+                    # warnings + the error context for diagnosis both land.
+                    proc = subprocess.Popen(
+                        ["bash", DIGEST_SCRIPT],
+                        env=env,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        bufsize=1,
+                        text=True,
+                    )
+                    assert proc.stdout is not None
+                    for raw in proc.stdout:
+                        line = raw.rstrip()
+                        print(line)
+                        self._parse_progress_line(line)
+                        recent_lines.append(line)
+                    proc.wait()
+                    returncode = proc.returncode
+                except Exception as e:
+                    exception_msg = str(e)
+                    recent_lines.append(f"python exception: {exception_msg}")
 
+                finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
+                elapsed_min = (time.monotonic() - self._progress_start_ts) / 60.0
+                if returncode == 0:
+                    self.last_digest_ok = True
+                    tail = f" (succeeded on attempt {attempt})" if attempt > 1 else ""
+                    self.last_digest_text = (
+                        f"Last briefing: {finish_time} ({scope}{chunk_label}) ✓ — ran {elapsed_min:.1f} min{tail}"
+                    )
+                    print(f"Briefing completed at {finish_time} (scope={scope}{chunk_label}, {elapsed_min:.1f} min){tail}.")
+                    self._on_main_thread(
+                        self.last_digest_label.config,
+                        text=self.last_digest_text,
+                        fg="#0a7",
+                    )
+                    return
+
+                cause = exception_msg or diagnose_failure(list(recent_lines))
+                last_failure_msg = f"exit {returncode}: {cause}"
+                print(f"[retry] Briefing attempt {attempt}/{max_attempts} failed — {last_failure_msg}")
+
+                if attempt < max_attempts:
+                    backoff = RETRY_BACKOFFS_SECONDS[attempt - 1]
+                    self._on_main_thread(
+                        self.last_digest_label.config,
+                        text=f"Briefing failed ({cause}) — retry {attempt + 1}/{max_attempts} in {backoff}s",
+                        fg="#a60",
+                    )
+                    time.sleep(backoff)
+
+            # All attempts exhausted — give up cleanly so the next scheduled
+            # chunk / finalize / daily can fire.
+            self.last_digest_ok = False
             finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
-            elapsed_min = (time.monotonic() - self._progress_start_ts) / 60.0
-            if returncode == 0:
-                self.last_digest_ok = True
-                self.last_digest_text = (
-                    f"Last briefing: {finish_time} ({scope}) ✓ — ran {elapsed_min:.1f} min"
-                )
-                print(f"Briefing completed at {finish_time} (scope={scope}, {elapsed_min:.1f} min).")
-            else:
-                self.last_digest_ok = False
-                self.last_digest_text = (
-                    f"Last briefing failed: {finish_time} ({scope}) (exit {returncode})"
-                )
-                print(self.last_digest_text)
+            self.last_digest_text = (
+                f"Last briefing failed: {finish_time} ({scope}{chunk_label}) — {last_failure_msg}"
+                f" (gave up after {max_attempts} attempts; next scheduled run will retry)"
+            )
+            print(self.last_digest_text)
             self._on_main_thread(
                 self.last_digest_label.config,
                 text=self.last_digest_text,
-                fg="#0a7" if self.last_digest_ok else "#c33",
+                fg="#c33",
             )
-            self._on_main_thread(self._stop_progress_ui)
-        except Exception as e:
-            self.last_digest_text = f"Briefing error: {e}"
-            print(self.last_digest_text)
-            self._on_main_thread(
-                self.last_digest_label.config, text=self.last_digest_text, fg="#c33"
-            )
+        finally:
             self._on_main_thread(self._stop_progress_ui)
 
     def update_next_digest_label(self):
         if self.digest_scheduled_time:
-            scope = self._digest_scope_for_day(self.digest_scheduled_time.weekday()) or "daily"
             when = self.digest_scheduled_time.strftime("%a %Y-%m-%d %I:%M %p")
-            self.next_digest_label.config(text=f"Next briefing: {when} ({scope})")
+            kind = self.digest_kind
+            if kind == "chunk" and self.digest_chunk_index is not None and self.digest_chunk_total:
+                tag = f"chunk {self.digest_chunk_index + 1}/{self.digest_chunk_total}"
+            elif kind == "finalize":
+                if self.digest_stale_max and self.digest_stale_max > 0:
+                    tag = f"finalize + sweep {self.digest_stale_max}"
+                else:
+                    tag = "finalize"
+            else:
+                tag = kind or (self._digest_scope_for_day(self.digest_scheduled_time.weekday()) or "daily")
+            self.next_digest_label.config(text=f"Next briefing: {when} ({tag})")
         else:
             self.next_digest_label.config(text="No briefing scheduled.")
 
@@ -816,8 +1122,8 @@ class SchedulerApp:
         """Show the bar + label and reset to 0%. Called on the main thread."""
         self.progress_bar["value"] = 0
         self.progress_bar["maximum"] = self._progress_total
-        self.progress_bar.grid(row=14, column=0, columnspan=4, padx=5, pady=(2, 0), sticky="ew")
-        self.progress_label.grid(row=15, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w")
+        self.progress_bar.grid(row=16, column=0, columnspan=4, padx=5, pady=(2, 0), sticky="ew")
+        self.progress_label.grid(row=17, column=0, columnspan=4, padx=5, pady=(0, 4), sticky="w")
         self.progress_label.config(text=f"Starting briefing… (0 / {self._progress_total})")
 
     def _update_progress_ui(self):
@@ -864,38 +1170,90 @@ class SchedulerApp:
             self._finish_refresh()
 
     def _run_refresh(self):
+        """Run the price-refresh bash script, retrying transient failures.
+        Captures the tail of stdout/stderr so a failure can be classified
+        (FETCH_HEAD race, AI unavailable, network timeout, etc.) and shown
+        in the UI label instead of an opaque `(exit 1)`.
+
+        Three attempts total (initial + 2 retries) with 30s / 90s / 180s
+        backoff between them. Once attempts are exhausted, the pipeline
+        gives up cleanly; the next 15-min scheduled tick fires fresh."""
         if not os.path.exists(REFRESH_SCRIPT):
             print(f"Script not found: {REFRESH_SCRIPT}")
             return
-        try:
+        max_attempts = len(RETRY_BACKOFFS_SECONDS) + 1
+        last_failure_msg = "unknown error"
+        for attempt in range(1, max_attempts + 1):
             start_time = datetime.now().strftime("%m/%d/%Y %-I:%M:%S%p")
-            print(f"Refresh started at {start_time}.")
-            self._on_main_thread(
-                self.last_run_label.config, text=f"Running… (started {start_time})"
-            )
-            result = subprocess.run(["bash", REFRESH_SCRIPT], check=False)
-            finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
-            if result.returncode == 0:
-                self.last_run_ok = True
-                self.last_run_text = f"Last run: {finish_time} ✓"
-                print(f"Refresh completed at {finish_time}.")
-            else:
-                self.last_run_ok = False
-                self.last_run_text = (
-                    f"Last run failed: {finish_time} (exit {result.returncode})"
-                )
-                print(self.last_run_text)
+            attempt_tag = f" (attempt {attempt}/{max_attempts})" if attempt > 1 else ""
+            print(f"Refresh started at {start_time}{attempt_tag}.")
             self._on_main_thread(
                 self.last_run_label.config,
-                text=self.last_run_text,
-                fg="#0a7" if self.last_run_ok else "#c33",
+                text=f"Running…{attempt_tag} (started {start_time})",
+                fg="#aaa",
             )
-        except Exception as e:
-            self.last_run_text = f"Error: {e}"
-            print(self.last_run_text)
-            self._on_main_thread(
-                self.last_run_label.config, text=self.last_run_text, fg="#c33"
-            )
+            # Capture the tail of subprocess output so a failure can be
+            # diagnosed without replaying the whole transcript.
+            recent_lines = collections.deque(maxlen=MAX_OUTPUT_LINES_FOR_DIAGNOSIS)
+            returncode = -1
+            exception_msg = None
+            try:
+                proc = subprocess.Popen(
+                    ["bash", REFRESH_SCRIPT],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    bufsize=1,
+                    text=True,
+                )
+                assert proc.stdout is not None
+                for raw in proc.stdout:
+                    line = raw.rstrip()
+                    print(line)
+                    recent_lines.append(line)
+                proc.wait()
+                returncode = proc.returncode
+            except Exception as e:
+                exception_msg = str(e)
+                recent_lines.append(f"python exception: {exception_msg}")
+
+            finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
+            if returncode == 0:
+                self.last_run_ok = True
+                tail = f" (succeeded on attempt {attempt})" if attempt > 1 else ""
+                self.last_run_text = f"Last run: {finish_time} ✓{tail}"
+                print(f"Refresh completed at {finish_time}{tail}.")
+                self._on_main_thread(
+                    self.last_run_label.config,
+                    text=self.last_run_text,
+                    fg="#0a7",
+                )
+                return
+
+            cause = exception_msg or diagnose_failure(list(recent_lines))
+            last_failure_msg = f"exit {returncode}: {cause}"
+            print(f"[retry] Refresh attempt {attempt}/{max_attempts} failed — {last_failure_msg}")
+
+            if attempt < max_attempts:
+                backoff = RETRY_BACKOFFS_SECONDS[attempt - 1]
+                self._on_main_thread(
+                    self.last_run_label.config,
+                    text=f"Refresh failed ({cause}) — retry {attempt + 1}/{max_attempts} in {backoff}s",
+                    fg="#a60",
+                )
+                time.sleep(backoff)
+
+        # All attempts exhausted — give up cleanly and let the next scheduled
+        # tick try fresh.
+        self.last_run_ok = False
+        finish_time = datetime.now().strftime("%m/%d/%Y %-I:%M%p")
+        self.last_run_text = (
+            f"Last run failed: {finish_time} — {last_failure_msg}"
+            f" (gave up after {max_attempts} attempts; next scheduled tick will retry)"
+        )
+        print(self.last_run_text)
+        self._on_main_thread(
+            self.last_run_label.config, text=self.last_run_text, fg="#c33"
+        )
 
     def open_log(self):
         if not os.path.exists(LOG_FILE):
@@ -1097,12 +1455,19 @@ class SchedulerApp:
     # ---------------- AUTO-SYNC WITH GITHUB ----------------
     def _background_pull(self):
         """Fire-and-forget `git fetch + git pull --rebase --autostash`. Runs on
-        a daemon thread so the UI never blocks. The cron + digest pipelines
-        also pull on their own cadence; whichever wins the .git/index.lock
-        race goes first, the others retry next interval. Origin pushes from
-        the laptop or Claude Code mobile land on disk here within
-        CODE_CHECK_INTERVAL_MS — not "next 15-min cron tick" — so a phone
-        commit at 9pm is live within ~60 s instead of overnight."""
+        a daemon thread so the UI never blocks. Origin pushes from the laptop
+        or Claude Code mobile land on disk here within CODE_CHECK_INTERVAL_MS
+        — not "next 15-min cron tick" — so a phone commit at 9pm is live
+        within ~60 s instead of overnight.
+
+        Holds the cross-pipeline git lock for the duration so cron-update.sh
+        and digest-update.sh don't race on FETCH_HEAD writes (the duplicate
+        FETCH_HEAD entries that triggered "Cannot rebase onto multiple
+        branches" came from this race). Bails silently if another pipeline
+        holds the lock for >30s — that's longer than any git op should take,
+        so it means something is wedged; next interval we'll try again."""
+        if not acquire_git_lock(timeout_seconds=30):
+            return
         try:
             subprocess.run(
                 ["git", "-C", REPO_DIR, "fetch", "--quiet", "origin", "main"],
@@ -1118,10 +1483,12 @@ class SchedulerApp:
                 capture_output=True,
             )
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            # Network blip / lock contention / git missing — silently retry
-            # next interval. Persistent failures get caught by _restart_self's
-            # pull when an actual restart is attempted.
+            # Network blip / git missing — silently retry next interval.
+            # Persistent failures get caught by _restart_self's pull when an
+            # actual restart is attempted.
             pass
+        finally:
+            release_git_lock()
 
     def _check_for_code_update(self):
         """Polled every CODE_CHECK_INTERVAL_MS. Two jobs:
@@ -1149,6 +1516,14 @@ class SchedulerApp:
             self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
             return
         if current_mtime > self.script_loaded_mtime and not self.code_update_pending:
+            # Skip if the mtime change came from a local edit (uncommitted
+            # working-tree modifications to this very file). Auto-restart's
+            # purpose is to pick up origin/main pushes — when the user (or
+            # a Claude Code session) is actively editing locally, a rebase +
+            # autostash would just churn the working tree.
+            if self._has_local_self_edits():
+                self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+                return
             self.code_update_pending = True
             self.code_sync_label.config(
                 text="Code: update pending — will restart when idle",
@@ -1159,6 +1534,23 @@ class SchedulerApp:
                 self._restart_self()
                 return        # _restart_self never returns control on success
         self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+
+    def _has_local_self_edits(self):
+        """Returns True if scripts/stockgame_schedule.py has uncommitted
+        local modifications. Used as a guard against auto-restart firing
+        on every save while the file is being edited locally — in that
+        state `git pull --rebase --autostash` would stash + reapply edits
+        on every poll, which is noisy and unhelpful. Manual "Restart now"
+        still works regardless. Fails closed (returns True) on git error
+        so we err toward NOT auto-restarting when unsure."""
+        try:
+            result = subprocess.run(
+                ["git", "-C", REPO_DIR, "status", "--porcelain", "--", SCRIPT_PATH],
+                capture_output=True, text=True, timeout=10,
+            )
+            return result.returncode != 0 or bool(result.stdout.strip())
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            return True
 
     def restart_now(self):
         """Manual escape hatch — always attempts a restart, even if no code
@@ -1183,7 +1575,17 @@ class SchedulerApp:
         # Try a git pull first so the manual button picks up un-pulled commits.
         # The cron's own pull might not have fired yet on a manual click. We
         # capture stderr separately so a network failure shows up in the UI
-        # rather than silently leaving us on stale code.
+        # rather than silently leaving us on stale code. Hold the cross-pipeline
+        # git lock for the duration so we don't race with cron-update.sh /
+        # digest-update.sh on FETCH_HEAD writes.
+        if not acquire_git_lock(timeout_seconds=60):
+            self.code_sync_label.config(
+                text="Code: another git pipeline is busy — retrying next interval",
+                fg="#a60",
+            )
+            self.is_restarting = False
+            self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
+            return
         try:
             pull = subprocess.run(
                 ["git", "-C", REPO_DIR, "pull", "--rebase", "--autostash", "origin", "main"],
@@ -1205,6 +1607,8 @@ class SchedulerApp:
             self.is_restarting = False
             self.root.after(CODE_CHECK_INTERVAL_MS, self._check_for_code_update)
             return
+        finally:
+            release_git_lock()
 
         # Syntax-check the (possibly just-pulled) source before we re-exec.
         try:
@@ -1250,6 +1654,10 @@ class SchedulerApp:
             "digest_scheduled": self.digest_timer is not None,
             "digest_minutes": self.digest_minutes,
             "skip_fetch": self.skip_fetch_var.get(),
+            "chunked_mode": self.chunked_mode_var.get(),
+            "chunk_count": self.chunk_count_var.get(),
+            "chunk_interval": self.chunk_interval_var.get(),
+            "stale_max": self.stale_max_var.get(),
             "auto_restart": self.auto_restart_var.get(),
             "saved_at": datetime.now().isoformat(),
         }
@@ -1280,6 +1688,13 @@ class SchedulerApp:
         self.auto_restart_var.set(bool(state.get("auto_restart", True)))
         self.weekdays_only_var.set(bool(state.get("weekdays_only", True)))
         self.skip_fetch_var.set(bool(state.get("skip_fetch", False)))
+        self.chunked_mode_var.set(bool(state.get("chunked_mode", False)))
+        if "chunk_count" in state:
+            self.chunk_count_var.set(str(state["chunk_count"]))
+        if "chunk_interval" in state:
+            self.chunk_interval_var.set(str(state["chunk_interval"]))
+        if "stale_max" in state:
+            self.stale_max_var.set(str(state["stale_max"]))
 
         if state.get("scheduled") and state.get("interval_minutes"):
             self.interval_minutes = state["interval_minutes"]
@@ -1294,7 +1709,7 @@ class SchedulerApp:
 
         if state.get("digest_scheduled") and state.get("digest_minutes") is not None:
             self.digest_minutes = state["digest_minutes"]
-            next_digest = self._next_daily_digest_time(datetime.now())
+            next_digest = self._next_digest_event(datetime.now())
             self._schedule_digest_at(next_digest)
             self.update_next_digest_label()
 

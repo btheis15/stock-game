@@ -1,0 +1,108 @@
+{
+  "_comment": "Source of truth for the game roster — read by lib/picks.ts (frontend) and scripts/digest.swift (briefing pipeline). To change a player's holdings, edit `users[].tickers` here and push. The Mac mini's next 15-min git pull picks it up; the next price-refresh fetches historical data for any new ticker back to start_date (backtracking is automatic — shares = starting_dollars / N / startClose). Validate locally before pushing: `python3 scripts/validate-roster.py`.",
+  "start_date": "2026-02-05",
+  "starting_dollars": 100000,
+  "baseline": {
+    "id": "sp500",
+    "name": "S&P 500",
+    "color": "#9CA3AF",
+    "color_rgb": "156, 163, 175",
+    "ticker": "SPY"
+  },
+  "users": [
+    {
+      "id": "brian",
+      "name": "Brian",
+      "color": "#00C805",
+      "color_rgb": "0, 200, 5",
+      "tickers": ["ASTS", "AMZN", "UBER", "SERV", "AAPL", "QCOM", "ISRG", "CRSP", "HON", "EXOD"]
+    },
+    {
+      "id": "kevin",
+      "name": "Kevin",
+      "color": "#5AC8FA",
+      "color_rgb": "90, 200, 250",
+      "tickers": ["TSLA", "NVDA", "AVGO", "MRVL", "CRDO", "PLTR", "ORCL", "ZS", "VST", "VRT"]
+    },
+    {
+      "id": "rick",
+      "name": "Rick",
+      "color": "#FF9F0A",
+      "color_rgb": "255, 159, 10",
+      "tickers": ["COHR", "CRWV", "GFS", "GOOGL", "NBIS", "QBTS", "NVDA", "RKLB", "S", "TSLA"]
+    },
+    {
+      "id": "lee",
+      "name": "Lee",
+      "color": "#BF5AF2",
+      "color_rgb": "191, 90, 242",
+      "tickers": ["PEP", "GM", "TAP", "VZ", "UL", "DKS", "WMT", "PFE", "HD", "AAPL"]
+    },
+    {
+      "id": "gene",
+      "name": "Gene",
+      "color": "#FF375F",
+      "color_rgb": "255, 55, 95",
+      "tickers": ["ASML", "CRSP", "OKLO", "GLUE", "VVOS", "HUT", "AMRZ", "SMR", "RKLB", "ZBRA"]
+    },
+    {
+      "id": "legacyauto",
+      "name": "Legacy Auto",
+      "color": "#FFD60A",
+      "color_rgb": "255, 214, 10",
+      "tickers": ["F", "GM", "STLA", "TM", "HMC"]
+    }
+  ],
+  "ticker_names": {
+    "ASTS": "AST SpaceMobile",
+    "AMZN": "Amazon",
+    "UBER": "Uber",
+    "SERV": "Serve Robotics",
+    "AAPL": "Apple",
+    "QCOM": "Qualcomm",
+    "ISRG": "Intuitive Surgical",
+    "CRSP": "CRISPR Therapeutics",
+    "HON": "Honeywell",
+    "EXOD": "Exodus Movement",
+    "TSLA": "Tesla",
+    "NVDA": "NVIDIA",
+    "AVGO": "Broadcom",
+    "MRVL": "Marvell",
+    "CRDO": "Credo Technology",
+    "PLTR": "Palantir",
+    "ORCL": "Oracle",
+    "ZS": "Zscaler",
+    "VST": "Vistra",
+    "VRT": "Vertiv",
+    "COHR": "Coherent",
+    "CRWV": "CoreWeave",
+    "GFS": "GlobalFoundries",
+    "GOOGL": "Alphabet",
+    "NBIS": "Nebius Group",
+    "QBTS": "D-Wave Quantum",
+    "RKLB": "Rocket Lab",
+    "S": "SentinelOne",
+    "PEP": "PepsiCo",
+    "GM": "General Motors",
+    "TAP": "Molson Coors Beverage",
+    "VZ": "Verizon",
+    "UL": "Unilever",
+    "DKS": "Dick's Sporting Goods",
+    "WMT": "Walmart",
+    "PFE": "Pfizer",
+    "HD": "Home Depot",
+    "ASML": "ASML Holding",
+    "OKLO": "Oklo",
+    "GLUE": "Monte Rosa Therapeutics",
+    "VVOS": "Vivos Therapeutics",
+    "HUT": "Hut 8",
+    "AMRZ": "Amrize",
+    "SMR": "NuScale Power",
+    "ZBRA": "Zebra Technologies",
+    "F": "Ford",
+    "STLA": "Stellantis",
+    "TM": "Toyota",
+    "HMC": "Honda",
+    "SPY": "SPDR S&P 500 ETF"
+  }
+}

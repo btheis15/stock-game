@@ -417,23 +417,43 @@ launches like a native app.
 
 ## How to do common things
 
-### Change my picks
-Don't, after Feb 5. The whole game depends on the share counts being fixed
-at the 2/5 close. If you really need to swap one stock for another mid-game,
-the "honest" approach is to add it as a future-dated event (you'd need to
-extend `lib/events.ts` to support trades, which it currently doesn't).
+### Change a player's picks or add a new player (from anywhere — phone, laptop, GitHub web)
+Edit `config/roster.json`. That single file is the source of truth for both
+the frontend (`lib/picks.ts` imports it) AND the briefing pipeline
+(`scripts/digest.swift` reads it at startup). The Mac mini's 15-min `git
+pull --rebase` picks up the change; the next price-refresh fetches
+historical bars for any newly-added tickers back to `start_date`; the next
+daily digest run regenerates per-portfolio + game digests against the new
+roster.
 
-### Add a new player
-Edit `lib/picks.ts`: add a new entry to `USERS` with `id`, `name`, `color`,
-`tickers`. They'll automatically:
-- Appear on the Compare leaderboard with a 5th line
-- Get a portfolio drill-down at `/portfolio/{their-id}`
-- Be filterable on the Stocks tab
-- Show in the "What's driving it" cards
-- Have shares computed at the 2/5 close
+The "share counts are fixed at the 2/5 close" property still holds: when a
+ticker is added to a player, shares are computed as `starting_dollars / N
+/ startClose` — i.e., as if the player had held it from start_date. Same
+backtracking the original Feb 5 picks got.
 
-If their picks include any new tickers, also add them to `TICKER_NAMES` and
-run `npm run fetch-prices -- --full` to grab those tickers' price history.
+When a roster change is detected (fingerprint in
+`~/StockDigests/.roster-fingerprint.json` vs current
+`config/roster.json`), `digest.swift` automatically drops the stale
+per-portfolio entries for the changed users plus all game-wide entries
+from `public/digests.json`. The next chunk / finalize regenerates them
+against the new roster. Per-ticker article archives and summaries are
+keyed by ticker, not user, so they survive a roster shuffle untouched.
+
+**Workflow from GitHub web UI:**
+1. Edit `config/roster.json` (change a ticker, add a user, etc.).
+2. Optionally validate locally first: `python3 scripts/validate-roster.py`.
+   This catches missing commas, lowercase tickers, missing `ticker_names`
+   entries, duplicate user IDs, etc. — the kind of typos that would
+   otherwise break the Vercel build or the next digest run.
+3. Commit + push (GitHub's web UI does both in one click).
+4. Within ~15 min, the Mac mini's next refresh tick pulls the change.
+   Within ~24 hr (or sooner if the change lands during a chunked morning
+   window), the digests reflect the new roster.
+
+If the JSON is malformed, `digest.swift` falls back to the embedded
+last-known-good roster so the briefing pipeline keeps running; the Vercel
+build fails on the bad import and the previous deploy keeps serving. Push
+a fix and both sides recover on the next 15-min cycle.
 
 ### Add a spin-off (when HON announces theirs)
 Edit `lib/events.ts`. Drop in:

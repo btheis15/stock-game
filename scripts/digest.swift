@@ -26,8 +26,47 @@ import Foundation
 import FoundationModels
 
 // MARK: - Configuration
+//
+// Roster / ticker config is loaded from `config/roster.json` at startup —
+// the SAME file `lib/picks.ts` imports. Edits land via GitHub web UI or any
+// push from any device; the Mac mini's next 15-min git pull picks them up,
+// fetch-prices.ts auto-pulls historical bars for any newly-added tickers
+// back to start_date (which makes backtracking automatic — shares =
+// startingDollars/N / startClose for every holding), and the next daily
+// digest run regenerates portfolio + game digests using the new roster.
+//
+// If the JSON fails to load or parse, we fall back to the EMBEDDED defaults
+// below. That avoids leaving the Mac mini stuck if someone pushes malformed
+// JSON; the next push that fixes the JSON resumes normal operation.
 
-let DEFAULT_TICKERS = [
+struct RawRosterUser: Codable {
+    let id: String
+    let name: String
+    let color: String
+    let color_rgb: String
+    let tickers: [String]
+}
+
+struct RawRosterBaseline: Codable {
+    let id: String
+    let name: String
+    let color: String
+    let color_rgb: String
+    let ticker: String
+}
+
+struct RawRoster: Codable {
+    let start_date: String
+    let starting_dollars: Double
+    let baseline: RawRosterBaseline
+    let users: [RawRosterUser]
+    let ticker_names: [String: String]
+}
+
+// Embedded fallback — last-known-good roster as of code commit time. Used
+// only when `config/roster.json` is missing or won't parse. Keeping this
+// here means a broken roster.json push doesn't disable the pipeline.
+let EMBEDDED_DEFAULT_TICKERS = [
     "ASTS","AMZN","UBER","SERV","AAPL","QCOM","ISRG","CRSP","HON","EXOD",
     "TSLA","NVDA","AVGO","MRVL","CRDO","PLTR","ORCL","ZS","VST","VRT",
     "COHR","CRWV","GFS","GOOGL","NBIS","QBTS","RKLB","S",
@@ -36,57 +75,69 @@ let DEFAULT_TICKERS = [
     "F","STLA","TM","HMC",
 ]
 
-let TICKER_NAMES: [String: String] = [
-    "ASTS": "AST SpaceMobile",
-    "AMZN": "Amazon",
-    "UBER": "Uber",
-    "SERV": "Serve Robotics",
-    "AAPL": "Apple",
-    "QCOM": "Qualcomm",
-    "ISRG": "Intuitive Surgical",
-    "CRSP": "CRISPR Therapeutics",
-    "HON": "Honeywell",
-    "EXOD": "Exodus Movement",
-    "TSLA": "Tesla",
-    "NVDA": "NVIDIA",
-    "AVGO": "Broadcom",
-    "MRVL": "Marvell",
-    "CRDO": "Credo Technology",
-    "PLTR": "Palantir",
-    "ORCL": "Oracle",
-    "ZS": "Zscaler",
-    "VST": "Vistra",
-    "VRT": "Vertiv",
-    "COHR": "Coherent",
-    "CRWV": "CoreWeave",
-    "GFS": "GlobalFoundries",
-    "GOOGL": "Alphabet",
-    "NBIS": "Nebius Group",
-    "QBTS": "D-Wave Quantum",
-    "RKLB": "Rocket Lab",
-    "S": "SentinelOne",
-    "PEP": "PepsiCo",
-    "GM": "General Motors",
-    "TAP": "Molson Coors Beverage",
-    "VZ": "Verizon",
-    "UL": "Unilever",
-    "DKS": "Dick's Sporting Goods",
-    "WMT": "Walmart",
-    "PFE": "Pfizer",
-    "HD": "Home Depot",
-    "ASML": "ASML Holding",
-    "OKLO": "Oklo",
-    "GLUE": "Monte Rosa Therapeutics",
-    "VVOS": "Vivos Therapeutics",
-    "HUT": "Hut 8",
-    "AMRZ": "Amrize",
-    "SMR": "NuScale Power",
+let EMBEDDED_TICKER_NAMES: [String: String] = [
+    "ASTS": "AST SpaceMobile", "AMZN": "Amazon", "UBER": "Uber",
+    "SERV": "Serve Robotics", "AAPL": "Apple", "QCOM": "Qualcomm",
+    "ISRG": "Intuitive Surgical", "CRSP": "CRISPR Therapeutics",
+    "HON": "Honeywell", "EXOD": "Exodus Movement", "TSLA": "Tesla",
+    "NVDA": "NVIDIA", "AVGO": "Broadcom", "MRVL": "Marvell",
+    "CRDO": "Credo Technology", "PLTR": "Palantir", "ORCL": "Oracle",
+    "ZS": "Zscaler", "VST": "Vistra", "VRT": "Vertiv", "COHR": "Coherent",
+    "CRWV": "CoreWeave", "GFS": "GlobalFoundries", "GOOGL": "Alphabet",
+    "NBIS": "Nebius Group", "QBTS": "D-Wave Quantum", "RKLB": "Rocket Lab",
+    "S": "SentinelOne", "PEP": "PepsiCo", "GM": "General Motors",
+    "TAP": "Molson Coors Beverage", "VZ": "Verizon", "UL": "Unilever",
+    "DKS": "Dick's Sporting Goods", "WMT": "Walmart", "PFE": "Pfizer",
+    "HD": "Home Depot", "ASML": "ASML Holding", "OKLO": "Oklo",
+    "GLUE": "Monte Rosa Therapeutics", "VVOS": "Vivos Therapeutics",
+    "HUT": "Hut 8", "AMRZ": "Amrize", "SMR": "NuScale Power",
     "ZBRA": "Zebra Technologies",
     "F": "Ford",
     "STLA": "Stellantis",
     "TM": "Toyota",
     "HMC": "Honda",
 ]
+
+// Resolve config/roster.json relative to the swift script's location.
+// digest.swift lives in <REPO>/scripts/; roster.json lives in <REPO>/config/.
+let ROSTER_JSON_URL: URL = {
+    let scriptPath = URL(fileURLWithPath: CommandLine.arguments.first ?? #filePath)
+    let scriptsDir = scriptPath.deletingLastPathComponent()
+    let repoDir = scriptsDir.deletingLastPathComponent()
+    return repoDir.appendingPathComponent("config/roster.json")
+}()
+
+func loadRoster() -> RawRoster? {
+    guard let data = try? Data(contentsOf: ROSTER_JSON_URL) else {
+        fputs("⚠ roster.json missing at \(ROSTER_JSON_URL.path) — using embedded defaults\n", stderr)
+        return nil
+    }
+    do {
+        return try JSONDecoder().decode(RawRoster.self, from: data)
+    } catch {
+        fputs("⚠ roster.json failed to parse (\(error.localizedDescription)) — using embedded defaults\n", stderr)
+        return nil
+    }
+}
+
+// One-time load. All subsequent code reads from the constants below.
+let LOADED_ROSTER: RawRoster? = loadRoster()
+
+let DEFAULT_TICKERS: [String] = {
+    guard let r = LOADED_ROSTER else { return EMBEDDED_DEFAULT_TICKERS }
+    // Dedupe while preserving first-seen order across users.
+    var seen: Set<String> = []
+    var ordered: [String] = []
+    for u in r.users {
+        for t in u.tickers where !seen.contains(t) {
+            seen.insert(t)
+            ordered.append(t)
+        }
+    }
+    return ordered
+}()
+
+let TICKER_NAMES: [String: String] = LOADED_ROSTER?.ticker_names ?? EMBEDDED_TICKER_NAMES
 
 let RELEVANCE_THRESHOLD = 6
 // Per-article description truncation when an article is rendered into a
@@ -97,16 +148,16 @@ let RELEVANCE_THRESHOLD = 6
 // the context window with 100+ articles in a week.
 let DESC_TRUNCATE = 300
 
-// Player roster — mirrors lib/picks.ts on the web side. The IDs match the
-// route segments at /portfolio/{id}. If the roster changes there, change it
-// here too (or, future work, generate this from picks.ts at build time).
+// Player roster — sourced from config/roster.json (same file lib/picks.ts
+// imports). Falls back to an embedded copy if the JSON load failed; see
+// LOADED_ROSTER above.
 struct PlayerRoster {
-    let id: String         // "brian" | "kevin" | "rick" | "lee"
+    let id: String
     let name: String
     let tickers: [String]
 }
 
-let PLAYERS: [PlayerRoster] = [
+let EMBEDDED_PLAYERS: [PlayerRoster] = [
     PlayerRoster(id: "brian",  name: "Brian",
         tickers: ["ASTS","AMZN","UBER","SERV","AAPL","QCOM","ISRG","CRSP","HON","EXOD"]),
     PlayerRoster(id: "kevin",  name: "Kevin",
@@ -120,6 +171,13 @@ let PLAYERS: [PlayerRoster] = [
     PlayerRoster(id: "legacyauto", name: "Legacy Auto",
         tickers: ["F","GM","STLA","TM","HMC"]),
 ]
+
+let PLAYERS: [PlayerRoster] = {
+    guard let r = LOADED_ROSTER else { return EMBEDDED_PLAYERS }
+    return r.users.map { u in
+        PlayerRoster(id: u.id, name: u.name, tickers: u.tickers)
+    }
+}()
 
 // Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
 // with their owner so the LLM sees ownership inline (e.g. "[NVDA/kevin,rick]").
@@ -205,7 +263,7 @@ let ERROR_LOG_FILE = ARCHIVE_DIR.appendingPathComponent("digest-error.log")
 //          for both holdings and portfolios: 1M / 3M / 1Y / ALL. Game digests
 //          are not touched (they refresh daily / fast).
 enum Scope: String {
-    case fast, daily, weekly, game
+    case fast, daily, weekly, game, finalize
 }
 
 struct Args {
@@ -217,6 +275,14 @@ struct Args {
     var digestsOnly = false
     var scope: Scope = .daily
     var outputPath = DEFAULT_OUTPUT
+    // --chunk N/M (0-indexed) — slice DEFAULT_TICKERS into M roughly-equal
+    // groups and run only the Nth. Used by the scheduler's chunked morning
+    // mode to spread the daily run across multiple shorter passes. Per-ticker
+    // work runs for this chunk; per-portfolio and game-wide rollups are
+    // skipped automatically because args.tickers ends up non-empty (the
+    // existing subset-skip rule in writeOutputJSON's caller).
+    var chunkIndex: Int? = nil
+    var chunkTotal: Int? = nil
 }
 
 func parseArgs() -> Args {
@@ -236,7 +302,25 @@ func parseArgs() -> Args {
             if i < argv.count, let s = Scope(rawValue: argv[i].lowercased()) {
                 a.scope = s
             } else {
-                fputs("--scope requires one of: fast, daily, weekly\n", stderr)
+                fputs("--scope requires one of: fast, daily, weekly, game, finalize\n", stderr)
+                exit(2)
+            }
+        case "--chunk":
+            i += 1
+            if i < argv.count {
+                let parts = argv[i].split(separator: "/")
+                if parts.count == 2,
+                   let idx = Int(parts[0]),
+                   let total = Int(parts[1]),
+                   total > 0, idx >= 0, idx < total {
+                    a.chunkIndex = idx
+                    a.chunkTotal = total
+                } else {
+                    fputs("--chunk requires N/M where 0 <= N < M and M > 0\n", stderr)
+                    exit(2)
+                }
+            } else {
+                fputs("--chunk requires an argument (N/M)\n", stderr)
                 exit(2)
             }
         case "--output":
@@ -266,6 +350,15 @@ let PORTFOLIO_WINDOWS_WEEKLY: [WindowKey] = [.m1, .m3, .y1, .all]
 // by the fast tier on every cron tick). The other game windows are regenerated
 // daily but not templated — their pcts are stale until the next morning run.
 let TEMPLATED_GAME_WINDOWS: Set<WindowKey> = [.d1, .w1, .m1]
+
+// Per-portfolio + per-holding digests also emit templates for these windows.
+// Daily AI run produces the prose with `{{TICKER}}` / `{{user:UID}}` placeholders
+// (via extractGameDigestTemplate — the function name is historical; the
+// extractor is generic), the fast tier re-renders against live prices every
+// 15 min. Weekly windows (1M/3M/1Y/ALL) stay literal — they're only
+// regenerated weekly and we don't expect intraday-current numbers in them.
+let TEMPLATED_PORTFOLIO_WINDOWS: Set<WindowKey> = [.d1, .w1, .m1]
+let TEMPLATED_HOLDING_WINDOWS: Set<WindowKey> = [.d1, .w1, .m1]
 
 // MARK: - Logging
 
@@ -817,6 +910,348 @@ func writeSummary<T: Codable>(_ s: T, to url: URL) throws {
     try data.write(to: url)
 }
 
+// MARK: - Per-day fact extraction (Phase 4)
+//
+// One intermediate layer beneath the daily summary. After Stage-2 scoring
+// keeps the day's top articles, a single AI call extracts atomic facts —
+// one sentence each, tagged by event type (earnings, M&A, analyst, etc.)
+// — and we persist them as `facts/<TICKER>/<DATE>.json`. The daily summary
+// prompt then consumes facts instead of raw articles, so:
+//   - Cross-day dedup is a string-similarity check on the fact list rather
+//     than another AI pass.
+//   - The daily summary becomes a paraphrase-of-structured-input instead
+//     of a fresh distillation, which keeps signal tighter.
+//   - Facts are inspectable in isolation (handy when a digest goes weird —
+//     you can see whether the AI hallucinated or just paraphrased loosely).
+//
+// One extra AI call per ticker per day; the chunked schedule absorbs the
+// wallclock easily.
+
+let FACTS_DIR = ARCHIVE_DIR.appendingPathComponent("facts")
+
+let FACT_TAGS: Set<String> = [
+    "EARNINGS", "MNA", "ANALYST", "PRODUCT",
+    "REGULATORY", "GUIDANCE", "EXEC", "MACRO", "OTHER",
+]
+
+struct Fact: Codable {
+    let tag: String              // one of FACT_TAGS
+    let sentence: String         // one-sentence statement of the event
+    let sourceLink: String?      // first cited article's URL, if mappable
+    let score: Int?              // relevanceScore of the source article (for sorting/debugging)
+}
+
+struct DailyFacts: Codable {
+    let ticker: String
+    let date: String             // YYYY-MM-DD (ET)
+    let generatedAt: String
+    let facts: [Fact]
+    let sourceArticleCount: Int
+    let aiEngine: String?
+}
+
+func factsFile(_ ticker: String, date: String) -> URL {
+    FACTS_DIR.appendingPathComponent(ticker).appendingPathComponent("\(date).json")
+}
+
+func loadDailyFacts(_ ticker: String, date: String) -> DailyFacts? {
+    let url = factsFile(ticker, date: date)
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(DailyFacts.self, from: data)
+}
+
+// Load the last N days of facts ending the day BEFORE `date`. Used to dedup
+// today's freshly-extracted facts against recent history so the daily
+// digest doesn't read "Apple beat earnings" three days in a row.
+func loadRecentFacts(_ ticker: String, before date: String, days: Int) -> [Fact] {
+    guard let endDay = parseDay(date) else { return [] }
+    var all: [Fact] = []
+    for offset in 1...days {
+        guard let d = nyCalendar.date(byAdding: .day, value: -offset, to: endDay) else { continue }
+        let key = dayFormatter.string(from: d)
+        if let df = loadDailyFacts(ticker, date: key) {
+            all.append(contentsOf: df.facts)
+        }
+    }
+    return all
+}
+
+// --- Facts extraction prompt + parser ------------------------------------
+
+let FACT_DESC_TRUNCATE = 360         // tighter than the daily-summary prompt
+let FACTS_ARTICLE_CAP = 20           // fact extractor sees the top-scored slice
+let FACTS_MAX_OUT = 6                // bound on extracted facts per day per ticker
+
+func buildFactsExtractionPrompt(ticker: String, name: String, date: String, articles: [Article]) -> String {
+    let top = articles
+        .sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+        .prefix(FACTS_ARTICLE_CAP)
+    var lines = ""
+    for (i, a) in top.enumerated() {
+        let desc = String(a.description.prefix(FACT_DESC_TRUNCATE))
+        lines += "\(i + 1). \(a.title)\n\(desc)\n\n"
+    }
+    return """
+    Extract atomic business facts about \(ticker) (\(name)) from the articles below, for date \(date). Each fact = ONE specific event with a concrete who/what/when.
+
+    Tag every fact with ONE of these labels:
+      EARNINGS    — quarterly results, revenue/EPS prints
+      MNA         — mergers, acquisitions, divestitures
+      ANALYST     — upgrades, downgrades, price-target moves, initiations
+      PRODUCT     — launches, recalls, major feature ships, contracts won
+      REGULATORY  — FDA, FTC, SEC actions; lawsuits; antitrust
+      GUIDANCE    — forward guidance changes, raised/lowered outlook
+      EXEC        — CEO/CFO/board changes, key hires/departures
+      MACRO       — sector-wide moves that materially hit this name
+      OTHER       — material business news that doesn't fit above
+
+    Rules:
+    - One sentence per fact. State the event concretely ("Apple reported Q2 EPS of $1.65 vs. $1.50 consensus"), not vaguely ("Apple had earnings").
+    - Cite the source article with its number in brackets at the end of the sentence: [N]. If multiple articles cover the same event, write ONE fact and cite all: [N][M].
+    - Skip non-material news: store openings, charity, employee features, generic market commentary.
+    - Maximum \(FACTS_MAX_OUT) facts. Pick the highest-signal events if there are more.
+    - If there is no material news today, write the single line: NONE: No material business news today.
+
+    Output format — exactly one fact per line, no preface, no numbering, no bullets:
+    TAG: One-sentence statement of the event. [N]
+
+    Articles:
+    \(lines)
+    """
+}
+
+private let FACT_LINE_RE = try? NSRegularExpression(
+    pattern: #"^([A-Z]{3,12}):\s+(.+?)(?:\s*((?:\[\d+\])+))?\s*$"#,
+    options: [.anchorsMatchLines]
+)
+
+func parseFactsResponse(_ raw: String, articles: [Article]) -> [Fact] {
+    guard let regex = FACT_LINE_RE else { return [] }
+    // Build an article-index → (link, score) lookup keyed to the order the
+    // prompt presented them in (top-score-first slice).
+    let top = articles
+        .sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
+        .prefix(FACTS_ARTICLE_CAP)
+    let articleByIndex: [Int: Article] = Dictionary(
+        uniqueKeysWithValues: top.enumerated().map { (i, a) in (i + 1, a) }
+    )
+
+    var out: [Fact] = []
+    let ns = raw as NSString
+    let matches = regex.matches(in: raw, range: NSRange(location: 0, length: ns.length))
+    for m in matches {
+        let tagRange = m.range(at: 1)
+        let sentRange = m.range(at: 2)
+        guard tagRange.location != NSNotFound, sentRange.location != NSNotFound else { continue }
+        let tagRaw = ns.substring(with: tagRange).uppercased()
+        var tag = tagRaw
+        if tagRaw == "NONE" { continue }              // sentinel for "no news"
+        if !FACT_TAGS.contains(tag) { tag = "OTHER" } // be forgiving on unknown tags
+        let sentence = ns.substring(with: sentRange).trimmingCharacters(in: .whitespaces)
+        if sentence.isEmpty { continue }
+
+        // Citations: parse [N] or [N][M] etc.
+        var sourceLink: String? = nil
+        var score: Int? = nil
+        if m.numberOfRanges > 3, m.range(at: 3).location != NSNotFound {
+            let citationBlob = ns.substring(with: m.range(at: 3))
+            let digitsRegex = try? NSRegularExpression(pattern: #"\d+"#)
+            let citationNS = citationBlob as NSString
+            if let r = digitsRegex {
+                let dMatches = r.matches(in: citationBlob, range: NSRange(location: 0, length: citationNS.length))
+                if let firstMatch = dMatches.first {
+                    let idx = Int(citationNS.substring(with: firstMatch.range)) ?? 0
+                    if let a = articleByIndex[idx] {
+                        sourceLink = a.link
+                        score = a.relevanceScore
+                    }
+                }
+            }
+        }
+        out.append(Fact(tag: tag, sentence: sentence, sourceLink: sourceLink, score: score))
+        if out.count >= FACTS_MAX_OUT { break }
+    }
+    return out
+}
+
+// Jaccard similarity on lowercased non-trivial tokens. Drops common stop-words
+// and short tokens so "the", "a", "of" don't dominate. Threshold 0.5 catches
+// near-duplicates without being so strict that legitimate followups ("Apple
+// reported earnings" → "Apple's earnings call raised…") get flagged.
+let STOPWORDS: Set<String> = [
+    "the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "for",
+    "with", "from", "by", "as", "is", "was", "were", "be", "been", "being",
+    "are", "this", "that", "these", "those", "it", "its", "he", "she", "they",
+    "their", "his", "her", "has", "have", "had", "will", "would", "could",
+    "should", "may", "might", "can", "than", "then", "also", "after", "before",
+    "into", "over", "under", "about", "more", "less", "today", "yesterday",
+]
+
+func factTokens(_ s: String) -> Set<String> {
+    let lowered = s.lowercased()
+    var tokens: Set<String> = []
+    var current = ""
+    for ch in lowered {
+        if ch.isLetter || ch.isNumber {
+            current.append(ch)
+        } else {
+            if current.count >= 3, !STOPWORDS.contains(current) {
+                tokens.insert(current)
+            }
+            current = ""
+        }
+    }
+    if current.count >= 3, !STOPWORDS.contains(current) {
+        tokens.insert(current)
+    }
+    return tokens
+}
+
+func jaccard(_ a: Set<String>, _ b: Set<String>) -> Double {
+    if a.isEmpty || b.isEmpty { return 0 }
+    let inter = a.intersection(b).count
+    let union = a.union(b).count
+    return Double(inter) / Double(union)
+}
+
+func dedupFactsAgainstRecent(_ today: [Fact], recent: [Fact], threshold: Double = 0.55) -> [Fact] {
+    if recent.isEmpty { return today }
+    let recentTokens = recent.map { factTokens($0.sentence) }
+    var kept: [Fact] = []
+    for f in today {
+        let ft = factTokens(f.sentence)
+        var isDup = false
+        for rt in recentTokens {
+            if jaccard(ft, rt) >= threshold { isDup = true; break }
+        }
+        if !isDup { kept.append(f) }
+    }
+    return kept
+}
+
+func extractFactsForDay(_ ticker: String, date: String, articles: [Article]) async -> DailyFacts? {
+    guard !articles.isEmpty else { return nil }
+    let name = TICKER_NAMES[ticker] ?? ticker
+    let prompt = buildFactsExtractionPrompt(ticker: ticker, name: name, date: date, articles: articles)
+    do {
+        let session = LanguageModelSession()
+        let response = try await session.respond(to: prompt)
+        let raw = response.content
+        let parsed = parseFactsResponse(raw, articles: articles)
+        let recent = loadRecentFacts(ticker, before: date, days: 7)
+        let deduped = dedupFactsAgainstRecent(parsed, recent: recent)
+        let df = DailyFacts(
+            ticker: ticker,
+            date: date,
+            generatedAt: isoFormatter.string(from: Date()),
+            facts: deduped,
+            sourceArticleCount: articles.count,
+            aiEngine: "AppleIntelligence"
+        )
+        try writeSummary(df, to: factsFile(ticker, date: date))
+        log("  \(ticker) facts cached for \(date): \(deduped.count) of \(parsed.count) parsed (\(parsed.count - deduped.count) dedup'd against prior 7d, from \(articles.count) articles)")
+        return df
+    } catch {
+        logErr("facts-extract error \(ticker) \(date): \(error.localizedDescription)")
+        return nil
+    }
+}
+
+func getOrGenerateDailyFacts(_ ticker: String, date: String, articles: [Article]) async -> DailyFacts? {
+    if let cached = loadDailyFacts(ticker, date: date) { return cached }
+    return await extractFactsForDay(ticker, date: date, articles: articles)
+}
+
+// MARK: - Per-ticker company brief (Phase 4)
+//
+// A ~4-5 sentence "what this company is, what it does, what's been driving
+// it lately" file. Regenerated monthly (the cadence is right — the brief
+// updates as new monthly summaries land, the company doesn't change
+// week-to-week). Prepended to weekly / monthly / 3M / 1Y / ALL prompts as
+// background context so the model doesn't have to infer the company from
+// distilled snippets. Cheap: one AI call per ticker per month.
+
+let BRIEFS_DIR = ARCHIVE_DIR.appendingPathComponent("briefs")
+
+struct CompanyBrief: Codable {
+    let ticker: String
+    let yearMonth: String        // YYYY-MM the brief was generated for
+    let generatedAt: String
+    let brief: String            // 4-5 sentences
+    let sourceMonthlyCount: Int
+    let aiEngine: String?
+}
+
+func briefFile(_ ticker: String, yearMonth: String) -> URL {
+    BRIEFS_DIR.appendingPathComponent(ticker).appendingPathComponent("\(yearMonth).json")
+}
+
+func loadCompanyBrief(_ ticker: String, yearMonth: String) -> CompanyBrief? {
+    let url = briefFile(ticker, yearMonth: yearMonth)
+    guard let data = try? Data(contentsOf: url) else { return nil }
+    return try? JSONDecoder().decode(CompanyBrief.self, from: data)
+}
+
+// Latest available brief, walking back from `yearMonth` up to 12 months. Used
+// by the long-window digest prompts so they get *some* context even before
+// this month's brief has been generated.
+func latestCompanyBrief(_ ticker: String, asOf yearMonth: String) -> CompanyBrief? {
+    let parts = yearMonth.split(separator: "-")
+    guard parts.count == 2, let y = Int(parts[0]), let m = Int(parts[1]) else { return nil }
+    var year = y
+    var month = m
+    for _ in 0..<12 {
+        let key = String(format: "%04d-%02d", year, month)
+        if let b = loadCompanyBrief(ticker, yearMonth: key) { return b }
+        month -= 1
+        if month == 0 { month = 12; year -= 1 }
+    }
+    return nil
+}
+
+func buildCompanyBriefPrompt(ticker: String, name: String, yearMonth: String, monthlies: [MonthlySummary]) -> String {
+    var lines = ""
+    for ms in monthlies {
+        lines += "\(ms.yearMonth): \(ms.summary)\n\n"
+    }
+    return """
+    Write a concise 4-5 sentence company brief for \(ticker) (\(name)) as of \(yearMonth).
+
+    Sentence 1: What the company does — core products, business model, end markets.
+    Sentence 2: Where it sits competitively — major competitors, market position.
+    Sentence 3-4: The dominant narrative driving the stock over the past several months, drawn from the monthly summaries below.
+    Sentence 5: The most important catalyst or risk to watch from here.
+
+    Plain prose, single paragraph, no preface, no numbered lists. Be specific — name actual products, competitors, catalysts. No filler.
+
+    Recent monthly summaries (oldest first):
+    \(lines)
+    """
+}
+
+func generateAndCacheCompanyBrief(_ ticker: String, yearMonth: String, monthlies: [MonthlySummary]) async -> CompanyBrief? {
+    guard !monthlies.isEmpty else { return nil }
+    let name = TICKER_NAMES[ticker] ?? ticker
+    let prompt = buildCompanyBriefPrompt(ticker: ticker, name: name, yearMonth: yearMonth, monthlies: monthlies)
+    do {
+        guard let text = try await runAISummary(prompt: prompt) else { return nil }
+        let b = CompanyBrief(
+            ticker: ticker,
+            yearMonth: yearMonth,
+            generatedAt: isoFormatter.string(from: Date()),
+            brief: text,
+            sourceMonthlyCount: monthlies.count,
+            aiEngine: "AppleIntelligence"
+        )
+        try writeSummary(b, to: briefFile(ticker, yearMonth: yearMonth))
+        log("  \(ticker) company brief cached for \(yearMonth) (\(monthlies.count) monthly summaries)")
+        return b
+    } catch {
+        logErr("brief-generate error \(ticker) \(yearMonth): \(error.localizedDescription)")
+        return nil
+    }
+}
+
 // --- Date helpers for summary layer keys ---------------------------------
 // All summary keys are anchored to America/New_York to match the rest of
 // the pipeline (intradayDate, trading-date logic, etc.). Using ET means the
@@ -920,6 +1355,15 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
         let desc = String(a.description.prefix(DESC_TRUNCATE))
         articleText += "\(i + 1). \(a.title)\n\(desc)\n\n"
     }
+    // The templated short windows (1D/1W/1M) used to ask the model to write
+    // "TICKER [+X.XX%]" so the fast tier could swap the bracket every 15 min.
+    // That format requirement leaked example numbers and produced
+    // hallucinated values too often, so now the model is asked to mention
+    // the ticker symbol only — code injects the placeholder after generation
+    // (see injectDigestPlaceholders).
+    let noNumbersBlock = TEMPLATED_HOLDING_WINDOWS.contains(window)
+        ? "\n\nHARD RULE: do NOT include any percentages, dollar amounts, or other specific numbers in your prose. Mention the ticker symbol \(ticker) at least once; the live price percentage is added automatically by a downstream system."
+        : ""
     switch window {
     case .d1:
         return """
@@ -927,7 +1371,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
         These articles have been pre-filtered for investor relevance: earnings, products, regulatory news, analyst moves, executive changes only.
         Write exactly 3 sentences: (1) what happened today, (2) why it matters to the stock price or investment thesis, (3) the immediate risk or opportunity.
         No store openings, employee stories, charity, or anything unrelated to financial or competitive position.
-        Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
+        Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.\(noNumbersBlock)
 
         Articles:
         \(articleText)
@@ -937,7 +1381,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
         You are a financial analyst writing a weekly briefing for an investor holding \(ticker) (\(name)).
         These articles represent the most significant market-relevant developments from the past 7 days.
         Write exactly 3 sentences: (1) the dominant narrative or theme this week, (2) key catalysts or sentiment shifts, (3) momentum heading into next week and what to watch.
-        Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
+        Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.\(noNumbersBlock)
 
         Articles:
         \(articleText)
@@ -950,7 +1394,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
         You are a financial analyst writing a monthly-style briefing for an investor holding \(ticker) (\(name)) \(scope).
         These are the highest-signal developments in this period, ranked by investor relevance.
         Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward.
-        Be specific — cite actual events, not vague generalities. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
+        Be specific — cite actual events, not vague generalities. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.\(noNumbersBlock)
 
         Articles:
         \(articleText)
@@ -1012,6 +1456,9 @@ let DAILY_SUMMARY_ARTICLE_CAP = 15
 let DAILY_SUMMARY_DESC_TRUNCATE = 200
 
 func buildDailySummaryPrompt(ticker: String, name: String, date: String, articles: [Article]) -> String {
+    // Legacy article-driven path. Retained as a fallback when facts
+    // extraction returned empty (no material news or extraction errored)
+    // and we still want a one-line "quiet day" placeholder.
     let topArticles = articles
         .sorted { ($0.relevanceScore ?? 0) > ($1.relevanceScore ?? 0) }
         .prefix(DAILY_SUMMARY_ARTICLE_CAP)
@@ -1032,6 +1479,37 @@ func buildDailySummaryPrompt(ticker: String, name: String, date: String, article
 
     Articles:
     \(lines)
+    """
+}
+
+func buildDailySummaryFromFactsPrompt(
+    ticker: String,
+    name: String,
+    date: String,
+    facts: [Fact],
+    yesterdaySummary: String?
+) -> String {
+    var factLines = ""
+    for f in facts {
+        factLines += "- [\(f.tag)] \(f.sentence)\n"
+    }
+    let yesterdayBlock: String = {
+        guard let y = yesterdaySummary, !y.isEmpty else { return "" }
+        return """
+
+        Yesterday's takeaway (for context — do NOT restate it):
+        \(y)
+
+        """
+    }()
+    return """
+    Write a 2-3 sentence daily summary for \(ticker) (\(name)) on \(date).
+    \(yesterdayBlock)
+    Today's facts (already deduped against the prior 7 days):
+    \(factLines)
+    Synthesize the facts into plain prose. Lead with the highest-signal event. If multiple facts share a theme (e.g., two analyst notes after an earnings beat), combine them. If today's facts extend yesterday's narrative, you may write "extending yesterday's…" or "following yesterday's…" — but do not re-state yesterday's events.
+
+    Plain prose, single paragraph, no preface, no numbered lists, no bullets.
     """
 }
 
@@ -1079,7 +1557,43 @@ func runAISummary(prompt: String) async throws -> String? {
 func generateAndCacheDailySummary(_ ticker: String, date: String, articles: [Article]) async -> DailySummary? {
     guard !articles.isEmpty else { return nil }
     let name = TICKER_NAMES[ticker] ?? ticker
-    let prompt = buildDailySummaryPrompt(ticker: ticker, name: name, date: date, articles: articles)
+
+    // 1) Ensure facts are extracted (one AI call) + cross-day deduped. This
+    //    is the new primary intermediate — the daily summary used to read
+    //    raw articles; now it reads structured facts. The articles path
+    //    survives as a fallback below for the case where extraction returns
+    //    empty (transient extractor error or genuinely quiet day).
+    let facts = await getOrGenerateDailyFacts(ticker, date: date, articles: articles)
+
+    // 2) Yesterday's daily summary, for narrative continuity. Walk back up
+    //    to 5 days to skip weekends / quiet days where no summary was
+    //    written. Capped at 5 so a stale "yesterday" doesn't leak into
+    //    today's framing.
+    let yesterdaySummary: String? = {
+        guard let endDay = parseDay(date) else { return nil }
+        for offset in 1...5 {
+            guard let d = nyCalendar.date(byAdding: .day, value: -offset, to: endDay) else { continue }
+            let key = dayFormatter.string(from: d)
+            if let s = loadDailySummary(ticker, date: key) { return s.summary }
+        }
+        return nil
+    }()
+
+    // 3) Pick the prompt: facts path if we got non-empty facts, otherwise
+    //    fall back to the legacy article-driven prompt so a "quiet day"
+    //    still produces the existing one-line placeholder.
+    let prompt: String
+    let factCount: Int
+    if let f = facts, !f.facts.isEmpty {
+        prompt = buildDailySummaryFromFactsPrompt(
+            ticker: ticker, name: name, date: date,
+            facts: f.facts, yesterdaySummary: yesterdaySummary
+        )
+        factCount = f.facts.count
+    } else {
+        prompt = buildDailySummaryPrompt(ticker: ticker, name: name, date: date, articles: articles)
+        factCount = 0
+    }
     do {
         guard let text = try await runAISummary(prompt: prompt) else { return nil }
         let s = DailySummary(
@@ -1089,7 +1603,7 @@ func generateAndCacheDailySummary(_ ticker: String, date: String, articles: [Art
             aiEngine: "AppleIntelligence"
         )
         try writeSummary(s, to: dailySummaryFile(ticker, date: date))
-        log("  \(ticker) daily summary cached for \(date) (\(articles.count) articles)")
+        log("  \(ticker) daily summary cached for \(date) (\(factCount) facts, \(articles.count) articles, yesterday=\(yesterdaySummary != nil ? "yes" : "no"))")
         return s
     } catch {
         logErr("daily-summary error \(ticker) \(date): \(error.localizedDescription)")
@@ -1146,11 +1660,42 @@ func generateAndCacheMonthlySummary(_ ticker: String, yearMonth: String, weeklie
         )
         try writeSummary(s, to: monthlySummaryFile(ticker, yearMonth: yearMonth))
         log("  \(ticker) monthly summary cached for \(yearMonth) (\(weeklies.count) weeks)")
+
+        // Piggyback: regenerate the per-ticker company brief on the same
+        // cadence as the monthly summary. The brief uses the most recent 6
+        // monthly summaries as input — including the one we just wrote —
+        // and provides stable context that the 1M/3M/1Y/ALL prompts
+        // prepend. Failures here never block the monthly summary itself.
+        await refreshCompanyBriefIfNeeded(ticker, asOf: yearMonth)
         return s
     } catch {
         logErr("monthly-summary error \(ticker) \(yearMonth): \(error.localizedDescription)")
         return nil
     }
+}
+
+// Regenerate the brief if there isn't one for this year-month yet. The
+// monthly path is the natural trigger: the brief consumes monthly summaries,
+// so refreshing it right after a new monthly lands keeps the cadence aligned
+// with the data. Walks back up to 6 prior monthlies for context.
+func refreshCompanyBriefIfNeeded(_ ticker: String, asOf yearMonth: String) async {
+    if loadCompanyBrief(ticker, yearMonth: yearMonth) != nil { return }
+    let parts = yearMonth.split(separator: "-")
+    guard parts.count == 2, let y = Int(parts[0]), let m = Int(parts[1]) else { return }
+    var monthlies: [MonthlySummary] = []
+    var year = y
+    var month = m
+    for _ in 0..<6 {
+        let key = String(format: "%04d-%02d", year, month)
+        if let ms = loadMonthlySummary(ticker, yearMonth: key) {
+            monthlies.append(ms)
+        }
+        month -= 1
+        if month == 0 { month = 12; year -= 1 }
+    }
+    if monthlies.isEmpty { return }
+    monthlies.reverse()                     // oldest-first for the prompt
+    _ = await generateAndCacheCompanyBrief(ticker, yearMonth: yearMonth, monthlies: monthlies)
 }
 
 // Cached-or-generate. These are the bread-and-butter entry points the
@@ -1257,6 +1802,24 @@ func buildSummaryBackedWindowPrompt(
     gameAge: Int
 ) -> String? {
     let name = TICKER_NAMES[ticker] ?? ticker
+    // Templated short windows mention the ticker symbol so the post-AI
+    // injector can append the placeholder right after; the fast tier then
+    // renders the live pct every 15 min. No numbers asked of the AI.
+    let noNumbersBlock = TEMPLATED_HOLDING_WINDOWS.contains(window)
+        ? "\n\nHARD RULE: do NOT include any percentages, dollar amounts, or other specific numbers in your prose. Mention the ticker symbol \(ticker) at least once; the live price percentage is added automatically by a downstream system."
+        : ""
+
+    // Company-brief context block — the most recent rolling brief, prepended
+    // to give the model a stable "what this company is + recent narrative"
+    // anchor before it reads the distilled summary stream. Skipped on the 1W
+    // window (already very recent) and when no brief exists yet (e.g., new
+    // ticker without a monthly chain).
+    let briefBlock: String = {
+        guard window != .w1 else { return "" }
+        let asOf = yearMonthKey(Date())
+        guard let brief = latestCompanyBrief(ticker, asOf: asOf) else { return "" }
+        return "Company context (as of \(brief.yearMonth)):\n\(brief.brief)\n\n"
+    }()
 
     // Render the available material as a labeled block. The model's input
     // is always small — the longest case (1Y / ALL with 12 monthly
@@ -1280,7 +1843,7 @@ func buildSummaryBackedWindowPrompt(
         Daily summaries (past 7 days, oldest first):
         \(renderDailies(dailies))
 
-        Write exactly 3 sentences synthesizing the week's story: (1) the most important business development, (2) what it implies for the company, (3) a forward-looking catalyst or risk based on these events. Plain prose, single paragraph, no preface, no numbered lists, no bullets.
+        Write exactly 3 sentences synthesizing the week's story: (1) the most important business development, (2) what it implies for the company, (3) a forward-looking catalyst or risk based on these events. Plain prose, single paragraph, no preface, no numbered lists, no bullets.\(noNumbersBlock)
         """
     case .m1:
         let scope = gameAge < 30
@@ -1291,10 +1854,10 @@ func buildSummaryBackedWindowPrompt(
         return """
         You are writing a 1-month briefing for an investor in \(ticker) (\(name)) \(scope). The summaries below are already filtered to material business developments.
 
-        Weekly summaries (oldest first):
+        \(briefBlock)Weekly summaries (oldest first):
         \(weeklyBlock)\(dailyBlock)
 
-        Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.
+        Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.\(noNumbersBlock)
         """
     case .m3:
         let scope = gameAge < 90
@@ -1304,7 +1867,7 @@ func buildSummaryBackedWindowPrompt(
         return """
         You are writing a quarterly-style briefing for an investor in \(ticker) (\(name)) \(scope). The weekly summaries below are already filtered to material business developments.
 
-        Weekly summaries (oldest first):
+        \(briefBlock)Weekly summaries (oldest first):
         \(weeklyBlock)
 
         Write exactly 3 sentences: (1) the period's defining theme or catalyst, (2) major risks or opportunities that emerged, (3) how the investment thesis has evolved. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.
@@ -1318,7 +1881,7 @@ func buildSummaryBackedWindowPrompt(
         return """
         You are writing an annual-style briefing for an investor in \(ticker) (\(name)) \(scope). The monthly summaries below cover the period's most material business developments.
 
-        Monthly summaries (oldest first):
+        \(briefBlock)Monthly summaries (oldest first):
         \(monthlyBlock)
 
         Write exactly 3 sentences: (1) the period's most important storyline and its market impact, (2) how the company's competitive position or financial trajectory changed, (3) the long-term outlook based on this arc of events. Plain prose, single paragraph, no preface.
@@ -1328,7 +1891,7 @@ func buildSummaryBackedWindowPrompt(
         return """
         You are writing a since-inception summary for an investor in \(ticker) (\(name)) since February 5, 2026 — the start of the tracking period (\(gameAge) days ago). The monthly summaries below cover the period's most material business developments.
 
-        Monthly summaries (oldest first):
+        \(briefBlock)Monthly summaries (oldest first):
         \(monthlyBlock)
 
         Write exactly 3 sentences: (1) the defining arc of the company since February 5, 2026 — biggest catalysts, pivots, or regime changes, (2) how the original investment thesis has evolved or been challenged, (3) the structural outlook from here. Be concrete and specific. Plain prose, single paragraph, no preface.
@@ -1549,7 +2112,7 @@ struct TickerOutcome {
     let aiEngineUsed: Bool
 }
 
-func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKey.allCases) async -> TickerOutcome {
+func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKey.allCases, priceData: PriceDataLite? = nil) async -> TickerOutcome {
     log("• \(ticker): start (windows=\(windows.map { $0.rawValue }.joined(separator: ",")))")
     var perWindow: [String: WindowDigest] = [:]
     let nowISO = isoFormatter.string(from: Date())
@@ -1716,6 +2279,26 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
 
             group.addTask {
                 let digestText = await generateDigestText(ticker: ticker, window: w, articles: articles, gameAge: gameAge)
+                // Inject a `{{TICKER}}` placeholder after the first ticker
+                // mention so the fast tier can append a live pct in
+                // brackets every 15 min. Replaces the old "ask the model
+                // to bracket" approach, which produced hallucinated
+                // numbers when Apple Intelligence didn't follow the format.
+                // Also log if the AI snuck a percentage into the prose
+                // anyway — those are hallucinations the new prompt is
+                // supposed to prevent.
+                var templateText: String? = nil
+                if let d = digestText, TEMPLATED_HOLDING_WINDOWS.contains(w) {
+                    if proseContainsHallucinatedPcts(d) {
+                        logErr("processTicker \(ticker) \(w.rawValue): hallucinated pct in prose — \(d.prefix(160))")
+                    }
+                    let t = injectDigestPlaceholders(d, tickers: [ticker], userByName: [:])
+                    if t.contains("{{") {
+                        templateText = t
+                    } else {
+                        logErr("processTicker \(ticker) \(w.rawValue): model didn't mention the ticker symbol — fast tier won't refresh this window.")
+                    }
+                }
                 let scores = articles.compactMap { $0.relevanceScore }
                 let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
                 let dates = articles.map { dayFormatter.string(from: parseFetchedAtDate($0.fetchedAt) ?? Date()) }.sorted()
@@ -1731,7 +2314,7 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
                         score: a.relevanceScore ?? 0
                     )
                 }
-                log("  \(ticker) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articles.count) articles, maturity=\(maturity))")
+                log("  \(ticker) \(w.rawValue) → \(digestText != nil ? "✓" : "—")\(templateText != nil ? " [template]" : "") (\(articles.count) articles, maturity=\(maturity))")
                 return (w.rawValue, WindowDigest(
                     digest: digestText,
                     articleCount: articles.count,
@@ -1742,7 +2325,8 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
                     dataMaturity: maturity,
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
-                    sources: Array(sources)
+                    sources: Array(sources),
+                    digestTemplate: templateText
                 ))
             }
         }
@@ -1851,17 +2435,18 @@ func buildPortfolioPrompt(
     Articles from the period (each tagged with the ticker it relates to; every ticker shown is one \(player.name) holds):
     \(articleText)
 
-    Your reader can already see the STANDINGS table on the page. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those numbers — not to restate the numbers. The standings are the consequence; the news is the story. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action.
+    Your reader can already see the STANDINGS table on the page with the actual percentages. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those numbers — not to restate the numbers. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action.
 
     Write exactly 3 sentences as a single paragraph of plain prose:
-    Sentence 1: Lead with the single most consequential news event behind \(player.name)'s top contributor (the #1 ticker in STANDINGS) — what happened (cite the headline or core fact), what it implies for the business. Then tie it to the percentage impact on \(player.name)'s portfolio.
-    Sentence 2: Lead with the specific news event behind the biggest drag (from the Drag section of STANDINGS, or the smallest gainer if no drags exist) — what happened, what it implies. Then tie it to the percentage impact.
-    Sentence 3: A specific forward-looking catalyst pulled from the article archive — an upcoming earnings date, regulatory milestone, product launch, or named risk for one of \(player.name)'s holdings. Be concrete: name the ticker and the catalyst, not "watch the market."
+    Sentence 1: Lead with the most consequential news event behind \(player.name)'s top contributor (the #1 ticker in STANDINGS) — what happened, what it implies for the business. Mention the ticker symbol.
+    Sentence 2: Lead with the specific news event behind the biggest drag (from the Drag section of STANDINGS, or the smallest gainer if no drags exist) — what happened, what it implies. Mention the ticker symbol.
+    Sentence 3: A specific forward-looking catalyst pulled from the article archive — an upcoming earnings date, regulatory milestone, product launch, or named risk for one of \(player.name)'s holdings. Mention the ticker symbol and the catalyst.
 
-    Hard rules:
-    - Refer only to tickers from \(player.name)'s portfolio listed above.
-    - Use PERCENTAGES only — never quote dollar amounts. Format every percentage as "+X.XX%" or "-X.XX%" (two decimals). Do not write any $ figure for moves, contributions, or drags.
-    - NEVER write phrases like "as reported by \(player.name)", "according to \(player.name)", "\(player.name) noted that", "\(player.name) reports", or any similar construction that treats the player as the news source. The player is the portfolio holder; news comes from outside sources, which you do not need to name.
+    Hard rules (read carefully — these are load-bearing):
+    - DO NOT include any percentages, dollar amounts, or other specific numbers in your prose. Numbers are added automatically by a downstream system; your job is the narrative only. Phrases like "+3.85%", "down 10%", "$1.2M", "40% growth" — all forbidden.
+    - Refer only to ticker symbols from \(player.name)'s portfolio listed above. Use the SYMBOL (e.g. WMT, TSLA), not the company name.
+    - Mention \(player.name) by name in at least one sentence (e.g. "helping \(player.name)" or "dragging \(player.name)'s portfolio").
+    - NEVER write phrases like "as reported by \(player.name)", "according to \(player.name)", "\(player.name) noted that". The player is the portfolio holder; news comes from outside sources.
     - Do NOT use the structure "X drove the portfolio with +Y%, Z was the drag with -W%" — that's just restating the table. Open every sentence with the news event itself.
     - Do not preface the digest. Do not number the sentences. Do not use bullet points.
     """
@@ -1986,6 +2571,28 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int,
                 let digestText = await generatePortfolioDigestText(
                     player: player, window: w, articles: tagged, movers: movers, gameAge: gameAge
                 )
+                // Inject placeholders after first mentions of the player's
+                // name and any tickers in their portfolio. Replaces the
+                // old "ask the model to bracket pcts" approach (which
+                // produced hallucinations). The fast tier renders the
+                // placeholders to live `[X.XX%]` brackets every 15 min.
+                // Logs hallucinated pcts in the AI output for visibility.
+                var templateText: String? = nil
+                if let d = digestText, TEMPLATED_PORTFOLIO_WINDOWS.contains(w) {
+                    if proseContainsHallucinatedPcts(d) {
+                        logErr("processPortfolio \(player.id) \(w.rawValue): hallucinated pct in prose — \(d.prefix(160))")
+                    }
+                    let t = injectDigestPlaceholders(
+                        d,
+                        tickers: Set(player.tickers),
+                        userByName: [player.name: player.id]
+                    )
+                    if t.contains("{{") {
+                        templateText = t
+                    } else {
+                        logErr("processPortfolio \(player.id) \(w.rawValue): no entity mentions found — fast tier won't refresh this window.")
+                    }
+                }
                 let articleObjs = tagged.map { $0.article }
                 let scores = articleObjs.compactMap { $0.relevanceScore }
                 let avg = scores.isEmpty ? nil : (Double(scores.reduce(0, +)) / Double(scores.count))
@@ -2000,7 +2607,7 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int,
                         score: a.relevanceScore ?? 0
                     )
                 }
-                log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—") (\(articleObjs.count) articles, maturity=\(maturity), tickers=[\(relevant.joined(separator: ","))])")
+                log("  \(player.name) \(w.rawValue) → \(digestText != nil ? "✓" : "—")\(templateText != nil ? " [template]" : "") (\(articleObjs.count) articles, maturity=\(maturity), tickers=[\(relevant.joined(separator: ","))])")
                 return (w.rawValue, WindowDigest(
                     digest: digestText,
                     articleCount: articleObjs.count,
@@ -2011,7 +2618,8 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int,
                     dataMaturity: maturity,
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
-                    sources: Array(sources)
+                    sources: Array(sources),
+                    digestTemplate: templateText
                 ))
             }
         }
@@ -2457,16 +3065,13 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     let topDragBlock  = renderFactBlock(facts.topDrag,  label: "2", intent: "the biggest drag of \(scope)")
     let forwardBlock  = renderFactBlock(facts.forwardCatalyst, label: "3", intent: "a forward-looking catalyst to watch")
 
-    let playerNames = PLAYERS.map { $0.name }.joined(separator: ", ")
-    let exampleOwner = PLAYERS.first!.name
-
     return """
-    You are writing a 3-sentence summary of the live leaderboard standings for a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge) of the game. Each player started with $100,000. The players are HOLDERS of portfolios — they did NOT write or report any of the news below. Players just own stocks; the news comes from outside sources.
+    You are writing a 3-sentence summary of the live leaderboard for a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge). Each player started with $100,000. The players are HOLDERS of portfolios — they did NOT write or report any of the news below. Players just own stocks; news comes from outside sources.
 
     PLAYERS (only source of truth for who owns what):
     \(playersBlockForPrompt())
 
-    You will be given THREE structured FACT blocks below — one for each sentence. Each block already names the ticker, the percentage, which player(s) the move belongs to, and the article headline that describes the cause. Your job is to convert each FACT block into ONE natural-sounding sentence. Do NOT introduce ANY information that is not present in the FACT block — no extra percentages, no dates that aren't in the headline, no events that aren't in the headline. If a FACT block says "[skip — no data]", omit that sentence entirely and write fewer sentences. Never invent.
+    You will be given THREE structured FACT blocks below. Each names the ticker that moved, the player(s) who own it, and the article headline that explains why. Your job is to convert each FACT block into ONE natural-sounding sentence about WHAT HAPPENED — the news event — naming the ticker symbol and the player(s) it affected.
 
     \(topMoverBlock)
 
@@ -2474,19 +3079,17 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
 
     \(forwardBlock)
 
-    PERCENTAGE FORMAT (MANDATORY): every percentage you write must be in the form TOKEN [SIGN+DECIMAL%]: ASTS [-10.23%], TSLA [+5.62%], \(exampleOwner) [+8.45%]. Always two decimals, always an explicit + or - sign. Never write "5%", "about 5 percent", "30% increase", or a date that isn't from the FACT block headline. Every percentage you use must be one of the ones explicitly supplied above. The valid player TOKENs are: \(playerNames).
+    Sentence 1: Lead with the news event from FACT 1 (paraphrase the headline). Name the ticker symbol and the player(s) it helped.
+    Sentence 2: Lead with the news event from FACT 2. Name the ticker symbol and the player(s) it dragged.
+    Sentence 3: "Looking ahead, …" — paraphrase FACT 3's forward-looking catalyst. Name the ticker symbol and the player(s) it could affect.
 
-    Sentence shape — natural prose, not robotic, but ground every fact in the FACT block. Each sentence MUST cite the ticker with its bracketed pct AND each owner with their bracketed portfolio pct (the bracketed numbers are parsed by an automated system that swaps them with live values every 15 minutes — if you skip a bracket, that value will be stuck on this morning's number all day):
-    Sentence 1: <one-clause paraphrase of the FACT 1 headline as a news event>, driving <FACT 1 ticker> [<FACT 1 ticker pct>] and helping <FACT 1 owners> with their portfolio at <each owner's portfolio pct in brackets>.
-    Sentence 2: <one-clause paraphrase of the FACT 2 headline>, pulling <FACT 2 ticker> [<FACT 2 ticker pct>] and dragging <FACT 2 owners> [<each owner's portfolio pct>].
-    Sentence 3: Looking ahead, <one-clause paraphrase of the FACT 3 headline> could move <FACT 3 ticker> [<FACT 3 ticker pct>] for <FACT 3 owners> [<each owner's portfolio pct>].
-
-    Hard rules:
-    - Do NOT invent percentages, dates, growth figures ("40% increase in April"), or events. Every number must come verbatim from a FACT block.
-    - Do NOT attribute any news to a player ("as reported by Brian", "according to Kevin"). Players hold portfolios; news comes from outside sources.
-    - Do NOT mention dollar amounts.
-    - Use the exact player names supplied; do not abbreviate or pluralize ("the Kevins").
-    - Write the three sentences as a single paragraph of plain prose. Do not preface, do not number, do not bullet.
+    Hard rules (read carefully — these are load-bearing):
+    - DO NOT include any percentages, dollar amounts, or other specific numbers in your prose. Numbers are added automatically by a downstream system; your job is the narrative only. Phrases like "+3.85%", "down 10%", "$1.2M", "40% growth", "two decimals" — all forbidden.
+    - DO NOT invent events, dates, or growth figures. Only paraphrase the FACT block headlines.
+    - DO NOT attribute news to a player ("as reported by Brian", "Kevin's analysis"). Players hold portfolios; news comes from outside sources.
+    - Use ticker SYMBOLS (e.g., TSLA, AAPL, ZS), not company names where the FACT block uses the symbol. Use the player first names exactly as supplied.
+    - If a FACT block says "[skip — no data]", omit that sentence entirely.
+    - Write three sentences as a single paragraph of plain prose. No preface, no numbering, no bullets.
     """
 }
 
@@ -2510,6 +3113,75 @@ let PLAYER_NAME_TO_ID: [String: String] = {
 }()
 
 let KNOWN_TICKERS: Set<String> = Set(DEFAULT_TICKERS)
+
+// Exact-case name → user id (e.g. "Kevin" → "kevin"). Used by the placeholder
+// injector to find the player's name as-written in the AI prose.
+let PLAYER_NAME_BY_ID_EXACT: [String: String] = {
+    var m: [String: String] = [:]
+    for p in PLAYERS { m[p.name] = p.id }
+    return m
+}()
+
+// Detector for unwanted numeric content in AI prose (used by post-AI logging).
+// Any percentage that survives in the AI's output is now considered a
+// hallucination, since the new prompts forbid numbers entirely.
+let UNBRACKETED_PCT_PATTERN = #"(?<!\[)[+-]?\d+(?:\.\d+)?%(?!\])"#
+
+func proseContainsHallucinatedPcts(_ prose: String) -> Bool {
+    guard let regex = try? NSRegularExpression(pattern: UNBRACKETED_PCT_PATTERN) else { return false }
+    let ns = prose as NSString
+    return regex.firstMatch(in: prose, range: NSRange(location: 0, length: ns.length)) != nil
+}
+
+// Replacement for extractGameDigestTemplate. Walks the AI prose looking for
+// known ticker symbols and player first names. For each first occurrence:
+//   - If immediately followed by a legacy `[+X.XX%]` bracket (model
+//     happened to use the old format), REPLACE the bracket with `{{TOKEN}}`.
+//   - Otherwise, APPEND ` {{TOKEN}}` after the token mention.
+//   - If already followed by `{{...}}`, skip (already injected).
+//
+// The fast tier's renderGameDigestTemplate then substitutes each `{{...}}`
+// with a live `[+X.XX%]` bracket every 15 minutes. Net effect: the rendered
+// prose always shows the latest pct alongside each entity, and the AI is
+// never asked to write numbers itself (so it can't hallucinate them).
+func injectDigestPlaceholders(_ prose: String, tickers: Set<String>, userByName: [String: String]) -> String {
+    var result = prose
+    let bracketRegex = try? NSRegularExpression(pattern: #"^\s*\[[+-]?\d+(?:\.\d+)?%\]"#)
+    let placeholderRegex = try? NSRegularExpression(pattern: #"^\s*\{\{[^}]+\}\}"#)
+
+    var entries: [(token: String, placeholder: String)] = []
+    for t in tickers { entries.append((t, "{{\(t)}}")) }
+    for (name, uid) in userByName { entries.append((name, "{{user:\(uid)}}")) }
+
+    for (token, placeholder) in entries {
+        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: token))\\b"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+        let ns = result as NSString
+        guard let match = regex.firstMatch(in: result, range: NSRange(location: 0, length: ns.length)) else { continue }
+        let tokenEnd = match.range.location + match.range.length
+        let suffix = ns.substring(from: tokenEnd)
+        let suffixNS = suffix as NSString
+        let suffixRange = NSRange(location: 0, length: suffixNS.length)
+
+        // Already followed by a placeholder — skip
+        if let pr = placeholderRegex,
+           pr.firstMatch(in: suffix, range: suffixRange) != nil {
+            continue
+        }
+
+        // Followed by a legacy `[+X.XX%]` — replace the bracket with our placeholder
+        if let br = bracketRegex,
+           let bm = br.firstMatch(in: suffix, range: suffixRange) {
+            let bracketLen = bm.range.length
+            result = ns.substring(to: tokenEnd) + " " + placeholder + ns.substring(from: tokenEnd + bracketLen)
+            continue
+        }
+
+        // Default: append placeholder after the token
+        result = ns.substring(to: tokenEnd) + " " + placeholder + ns.substring(from: tokenEnd)
+    }
+    return result
+}
 
 // Returns the templated string. Tokens that we don't recognize as either a
 // ticker or a player name are left untouched — they'll just be static prose
@@ -2647,16 +3319,27 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                     logOwnershipViolations(violations, context: "game \(w.rawValue)")
                 }
 
-                // For the templated windows, extract a placeholder template from
-                // the freshly-generated prose. Future fast-tier ticks substitute
-                // live pcts into the template without invoking the AI.
+                // Inject placeholders for any ticker symbols and player
+                // names the model mentioned. Replaces the old "ask the
+                // model to bracket pcts" approach (which leaked example
+                // numbers from the prompt — Brian's portfolio showing
+                // "-10.23%" because that was the prompt example). Now the
+                // model writes prose with no numbers; code injects the
+                // placeholders; fast tier renders live pcts every 15 min.
                 var templateText: String? = nil
                 if let d = digestText, TEMPLATED_GAME_WINDOWS.contains(w) {
-                    let t = extractGameDigestTemplate(d)
+                    if proseContainsHallucinatedPcts(d) {
+                        logErr("processGameSummary \(w.rawValue): hallucinated pct in prose — \(d.prefix(200))")
+                    }
+                    let t = injectDigestPlaceholders(
+                        d,
+                        tickers: KNOWN_TICKERS,
+                        userByName: PLAYER_NAME_BY_ID_EXACT
+                    )
                     if t.contains("{{") {
                         templateText = t
                     } else {
-                        logErr("processGameSummary \(w.rawValue): no template tokens extracted — model likely skipped the bracket-pct format. Fast tier will leave this window's prose untouched.")
+                        logErr("processGameSummary \(w.rawValue): no entity mentions found in prose — fast tier won't refresh this window.")
                     }
                 }
 
@@ -2793,8 +3476,11 @@ func writeOutputJSON(
 // MARK: - Fast tier (template re-render)
 //
 // Reads the existing digests.json, recomputes live pcts from prices.json, and
-// substitutes them into each templated game window. No AI calls; no RSS
-// fetching; intended to run after every 15-min price refresh.
+// substitutes them into every templated window (game + per-portfolio +
+// per-holding). No AI calls; no RSS fetching; intended to run after every
+// 15-min price refresh. The renderer (renderGameDigestTemplate — name is
+// historical) is generic over `{{TICKER}}` and `{{user:UID}}` placeholders,
+// so the same call site works for all three blocks.
 func runFastTier(args: Args) async {
     guard let pricesURL = pricesURLFor(outputPath: args.outputPath),
           let priceData = loadPriceData(at: pricesURL) else {
@@ -2805,22 +3491,59 @@ func runFastTier(args: Args) async {
         logErr("Fast tier: no existing digests.json to render against — leaving untouched.")
         return
     }
-    var gameBlock = existing.game ?? [:]
-    var rendered = 0
     let nowISO = isoFormatter.string(from: Date())
+    var gameRendered = 0
+    var portfolioRendered = 0
+    var holdingsRendered = 0
+
+    // Game windows
+    var gameBlock = existing.game ?? [:]
     for w in TEMPLATED_GAME_WINDOWS {
         let key = w.rawValue
         guard var wd = gameBlock[key], let template = wd.digestTemplate else { continue }
-        let newProse = renderGameDigestTemplate(template, window: w, data: priceData)
-        wd.digest = newProse
+        wd.digest = renderGameDigestTemplate(template, window: w, data: priceData)
         wd.generatedAt = nowISO
         gameBlock[key] = wd
-        rendered += 1
+        gameRendered += 1
     }
     existing.game = gameBlock.isEmpty ? nil : gameBlock
+
+    // Per-portfolio windows
+    if var portfoliosBlock = existing.portfolios {
+        for (uid, windows) in portfoliosBlock {
+            var updated = windows
+            for w in TEMPLATED_PORTFOLIO_WINDOWS {
+                let key = w.rawValue
+                guard var wd = updated[key], let template = wd.digestTemplate else { continue }
+                wd.digest = renderGameDigestTemplate(template, window: w, data: priceData)
+                wd.generatedAt = nowISO
+                updated[key] = wd
+                portfolioRendered += 1
+            }
+            portfoliosBlock[uid] = updated
+        }
+        existing.portfolios = portfoliosBlock.isEmpty ? nil : portfoliosBlock
+    }
+
+    // Per-holding (per-ticker) windows
+    var holdingsBlock = existing.holdings
+    for (ticker, windows) in holdingsBlock {
+        var updated = windows
+        for w in TEMPLATED_HOLDING_WINDOWS {
+            let key = w.rawValue
+            guard var wd = updated[key], let template = wd.digestTemplate else { continue }
+            wd.digest = renderGameDigestTemplate(template, window: w, data: priceData)
+            wd.generatedAt = nowISO
+            updated[key] = wd
+            holdingsRendered += 1
+        }
+        holdingsBlock[ticker] = updated
+    }
+    existing.holdings = holdingsBlock
+
     existing.generatedAt = nowISO
     if args.dryRun {
-        log("DRY RUN — would re-render \(rendered) game window(s).")
+        log("DRY RUN — would re-render \(gameRendered) game + \(portfolioRendered) portfolio + \(holdingsRendered) holding window(s).")
         return
     }
     let encoder = JSONEncoder()
@@ -2828,7 +3551,7 @@ func runFastTier(args: Args) async {
     do {
         let data = try encoder.encode(existing)
         try data.write(to: args.outputPath)
-        log("✓ fast tier rendered \(rendered) game window(s).")
+        log("✓ fast tier rendered \(gameRendered) game + \(portfolioRendered) portfolio + \(holdingsRendered) holding window(s).")
     } catch {
         logErr("Fast tier: failed to write \(args.outputPath.path): \(error.localizedDescription)")
     }
@@ -2839,11 +3562,239 @@ func pricesURLFor(outputPath: URL) -> URL? {
     return publicDir.appendingPathComponent("data/prices.json")
 }
 
+// MARK: - Stale long-window sweep
+//
+// Long-window summaries (1M / 3M / 1Y / ALL) traditionally only refreshed on
+// the Saturday weekly tier — meaning at worst they sit a full week before
+// the AI is re-run against new news. The finalize pass picks the K oldest
+// long-window (entity, window) pairs and regenerates them against the
+// existing article archive (no RSS), spreading the weekly-tier work across
+// the weekdays.
+//
+// Scope: holdings (per-ticker) + portfolios (per-player). Game windows are
+// already regenerated in full by the finalize scope, so they aren't here.
+// K comes from the DIGEST_STALE_MAX env var (defaults to 0 = sweep disabled).
+
+let STALE_LONG_WINDOWS: [WindowKey] = [.m1, .m3, .y1, .all]
+
+struct StaleCandidate {
+    enum Kind {
+        case holding(String)        // ticker
+        case portfolio(String)      // user id
+    }
+    let kind: Kind
+    let window: WindowKey
+    let generatedAt: String         // "" = missing entirely (sorts first)
+}
+
+func staleMaxFromEnv() -> Int {
+    guard let s = ProcessInfo.processInfo.environment["DIGEST_STALE_MAX"],
+          let n = Int(s), n > 0 else { return 0 }
+    return n
+}
+
+func collectStaleCandidates(from existing: OutputJSON) -> [StaleCandidate] {
+    var candidates: [StaleCandidate] = []
+    let validTickers = Set(DEFAULT_TICKERS)
+    for t in DEFAULT_TICKERS where validTickers.contains(t) {
+        let windows = existing.holdings[t] ?? [:]
+        for w in STALE_LONG_WINDOWS {
+            let generatedAt = windows[w.rawValue]?.generatedAt ?? ""
+            candidates.append(StaleCandidate(kind: .holding(t), window: w, generatedAt: generatedAt))
+        }
+    }
+    let portfolios = existing.portfolios ?? [:]
+    for player in PLAYERS {
+        let windows = portfolios[player.id] ?? [:]
+        for w in STALE_LONG_WINDOWS {
+            let generatedAt = windows[w.rawValue]?.generatedAt ?? ""
+            candidates.append(StaleCandidate(kind: .portfolio(player.id), window: w, generatedAt: generatedAt))
+        }
+    }
+    return candidates
+}
+
+func runStaleSweep(
+    args: Args,
+    maxItems: Int,
+    priceData: PriceDataLite?,
+    existing: OutputJSON
+) async -> (outcomes: [TickerOutcome], portfolios: [PortfolioOutcome]) {
+    guard maxItems > 0 else { return ([], []) }
+    var candidates = collectStaleCandidates(from: existing)
+    // Oldest-first ordering — empty string ("never generated") sorts before
+    // any ISO timestamp so missing entries get priority over stale ones.
+    candidates.sort { $0.generatedAt < $1.generatedAt }
+    let picked = Array(candidates.prefix(maxItems))
+    if picked.isEmpty {
+        log("Stale sweep: no candidates found")
+        return ([], [])
+    }
+    log("Stale sweep: refreshing \(picked.count) of \(candidates.count) long-window candidate(s)")
+
+    // Bucket per entity so multiple-stale-windows-for-same-entity collapse
+    // into one processTicker / processPortfolio call (which fans out per
+    // window via withTaskGroup internally).
+    var holdingsBuckets: [String: [WindowKey]] = [:]
+    var portfolioBuckets: [String: [WindowKey]] = [:]
+    for c in picked {
+        switch c.kind {
+        case .holding(let t):     holdingsBuckets[t, default: []].append(c.window)
+        case .portfolio(let uid): portfolioBuckets[uid, default: []].append(c.window)
+        }
+    }
+
+    var sweepArgs = args
+    sweepArgs.digestsOnly = true   // archive-only; sweep never refetches RSS
+    sweepArgs.tickers = []         // each processTicker call passes the specific ticker
+
+    var newOutcomes: [TickerOutcome] = []
+    let gameAge = gameAgeInDays()
+    for (t, windows) in holdingsBuckets {
+        log("  Stale sweep [holding]: \(t) → \(windows.map { $0.rawValue }.joined(separator: ", "))")
+        let o = await processTicker(t, args: sweepArgs, windows: windows, priceData: priceData)
+        newOutcomes.append(o)
+    }
+
+    var newPortfolios: [PortfolioOutcome] = []
+    if let pd = priceData {
+        for (uid, windows) in portfolioBuckets {
+            guard let player = PLAYERS.first(where: { $0.id == uid }) else { continue }
+            log("  Stale sweep [portfolio]: \(player.name) → \(windows.map { $0.rawValue }.joined(separator: ", "))")
+            let p = await processPortfolio(player, data: pd, gameAge: gameAge, windows: windows)
+            newPortfolios.append(p)
+        }
+    } else if !portfolioBuckets.isEmpty {
+        logErr("Stale sweep: prices.json unavailable — skipping \(portfolioBuckets.count) portfolio candidate(s)")
+    }
+    return (newOutcomes, newPortfolios)
+}
+
+// MARK: - Roster-change detection + invalidation
+//
+// The roster lives in config/roster.json (loaded near the top of this
+// file). Edits land via GitHub push and the Mac mini's 15-min `git pull`.
+// When the roster changes (new player, new ticker for an existing player,
+// player removed, etc.) the existing per-portfolio + game digests in
+// public/digests.json become stale — they reference the OLD roster.
+//
+// On every non-fast digest run we compare the current roster against a
+// cached fingerprint at `~/StockDigests/.roster-fingerprint.json`. If
+// anything changed, we drop the affected portfolio entries and ALL game
+// entries from digests.json. The next run's normal pipeline regenerates
+// them using the new roster, with no other manual intervention. Per-ticker
+// archives + summaries are left alone — they're keyed by ticker, not user,
+// so they survive a roster shuffle cleanly.
+
+let ROSTER_FINGERPRINT_FILE = ARCHIVE_DIR.appendingPathComponent(".roster-fingerprint.json")
+
+struct RosterFingerprint: Codable {
+    var lastSeen: String
+    // userId → sorted ticker list. Sorted so ["AAPL","TSLA"] and
+    // ["TSLA","AAPL"] fingerprint identically (order of tickers in
+    // roster.json is presentation; we only care about set equality).
+    var users: [String: [String]]
+}
+
+func currentRosterFingerprint() -> RosterFingerprint {
+    var users: [String: [String]] = [:]
+    for p in PLAYERS {
+        users[p.id] = p.tickers.sorted()
+    }
+    return RosterFingerprint(
+        lastSeen: isoFormatter.string(from: Date()),
+        users: users
+    )
+}
+
+func loadCachedRosterFingerprint() -> RosterFingerprint? {
+    guard let data = try? Data(contentsOf: ROSTER_FINGERPRINT_FILE) else { return nil }
+    return try? JSONDecoder().decode(RosterFingerprint.self, from: data)
+}
+
+func saveRosterFingerprint(_ fp: RosterFingerprint) {
+    ensureArchiveDir()
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    if let data = try? encoder.encode(fp) {
+        try? data.write(to: ROSTER_FINGERPRINT_FILE)
+    }
+}
+
+// Returns the set of user IDs whose portfolio digests should be invalidated.
+// Empty set = no roster change.
+func diffRoster(current: RosterFingerprint, cached: RosterFingerprint) -> Set<String> {
+    var affected: Set<String> = []
+    let currentIds = Set(current.users.keys)
+    let cachedIds = Set(cached.users.keys)
+    // Added / removed users — both directions
+    affected.formUnion(currentIds.symmetricDifference(cachedIds))
+    // Same user id but ticker set changed
+    for id in currentIds.intersection(cachedIds) where current.users[id] != cached.users[id] {
+        affected.insert(id)
+    }
+    return affected
+}
+
+// Drop the portfolio entries for affected users + ALL game entries from
+// digests.json so the next daily / finalize pass regenerates them against
+// the current roster. Per-ticker holdings are LEFT alone — they're keyed
+// by ticker, not user, so they survive cleanly.
+func invalidateAffectedDigests(affectedUserIds: Set<String>, at outputURL: URL) {
+    guard !affectedUserIds.isEmpty else { return }
+    guard var existing = loadExistingDigests(at: outputURL) else { return }
+    var droppedPortfolios = 0
+    if var portfolios = existing.portfolios {
+        for uid in affectedUserIds {
+            if portfolios.removeValue(forKey: uid) != nil { droppedPortfolios += 1 }
+        }
+        existing.portfolios = portfolios.isEmpty ? nil : portfolios
+    }
+    let droppedGame = (existing.game?.count ?? 0) > 0
+    existing.game = nil
+    existing.generatedAt = isoFormatter.string(from: Date())
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    if let data = try? encoder.encode(existing) {
+        try? data.write(to: outputURL)
+        log("Roster change detected — invalidated \(droppedPortfolios) portfolio entry(ies) [\(affectedUserIds.sorted().joined(separator: ", "))]\(droppedGame ? " and all game entries" : "")")
+    }
+}
+
+func handleRosterChange(at outputURL: URL) {
+    let current = currentRosterFingerprint()
+    guard let cached = loadCachedRosterFingerprint() else {
+        // First run after deploy — record the fingerprint without
+        // invalidating, since the existing digests may already match.
+        saveRosterFingerprint(current)
+        return
+    }
+    let affected = diffRoster(current: current, cached: cached)
+    if !affected.isEmpty {
+        invalidateAffectedDigests(affectedUserIds: affected, at: outputURL)
+    }
+    saveRosterFingerprint(current)
+}
+
 // MARK: - Entry point
 
 func runMain() async {
-    let args = parseArgs()
+    var args = parseArgs()
     verboseEnabled = args.verbose
+
+    // --chunk N/M slicing. Explicit --tickers wins; otherwise carve
+    // DEFAULT_TICKERS into M contiguous groups and run only the Nth.
+    // When this fires, args.tickers becomes non-empty → the subset-skip
+    // rule below skips portfolios+game for this run (those are owned by
+    // the finalize pass that runs after all chunks complete).
+    if args.tickers.isEmpty, let idx = args.chunkIndex, let total = args.chunkTotal {
+        let all = DEFAULT_TICKERS
+        let chunkSize = (all.count + total - 1) / total       // ceil div
+        let start = min(idx * chunkSize, all.count)
+        let end = min(start + chunkSize, all.count)
+        args.tickers = Array(all[start..<end])
+        log("Chunk \(idx + 1)/\(total): \(args.tickers.count) ticker(s) — \(args.tickers.joined(separator: ", "))")
+    }
 
     if args.check {
         let model = SystemLanguageModel.default
@@ -2859,12 +3810,21 @@ func runMain() async {
     }
 
     // Fast tier short-circuits before the AI availability check — it never
-    // invokes Apple Intelligence, just regex substitution.
+    // invokes Apple Intelligence, just regex substitution. Roster-change
+    // handling is also skipped here because fast tier never writes per-
+    // portfolio or game digests, so a roster shuffle is irrelevant to it.
     if args.scope == .fast {
         log("Stock News Digest — scope=fast (template re-render only)")
         await runFastTier(args: args)
         return
     }
+
+    // Detect roster.json edits since the last run. If anything changed
+    // (player added/removed, player's tickers changed), drop the stale
+    // per-portfolio + game entries from digests.json so the next pass
+    // regenerates them against the current roster. No-op when the
+    // fingerprint matches the cached one (the common case).
+    handleRosterChange(at: args.outputPath)
 
     if case .unavailable(let reason) = SystemLanguageModel.default.availability {
         logErr("Apple Intelligence unavailable (\(reason)) — skipping digest run. Previous digests.json keeps serving.")
@@ -2903,6 +3863,15 @@ func runMain() async {
         portfolioWindows = []
         gameWindows = WindowKey.allCases
         skipFetch = true
+    case .finalize:
+        // Finalize pass — runs after all chunked daily passes have populated
+        // the per-ticker archive. Regenerates per-portfolio (1D + 1W) and
+        // game-wide (all windows) digests against the now-complete archive.
+        // No RSS, no per-ticker work.
+        holdingsWindows = []
+        portfolioWindows = PORTFOLIO_WINDOWS_DAILY
+        gameWindows = WindowKey.allCases
+        skipFetch = true
     case .fast:
         // Unreachable — handled above.
         return
@@ -2910,6 +3879,21 @@ func runMain() async {
 
     var argsForWindows = args
     if skipFetch { argsForWindows.digestsOnly = true }
+
+    // Load prices.json up front. Originally this lived below the per-ticker
+    // loop because only the portfolio + game phases needed it; now the
+    // per-ticker prompts also bracket live pcts (so the fast tier can swap
+    // them every 15 min), so prices need to be in hand before the AI runs.
+    // The prices file lives next to the output digests.json by convention
+    // (publicDir = outputPath's parent → publicDir/data/prices.json).
+    let runAllTickers = args.tickers.isEmpty
+    var priceData: PriceDataLite? = nil
+    if let url = pricesURLFor(outputPath: args.outputPath) {
+        priceData = loadPriceData(at: url)
+        if priceData == nil {
+            logErr("Could not load prices.json at \(url.path) — per-ticker pct brackets, portfolios, and game summary will be skipped or run pct-less.")
+        }
+    }
 
     // Top level (across tickers / portfolios / game) stays sequential — the
     // bottleneck is Apple Intelligence, and the on-device + PCC serializers
@@ -2920,7 +3904,7 @@ func runMain() async {
     var outcomes: [TickerOutcome] = []
     if !holdingsWindows.isEmpty {
         for t in tickers {
-            let o = await processTicker(t, args: argsForWindows, windows: holdingsWindows)
+            let o = await processTicker(t, args: argsForWindows, windows: holdingsWindows, priceData: priceData)
             outcomes.append(o)
         }
     } else {
@@ -2930,21 +3914,6 @@ func runMain() async {
     if args.fetchOnly {
         log("--fetch-only complete; skipped digest output.")
         return
-    }
-
-    // Load prices.json up front — Phase 2 (portfolio rollups) needs it for
-    // per-user standings, and Phase 3 (game-wide summary) needs it too.
-    // The prices file lives next to the output digests.json by convention
-    // (publicDir = outputPath's parent → publicDir/data/prices.json).
-    let runAllTickers = args.tickers.isEmpty
-    var priceData: PriceDataLite? = nil
-    if runAllTickers {
-        if let url = pricesURLFor(outputPath: args.outputPath) {
-            priceData = loadPriceData(at: url)
-            if priceData == nil {
-                logErr("Could not load prices.json at \(url.path) — Phase 2 + Phase 3 will be skipped.")
-            }
-        }
     }
 
     // Phase 2: per-user portfolio rollups. Skip when running on a subset of
@@ -2979,6 +3948,22 @@ func runMain() async {
         log("Skipping game-wide summary (subset run).")
     }
 
+    // Stale long-window sweep — finalize-only. Picks the K oldest 1M/3M/1Y/ALL
+    // summaries across holdings + portfolios and regenerates them, so the
+    // weekly tier doesn't have to do everything in one Saturday batch. K comes
+    // from DIGEST_STALE_MAX; 0 (or unset) disables.
+    if args.scope == .finalize {
+        let staleMax = staleMaxFromEnv()
+        if staleMax > 0, let existingForSweep = loadExistingDigests(at: args.outputPath) {
+            let (extraOutcomes, extraPortfolios) = await runStaleSweep(
+                args: args, maxItems: staleMax,
+                priceData: priceData, existing: existingForSweep,
+            )
+            outcomes.append(contentsOf: extraOutcomes)
+            portfolios.append(contentsOf: extraPortfolios)
+        }
+    }
+
     if args.dryRun {
         log("DRY RUN complete; no files written.")
         return
@@ -2992,15 +3977,19 @@ func runMain() async {
         exit(1)
     }
 
-    // After a daily run, immediately render the templates so the on-disk
-    // digest.json reflects the current standings rather than the ones at
-    // generation time. This keeps the gap between "AI wrote it" and "user
-    // sees it" near zero on the morning run.
-    if args.scope == .daily, let url = pricesURLFor(outputPath: args.outputPath),
+    // After a daily / finalize run, immediately render the templates so the
+    // on-disk digest.json reflects the current standings rather than the ones
+    // at generation time. This keeps the gap between "AI wrote it" and "user
+    // sees it" near zero on the morning run. Same coverage as runFastTier
+    // (game + portfolios + holdings). Chunked runs hit this too because they
+    // use scope=.daily — each chunk's run re-renders all existing templates.
+    if (args.scope == .daily || args.scope == .finalize),
+       let url = pricesURLFor(outputPath: args.outputPath),
        let pd = loadPriceData(at: url) {
         guard var refreshed = loadExistingDigests(at: args.outputPath) else { return }
-        var gameBlock = refreshed.game ?? [:]
         let nowISO = isoFormatter.string(from: Date())
+
+        var gameBlock = refreshed.game ?? [:]
         for w in TEMPLATED_GAME_WINDOWS {
             let key = w.rawValue
             guard var wd = gameBlock[key], let tmpl = wd.digestTemplate else { continue }
@@ -3009,6 +3998,36 @@ func runMain() async {
             gameBlock[key] = wd
         }
         refreshed.game = gameBlock.isEmpty ? nil : gameBlock
+
+        if var portfoliosBlock = refreshed.portfolios {
+            for (uid, windows) in portfoliosBlock {
+                var updated = windows
+                for w in TEMPLATED_PORTFOLIO_WINDOWS {
+                    let key = w.rawValue
+                    guard var wd = updated[key], let tmpl = wd.digestTemplate else { continue }
+                    wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd)
+                    wd.generatedAt = nowISO
+                    updated[key] = wd
+                }
+                portfoliosBlock[uid] = updated
+            }
+            refreshed.portfolios = portfoliosBlock.isEmpty ? nil : portfoliosBlock
+        }
+
+        var holdingsBlock = refreshed.holdings
+        for (ticker, windows) in holdingsBlock {
+            var updated = windows
+            for w in TEMPLATED_HOLDING_WINDOWS {
+                let key = w.rawValue
+                guard var wd = updated[key], let tmpl = wd.digestTemplate else { continue }
+                wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd)
+                wd.generatedAt = nowISO
+                updated[key] = wd
+            }
+            holdingsBlock[ticker] = updated
+        }
+        refreshed.holdings = holdingsBlock
+
         refreshed.generatedAt = nowISO
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

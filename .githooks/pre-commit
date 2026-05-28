@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Pre-commit hook for the Stock Game repo.
+#
+# Purpose: catch the two classes of mistake that have broken the live site:
+#
+#   1. Unresolved merge-conflict markers in staged files. This happened on
+#      2026-05-27 when a `git pull --rebase --autostash` couldn't cleanly
+#      reapply local changes on top of an upstream commit that edited the
+#      same file (`lib/picks.ts`). The conflict markers got left in the
+#      file, every consumer of that file broke, and the live site went
+#      down. A pre-commit refusal would have caught it instantly.
+#
+#   2. Malformed config/roster.json. The roster is the source of truth for
+#      both the frontend and the briefing pipeline; a bad JSON push breaks
+#      both. `scripts/validate-roster.py` exists to catch typos / missing
+#      commas / duplicate user IDs / orphan tickers; the hook just makes
+#      sure it gets run before every roster-touching commit.
+#
+# Install (once per clone): git config core.hooksPath .githooks
+#
+# To bypass in an emergency: git commit --no-verify
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+fail=0
+
+# ─── 1. Refuse staged files that still contain merge-conflict markers ────
+# Only scan staged content (so unrelated unmerged files don't block work)
+# and only scan text files (binaries don't have meaningful markers and
+# `grep -I` skips them).
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+if [ -n "$staged" ]; then
+  conflicted=""
+  while IFS= read -r path; do
+    full="$repo_root/$path"
+    [ -f "$full" ] || continue
+    if grep -IlE '^(<<<<<<<|=======|>>>>>>>) ' "$full" >/dev/null 2>&1; then
+      conflicted="$conflicted  $path"$'\n'
+    fi
+  done <<< "$staged"
+  if [ -n "$conflicted" ]; then
+    echo "pre-commit: ❌ unresolved merge-conflict markers in staged files:"
+    printf '%s' "$conflicted"
+    echo "             resolve the conflict (or delete the markers) before committing."
+    echo "             to skip in an emergency: git commit --no-verify"
+    fail=1
+  fi
+fi
+
+# ─── 2. Validate config/roster.json if it's part of this commit ──────────
+# Runs the same Python validator the laptop / GitHub-web edit workflow uses.
+# Fast (no network, no AI), and catches the typo / lowercase-ticker /
+# duplicate-user-id class of mistake before it lands on origin/main.
+if echo "$staged" | grep -qx 'config/roster.json'; then
+  if ! python3 "$repo_root/scripts/validate-roster.py"; then
+    echo "pre-commit: ❌ config/roster.json failed validation (see error above)."
+    fail=1
+  fi
+fi
+
+# ─── 3. TypeScript type-check if any TS source changed ───────────────────
+# The frontend's build also catches type errors, but that happens at deploy
+# time — we'd rather find a typo before the commit lands on origin/main.
+# Skipped for data-only / docs-only commits to keep cron's data pushes fast.
+if echo "$staged" | grep -qE '\.(ts|tsx)$|config/roster\.json$'; then
+  if ! (cd "$repo_root" && npx --no-install tsc --noEmit 2>&1); then
+    echo "pre-commit: ❌ TypeScript type-check failed (see errors above)."
+    fail=1
+  fi
+fi
+
+if [ "$fail" -eq 1 ]; then
+  exit 1
+fi
+exit 0
