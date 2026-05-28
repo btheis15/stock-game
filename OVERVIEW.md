@@ -455,6 +455,39 @@ last-known-good roster so the briefing pipeline keeps running; the Vercel
 build fails on the bad import and the previous deploy keeps serving. Push
 a fix and both sides recover on the next 15-min cycle.
 
+### Create a user fund (anyone, no auth)
+Open the Compare page → "+ Create Fund" → name it → search tickers
+(Yahoo Finance autocomplete; stocks, ETFs, mutual funds, ADRs all
+selectable) → set weights in 0.1% increments (must sum to 100%) → Save.
+The save POSTs to `/api/funds`, which commits the new entry to
+`config/funds.json` on `main` via the GitHub Contents API. The git log
+shows `funds: created "<name>" by <creator>` so the trail is auditable
+even without auth.
+
+Backtracking works the same way as roster changes — shares for each
+holding are computed as `$100k × weight / startClose(ticker)`, so a fund
+created today plots a curve back to start_date as if it had always
+existed. The Mac mini's next 15-min `git pull` lands the new fund;
+`fetch-prices.ts` extends `ALL_TICKERS` with the union of all fund
+holdings and grabs any new ticker's history back to start_date on the
+next refresh; the next chunked daily run generates a short 1D + 1W
+briefing for the fund.
+
+**Editing + deleting:** Open the Manage Funds view → edit the name, the
+holdings, or the weights → Save commits the edit and the new
+`config/funds.json` lands on main. Delete is a soft-delete: the entry
+stays in the JSON with `deletedAt` set, the UI hides it from the main
+Compare view, but the Manage view's Archive tab shows it for 7 days
+with a Restore button. After 7 days the entry stays in the JSON
+(harmless, cheap) but the UI no longer surfaces it. There's no real
+auth — the open-game policy is "anyone can edit anyone's fund," with
+the git log providing the audit trail.
+
+**Required env vars on Vercel** (for the API routes to commit):
+`GITHUB_TOKEN` (fine-grained PAT with Contents: read+write on this
+repo), `GITHUB_OWNER`, `GITHUB_REPO`. Without these, "Save Fund" fails
+with a clear error message; the rest of the site keeps working.
+
 ### Add a spin-off (when HON announces theirs)
 Edit `lib/events.ts`. Drop in:
 ```ts
