@@ -74,11 +74,30 @@ fi
 
 # Sync with origin/main before doing work — handles laptop merges so our push
 # always fast-forwards. --autostash protects against any accidental WIP.
+#
+# Post-pull recovery: if --autostash's stash-apply leaves unmerged paths
+# (which is exactly what broke us on 2026-05-27 — a laptop session's
+# uncommitted JSON refactor couldn't reapply on top of a parallel mobile
+# edit), the working tree is left with `<<<<<<<` markers and every reader
+# of those files crashes. The Mac mini is a runner, not an editor — its
+# working tree should always equal origin/main — so we abort the rebase
+# and hard-reset to origin/main. The lost stash is recoverable from the
+# laptop (which is the only place that should have authored those edits).
 log "rebasing onto origin/main"
 acquire_git_lock || exit 1
 pre_rebase_sha="$(git rev-parse HEAD)"
 git fetch origin main
-git pull --rebase --autostash origin main
+if ! git pull --rebase --autostash origin main; then
+  log "post-pull: rebase failed — aborting and hard-resetting to origin/main"
+  git rebase --abort 2>/dev/null || true
+  git reset --hard origin/main
+fi
+if git ls-files -u | grep -q .; then
+  log "post-pull: unmerged paths after autostash apply — hard-resetting to origin/main"
+  git rebase --abort 2>/dev/null || true
+  git reset --hard origin/main
+  git stash drop 2>/dev/null || true
+fi
 post_rebase_sha="$(git rev-parse HEAD)"
 release_git_lock
 

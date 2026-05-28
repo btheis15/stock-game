@@ -1475,13 +1475,43 @@ class SchedulerApp:
                 timeout=30,
                 capture_output=True,
             )
-            subprocess.run(
+            pull = subprocess.run(
                 ["git", "-C", REPO_DIR, "pull", "--rebase", "--autostash",
                  "--quiet", "origin", "main"],
                 check=False,
                 timeout=30,
                 capture_output=True,
             )
+            # Post-pull recovery: if the autostash apply left unmerged
+            # paths (the failure mode that broke us on 2026-05-27 — a
+            # local edit collided with a remote edit on the same file
+            # under autostash + rebase), the working tree now contains
+            # conflict markers and the digest / frontend pipelines will
+            # crash. The Mac mini is a runner, not an editor, so we
+            # recover by hard-resetting to origin/main. Any "lost" stash
+            # is recoverable from the laptop that originally authored
+            # the edits.
+            unmerged = subprocess.run(
+                ["git", "-C", REPO_DIR, "ls-files", "-u"],
+                check=False,
+                timeout=10,
+                capture_output=True,
+                text=True,
+            )
+            if pull.returncode != 0 or (unmerged.stdout or "").strip():
+                print("[background_pull] post-pull conflict — resetting to origin/main")
+                subprocess.run(
+                    ["git", "-C", REPO_DIR, "rebase", "--abort"],
+                    check=False, timeout=10, capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "-C", REPO_DIR, "reset", "--hard", "origin/main"],
+                    check=False, timeout=10, capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "-C", REPO_DIR, "stash", "drop"],
+                    check=False, timeout=10, capture_output=True,
+                )
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             # Network blip / git missing — silently retry next interval.
             # Persistent failures get caught by _restart_self's pull when an

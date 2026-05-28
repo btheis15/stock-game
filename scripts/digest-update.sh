@@ -86,10 +86,22 @@ if [ "$current_branch" != "main" ]; then
 fi
 
 # Sync before generating so the digest commit always fast-forwards.
+# See cron-update.sh for the rationale on post-pull recovery: an autostash
+# conflict shouldn't strand the Mac mini in an unmerged working tree.
 log "rebasing onto origin/main"
 acquire_git_lock || exit 1
 git fetch origin main
-git pull --rebase --autostash origin main
+if ! git pull --rebase --autostash origin main; then
+  log "post-pull: rebase failed — aborting and hard-resetting to origin/main"
+  git rebase --abort 2>/dev/null || true
+  git reset --hard origin/main
+fi
+if git ls-files -u | grep -q .; then
+  log "post-pull: unmerged paths after autostash apply — hard-resetting to origin/main"
+  git rebase --abort 2>/dev/null || true
+  git reset --hard origin/main
+  git stash drop 2>/dev/null || true
+fi
 release_git_lock
 
 # Fundamentals refresh — daily, chunk 0 only. Pulls company profile + key
