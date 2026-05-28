@@ -287,13 +287,19 @@ export function CompareView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, isIntraday, isOn]);
 
-  const leader = stats[0];
-  const second = stats[1];
-  const gapPct = leader.pct - second.pct;
+  // Empty-state guard: if every chip is toggled off, stats is empty and
+  // leader/second below would crash. Use safe defaults so the page still
+  // renders (headline collapses to "Nothing visible" + a hint), then the
+  // user can re-open the Filter sheet to enable something.
+  const hasAny = stats.length > 0;
+  const leader = hasAny ? stats[0] : { id: "_none", name: "Nothing visible", color: "#71717A", href: null, value: 0, pct: 0, baseline: 0 };
+  const second = stats.length > 1 ? stats[1] : leader;
+  const gapPct = hasAny ? leader.pct - second.pct : 0;
   // Gap in dollars = difference in gain over the active range (not total
   // portfolio diff), so it's consistent with the % comparison.
-  const gapDollars =
-    (leader.value - leader.baseline) - (second.value - second.baseline);
+  const gapDollars = hasAny
+    ? (leader.value - leader.baseline) - (second.value - second.baseline)
+    : 0;
   const scrubLabel = scrub
     ? scrub.date.length > 10
       ? fmtTimeOfDay(scrub.date)
@@ -371,18 +377,30 @@ export function CompareView({
           Compare
         </div>
         <h1 className="text-[22px] leading-tight font-semibold text-white">
-          {gapPct === 0 ? "It's a tie" : `${leader.name} leads`}
+          {!hasAny
+            ? "Nothing visible"
+            : gapPct === 0
+            ? "It's a tie"
+            : `${leader.name} leads`}
         </h1>
-        <div
-          className="text-[34px] font-semibold tracking-tight mt-1"
-          style={{ color: leader.color }}
-        >
-          {fmtPct(gapPct)}
-        </div>
-        <div className="text-[14px] font-medium text-zinc-400 mt-0.5">
-          {fmtSignedUSD(gapDollars)} gap
-          {scrubLabel && <span className="text-zinc-500"> • {scrubLabel}</span>}
-        </div>
+        {hasAny ? (
+          <>
+            <div
+              className="text-[34px] font-semibold tracking-tight mt-1"
+              style={{ color: leader.color }}
+            >
+              {fmtPct(gapPct)}
+            </div>
+            <div className="text-[14px] font-medium text-zinc-400 mt-0.5">
+              {fmtSignedUSD(gapDollars)} gap
+              {scrubLabel && <span className="text-zinc-500"> • {scrubLabel}</span>}
+            </div>
+          </>
+        ) : (
+          <div className="text-[14px] font-medium text-zinc-400 mt-1">
+            Tap <span className="text-zinc-200">Show 0 of {filterChips.length}</span> above to enable a player or fund.
+          </div>
+        )}
       </div>
 
       {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}

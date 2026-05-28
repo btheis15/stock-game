@@ -93,12 +93,18 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
 
   const list = tab === "active" ? active : archived;
   return (
-    // h-[100dvh] tracks the dynamic viewport so the close button + tab row
-    // stay visible even with an iOS keyboard open (rare here, but the
-    // pattern matches CreateFundModal for consistency).
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col">
-        <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+    // z-[100] sits above the global TabBar (z-50); safe-area paddings on
+    // the header keep the iOS status bar off the title row. See
+    // CreateFundModal for the full rationale on these three details.
+    <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div
+        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <header
+          className="flex items-center justify-between px-5 py-4 border-b border-zinc-800"
+          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
+        >
           <div>
             <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
               Manage

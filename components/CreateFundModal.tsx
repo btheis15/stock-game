@@ -217,19 +217,28 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
   if (!open) return null;
 
   return (
-    // h-[100dvh] is load-bearing — `vh` units don't shrink when iOS opens
-    // the keyboard, so a `max-h-[90vh]` modal extends past the visible
-    // viewport and hides the footer (Save / Next buttons) under the
-    // keyboard. dvh tracks the dynamic viewport, so the sheet always
-    // fills exactly the visible area and the footer stays tappable. The
-    // sm:* overrides give the desktop modal the usual centered card.
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+    // Three load-bearing details on mobile:
+    //   1. z-[100] above the global TabBar (which is z-50) — without this
+    //      the bottom-nav bar renders on top of the modal footer and
+    //      eats the Save / Next button taps. Hit during first-day
+    //      testing on iPhone — the screenshot showed the modal content
+    //      bleeding behind the Compare/Stocks/Tee-Times tab strip.
+    //   2. h-[100dvh] (not 100vh) tracks iOS's dynamic viewport when the
+    //      keyboard opens, so the sheet always fills exactly the visible
+    //      area and the footer stays tappable.
+    //   3. safe-area-inset padding on header + footer so the iOS status
+    //      bar at the top and the home indicator at the bottom don't
+    //      overlap interactive content.
+    <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
         className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
         // Stop scroll-through on mobile.
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+        <header
+          className="flex items-center justify-between px-5 py-4 border-b border-zinc-800"
+          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
+        >
           <div>
             <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
               Step {step} of 3
@@ -283,11 +292,17 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
             </div>
           )}
         </div>
-        <footer className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800">
+        <footer
+          className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
+        >
           {step > 1 && (
             <button
               className="text-[14px] text-zinc-400 px-3 py-2"
-              onClick={() => setStep((s) => Math.max(1, s - 1) as 1 | 2 | 3)}
+              onClick={() => {
+                setError(null);
+                setStep((s) => Math.max(1, s - 1) as 1 | 2 | 3);
+              }}
               disabled={saving}
             >
               Back
@@ -301,7 +316,10 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
                 (step === 1 && !canAdvanceFromStep1) ||
                 (step === 2 && !canAdvanceFromStep2)
               }
-              onClick={() => setStep((s) => Math.min(3, s + 1) as 1 | 2 | 3)}
+              onClick={() => {
+                setError(null);
+                setStep((s) => Math.min(3, s + 1) as 1 | 2 | 3);
+              }}
             >
               Next
             </button>

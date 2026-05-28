@@ -17,6 +17,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { STARTING_PORTFOLIO_DOLLARS } from "./picks";
+import { getGithubFile } from "./github-commit";
 import type { Fund, FundHolding, FundsFile } from "./types";
 
 // 7-day window for restoring soft-deleted funds. After this, the entry stays
@@ -61,26 +62,62 @@ export function isFundRestorable(fund: Fund, now: Date = new Date()): boolean {
   return elapsedMs < FUND_RESTORE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 }
 
-/** Server-only loader for config/funds.json. Mirrors the pattern used by
- *  fundamentals-data.ts and the roster JSON loader in digest.swift. */
-let cached: FundsFile | null = null;
+/** Server-only loader for config/funds.json. Reads from GitHub via the
+ *  Contents API when the GITHUB_* env vars are configured (production),
+ *  falls back to the filesystem snapshot from the current Vercel deploy
+ *  otherwise (dev / unconfigured). The GitHub read is what makes a
+ *  freshly-saved fund visible to all users within seconds — before this
+ *  change, the page read from the deploy filesystem and a new fund only
+ *  appeared after Vercel finished redeploying (~30-60s).
+ *
+ *  Cache strategy: a short in-process TTL (10s) protects against
+ *  burst-rendering hitting GitHub's rate limits during a traffic spike.
+ *  After a save, the API route calls invalidateFundsCache() to bust this
+ *  instance's cache so the next render fetches fresh. Cross-instance
+ *  propagation is bounded by the TTL — at worst, a visitor lands on a
+ *  cold instance and sees up-to-10s-stale state. */
+const FUNDS_CACHE_TTL_MS = 10_000;
+let cached: { data: FundsFile; ts: number } | null = null;
 
-export async function loadFundsData(): Promise<FundsFile> {
-  if (cached) return cached;
+async function fetchFundsFromGithub(): Promise<FundsFile | null> {
+  if (!process.env.GITHUB_TOKEN || !process.env.GITHUB_OWNER || !process.env.GITHUB_REPO) {
+    return null;
+  }
+  try {
+    const file = await getGithubFile("config/funds.json");
+    if (!file) return { funds: [] };
+    const parsed = JSON.parse(file.content) as FundsFile;
+    return { funds: parsed.funds ?? [] };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFundsFromFilesystem(): Promise<FundsFile> {
   try {
     const file = resolve(process.cwd(), "config", "funds.json");
     const raw = await readFile(file, "utf8");
     const parsed = JSON.parse(raw) as FundsFile;
-    cached = { funds: parsed.funds ?? [] };
-    return cached;
+    return { funds: parsed.funds ?? [] };
   } catch {
     return { funds: [] };
   }
 }
 
+export async function loadFundsData(): Promise<FundsFile> {
+  if (cached && Date.now() - cached.ts < FUNDS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+  const fromGithub = await fetchFundsFromGithub();
+  const data = fromGithub ?? (await fetchFundsFromFilesystem());
+  cached = { data, ts: Date.now() };
+  return data;
+}
+
 /** Reset the in-memory cache. Called from the API routes right after a
- *  successful GitHub commit so the next read picks up the fresh content
- *  without waiting for the next deploy. */
+ *  successful GitHub commit so this instance picks up the fresh content
+ *  on the very next request, not 10s later. Cross-instance, the TTL
+ *  bounds visibility lag at the cache window. */
 export function invalidateFundsCache(): void {
   cached = null;
 }
