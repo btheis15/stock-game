@@ -282,9 +282,9 @@ export function CompareView({
         id: f.id,
         name: f.name,
         color: f.color,
-        // Funds don't have a drill-down page yet (the Manage sheet is
-        // the closest equivalent); render the row as non-clickable.
-        href: null,
+        // Tap through to the fund's drill-down page (holdings + chart),
+        // same as a player row.
+        href: `/fund/${f.id}`,
         value,
         pct,
         baseline,

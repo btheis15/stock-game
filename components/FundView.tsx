@@ -1,10 +1,27 @@
 "use client";
 
+// Fund drill-down (/fund/[id]). Mirrors PortfolioView: a big chart with
+// comparison overlays (players, S&P 500, other funds), then the fund's
+// holdings listed individually — each tappable through to its stock page —
+// so a fund reads exactly like an individual account. Shares come from the
+// fund's weights rather than an equal per-pick split.
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { PriceHeader } from "./PriceHeader";
+import { MarketStateBadge } from "./MarketStateBadge";
+import { DigestPanel } from "./DigestPanel";
+import { useDigests } from "@/lib/digests";
+import { useFundsFilter, FilterToolbar, FilterSheet } from "./FundsFilter";
+import { OverlayLegend } from "./OverlayLegend";
+import {
+  useComparisonOverlays,
+  type CompSeries,
+  type CompEntity,
+  type IntradayResult,
+} from "./comparisonOverlays";
 import {
   filterRange,
   fmtDateLong,
@@ -15,22 +32,11 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
-import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
-import { MarketStateBadge } from "./MarketStateBadge";
-import { DigestPanel } from "./DigestPanel";
-import { useDigests } from "@/lib/digests";
-import { PortfolioComposition } from "./PortfolioComposition";
-import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
-import { useFundsFilter, FilterToolbar, FilterSheet } from "./FundsFilter";
-import { OverlayLegend } from "./OverlayLegend";
 import {
-  useComparisonOverlays,
-  type CompSeries,
-  type CompEntity,
-  type IntradayResult,
-} from "./comparisonOverlays";
-
-export type { CompSeries } from "./comparisonOverlays";
+  BASELINE,
+  STARTING_PORTFOLIO_DOLLARS,
+  TICKER_NAMES,
+} from "@/lib/picks";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -39,34 +45,37 @@ function lastPointIsLive(points: { date: string }[]): boolean {
   return Date.now() - new Date(last.date).getTime() < LIVE_LAG_MS;
 }
 
-// Storage key distinct from the Compare page so portfolio overlays and the
-// Compare filter don't share toggles (you usually want fewer overlays here).
-const PORTFOLIO_FILTER_KEY = "stockgame.portfolio.filter";
+// Distinct from the portfolio + compare filters so fund overlays don't share
+// toggle state with those pages.
+const FUND_FILTER_KEY = "stockgame.fund.filter";
 
 interface Props {
-  userId: UserId;
+  fundId: string;
+  name: string;
+  color: string;
+  creator: string | null;
   series: PortfolioPoint[];
   intraday: IntradayResult;
-  /** Past-week hourly bars; null falls back to filtered daily closes for 1W. */
   weekly: PortfolioPoint[] | null;
-  /** S&P 500 (SPY) benchmark curves — same shape as the player ones, drawn
-   *  alongside the player line on the chart and summarized as "vs S&P 500
-   *  +X.XX%" in PriceHeader. Null on any path → no overlay for that path. */
   baselineDaily: PortfolioPoint[] | null;
   baselineIntraday: IntradayResult | null;
   baselineWeekly: PortfolioPoint[] | null;
-  /** Other players, available as toggle-on comparison overlays (default off). */
+  /** All players, available as comparison overlays (default off). */
   players: CompSeries[];
-  /** Active funds (incl. Legacy Auto), comparison overlays (default off). */
+  /** The OTHER active funds (excludes this one), comparison overlays. */
   funds: CompSeries[];
   intradayDate: string;
   generatedAt: string;
   holdings: HoldingRow[];
-  composition: PortfolioCompositionData;
+  /** Holding tickers not yet in the snapshot — shown as a "loading" note. */
+  pending: string[];
 }
 
-export function PortfolioView({
-  userId,
+export function FundView({
+  fundId,
+  name,
+  color,
+  creator,
   series,
   intraday,
   weekly,
@@ -78,20 +87,16 @@ export function PortfolioView({
   intradayDate,
   generatedAt,
   holdings,
-  composition,
+  pending,
 }: Props) {
-  const user = USERS[userId];
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { isOn, setOn } = useFundsFilter(PORTFOLIO_FILTER_KEY);
-  const { loading: digestsLoading, getPortfolioDigest } = useDigests();
+  const { isOn, setOn } = useFundsFilter(FUND_FILTER_KEY);
+  const { loading: digestsLoading, getFundDigest } = useDigests();
 
   const isIntraday = range === "1D";
   const hasBaseline = baselineDaily != null;
-  // Keep compactX consistent: only enable it when the baseline has weekly data
-  // too, otherwise we'd mix hourly-spaced player points with daily-spaced
-  // baseline points. Mirrors the same guard in CompareView.
   const isWeeklyHourly =
     range === "1W" && weekly != null && (!hasBaseline || baselineWeekly != null);
   const live = useMemo(
@@ -105,9 +110,6 @@ export function PortfolioView({
     return filterRange(series, range);
   }, [series, intraday, weekly, range, isIntraday, isWeeklyHourly]);
 
-  // Raw baseline series for the active range (unscaled $). Null if SPY data
-  // isn't present in this snapshot OR the active range's baseline path is
-  // empty.
   const baselineRanged = useMemo<PortfolioPoint[] | null>(() => {
     if (!hasBaseline) return null;
     if (isIntraday) return baselineIntraday?.points ?? null;
@@ -119,7 +121,7 @@ export function PortfolioView({
     ? intraday.previousClose
     : ranged[0]?.value ?? 0;
   const lastValue = ranged[ranged.length - 1]?.value ?? baselineValue;
-  const scrubVal = scrub?.values.find((v) => v.id === userId)?.value;
+  const scrubVal = scrub?.values.find((v) => v.id === fundId)?.value;
   const value = scrubVal ?? lastValue;
   const scrubLabel = scrub
     ? scrub.date.length > 10
@@ -127,13 +129,7 @@ export function PortfolioView({
       : fmtDateLong(scrub.date)
     : null;
 
-  // Excess return shown in PriceHeader's "vs S&P 500" sub-row — the player's
-  // range pct MINUS the S&P 500's range pct over the same window, so it
-  // answers "am I beating the market, and by how much?" Each player sees a
-  // different number (not SPY's absolute pct). Read both the player and the
-  // baseline values from the raw $ series via scrub.index, since the chart
-  // scales the baseline line — scaling cancels in pct calculations but
-  // reading the raw series sidesteps the indirection entirely.
+  // "vs S&P 500" excess return — same math as PortfolioView.
   const baselineStartValue =
     isIntraday && baselineIntraday
       ? baselineIntraday.previousClose
@@ -146,20 +142,16 @@ export function PortfolioView({
     if (idx != null && baselineRanged[idx]) return baselineRanged[idx].value;
     return baselineLastValue;
   })();
-  const playerPct =
+  const fundPct =
     baselineValue === 0 ? 0 : (value - baselineValue) / baselineValue;
   const baselinePct =
     baselineStartValue === 0
       ? 0
       : (baselineCurrent - baselineStartValue) / baselineStartValue;
-  const excessVsBaselinePct = playerPct - baselinePct;
+  const excessVsBaselinePct = fundPct - baselinePct;
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
-  // Every line that CAN be overlaid: the other players (default off), the
-  // S&P 500 baseline (default on — preserves the historical "vs market"
-  // overlay), and the funds (default off). The current player is never in
-  // this list; it's always drawn. href makes each legend row click-through.
   const comparisonEntities = useMemo<CompEntity[]>(() => {
     const list: CompEntity[] = players.map((p) => ({
       ...p,
@@ -188,18 +180,18 @@ export function PortfolioView({
   const baselineOn = hasBaseline && isOn(BASELINE.id, true);
 
   const { filterChips, chartSeries, legend } = useComparisonOverlays({
-      subjectId: userId,
-      subjectName: user.name,
-      subjectColor: user.color,
-      ranged,
-      baselineValue,
-      isIntraday,
-      isWeeklyHourly,
-      range,
-      entities: comparisonEntities,
-      isOn,
-      scrub,
-    });
+    subjectId: fundId,
+    subjectName: name,
+    subjectColor: color,
+    ranged,
+    baselineValue,
+    isIntraday,
+    isWeeklyHourly,
+    range,
+    entities: comparisonEntities,
+    isOn,
+    scrub,
+  });
 
   const sorted = useMemo(
     () =>
@@ -212,8 +204,8 @@ export function PortfolioView({
   return (
     <div className="pb-24">
       <PriceHeader
-        ticker={user.name.toUpperCase()}
-        title={`${user.name}'s portfolio`}
+        ticker={creator ? `FUND · BY ${creator.toUpperCase()}` : "COMPARISON FUND"}
+        title={name}
         value={value}
         baseline={baselineValue}
         scrubDate={scrubLabel}
@@ -243,32 +235,30 @@ export function PortfolioView({
         compactX={isWeeklyHourly}
       />
 
-      <OverlayLegend legend={legend} subjectLabel="You" />
+      <OverlayLegend legend={legend} subjectLabel="This fund" />
 
-      <RangeTabs value={range} onChange={setRange} accent={user.color} />
+      <RangeTabs value={range} onChange={setRange} accent={color} />
 
       <DigestPanel
-        digest={getPortfolioDigest(userId, range)}
+        digest={getFundDigest(fundId, range)}
         loading={digestsLoading}
         range={range}
       />
 
       <div className="px-4 mt-3">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Holdings</h2>
+        {pending.length > 0 && (
+          <div className="text-[11px] text-amber-600 leading-snug mb-2">
+            {pending.join(", ")} {pending.length === 1 ? "is" : "are"} still
+            loading — full value updates at the next refresh.
+          </div>
+        )}
         <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
           {sorted.map((h) => {
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
             const rangeDollars = stat?.dollars ?? 0;
-            // Anchor id + scroll-margin live on the WRAPPER, not the Link.
-            // When iOS Safari focuses a tapped link, any scroll-margin-top
-            // on that link can offset the page before navigation completes
-            // and the offset leaks into the new page's initial scroll
-            // position — visible as ~80px of empty space above the back
-            // button on /stock/{ticker}. Wrapping decouples the deep-link
-            // target (incoming `/portfolio/{user}#TICKER` jump-scroll +
-            // green flash) from the click handler (outgoing nav, which
-            // should always land at top).
+            const weightPct = h.costBasis / STARTING_PORTFOLIO_DOLLARS;
             return (
               <div
                 key={h.ticker}
@@ -288,7 +278,8 @@ export function PortfolioView({
                       {TICKER_NAMES[h.ticker] ?? h.ticker}
                     </div>
                     <div className="text-[11px] text-zinc-500 tabular-nums">
-                      {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
+                      {fmtPct(weightPct)} • {h.shares.toFixed(2)} shares •{" "}
+                      {fmtUSD(h.currentClose, 2)}
                     </div>
                   </div>
                   <div className="text-right">
@@ -308,8 +299,6 @@ export function PortfolioView({
           })}
         </div>
       </div>
-
-      <PortfolioComposition composition={composition} accentColor={user.color} />
 
       <FilterSheet
         open={filterOpen}

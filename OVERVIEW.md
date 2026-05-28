@@ -162,7 +162,11 @@ think about staleness.
 **Legacy Auto** (yellow — F, GM, STLA, TM, HMC) used to be a sixth player but
 is now a **comparison fund**: a themed basket you can toggle on as an overlay
 rather than a player competing for the top of the leaderboard. It works
-exactly like a custom-created fund (equal 20% weights, same $100k math).
+exactly like a custom-created fund (equal 20% weights, same $100k math). Like
+any fund, tapping its leaderboard row (or its legend row on a chart) opens a
+**fund drill-down** at `/fund/{id}` — the same big chart + comparison overlays
+as a player page, with every holding listed individually and tappable through
+to its stock page.
 
 A few notes on this:
 - Per-pick allocation is `$100k ÷ number of picks` — 10 picks → $10k each.
