@@ -10,7 +10,7 @@
 // the stored state fall back to their `defaultOn` flag, so a
 // freshly-added fund respects whatever default it was created with even
 // without a storage entry. The Filter pill is paired with two action
-// buttons in CompareView: + Fund (opens CreateFundModal) and Manage
+// buttons in CompareView: Add Fund (opens CreateFundModal) and Manage
 // (opens ManageFundsSheet).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -78,7 +78,7 @@ export function useFundsFilter(storageKey: string = DEFAULT_STORAGE_KEY): {
   return { state, isOn, setOn };
 }
 
-/** The compact pill row that sits above the chart. Filter / + Fund / Manage. */
+/** The compact pill row that sits above the chart. Filter / Add Fund / Manage. */
 export function FilterToolbar({
   chips,
   isOn,
@@ -115,8 +115,10 @@ export function FilterToolbar({
         <button
           onClick={onCreate}
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-black"
+          aria-label="Add a fund to the game"
         >
-          + Fund
+          <PlusIcon />
+          Add Fund
         </button>
       )}
       {onManage && (
@@ -139,6 +141,19 @@ function FilterIcon() {
         d="M4 5h16M7 12h10M10 19h4"
         stroke="currentColor"
         strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
     </svg>
@@ -240,7 +255,7 @@ export function FilterSheet({
           })}
           {grouped.Funds.length === 0 && (
             <div className="text-[11px] text-zinc-500 leading-snug -mt-3">
-              No funds yet — tap <span className="text-zinc-300">+ Fund</span> above to create one.
+              No funds yet — tap <span className="text-zinc-300">Add Fund</span> above to create one.
             </div>
           )}
         </div>

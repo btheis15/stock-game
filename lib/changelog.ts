@@ -45,7 +45,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Create a custom basket of stocks and watch it race against everyone else on the leaderboard.",
     details: [
       "You're no longer limited to watching the five of us. You can now build your own pretend fund — pick any stocks you like, decide how much of each to hold, give it a name, and it starts competing right alongside our portfolios.",
-      "To make one, go to the Compare screen and tap “Create.” Search for the stocks you want, set how the money splits between them (or let it divide evenly), name your fund, and save. Its line shows up on the chart and its score appears on the leaderboard.",
+      "To make one, go to the Compare screen and tap “Add Fund.” A quick intro explains how it works, then you name your fund, search for the stocks you want, set how the money splits between them (or let it divide evenly), and save. Its line shows up on the chart and its score appears on the leaderboard.",
       "Funds you create start switched off on the chart so things don't get crowded. Tap the filter button to turn yours on, and use “Manage” to edit, rename, or archive a fund later.",
     ],
   },

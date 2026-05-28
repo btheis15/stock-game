@@ -1,8 +1,12 @@
 "use client";
 
 // Create-Fund flow as a single full-screen sheet on mobile, modal on
-// desktop. Three steps, advanced via a sticky bottom button row that
-// always shows what the next action does:
+// desktop. In create mode the first screen leads with a <FundIntro>
+// explainer — what a fund is, how to build one, and what happens after
+// you save — so a non-technical player understands the feature before
+// touching an input. (Skipped in edit mode; an editor already knows.)
+// Three steps, advanced via a sticky bottom button row that always
+// shows what the next action does:
 //
 //   1. Name your fund + your name (creator label, optional)
 //   2. Search tickers + add to the holdings list
@@ -273,7 +277,7 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
                   ? "Edit name"
                   : "Name your fund"
                 : step === 2
-                ? "Pick equities"
+                ? "Pick holdings"
                 : "Set allocation"}
             </h2>
           </div>
@@ -287,12 +291,15 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
         </header>
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {step === 1 && (
-            <StepName
-              name={name}
-              setName={setName}
-              creator={creator}
-              setCreator={setCreator}
-            />
+            <>
+              {!isEdit && <FundIntro />}
+              <StepName
+                name={name}
+                setName={setName}
+                creator={creator}
+                setCreator={setCreator}
+              />
+            </>
           )}
           {step === 2 && (
             <StepSearch
@@ -359,6 +366,54 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
           )}
         </footer>
       </div>
+    </div>
+  );
+}
+
+// Plain-language explainer shown at the top of step 1 in create mode. Tells
+// a non-coding player what a fund is, how to build one, and what happens
+// after saving. Theme-aware utility classes only (CLAUDE.md §5.6) so it
+// flips with the light / twilight palettes.
+function FundIntro() {
+  const steps: [string, string][] = [
+    ["Name it", "what shows on the chart and leaderboard."],
+    ["Pick holdings", "search any stock, ETF, or mutual fund."],
+    ["Set weights", "how the $100k splits across them (totals 100%)."],
+  ];
+  return (
+    <div className="mb-5 rounded-xl bg-zinc-900/50 border border-zinc-800 p-4">
+      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-1.5">
+        What&rsquo;s a fund?
+      </div>
+      <p className="text-[13px] text-zinc-300 leading-relaxed">
+        A fund is your own custom portfolio that joins the game right alongside
+        the players. It starts with a pretend{" "}
+        <span className="text-white font-medium">$100,000</span> invested at the
+        Feb&nbsp;5, 2026 baseline — the same starting line as everyone else —
+        then tracks live against real prices.
+      </p>
+      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mt-4 mb-2">
+        How to build one
+      </div>
+      <ol className="space-y-2">
+        {steps.map(([title, desc], i) => (
+          <li key={title} className="flex gap-2.5 text-[13px] text-zinc-300">
+            <span className="shrink-0 w-5 h-5 rounded-full bg-zinc-800 text-zinc-300 text-[11px] font-semibold inline-flex items-center justify-center tabular-nums">
+              {i + 1}
+            </span>
+            <span className="leading-5">
+              <span className="text-white font-medium">{title}</span> — {desc}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="text-[12px] text-zinc-500 leading-relaxed mt-4">
+        After you save, your fund shows up on the Compare chart and leaderboard.
+        New funds start hidden so the chart doesn&rsquo;t get crowded — tap{" "}
+        <span className="text-zinc-300">Filter</span> to switch yours on. You can
+        rename, re-weight, or archive it anytime from{" "}
+        <span className="text-zinc-300">Manage</span>.
+      </p>
     </div>
   );
 }
@@ -474,6 +529,11 @@ function StepSearch({
 
   return (
     <div className="space-y-3">
+      <p className="text-[12px] text-zinc-400 leading-snug">
+        Search by company name or ticker symbol, then tap a result to add it.
+        Stocks, ETFs, and mutual funds all work — add as many as you like.
+        You&rsquo;ll set how the money splits between them next.
+      </p>
       <input
         autoFocus
         type="text"

@@ -477,7 +477,7 @@ build fails on the bad import and the previous deploy keeps serving. Push
 a fix and both sides recover on the next 15-min cycle.
 
 ### Create a user fund (anyone, no auth)
-Open the Compare page → "+ Create Fund" → name it → search tickers
+Open the Compare page → "Add Fund" → name it → search tickers
 (Yahoo Finance autocomplete; stocks, ETFs, mutual funds, ADRs all
 selectable) → set weights in 0.1% increments (must sum to 100%) → Save.
 The save POSTs to `/api/funds`, which commits the new entry to
