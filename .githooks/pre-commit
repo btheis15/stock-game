@@ -59,11 +59,23 @@ if echo "$staged" | grep -qx 'config/roster.json'; then
   fi
 fi
 
-# ─── 3. TypeScript type-check if any TS source changed ───────────────────
+# ─── 3. Validate config/funds.json if it's part of this commit ───────────
+# Same gate as roster.json, for the user-created comparison funds. Catches
+# weights-don't-sum-to-100, duplicate fund IDs, missing required fields,
+# orphan tickers — anything the API route's server-side validator would
+# reject, but here so a hand-edit (or AI-session edit) can't sneak past.
+if echo "$staged" | grep -qx 'config/funds.json'; then
+  if ! python3 "$repo_root/scripts/validate-funds.py"; then
+    echo "pre-commit: ❌ config/funds.json failed validation (see error above)."
+    fail=1
+  fi
+fi
+
+# ─── 4. TypeScript type-check if any TS source changed ───────────────────
 # The frontend's build also catches type errors, but that happens at deploy
 # time — we'd rather find a typo before the commit lands on origin/main.
 # Skipped for data-only / docs-only commits to keep cron's data pushes fast.
-if echo "$staged" | grep -qE '\.(ts|tsx)$|config/roster\.json$'; then
+if echo "$staged" | grep -qE '\.(ts|tsx)$|config/(roster|funds)\.json$'; then
   if ! (cd "$repo_root" && npx --no-install tsc --noEmit 2>&1); then
     echo "pre-commit: ❌ TypeScript type-check failed (see errors above)."
     fail=1

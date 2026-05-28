@@ -16,6 +16,7 @@ import YahooFinance from "yahoo-finance2";
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ALL_TICKERS, BASELINE, START_DATE, TICKER_NAMES } from "../lib/picks";
+import { allFundTickers } from "../lib/funds";
 import { getSpinoffTickers, SPINOFFS } from "../lib/events";
 import type {
   DailyClose,
@@ -242,10 +243,26 @@ async function main() {
   // so it doesn't leak into the /stocks list or the digest pipeline. We still
   // need its daily / intraday / weekly bars so the Compare leaderboard can
   // plot a S&P 500 line.
-  const tickersToFetch = [...ALL_TICKERS, ...spinoffChildren, BASELINE.ticker];
+  //
+  // User-created funds add their own tickers. allFundTickers() returns the
+  // union across every active + recently-deleted fund (deleted funds within
+  // the 7-day restore window stay live so a restore brings the archive
+  // back too). De-duped against player tickers below so we don't fetch the
+  // same symbol twice.
+  const fundTickers = await allFundTickers();
+  const fundOnlyTickers = fundTickers.filter(
+    (t) => !ALL_TICKERS.includes(t) && t !== BASELINE.ticker
+  );
+  const tickersToFetch = [
+    ...ALL_TICKERS,
+    ...spinoffChildren,
+    BASELINE.ticker,
+    ...fundOnlyTickers,
+  ];
   console.log(
     `Fetching prices for ${tickersToFetch.length} tickers — mode: ${mode}` +
-      (spinoffChildren.length ? ` (incl. ${spinoffChildren.length} spin-off)` : "")
+      (spinoffChildren.length ? ` (incl. ${spinoffChildren.length} spin-off)` : "") +
+      (fundOnlyTickers.length ? ` (incl. ${fundOnlyTickers.length} fund-only)` : "")
   );
 
   const out: Record<string, TickerSeries> = {};

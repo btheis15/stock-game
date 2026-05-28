@@ -154,3 +154,46 @@ export interface FundamentalsData {
   generatedAt: string;
   tickers: Record<string, TickerFundamentals>;
 }
+
+// --- User-created comparison funds (config/funds.json) ----------------------
+// Open game; anyone can create funds via the Compare page UI. Saved via the
+// server actions in app/api/funds/, which commit + push the JSON via the
+// GitHub Contents API. The Mac mini's next 15-min `git pull` lands the new
+// tickers in fetch-prices' ALL_TICKERS so history is back-fetched to
+// start_date automatically. Soft-delete via `deleted_at`; 7-day restore
+// window from there. Per-fund AI digests are short — 1D + 1W only,
+// 2-sentence prose, no company brief — to keep the morning chunked run
+// from ballooning as the fund count grows.
+
+export interface FundHolding {
+  ticker: string;
+  /** Allocation as a fraction in [0.001, 1]. Weights across a fund's
+   *  holdings must sum to 1.0 ± 0.5 basis points. */
+  weight: number;
+}
+
+export interface Fund {
+  id: string;
+  name: string;
+  /** Free-text creator label entered in the Create-Fund modal. Trust-based
+   *  attribution (no auth); shown in the leaderboard card + git log line. */
+  creator: string | null;
+  /** Hex color used for this fund's chart line + chip. Auto-assigned at
+   *  creation time from a 12-color palette, deterministically rotated so
+   *  consecutive funds get visually distinct colors. */
+  color: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  /** ISO timestamp of the last edit, or createdAt if never edited. */
+  updatedAt: string;
+  /** ISO timestamp of soft-delete, or null when active. Funds with a
+   *  deleted_at within the past 7 days are recoverable from the Manage
+   *  view's Archive tab; older entries stay in the file (harmless) but
+   *  the UI hides them. */
+  deletedAt: string | null;
+  holdings: FundHolding[];
+}
+
+export interface FundsFile {
+  funds: Fund[];
+}

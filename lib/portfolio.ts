@@ -1,4 +1,5 @@
 import type {
+  Fund,
   HoldingRow,
   IntradayBar,
   PortfolioPoint,
@@ -131,6 +132,133 @@ export function weeklyBaselineSeries(data: PriceData): PortfolioPoint[] | null {
   if (!series) return null;
   const shares = STARTING_PORTFOLIO_DOLLARS / s.startClose;
   return series.map((p) => ({ date: p.date, value: shares * p.value }));
+}
+
+// --- User-created funds -----------------------------------------------------
+// Same shape as the baseline and player curves so the Compare-chart plotter
+// treats them identically. Differs from players in that allocation is
+// weighted (not equal-split): `shares = $100k × weight / startClose`. Missing
+// tickers (right after a roster change, before fetch-prices fills them in)
+// are skipped — the curve shows the partial value rather than crashing.
+
+function fundHoldingShares(
+  fund: Fund,
+  ticker: string,
+  series: TickerSeries
+): number {
+  const h = fund.holdings.find((x) => x.ticker === ticker);
+  if (!h) return 0;
+  return (STARTING_PORTFOLIO_DOLLARS * h.weight) / series.startClose;
+}
+
+export function fundSeries(data: PriceData, fund: Fund): PortfolioPoint[] {
+  const seriesByTicker = fund.holdings
+    .map((h) => data.tickers[h.ticker])
+    .filter((s): s is TickerSeries => s != null);
+  return data.tradingDates.map((date) => {
+    let total = 0;
+    for (const s of seriesByTicker) {
+      const shares = fundHoldingShares(fund, s.ticker, s);
+      total += shares * lastKnownClose(s, date);
+      total += dividendsReceived(s, shares, date);
+    }
+    return { date, value: total };
+  });
+}
+
+export function intradayFundSeries(
+  data: PriceData,
+  fund: Fund
+): { points: PortfolioPoint[]; previousClose: number } | null {
+  const seriesByTicker = fund.holdings
+    .map((h) => data.tickers[h.ticker])
+    .filter((s): s is TickerSeries => s != null);
+  if (seriesByTicker.length === 0) return null;
+
+  const intradayDate = data.intradayDate ?? "";
+  const prevDates = data.tradingDates.filter((d) => d < intradayDate);
+  const prevDate =
+    prevDates[prevDates.length - 1] ??
+    data.tradingDates[data.tradingDates.length - 1];
+
+  const previousClose = seriesByTicker.reduce((sum, s) => {
+    return sum + fundHoldingShares(fund, s.ticker, s) * lastKnownClose(s, prevDate);
+  }, 0);
+
+  const tsSet = new Set<string>();
+  for (const s of seriesByTicker) {
+    for (const b of s.intraday ?? []) tsSet.add(b.t);
+  }
+  const timestamps = [...tsSet].sort();
+  if (timestamps.length === 0) return { points: [], previousClose };
+
+  const lookups = seriesByTicker.map((s) => {
+    const m = new Map<string, number>();
+    for (const b of s.intraday ?? []) m.set(b.t, b.close);
+    return { series: s, m };
+  });
+
+  const lastSeen = new Map<string, number>();
+  for (const { series } of lookups) {
+    lastSeen.set(series.ticker, lastKnownClose(series, prevDate));
+  }
+
+  const points: PortfolioPoint[] = [];
+  for (const t of timestamps) {
+    let total = 0;
+    for (const { series, m } of lookups) {
+      const fresh = m.get(t);
+      if (fresh != null) lastSeen.set(series.ticker, fresh);
+      const price = lastSeen.get(series.ticker)!;
+      total += fundHoldingShares(fund, series.ticker, series) * price;
+    }
+    points.push({ date: t, value: total });
+  }
+  return { points, previousClose };
+}
+
+export function weeklyFundSeries(data: PriceData, fund: Fund): PortfolioPoint[] | null {
+  const seriesByTicker = fund.holdings
+    .map((h) => data.tickers[h.ticker])
+    .filter((s): s is TickerSeries => s != null);
+  if (seriesByTicker.length === 0) return null;
+  const haveWeekly = seriesByTicker.some((s) => (s.weekly?.length ?? 0) > 0);
+  if (!haveWeekly) return null;
+
+  const tsSet = new Set<string>();
+  for (const s of seriesByTicker) {
+    for (const b of s.weekly ?? []) {
+      if (!isHourBoundaryBar(b)) continue;
+      tsSet.add(b.t);
+    }
+  }
+  const allTs = [...tsSet].sort().map((t) => ({ t }));
+  const timestamps = trimToLastNTradingDays(allTs, WEEKLY_TRADING_DAYS).map((x) => x.t);
+  if (timestamps.length === 0) return null;
+
+  const firstDate = timestamps[0].slice(0, 10);
+  const lookups = seriesByTicker.map((s) => {
+    const m = new Map<string, number>();
+    for (const b of s.weekly ?? []) m.set(b.t, b.close);
+    return { series: s, m };
+  });
+  const lastSeen = new Map<string, number>();
+  for (const { series } of lookups) {
+    lastSeen.set(series.ticker, lastKnownClose(series, firstDate));
+  }
+
+  const points: PortfolioPoint[] = [];
+  for (const t of timestamps) {
+    let total = 0;
+    for (const { series, m } of lookups) {
+      const fresh = m.get(t);
+      if (fresh != null) lastSeen.set(series.ticker, fresh);
+      const price = lastSeen.get(series.ticker)!;
+      total += fundHoldingShares(fund, series.ticker, series) * price;
+    }
+    points.push({ date: t, value: total });
+  }
+  return points;
 }
 
 export const RANGE_DAYS: Record<Range, number | "all" | "intraday"> = {
