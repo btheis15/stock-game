@@ -54,6 +54,10 @@ interface Props {
   fundSeries: Record<string, PortfolioPoint[]>;
   fundIntraday: Record<string, IntradayResult | null>;
   fundWeekly: Record<string, PortfolioPoint[] | null>;
+  /** Per-fund holding tickers not yet in prices.json. While non-empty, the
+   *  fund's value holds those holdings flat at their allocated principal and
+   *  the live gain/loss is partial — the leaderboard row shows a note. */
+  fundPending: Record<string, string[]>;
   intradayDate: string;
   generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
@@ -67,6 +71,9 @@ interface RankedEntry {
   value: number;
   pct: number;
   baseline: number;
+  // Holding tickers not yet priced (funds only). When present, the row shows
+  // a "value updates next refresh" note so a partial total doesn't look broken.
+  pendingTickers?: string[];
 }
 
 export function CompareView({
@@ -80,6 +87,7 @@ export function CompareView({
   fundSeries,
   fundIntraday,
   fundWeekly,
+  fundPending,
   intradayDate,
   generatedAt,
   analyses,
@@ -281,11 +289,12 @@ export function CompareView({
         value,
         pct,
         baseline,
+        pendingTickers: fundPending[f.id] ?? [],
       });
     }
     return entries.sort((a, b) => b.pct - a.pct);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, isIntraday, isOn]);
+  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, fundPending, isIntraday, isOn]);
 
   // Empty-state guard: if every chip is toggled off, stats is empty and
   // leader/second below would crash. Use safe defaults so the page still
@@ -458,6 +467,7 @@ export function CompareView({
                 gap={gap}
                 place={i + 1}
                 href={s.href}
+                pendingTickers={s.pendingTickers}
               />
             );
           })}
@@ -530,6 +540,7 @@ function UserRow({
   gap,
   place,
   href,
+  pendingTickers,
 }: {
   name: string;
   color: string;
@@ -540,10 +551,14 @@ function UserRow({
   // Null for the S&P 500 baseline row — it has no drill-down page so we
   // render a plain div instead of a tappable Link.
   href: string | null;
+  // Fund holdings still awaiting their first price fetch. Non-empty → the
+  // shown value counts those at flat principal, so we flag it as partial.
+  pendingTickers?: string[];
 }) {
   const positive = pct >= 0;
   const deltaColor = positive ? "#00C805" : "#FF453A";
   const isLeader = place === 1;
+  const pending = pendingTickers ?? [];
   const inner = (
     <>
       <div className="w-6 text-center text-[14px] font-semibold text-zinc-500 tabular-nums shrink-0">
@@ -583,17 +598,32 @@ function UserRow({
       </div>
     </>
   );
+  // Awaiting-prices note. A just-created fund whose ticker(s) haven't been
+  // fetched yet has those holdings parked at flat principal, so the value +
+  // pct shown are partial. Spell that out so an "off" number reads as
+  // "still loading" rather than "broken."
+  const note =
+    pending.length > 0 ? (
+      <div className="text-[11px] text-amber-600 leading-snug mt-1.5">
+        {pending.join(", ")} {pending.length === 1 ? "is" : "are"} still
+        loading — full value updates at the next refresh.
+      </div>
+    ) : null;
   if (href == null) {
     return (
-      <div className="flex items-center gap-3 px-3 py-3">{inner}</div>
+      <div className="px-3 py-3">
+        <div className="flex items-center gap-3">{inner}</div>
+        {note}
+      </div>
     );
   }
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
+      className="block px-3 py-3 active:bg-zinc-900/40 transition-colors"
     >
-      {inner}
+      <div className="flex items-center gap-3">{inner}</div>
+      {note}
     </Link>
   );
 }

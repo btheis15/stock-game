@@ -151,12 +151,27 @@ function fundHoldingShares(
   return (STARTING_PORTFOLIO_DOLLARS * h.weight) / series.startClose;
 }
 
+// Principal parked in holdings whose ticker isn't in the snapshot yet — the
+// window between creating a fund with a brand-new ticker and the next
+// price-fetch cron backfilling its history. We can't value those off real
+// prices, so we hold them flat at their allocated dollars (weight × $100k)
+// rather than dropping them. Dropping made a fresh $100k two-stock fund
+// display only the *fetched* holding's value (e.g. "$55,000" for a fund
+// whose second ticker hadn't been fetched). Once the cron fills the ticker
+// in, this term goes to 0 and the holding is valued off real closes.
+function unfetchedHoldingDollars(data: PriceData, fund: Fund): number {
+  return fund.holdings
+    .filter((h) => data.tickers[h.ticker] == null)
+    .reduce((sum, h) => sum + STARTING_PORTFOLIO_DOLLARS * h.weight, 0);
+}
+
 export function fundSeries(data: PriceData, fund: Fund): PortfolioPoint[] {
   const seriesByTicker = fund.holdings
     .map((h) => data.tickers[h.ticker])
     .filter((s): s is TickerSeries => s != null);
+  const unfetched = unfetchedHoldingDollars(data, fund);
   return data.tradingDates.map((date) => {
-    let total = 0;
+    let total = unfetched;
     for (const s of seriesByTicker) {
       const shares = fundHoldingShares(fund, s.ticker, s);
       total += shares * lastKnownClose(s, date);
@@ -181,9 +196,10 @@ export function intradayFundSeries(
     prevDates[prevDates.length - 1] ??
     data.tradingDates[data.tradingDates.length - 1];
 
+  const unfetched = unfetchedHoldingDollars(data, fund);
   const previousClose = seriesByTicker.reduce((sum, s) => {
     return sum + fundHoldingShares(fund, s.ticker, s) * lastKnownClose(s, prevDate);
-  }, 0);
+  }, unfetched);
 
   const tsSet = new Set<string>();
   for (const s of seriesByTicker) {
@@ -205,7 +221,7 @@ export function intradayFundSeries(
 
   const points: PortfolioPoint[] = [];
   for (const t of timestamps) {
-    let total = 0;
+    let total = unfetched;
     for (const { series, m } of lookups) {
       const fresh = m.get(t);
       if (fresh != null) lastSeen.set(series.ticker, fresh);
@@ -246,10 +262,11 @@ export function weeklyFundSeries(data: PriceData, fund: Fund): PortfolioPoint[] 
   for (const { series } of lookups) {
     lastSeen.set(series.ticker, lastKnownClose(series, firstDate));
   }
+  const unfetched = unfetchedHoldingDollars(data, fund);
 
   const points: PortfolioPoint[] = [];
   for (const t of timestamps) {
-    let total = 0;
+    let total = unfetched;
     for (const { series, m } of lookups) {
       const fresh = m.get(t);
       if (fresh != null) lastSeen.set(series.ticker, fresh);
