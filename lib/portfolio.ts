@@ -784,3 +784,48 @@ export function buildHoldingRows(
     ];
   });
 }
+
+// Per-holding rows for a fund's drill-down page — same HoldingRow shape as a
+// player's, but share counts come from the fund's weights
+// (shares = $100k × weight / startClose) instead of an equal per-pick split.
+// costBasis = the holding's allocated principal (weight × $100k). Missing
+// tickers (not yet fetched) are skipped, same as buildHoldingRows.
+export function buildFundHoldingRows(fund: Fund, data: PriceData): HoldingRow[] {
+  return fund.holdings.flatMap((h) => {
+    const s = data.tickers[h.ticker];
+    if (!s || s.closes.length === 0) return [];
+    const last = s.closes[s.closes.length - 1];
+    const currentClose = last.close;
+    const shares = fundHoldingShares(fund, h.ticker, s);
+    const divCash = dividendsReceived(s, shares, last.date);
+    const currentValue = shares * currentClose + divCash;
+    const costBasis = shares * s.startClose;
+    const pl = currentValue - costBasis;
+    const plPct = costBasis === 0 ? 0 : pl / costBasis;
+
+    const rangeStats = {} as HoldingRow["rangeStats"];
+    for (const r of HOLDING_RANGES) {
+      const { startClose, endClose } = rangeCloses(s, data, r);
+      const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
+      rangeStats[r] = {
+        pct,
+        dollars: shares * (endClose - startClose),
+        endClose,
+      };
+    }
+
+    return [
+      {
+        ticker: h.ticker,
+        shares,
+        startClose: s.startClose,
+        currentClose,
+        costBasis,
+        currentValue,
+        pl,
+        plPct,
+        rangeStats,
+      },
+    ];
+  });
+}

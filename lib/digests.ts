@@ -57,6 +57,10 @@ export interface DigestsJson {
   // explaining the live standings — references player names + actual %s. Renders
   // on the home Compare view.
   game?: Partial<Record<DigestWindow, WindowDigest>>;
+  // Per-fund short briefings (Phase 4), keyed by fund id. Only 1D + 1W are
+  // produced by the digest pipeline; other windows fall back to null. Optional
+  // so snapshots predating fund digests don't break /fund/[id].
+  funds?: Record<string, Partial<Record<DigestWindow, WindowDigest>>>;
 }
 
 // The app's chart-tab Range uses "1YR"; the digest pipeline writes "1Y".
@@ -118,5 +122,17 @@ export function useDigests() {
     return data?.game?.[w] ?? null;
   }
 
-  return { loading, data, getDigest, getPortfolioDigest, getGameDigest };
+  function getFundDigest(fundId: string, range: Range): WindowDigest | null {
+    const w = rangeToDigestWindow(range);
+    return data?.funds?.[fundId]?.[w] ?? null;
+  }
+
+  return {
+    loading,
+    data,
+    getDigest,
+    getPortfolioDigest,
+    getGameDigest,
+    getFundDigest,
+  };
 }

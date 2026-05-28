@@ -233,15 +233,16 @@ Functions exported:
 
 ```
 /                          → Compare (home, server component)
-/portfolio/{brian|kevin|rick|lee}  → PortfolioView (per-user drill-down)
+/portfolio/{brian|kevin|rick|lee|gene}  → PortfolioView (per-player drill-down + comparison overlays)
+/fund/{id}                 → FundView (per-fund drill-down: chart + overlays + holdings list)
 /stock/{ticker}            → StockView (per-stock detail; one Position card per owner)
-/stocks                    → StocksListView (all picks, filterable)
+/stocks                    → StocksListView (all picks + active-fund holdings, filterable)
 /tee-times                 → TeeTimesView (deep-link landing → Inshalla CC on foreUP)
 ```
 
-All page routes are marked `dynamic = "force-static"` so they SSG. **55 static pages, no dynamic routes.**
+Routes that read `config/funds.json` (`/`, `/portfolio/[user]`, `/fund/[id]`, `/stocks`) are `dynamic = "force-dynamic"` so a freshly-saved fund appears without a redeploy. `/stock/[ticker]` stays `force-static` (its `generateStaticParams` includes active-fund tickers via `activeFundTickers()` so fund holdings like F / TM get pages too).
 
-(55 = 5 portfolio + 45 stock + 1 home + 1 stocks + 1 tee-times + 1 _not-found + 1 layout shim. The digest panel renders client-side from `/digests.json`, no extra routes.)
+**PortfolioView + FundView share one overlay engine.** `components/comparisonOverlays.ts` exports `useComparisonOverlays(...)` (builds the scaled-to-subject chart series + the sorted legend) and the `CompSeries` / `CompEntity` / `LegendRow` types; `components/OverlayLegend.tsx` renders the click-through legend. Both drill-down pages plot the subject's $ line plus any toggled-on comparison (other players → `/portfolio/{id}`, S&P 500, funds → `/fund/{id}`), each scaled to start at the subject's range-start $ so divergence reads as relative performance.
 
 ## 6. Components
 
