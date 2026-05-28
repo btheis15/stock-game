@@ -1,23 +1,40 @@
 import { CompareView } from "@/components/CompareView";
 import { loadPriceData } from "@/lib/data";
+import { loadFundsData } from "@/lib/funds";
 import {
   analyzeRange,
   baselinePortfolioSeries,
+  fundSeries as buildFundSeries,
   intradayBaselineSeries,
+  intradayFundSeries,
   intradayPortfolioSeries,
   portfolioSeries,
   weeklyBaselineSeries,
+  weeklyFundSeries,
   weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { USER_LIST, type UserId } from "@/lib/picks";
 
-export const dynamic = "force-static";
+// Switched from force-static to force-dynamic now that the page reads
+// config/funds.json. A build-time prerender would otherwise capture a
+// stale snapshot of the funds file, and a freshly-saved fund wouldn't
+// appear until the next deploy. revalidatePath('/','layout') in the
+// funds CRUD routes still busts the per-request cache, so the surface
+// area of the change is small — every Compare page render reads fresh
+// price + funds data.
+export const dynamic = "force-dynamic";
 
 const ALL_RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
 
 export default async function Page() {
   const data = await loadPriceData();
+  const fundsFile = await loadFundsData();
+  // Active + soft-deleted-within-restore-window funds. The Compare view
+  // filters to active only; the Manage sheet reads the same array and
+  // renders the Archive tab from the soft-deleted subset.
+  const allKnownFunds = fundsFile.funds;
+
   const series = Object.fromEntries(
     USER_LIST.map((u) => [u.id, portfolioSeries(data, u.id)])
   ) as Record<UserId, PortfolioPoint[]>;
@@ -38,6 +55,20 @@ export default async function Page() {
   const baselineDaily = baselinePortfolioSeries(data);
   const baselineIntraday = intradayBaselineSeries(data);
   const baselineWeekly = weeklyBaselineSeries(data);
+
+  // Per-fund curves. fetch-prices.ts unions fund tickers into ALL_TICKERS so
+  // prices.json should already have what we need. A just-created fund whose
+  // tickers haven't been fetched yet returns empty arrays — CompareView
+  // skips plotting that fund's line until the next cron tick fills in.
+  const fundSeriesMap: Record<string, PortfolioPoint[]> = {};
+  const fundIntradayMap: Record<string, { points: PortfolioPoint[]; previousClose: number } | null> = {};
+  const fundWeeklyMap: Record<string, PortfolioPoint[] | null> = {};
+  for (const f of allKnownFunds) {
+    fundSeriesMap[f.id] = buildFundSeries(data, f);
+    fundIntradayMap[f.id] = intradayFundSeries(data, f);
+    fundWeeklyMap[f.id] = weeklyFundSeries(data, f);
+  }
+
   return (
     <CompareView
       series={series}
@@ -46,6 +77,10 @@ export default async function Page() {
       baselineDaily={baselineDaily.length > 0 ? baselineDaily : null}
       baselineIntraday={baselineIntraday}
       baselineWeekly={baselineWeekly}
+      funds={allKnownFunds}
+      fundSeries={fundSeriesMap}
+      fundIntraday={fundIntradayMap}
+      fundWeekly={fundWeeklyMap}
       intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
       generatedAt={data.generatedAt}
       analyses={analyses}

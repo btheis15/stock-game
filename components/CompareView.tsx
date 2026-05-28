@@ -1,11 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ScrubChart, type ChartSeries, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { InsightsCard } from "./InsightsCard";
 import { DigestPanel } from "./DigestPanel";
+import { CreateFundModal } from "./CreateFundModal";
+import { ManageFundsSheet } from "./ManageFundsSheet";
+import { FundsFilterChips, useFundsFilter, type FilterChipDef } from "./FundsFilter";
 import { useDigests } from "@/lib/digests";
 import {
   filterRange,
@@ -16,7 +20,7 @@ import {
   fmtUSD,
   sessionBoundsForDate,
 } from "@/lib/portfolio";
-import type { PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
+import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 
@@ -43,6 +47,13 @@ interface Props {
   baselineDaily: PortfolioPoint[] | null;
   baselineIntraday: IntradayResult | null;
   baselineWeekly: PortfolioPoint[] | null;
+  /** User-created funds. Empty array on first deploy or when all funds
+   *  are archived. Each fund's series shapes match the player record
+   *  above; intraday[] is null when SPY-style intraday data isn't ready. */
+  funds: Fund[];
+  fundSeries: Record<string, PortfolioPoint[]>;
+  fundIntraday: Record<string, IntradayResult | null>;
+  fundWeekly: Record<string, PortfolioPoint[] | null>;
   intradayDate: string;
   generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
@@ -65,13 +76,63 @@ export function CompareView({
   baselineDaily,
   baselineIntraday,
   baselineWeekly,
+  funds,
+  fundSeries,
+  fundIntraday,
+  fundWeekly,
   intradayDate,
   generatedAt,
   analyses,
 }: Props) {
+  const router = useRouter();
   const [range, setRange] = useState<Range>("1D");
   const { loading: digestsLoading, getGameDigest } = useDigests();
   const [scrub, setScrub] = useState<ScrubState | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [editing, setEditing] = useState<Fund | null>(null);
+  const { isOn, setOn } = useFundsFilter();
+
+  // Active funds = not soft-deleted. The Manage sheet shows archived too,
+  // but the Compare chart + leaderboard only render active.
+  const activeFunds = useMemo(
+    () => funds.filter((f) => f.deletedAt === null),
+    [funds]
+  );
+
+  // Filter chips: every player (default ON), baseline (default ON), every
+  // active fund (default OFF so the chart doesn't get crowded as funds
+  // accumulate; users opt in their own fund).
+  const filterChips: FilterChipDef[] = useMemo(() => {
+    const chips: FilterChipDef[] = USER_LIST.map((u) => ({
+      id: u.id,
+      name: u.name,
+      color: u.color,
+      defaultOn: true,
+    }));
+    if (baselineDaily != null) {
+      chips.push({
+        id: BASELINE.id,
+        name: BASELINE.name,
+        color: BASELINE.color,
+        defaultOn: true,
+      });
+    }
+    for (const f of activeFunds) {
+      chips.push({ id: f.id, name: f.name, color: f.color, defaultOn: false });
+    }
+    return chips;
+  }, [activeFunds, baselineDaily]);
+
+  // Helpers to honor the filter toggles.
+  const userOn = (id: UserId) => isOn(id, true);
+  const baselineOn = baselineDaily != null && isOn(BASELINE.id, true);
+  const fundOn = (id: string) => isOn(id, false);
+  const visibleFunds = useMemo(
+    () => activeFunds.filter((f) => fundOn(f.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeFunds, isOn]
+  );
 
   const isIntraday = range === "1D";
   // Whether we have SPY data at all in this snapshot. Drives an extra row in
@@ -115,8 +176,28 @@ export function CompareView({
     return filterRange(baselineDaily!, range);
   }, [hasBaseline, isIntraday, isWeeklyHourly, baselineIntraday, baselineWeekly, baselineDaily, range]);
 
+  // Per-fund range slicing. Mirrors the player path: 1D uses intraday, 1W
+  // uses hourly bars when available + the baseline has them, everything
+  // else filters the daily curve. Visible-only — funds filtered off stay
+  // out of the ranged map entirely so they're never plotted or ranked.
+  const fundRanged = useMemo(() => {
+    const out: Record<string, PortfolioPoint[]> = {};
+    for (const f of visibleFunds) {
+      if (isIntraday) {
+        out[f.id] = fundIntraday[f.id]?.points ?? [];
+      } else if (isWeeklyHourly) {
+        out[f.id] = fundWeekly[f.id] ?? filterRange(fundSeries[f.id] ?? [], range);
+      } else {
+        out[f.id] = filterRange(fundSeries[f.id] ?? [], range);
+      }
+    }
+    return out;
+  }, [visibleFunds, fundSeries, fundIntraday, fundWeekly, range, isIntraday, isWeeklyHourly]);
+
   const stats = useMemo(() => {
-    const entries: RankedEntry[] = USER_LIST.map((u) => {
+    const entries: RankedEntry[] = [];
+    for (const u of USER_LIST) {
+      if (!userOn(u.id)) continue;
       const pts = ranged[u.id];
       const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
       const lastVal = pts[pts.length - 1]?.value ?? baseline;
@@ -127,7 +208,7 @@ export function CompareView({
         scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
       const value = scrubDollar ?? lastVal;
       const pct = baseline === 0 ? 0 : (value - baseline) / baseline;
-      return {
+      entries.push({
         id: u.id,
         name: u.name,
         color: u.color,
@@ -135,9 +216,9 @@ export function CompareView({
         value,
         pct,
         baseline,
-      };
-    });
-    if (hasBaseline) {
+      });
+    }
+    if (baselineOn) {
       // Always include SPY in the leaderboard when we have its data, even if
       // the active range's points array is empty (e.g. 1D pre-market or on a
       // market-closed day — no intraday bars yet). Mirrors how players are
@@ -164,8 +245,33 @@ export function CompareView({
         baseline,
       });
     }
+    for (const f of visibleFunds) {
+      const pts = fundRanged[f.id] ?? [];
+      const baseline =
+        isIntraday && fundIntraday[f.id]
+          ? fundIntraday[f.id]!.previousClose
+          : pts[0]?.value ?? 0;
+      const lastVal = pts[pts.length - 1]?.value ?? baseline;
+      const scrubIdx = scrub?.index;
+      const scrubDollar =
+        scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
+      const value = scrubDollar ?? lastVal;
+      const pct = baseline === 0 ? 0 : (value - baseline) / baseline;
+      entries.push({
+        id: f.id,
+        name: f.name,
+        color: f.color,
+        // Funds don't have a drill-down page yet (the Manage sheet is
+        // the closest equivalent); render the row as non-clickable.
+        href: null,
+        value,
+        pct,
+        baseline,
+      });
+    }
     return entries.sort((a, b) => b.pct - a.pct);
-  }, [ranged, baselineRanged, scrub, intraday, baselineIntraday, isIntraday]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, isIntraday, isOn]);
 
   const leader = stats[0];
   const second = stats[1];
@@ -186,8 +292,9 @@ export function CompareView({
   // visually matches the leaderboard ranking (highest line = 1st place).
   // Without this, lines would plot raw $ at different starting points and a
   // player with a lower portfolio value but higher gain would look "lowest"
-  // even though they're winning the range.
-  const chartSeries: ChartSeries[] = USER_LIST.map((u) => {
+  // even though they're winning the range. Filter off players toggled OFF
+  // in the chip row.
+  const chartSeries: ChartSeries[] = USER_LIST.filter((u) => userOn(u.id)).map((u) => {
     const pts = ranged[u.id];
     const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
     return {
@@ -199,7 +306,7 @@ export function CompareView({
       })),
     };
   });
-  if (baselineRanged && baselineRanged.length > 0) {
+  if (baselineOn && baselineRanged && baselineRanged.length > 0) {
     const pts = baselineRanged;
     const baseline =
       isIntraday && baselineIntraday
@@ -213,6 +320,34 @@ export function CompareView({
         value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
       })),
     });
+  }
+  // Visible-fund chart lines. We skip funds whose ranged points array is
+  // empty (e.g. just created, before the next refresh has built history)
+  // rather than plotting a degenerate flat line at 0.
+  for (const f of visibleFunds) {
+    const pts = fundRanged[f.id] ?? [];
+    if (pts.length === 0) continue;
+    const baseline =
+      isIntraday && fundIntraday[f.id]
+        ? fundIntraday[f.id]!.previousClose
+        : pts[0]?.value ?? 0;
+    chartSeries.push({
+      id: f.id,
+      color: f.color,
+      data: pts.map((p) => ({
+        date: p.date,
+        value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
+      })),
+    });
+  }
+
+  function refreshAfterSave() {
+    // Router refresh re-runs the server component (app/page.tsx), which
+    // re-reads funds.json with the just-committed entry and pipes the new
+    // fund through to this view as a fresh prop. revalidatePath('/') on
+    // the server side already busts the Next.js cache; this finishes the
+    // round-trip on the client.
+    router.refresh();
   }
 
   return (
@@ -237,6 +372,17 @@ export function CompareView({
       </div>
 
       {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
+
+      <FundsFilterChips
+        chips={filterChips}
+        isOn={isOn}
+        setOn={setOn}
+        onCreate={() => {
+          setEditing(null);
+          setCreateOpen(true);
+        }}
+        onManage={() => setManageOpen(true)}
+      />
 
       <ScrubChart
         series={chartSeries}
@@ -295,6 +441,39 @@ export function CompareView({
           picks at the Feb 5, 2026 close. Partial shares allowed. Updated daily.
         </div>
       </div>
+
+      <CreateFundModal
+        open={createOpen}
+        editing={editing}
+        onClose={() => {
+          setCreateOpen(false);
+          setEditing(null);
+        }}
+        onSaved={() => {
+          refreshAfterSave();
+          // Auto-enable the filter chip for a fund you just created so it
+          // shows up on the chart immediately. Edits don't touch the
+          // toggle — the fund is already in whatever state the user had it.
+          if (!editing) {
+            // Best-effort: the fresh fund's id isn't known on the client
+            // yet (it's returned in the POST response, but we router.refresh
+            // immediately). The chip will appear OFF by default; the user
+            // can flip it on. Acceptable tradeoff for keeping refresh + save
+            // decoupled.
+          }
+        }}
+      />
+      <ManageFundsSheet
+        open={manageOpen}
+        funds={funds}
+        onClose={() => setManageOpen(false)}
+        onChanged={refreshAfterSave}
+        onEdit={(f) => {
+          setEditing(f);
+          setManageOpen(false);
+          setCreateOpen(true);
+        }}
+      />
     </div>
   );
 }
