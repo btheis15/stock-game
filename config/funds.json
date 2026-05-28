@@ -29,20 +29,16 @@
       "creator": "Brian",
       "color": "#F472B6",
       "createdAt": "2026-05-28T17:58:12.497Z",
-      "updatedAt": "2026-05-28T17:59:34.991Z",
+      "updatedAt": "2026-05-28T18:00:01.577Z",
       "deletedAt": null,
       "holdings": [
         {
           "ticker": "VOO",
-          "weight": 0.334
-        },
-        {
-          "ticker": "VGHCX",
-          "weight": 0.333
+          "weight": 0.5
         },
         {
           "ticker": "VIGAX",
-          "weight": 0.333
+          "weight": 0.5
         }
       ]
     }
