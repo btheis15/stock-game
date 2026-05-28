@@ -9,7 +9,7 @@ import { InsightsCard } from "./InsightsCard";
 import { DigestPanel } from "./DigestPanel";
 import { CreateFundModal } from "./CreateFundModal";
 import { ManageFundsSheet } from "./ManageFundsSheet";
-import { FundsFilterChips, useFundsFilter, type FilterChipDef } from "./FundsFilter";
+import { FilterToolbar, FilterSheet, useFundsFilter, type FilterChipDef } from "./FundsFilter";
 import { useDigests } from "@/lib/digests";
 import {
   filterRange,
@@ -90,6 +90,7 @@ export function CompareView({
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [editing, setEditing] = useState<Fund | null>(null);
   const { isOn, setOn } = useFundsFilter();
 
@@ -100,26 +101,39 @@ export function CompareView({
     [funds]
   );
 
-  // Filter chips: every player (default ON), baseline (default ON), every
-  // active fund (default OFF so the chart doesn't get crowded as funds
-  // accumulate; users opt in their own fund).
+  // Filter entries grouped for the FilterSheet:
+  //   - Players: every human player, default ON, EXCEPT "legacyauto" — it's
+  //     a themed comparison portfolio rather than a real player, so the
+  //     default-on policy that fits the other five would just clutter the
+  //     chart. Users opt it in via the filter sheet.
+  //   - Baseline: S&P 500, default ON when data is present.
+  //   - Funds: user-created, default OFF so the chart doesn't get crowded
+  //     as funds accumulate; users opt in their own fund.
   const filterChips: FilterChipDef[] = useMemo(() => {
     const chips: FilterChipDef[] = USER_LIST.map((u) => ({
       id: u.id,
       name: u.name,
       color: u.color,
-      defaultOn: true,
+      group: "Players" as const,
+      defaultOn: u.id !== "legacyauto",
     }));
     if (baselineDaily != null) {
       chips.push({
         id: BASELINE.id,
         name: BASELINE.name,
         color: BASELINE.color,
+        group: "Baseline" as const,
         defaultOn: true,
       });
     }
     for (const f of activeFunds) {
-      chips.push({ id: f.id, name: f.name, color: f.color, defaultOn: false });
+      chips.push({
+        id: f.id,
+        name: f.name,
+        color: f.color,
+        group: "Funds" as const,
+        defaultOn: false,
+      });
     }
     return chips;
   }, [activeFunds, baselineDaily]);
@@ -373,10 +387,10 @@ export function CompareView({
 
       {isIntraday && <MarketStateBadge generatedAt={generatedAt} />}
 
-      <FundsFilterChips
+      <FilterToolbar
         chips={filterChips}
         isOn={isOn}
-        setOn={setOn}
+        onOpenFilter={() => setFilterOpen(true)}
         onCreate={() => {
           setEditing(null);
           setCreateOpen(true);
@@ -442,6 +456,13 @@ export function CompareView({
         </div>
       </div>
 
+      <FilterSheet
+        open={filterOpen}
+        chips={filterChips}
+        isOn={isOn}
+        setOn={setOn}
+        onClose={() => setFilterOpen(false)}
+      />
       <CreateFundModal
         open={createOpen}
         editing={editing}

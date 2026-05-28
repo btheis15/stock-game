@@ -1,18 +1,19 @@
 "use client";
 
-// Filter chip row on the Compare view. One chip per player + S&P 500
-// baseline + each user-created fund. Tapping a chip toggles whether that
-// entity's line + leaderboard row is shown. State persists per device in
-// localStorage so a user's preferred view sticks across visits.
+// Visibility filter for the Compare view's chart + leaderboard. Was a
+// chip row across the top, but that got crowded fast as funds
+// accumulated (1 chip per player + 1 per baseline + N per fund). Now
+// it's a compact pill — "Show 5 of 7" — that opens a bottom sheet with
+// per-line toggles grouped by section.
 //
-// Defaults:
-//   - All players ON (so the page looks the same as before for a new visitor)
-//   - S&P 500 ON (same)
-//   - User-created funds OFF (so the chart doesn't grow crowded as funds
-//     accumulate; the creator can flip theirs on, share the link, or
-//     pin via the Manage view)
+// Filter state persists per device in localStorage. New entities not in
+// the stored state fall back to their `defaultOn` flag, so a
+// freshly-added fund respects whatever default it was created with even
+// without a storage entry. The Filter pill is paired with two action
+// buttons in CompareView: + Fund (opens CreateFundModal) and Manage
+// (opens ManageFundsSheet).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "stockgame.compare.filter";
 
@@ -20,6 +21,8 @@ export interface FilterChipDef {
   id: string;
   name: string;
   color: string;
+  /** Group label shown above this row in the FilterSheet. */
+  group: "Players" | "Baseline" | "Funds";
   /** Where the toggle starts when no localStorage entry exists for this id. */
   defaultOn: boolean;
 }
@@ -75,57 +78,176 @@ export function useFundsFilter(): {
   return { state, isOn, setOn };
 }
 
-export function FundsFilterChips({
+/** The compact pill row that sits above the chart. Filter / + Fund / Manage. */
+export function FilterToolbar({
   chips,
   isOn,
-  setOn,
+  onOpenFilter,
   onCreate,
   onManage,
 }: {
   chips: FilterChipDef[];
   isOn: (id: string, defaultOn: boolean) => boolean;
-  setOn: (id: string, on: boolean) => void;
+  onOpenFilter: () => void;
   onCreate: () => void;
   onManage: () => void;
 }) {
+  const visibleCount = chips.filter((c) => isOn(c.id, c.defaultOn)).length;
   return (
-    <div className="px-4 mb-2">
-      <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {chips.map((c) => {
-          const on = isOn(c.id, c.defaultOn);
-          return (
-            <button
-              key={c.id}
-              onClick={() => setOn(c.id, !on)}
-              className={
-                "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors " +
-                (on
-                  ? "bg-zinc-800 border-zinc-700 text-white"
-                  : "bg-transparent border-zinc-800 text-zinc-500")
-              }
-              aria-pressed={on}
-            >
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: c.color, opacity: on ? 1 : 0.4 }}
-              />
-              {c.name}
-            </button>
-          );
-        })}
-        <button
-          onClick={onCreate}
-          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold bg-white text-black"
-        >
-          + Fund
-        </button>
-        <button
-          onClick={onManage}
-          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] text-zinc-400 underline underline-offset-2"
-        >
-          Manage
-        </button>
+    <div className="px-4 mb-2 flex items-center gap-2">
+      <button
+        onClick={onOpenFilter}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-zinc-800 border border-zinc-700 text-zinc-200 active:bg-zinc-700 transition-colors"
+        aria-label="Open filter"
+      >
+        <FilterIcon />
+        <span>
+          Show {visibleCount} of {chips.length}
+        </span>
+      </button>
+      <div className="flex-1" />
+      <button
+        onClick={onCreate}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-black"
+      >
+        + Fund
+      </button>
+      <button
+        onClick={onManage}
+        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-zinc-400"
+        aria-label="Manage funds"
+      >
+        Manage
+      </button>
+    </div>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 5h16M7 12h10M10 19h4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Bottom sheet that opens from the Filter pill. Lists every togglable
+ *  line in three groups (Players → Baseline → Funds) with iOS-style
+ *  toggle switches. Toggles persist immediately via setOn(); the user
+ *  closes the sheet manually when they're done. */
+export function FilterSheet({
+  open,
+  chips,
+  isOn,
+  setOn,
+  onClose,
+}: {
+  open: boolean;
+  chips: FilterChipDef[];
+  isOn: (id: string, defaultOn: boolean) => boolean;
+  setOn: (id: string, on: boolean) => void;
+  onClose: () => void;
+}) {
+  const grouped = useMemo(() => {
+    const g: Record<string, FilterChipDef[]> = { Players: [], Baseline: [], Funds: [] };
+    for (const c of chips) g[c.group].push(c);
+    return g;
+  }, [chips]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <div>
+            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
+              Filter
+            </div>
+            <h2 className="text-[17px] font-semibold text-white mt-0.5">
+              Visible on chart
+            </h2>
+          </div>
+          <button
+            className="text-zinc-500 hover:text-zinc-300 text-[15px] px-2 py-1"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            Done
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          {(["Players", "Baseline", "Funds"] as const).map((group) => {
+            const list = grouped[group];
+            if (!list || list.length === 0) return null;
+            return (
+              <div key={group} className="mb-5">
+                <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-2">
+                  {group}
+                </div>
+                <ul className="rounded-xl bg-zinc-900/50 border border-zinc-800 divide-y divide-zinc-800">
+                  {list.map((c) => {
+                    const on = isOn(c.id, c.defaultOn);
+                    return (
+                      <li key={c.id}>
+                        <button
+                          onClick={() => setOn(c.id, !on)}
+                          className="w-full flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
+                          aria-pressed={on}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: c.color, opacity: on ? 1 : 0.3 }}
+                          />
+                          <span className="flex-1 text-left text-[15px] font-medium text-white truncate">
+                            {c.name}
+                          </span>
+                          <ToggleSwitch on={on} />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+          {grouped.Funds.length === 0 && (
+            <div className="text-[11px] text-zinc-500 leading-snug -mt-3">
+              No funds yet — tap <span className="text-zinc-300">+ Fund</span> above to create one.
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function ToggleSwitch({ on }: { on: boolean }) {
+  return (
+    <span
+      className={
+        "relative inline-block w-9 h-5 rounded-full shrink-0 transition-colors " +
+        (on ? "bg-emerald-500" : "bg-zinc-700")
+      }
+      aria-hidden
+    >
+      <span
+        className={
+          "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform " +
+          (on ? "translate-x-4" : "translate-x-0")
+        }
+      />
+    </span>
   );
 }

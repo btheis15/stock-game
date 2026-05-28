@@ -93,8 +93,11 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
 
   const list = tab === "active" ? active : archived;
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 max-h-[90vh] flex flex-col">
+    // h-[100dvh] tracks the dynamic viewport so the close button + tab row
+    // stay visible even with an iOS keyboard open (rare here, but the
+    // pattern matches CreateFundModal for consistency).
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col">
         <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
           <div>
             <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">

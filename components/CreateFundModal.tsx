@@ -217,9 +217,15 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+    // h-[100dvh] is load-bearing — `vh` units don't shrink when iOS opens
+    // the keyboard, so a `max-h-[90vh]` modal extends past the visible
+    // viewport and hides the footer (Save / Next buttons) under the
+    // keyboard. dvh tracks the dynamic viewport, so the sheet always
+    // fills exactly the visible area and the footer stays tappable. The
+    // sm:* overrides give the desktop modal the usual centered card.
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
-        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 max-h-[90vh] flex flex-col"
+        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
         // Stop scroll-through on mobile.
         onClick={(e) => e.stopPropagation()}
       >
