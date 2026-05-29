@@ -123,6 +123,21 @@
           "weight": 0.1
         }
       ]
+    },
+    {
+      "id": "nasdaq-jcost",
+      "name": "Nasdaq",
+      "creator": "Brian",
+      "color": "#22D3EE",
+      "createdAt": "2026-05-29T20:44:31.765Z",
+      "updatedAt": "2026-05-29T20:44:31.765Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "^IXIC",
+          "weight": 1
+        }
+      ]
     }
   ]
 }
