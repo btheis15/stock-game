@@ -65,13 +65,18 @@ EOF
 
 # 1. Base dark-surface utilities used in markup (variant-prefixed excluded via
 #    the (?<![\w:/-]) lookbehind — a leading ':' means it's hover:/active:/etc).
-used=$(grep -rhoP --include="*.tsx" \
-  '(?<![\w:/-])(bg|text|border|divide)-(black|white|zinc-[0-9]+)(/[0-9]+)?(?![\w/-])' \
-  "${SRC_DIRS[@]}" | sort -u)
+#    Uses perl rather than `grep -P`: the patterns need PCRE (lookbehind, and
+#    \K below) which BSD/macOS grep lacks — `grep -P` errors with "invalid
+#    option -- P" on the Mac mini, which silently broke every push from it.
+#    perl ships on both macOS and the Linux CI runner and speaks PCRE.
+used=$(find "${SRC_DIRS[@]}" -type f -name '*.tsx' -print0 \
+  | xargs -0 perl -ne \
+    'print "$&\n" while /(?<![\w:\/-])(?:bg|text|border|divide)-(?:black|white|zinc-[0-9]+)(?:\/[0-9]+)?(?![\w\/-])/g' \
+  | sort -u)
 
 # 2. Classes overridden per theme (unescape Tailwind's `\/` opacity escape).
 covered_for() {
-  grep -oP ":root\[data-theme=\"$1\"\] \.\K[\w\\\\/-]+" "$CSS" \
+  perl -ne 'print "$1\n" while /:root\[data-theme="'"$1"'"\] \.([\w\\\/-]+)/g' "$CSS" \
     | sed 's/\\//g' | sort -u
 }
 light=$(covered_for light)

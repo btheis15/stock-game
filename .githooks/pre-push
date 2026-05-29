@@ -55,7 +55,13 @@ while read -r local_ref local_sha_stdin remote_ref remote_sha; do
     range="$remote_sha..$local_sha"
   fi
 
-  if git diff --name-only "$range" | grep -qv '^public/data/'; then
+  # Data the Mac mini's recurring refresh commits: incremental prices under
+  # public/data/ AND the fast-tier re-rendered public/digests.json. Both are
+  # generated artifacts, not code — a push touching only these must skip the
+  # build/theme check so the 5-min refresh stays fast. digests.json lives
+  # outside public/data/, so it needs to be named explicitly or every data
+  # push trips the build (this is exactly what froze deploys on 2026-05-29).
+  if git diff --name-only "$range" | grep -qvE '^public/(data/|digests\.json$)'; then
     need_build=1
     break
   fi
