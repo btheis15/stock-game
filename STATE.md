@@ -709,6 +709,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 | `npm run fetch-prices` | Incremental refresh of `public/data/prices.json`. |
 | `npm run fetch-prices -- --full` | Full re-fetch from START_DATE. |
 | `npm run refresh` | `bash scripts/cron-update.sh` — fetch + commit + push + deploy. |
+| `npm run check-theme` | `bash scripts/check-theme-coverage.sh` — fails if any dark-surface utility used in markup lacks a light+twilight override in `globals.css`. Runs in CI + pre-push. |
 | `npm run stockgame` | Launch the tkinter scheduler UI on the Mac mini. |
 
 ## 11. Known invariants / gotchas
@@ -720,7 +721,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **`metadataBase`** in `app/layout.tsx` resolves dynamically from `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → localhost fallback. Don't hardcode the vercel.app domain.
 - **Site URL is `stock-game-gamma.vercel.app`.** Vercel assigned this; we don't control it. README + OG metadata don't depend on it (dynamic).
 - **iCloud + git is forbidden — repo lives at `~/Repos/stock-game`.** iCloud silently writes `<file> 2` duplicates inside `.git/`, `node_modules/`, `.next/`, etc., which poisons `git fetch` (`fatal: bad object refs/remotes/origin/main 2`) and silently aborts every cron fire. Both Mac mini and laptop clone to `~/Repos/stock-game`; the iCloud Desktop folder keeps absolute symlinks to the canonical docs only. See CLAUDE.md §13.2 for full setup.
-- **Theme system.** `globals.css` keeps the dark palette as the default `:root` and overrides the same handful of zinc/black/white utility classes under two alternate themes: `:root[data-theme="light"]` (Robinhood-light: zinc-50 page bg, white cards, zinc-200 borders, zinc-900 text) and `:root[data-theme="twilight"]` (cool deep-indigo midnight palette with indigo-100/200/300 text — used during pre-market and after-hours). `<ThemeController>` mounts in the layout and switches `<html data-theme>` based on `getMarketSessionState()` (re-evaluated every 60s). Player accents and gain/loss greens are unchanged across themes. If you add a new component, reuse the existing zinc utility classes — those flip automatically across all three themes. New hex literals (e.g. `bg-[#xxx]`) won't.
+- **Theme system.** `globals.css` keeps the dark palette as the default `:root` and overrides the same handful of zinc/black/white utility classes under two alternate themes: `:root[data-theme="light"]` (Robinhood-light: zinc-50 page bg, white cards, zinc-200 borders, zinc-900 text) and `:root[data-theme="twilight"]` (cool deep-indigo midnight palette with indigo-100/200/300 text — used during pre-market and after-hours). `<ThemeController>` mounts in the layout and switches `<html data-theme>` based on `getMarketSessionState()` (re-evaluated every 60s). Player accents and gain/loss greens are unchanged across themes. If you add a new component, reuse the existing zinc utility classes — those flip automatically across all three themes. New hex literals (e.g. `bg-[#xxx]`) won't. **Each opacity variant is a separate override** — `.bg-zinc-900\/60` is not covered by `.bg-zinc-900`; forgetting one renders dark-on-light in light mode (this is how the "What's new" button broke). `npm run check-theme` enforces full coverage in CI + pre-push; see CLAUDE.md §5.6.
 - **DST heuristic** in `sessionBoundsForDate` is coarse (Mar–Nov = EDT). Wrong on the few transition days; harmless for the visual axis.
 - **Today's intraday bars cover the extended session.** `scripts/fetch-prices.ts` requests `includePrePost: true` from Yahoo and keeps bars in `7:00 AM ≤ t < 6:00 PM ET` via `extendedSessionBoundsET()` so the 1D chart shows pre-market (7:00 – 9:30 AM ET) and after-hours (4:00 – 6:00 PM ET) moves alongside the regular session. The `ThemeController` applies `data-theme="twilight"` during those windows; `MarketStateBadge` displays "Pre-market" / "Market open" / "After hours" / "Market closed".
 - **Weekly hourly bars are also regular-session-only.** `fetchWeeklyHourly()` pulls 1h bars for the past 8 days, then `filterToRegularSession()` drops pre-market, after-hours, and weekend bars (DST-aware ET hour-of-day check). At render time `lib/portfolio.ts` further drops Yahoo's "live partial" bars (any bar whose timestamp doesn't end with `:00.000Z`) so 1W plot points all sit at clean hourly intervals.
@@ -820,6 +821,10 @@ scripts/
                                digest.swift + commit + push. Mirrors cron-update.sh's
                                defensive pattern (pause-file, branch guard, autostash).
   stockgame_schedule.py        tkinter scheduler. threading.Timer + caffeinate.
+  check-theme-coverage.sh      Fails if any dark-surface utility used in components/ + app/
+                               lacks a light+twilight override in globals.css. Guards the
+                               recurring light-mode contrast bug. Run via `npm run check-theme`;
+                               wired into CI (build.yml theme-coverage job) + the pre-push hook.
   make-icons.py                Regenerate PWA icons (icon-192/512, apple-touch, favicon).
   make-og.py                   Regenerate the 1200x630 OG card.
 

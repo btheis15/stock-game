@@ -27,6 +27,16 @@ jobs:
 
       - run: npm run build
 
+  theme-coverage:
+    # Catches the recurring light/twilight contrast bug: a new component using
+    # a dark-surface utility (or an opacity variant like bg-zinc-900/60) that
+    # has no override in app/globals.css, so it renders dark-on-light in light
+    # mode. The "What's new" button shipped exactly this. See CLAUDE.md §5.6.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run check-theme
+
   python-syntax:
     # Catches Python syntax errors in scripts/stockgame_schedule.py before
     # they reach the Mac mini. The scheduler's own auto-restart loop also
