@@ -21,6 +21,8 @@ import { DigestPanel } from "./DigestPanel";
 import { useDigests } from "@/lib/digests";
 import { PortfolioComposition } from "./PortfolioComposition";
 import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
+import { PortfolioThesis } from "./PortfolioThesis";
+import type { Thesis } from "@/lib/thesis";
 import { useFundsFilter, FilterToolbar, FilterSheet } from "./FundsFilter";
 import { OverlayLegend } from "./OverlayLegend";
 import {
@@ -63,6 +65,8 @@ interface Props {
   generatedAt: string;
   holdings: HoldingRow[];
   composition: PortfolioCompositionData;
+  /** The player's own "why these picks" reasoning. Null → section is hidden. */
+  thesis: Thesis | null;
 }
 
 export function PortfolioView({
@@ -79,6 +83,7 @@ export function PortfolioView({
   generatedAt,
   holdings,
   composition,
+  thesis,
 }: Props) {
   const user = USERS[userId];
   const [range, setRange] = useState<Range>("1D");
@@ -310,6 +315,14 @@ export function PortfolioView({
       </div>
 
       <PortfolioComposition composition={composition} accentColor={user.color} />
+
+      {thesis && (
+        <PortfolioThesis
+          thesis={thesis}
+          tickers={user.tickers}
+          accentColor={user.color}
+        />
+      )}
 
       <FilterSheet
         open={filterOpen}

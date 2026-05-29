@@ -18,6 +18,7 @@ import {
   weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import { USER_LIST, type UserId } from "@/lib/picks";
+import { getThesis } from "@/lib/thesis";
 
 const VALID_USERS = new Set(USER_LIST.map((u) => u.id as string));
 
@@ -76,6 +77,7 @@ export default async function Page({
 
   const fundamentals = await loadFundamentalsData();
   const composition = buildPortfolioComposition(userId, holdings, fundamentals);
+  const thesis = getThesis(userId);
   return (
     <>
       <HeaderBack title="Compare" />
@@ -93,6 +95,7 @@ export default async function Page({
         generatedAt={data.generatedAt}
         holdings={holdings}
         composition={composition}
+        thesis={thesis}
       />
     </>
   );
