@@ -401,10 +401,39 @@ when the market crosses open/close without a reload.
 `globals.css` defines the light overrides as targeted utility-class
 overrides under `:root[data-theme="light"]` rather than introducing new
 theme tokens. The covered classes are exactly what the codebase uses
-today (audited via `grep -rohE "(bg|text|border|divide)-(black|white|zinc-[0-9]+)"`)
-plus their `/N` opacity variants. **If you add a new component, reuse
-those existing utilities** — they flip themes automatically. New hex
-literals (e.g. `bg-[#xxx]`) won't.
+today plus their `/N` opacity variants. **If you add a new component,
+reuse those existing utilities** — they flip themes automatically. New
+hex literals (e.g. `bg-[#xxx]`) won't.
+
+> **⚠ Recurring bug — the #1 thing to get right when adding a feature.**
+> A dark-surface utility only theme-flips if it has an override under
+> **both** `:root[data-theme="light"]` *and* `:root[data-theme="twilight"]`
+> in `globals.css`. The trap is **opacity variants**: the codebase had
+> `.bg-zinc-900\/50` and `.bg-zinc-900\/70` overridden but not `\/60`, so
+> the "What's new" button (`bg-zinc-900/60 border-zinc-700`) rendered as
+> muddy dark-grey-on-light in light mode while looking fine in the dark
+> default. `border-zinc-700`, `bg-zinc-800/70`, `bg-zinc-900/40`, and
+> `text-zinc-100` had the same latent gap. Each opacity variant and each
+> shade is a *separate* selector — adding `.bg-zinc-900` does not cover
+> `.bg-zinc-900\/60`.
+>
+> **This is now enforced, not just documented.** `npm run check-theme`
+> (`scripts/check-theme-coverage.sh`) greps every base dark-surface
+> utility used in `components/` + `app/`, diffs it against the override
+> selectors in `globals.css`, and fails if anything is uncovered in
+> either theme. It runs in CI (`.github/workflows/build.yml`
+> `theme-coverage` job) and in the pre-push hook alongside `npm run
+> build`. When it fails you have three options, in order of preference:
+> (1) switch the markup to an already-covered utility; (2) add the class
+> to **both** the light and twilight override blocks (and to the
+> transition-group selector at the bottom of `globals.css` so it animates
+> at the flip); (3) if the class is genuinely theme-independent (an
+> inverted white pill, a modal scrim), add it to `ALLOWLIST` in the
+> script *with a one-line justification*. Interaction/responsive variants
+> (`hover:`/`active:`/`focus:`/`sm:`) are intentionally out of scope —
+> Tailwind emits them as separate classes the overrides don't match, and
+> they're transient desktop-only states, not the always-on surface colors
+> that cause the visible bug.
 
 The Robinhood-light palette is intentionally muted so brand colors
 (player accents + gain-green / loss-red) stay readable on white. The
@@ -1293,9 +1322,19 @@ This repo has no automated unit tests. Manual verification:
 
 1. `npm run build` — must complete with no errors. Type errors and SSG
    failures surface here.
+1b. `npm run check-theme` — if you added or edited any component markup,
+   confirm every dark-surface utility flips in light + twilight (see
+   §5.6). This is the guard against the recurring "looks fine in dark,
+   broken in light mode" bug. It also runs in CI + the pre-push hook, but
+   running it locally is the fast feedback loop.
 2. `npm run dev`, open `localhost:3000` in browser at mobile width:
    - Click each tab (1D / 1W / 1M / 3M / 1YR / ALL). All render without
      console errors.
+   - **Check light mode too**, not just the dark default. The fastest way:
+     in DevTools, run `document.documentElement.dataset.theme = "light"`
+     (and `"twilight"`) in the console and eyeball every new surface for
+     contrast. `check-theme` catches *missing* overrides; only your eyes
+     catch an override that's the *wrong shade*.
    - Tap a leaderboard card → land on player's portfolio. Back button
      visible. Hash deep-link from the InsightsCard works.
    - Scrub the chart with the cursor. Header values update; release

@@ -65,6 +65,8 @@ if [ "$need_build" -eq 1 ]; then
   echo "pre-push: code changes detected — running npm run build"
   cd "$(git rev-parse --show-toplevel)"
   npm run build
+  echo "pre-push: checking light/twilight theme coverage"
+  npm run check-theme
 else
   echo "pre-push: data-only push — skipping build"
 fi
