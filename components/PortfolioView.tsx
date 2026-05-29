@@ -22,7 +22,7 @@ import { useDigests } from "@/lib/digests";
 import { PortfolioComposition } from "./PortfolioComposition";
 import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
 import { PortfolioThesis } from "./PortfolioThesis";
-import type { Thesis } from "@/lib/thesis";
+import type { Thesis } from "@/lib/thesis-types";
 import { useFundsFilter, FilterToolbar, FilterSheet } from "./FundsFilter";
 import { OverlayLegend } from "./OverlayLegend";
 import {
@@ -316,13 +316,13 @@ export function PortfolioView({
 
       <PortfolioComposition composition={composition} accentColor={user.color} />
 
-      {thesis && (
-        <PortfolioThesis
-          thesis={thesis}
-          tickers={user.tickers}
-          accentColor={user.color}
-        />
-      )}
+      <PortfolioThesis
+        thesis={thesis}
+        userId={user.id}
+        userName={user.name}
+        tickers={user.tickers}
+        accentColor={user.color}
+      />
 
       <FilterSheet
         open={filterOpen}

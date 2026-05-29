@@ -1,42 +1,66 @@
-// Per-player investment theses — loader for the "Why these picks" section on
-// a player's own portfolio page (components/PortfolioThesis.tsx).
+// Per-player investment theses — server-side loader for the "Why these
+// picks" section (components/PortfolioThesis.tsx) and its open editor.
 //
-// Source of truth is config/thesis.json, keyed by user id. A player only gets
-// a thesis section if they have an entry there, so this is fully optional and
-// additive: no entry → getThesis() returns null → the section doesn't render.
-// `picks` is keyed by ticker and matched against the player's holdings at
-// render time, so reordering or trimming the roster needs no change here.
-import thesisData from "@/config/thesis.json";
+// Source of truth is config/thesis.json, keyed by user id. Like funds.json,
+// it's read GitHub-first with a short in-process cache so a freshly-saved
+// thesis shows up without waiting for a Vercel redeploy (a static JSON
+// `import` would be frozen at build time — see the funds.ts note). The
+// filesystem copy is the fallback for local dev and any env without a
+// GITHUB_TOKEN.
+//
+// This module imports node:fs and so is SERVER-ONLY. The types, field caps,
+// and validation live in lib/thesis-types.ts (client-safe) and are re-exported
+// here for server callers that want a single import.
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { getGithubFile } from "./github-commit";
 import type { UserId } from "./picks";
+import { THESIS_PATH, type Thesis, type ThesisFile } from "./thesis-types";
 
-export interface ThesisPick {
-  /** One-line hook shown on the always-visible row. */
-  summary: string;
-  /** Full reasoning, revealed when the row is expanded. */
-  full: string;
+export * from "./thesis-types";
+
+const THESIS_CACHE_TTL_MS = 10_000;
+let cached: { data: ThesisFile; ts: number } | null = null;
+
+async function fetchFromGithub(): Promise<ThesisFile | null> {
+  if (!process.env.GITHUB_TOKEN || !process.env.GITHUB_OWNER || !process.env.GITHUB_REPO) {
+    return null;
+  }
+  try {
+    const file = await getGithubFile(THESIS_PATH);
+    if (!file) return {};
+    return JSON.parse(file.content) as ThesisFile;
+  } catch {
+    return null;
+  }
 }
 
-export interface Thesis {
-  /** Short theme label, e.g. "Physical AI + On-Device Intelligence". */
-  theme: string;
-  /** Attribution line, e.g. "Personal research memo · Feb 5, 2026". */
-  source: string;
-  /** Top-level thesis paragraphs (the "why this whole portfolio" intro). */
-  overview: string[];
-  /** Optional one-line disclaimer rendered in muted text at the foot. */
-  disclaimer?: string;
-  /** Per-ticker reasoning, keyed by symbol. */
-  picks: Record<string, ThesisPick>;
+async function fetchFromFilesystem(): Promise<ThesisFile> {
+  try {
+    const file = resolve(process.cwd(), "config", "thesis.json");
+    return JSON.parse(await readFile(file, "utf8")) as ThesisFile;
+  } catch {
+    return {};
+  }
 }
 
-// JSON imports widen to `any`-ish records; the leading `_comment` key isn't
-// part of the contract, so cast through unknown to the typed shape.
-const raw = thesisData as unknown as Record<string, Thesis | undefined> & {
-  _comment?: string;
-};
+export async function loadThesisData(): Promise<ThesisFile> {
+  if (cached && Date.now() - cached.ts < THESIS_CACHE_TTL_MS) return cached.data;
+  const fromGithub = await fetchFromGithub();
+  const data = fromGithub ?? (await fetchFromFilesystem());
+  cached = { data, ts: Date.now() };
+  return data;
+}
 
-export function getThesis(userId: UserId): Thesis | null {
-  const t = raw[userId];
-  if (!t || !t.overview || !t.picks) return null;
+/** Reset the in-process cache after a save so this instance serves fresh
+ *  content on the next request. Mirrors invalidateFundsCache(). */
+export function invalidateThesisCache(): void {
+  cached = null;
+}
+
+export async function getThesis(userId: UserId): Promise<Thesis | null> {
+  const data = await loadThesisData();
+  const t = data[userId];
+  if (!t || !Array.isArray(t.overview) || typeof t.picks !== "object") return null;
   return t;
 }

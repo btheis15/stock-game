@@ -36,6 +36,20 @@ export interface ChangelogEntry {
 // reverse-chronological order makes the file easy to scan.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "investment-thesis",
+    date: "2026-05-29",
+    category: "New",
+    icon: "✍️",
+    title: "Add your investment thesis",
+    summary:
+      "Write the “why” behind your picks — a big-picture theme plus a quick take on each of your stocks.",
+    details: [
+      "Your portfolio page now has a “Why these picks” section at the bottom where you can explain your thinking — the overall theme tying your portfolio together, and a short reason for each stock you hold. Readers tap any holding to expand your full take.",
+      "Adding yours is as easy as building a fund. Open your portfolio from the leaderboard, scroll to “Why these picks,” and tap “Add thesis” (or “Edit” if you’ve already written one). Fill in as much or as little as you like — every field is optional — then save. It updates the page for everyone right away.",
+      "It’s open on purpose, just like funds: anyone can edit any portfolio’s thesis, so please only edit your own. Brian’s Physical-AI thesis is already in there as an example of what it looks like filled out.",
+    ],
+  },
+  {
     id: "custom-funds",
     date: "2026-05-28",
     category: "New",

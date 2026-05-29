@@ -77,7 +77,7 @@ export default async function Page({
 
   const fundamentals = await loadFundamentalsData();
   const composition = buildPortfolioComposition(userId, holdings, fundamentals);
-  const thesis = getThesis(userId);
+  const thesis = await getThesis(userId);
   return (
     <>
       <HeaderBack title="Compare" />
