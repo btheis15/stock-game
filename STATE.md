@@ -556,10 +556,12 @@ components/
 
 [Vercel]   Next.js production build
    │           reads prices.json at build time → 55 static HTML pages prerendered
-   │           Cache-Control: public, max-age=0, must-revalidate (set in next.config.ts)
+   │           Cache-Control: no-cache, no-store, max-age=0, must-revalidate (set in next.config.ts)
    ▼
 [iPhone]   PWA refreshes on next tap
-   - cache headers force revalidation, so each open pulls latest HTML
+   - no-store on every document + data route, so each cold open fetches fresh
+     HTML (defeats iOS webclips serving a stale cached snapshot without
+     revalidating). /_next/static/* JS+CSS keep immutable caching.
    - PullToRefresh component additionally triggers reload on app foreground (>60s hidden)
    - manual scroll-to-top + drag-down also forces reload
 ```
@@ -717,7 +719,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **`startClose` is sacred.** Do not recompute on incremental fetches. Share counts depend on it.
 - **Visx peer-dep mismatch.** React 19, but visx peers `^16 || ^17 || ^18`. `.npmrc` has `legacy-peer-deps=true` so Vercel installs cleanly.
 - **`touchAction: none` on the chart SVG.** Required for clean scrub. If you ever change this, vertical scroll-finger-drift will release the gesture mid-swipe.
-- **Cache headers.** `next.config.ts` sets `public, max-age=0, must-revalidate` on HTML and `prices.json`. Don't tighten without thought — PWA installs go stale otherwise.
+- **Cache headers.** `next.config.ts` sets `no-cache, no-store, max-age=0, must-revalidate` on every user-facing document route + the data JSON snapshots. `no-store` (not just `must-revalidate`) is deliberate: iOS home-screen webclips serve a stale cached HTML snapshot on cold launch without revalidating, which strands shipped CSS/markup fixes on the OLD content-hashed bundle. The header config enumerates only document/data routes, so `/_next/static/*` keeps its `immutable` caching. First upgrade off the old header still needs one manual refresh per device; deploys after that land automatically.
 - **`metadataBase`** in `app/layout.tsx` resolves dynamically from `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → localhost fallback. Don't hardcode the vercel.app domain.
 - **Site URL is `stock-game-gamma.vercel.app`.** Vercel assigned this; we don't control it. README + OG metadata don't depend on it (dynamic).
 - **iCloud + git is forbidden — repo lives at `~/Repos/stock-game`.** iCloud silently writes `<file> 2` duplicates inside `.git/`, `node_modules/`, `.next/`, etc., which poisons `git fetch` (`fatal: bad object refs/remotes/origin/main 2`) and silently aborts every cron fire. Both Mac mini and laptop clone to `~/Repos/stock-game`; the iCloud Desktop folder keeps absolute symlinks to the canonical docs only. See CLAUDE.md §13.2 for full setup.
@@ -834,7 +836,7 @@ public/
   manifest.webmanifest         PWA manifest.
   icon-*.png, apple-touch-icon.png, favicon.png, og.png
 
-next.config.ts                 Cache-Control headers for HTML + prices.json + manifest.
+next.config.ts                 Cache-Control: no-store on all document + data routes (anti-stale-PWA); /_next/static stays immutable.
 .npmrc                         legacy-peer-deps=true.
 .gitignore                     Excludes .claude/, __pycache__/, .next/, .vercel/, node_modules/.
 README.md                      Public-facing intro + Vercel deploy badge.
