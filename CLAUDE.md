@@ -1082,9 +1082,23 @@ without dragging Node modules into the browser.
 - On push, Vercel pulls the repo, runs `npm install --legacy-peer-deps`
   (per `.npmrc`), runs `next build`, deploys static output to its CDN.
 - The Vercel project is aliased to `stock-game-gamma.vercel.app`.
-- Cache-Control headers (`next.config.ts`) tell every client to
-  revalidate HTML and `prices.json` on each request — so the iPhone
-  PWA picks up the new build the next time the user opens the app.
+- Cache-Control headers (`next.config.ts`) set every user-facing document
+  route + the data JSON snapshots to `no-cache, no-store, max-age=0,
+  must-revalidate` so the iPhone PWA fetches fresh HTML on every open and
+  picks up the newest deploy. **Why `no-store`, not just `must-revalidate`:**
+  iOS home-screen webclips aggressively serve a cached HTML snapshot on cold
+  launch — frequently *without* revalidating, even under `max-age=0,
+  must-revalidate`. That stored snapshot references the OLD content-hashed
+  CSS bundle, so a shipped style fix can fail to reach the phone for days
+  (this is what made two consecutive light-mode fixes "not show up").
+  `no-store` removes the snapshot entirely. The `/_next/static/*` JS/CSS
+  bundles keep their own `immutable` caching (Next sets that, and the header
+  config deliberately enumerates only document/data routes so it's left
+  untouched) — so only the tiny HTML + JSON re-fetch, never the bundles.
+  **Caveat on the first upgrade:** a device already holding a stale snapshot
+  from the OLD header has to fetch the new HTML once (manual refresh / delete
+  + re-add) to learn about `no-store`; every deploy after that lands
+  automatically.
 - End-to-end latency: ~3s fetch + 14s build + ~30s propagate ≈ **50s**.
 
 ---
