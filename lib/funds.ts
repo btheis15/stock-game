@@ -171,7 +171,7 @@ export function dollarsForHolding(h: FundHolding): number {
  *    - each weight ≥ 0.001 (10 basis points, the min the UI offers)
  *    - tickers are uppercase, 1-10 chars
  */
-const TICKER_RE = /^[A-Z][A-Z0-9.\-]{0,9}$/;
+const TICKER_RE = /^\^?[A-Z][A-Z0-9.\-]{0,9}$/;
 const WEIGHT_TOLERANCE = 0.00005;
 const MIN_WEIGHT = 0.001;
 
