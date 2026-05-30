@@ -36,6 +36,20 @@ export interface ChangelogEntry {
 // reverse-chronological order makes the file easy to scan.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "combined-players-fund",
+    date: "2026-05-30",
+    category: "New",
+    icon: "🧩",
+    title: "Combined Players fund",
+    summary:
+      "Everyone's picks, pooled into one $100,000 fund — see who's carrying the group and how the whole field stacks up.",
+    details: [
+      "There's a new pretend fund that pools all of our picks into one basket. Imagine everybody's stocks dumped together and $100,000 spread evenly across every pick — with five of us picking ten each, that's 50 slots of $2,000. If two people picked the same stock, it counts twice, so the crowd favorites carry extra weight.",
+      "Scroll to the bottom of the Compare tab to find the new “Participant breakdown” — a donut showing how much of the combined fund each player is responsible for. Tap a player to see exactly which of their picks they bring to the pool. Underneath, an “About the players” card sums up the whole field and the themes we keep coming back to.",
+      "Want to race it against everyone? It's also a line you can switch on from the filter button on the Compare chart (it's off by default), and tapping it opens its own page with the full holdings list, just like any other fund.",
+    ],
+  },
+  {
     id: "investment-thesis",
     date: "2026-05-29",
     category: "New",

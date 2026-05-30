@@ -49,6 +49,21 @@ Four things, on a phone screen:
    genuinely notable, user-facing changes show up, so the feed never floods
    with the every-15-minute data refreshes happening behind the scenes.
 
+   Scroll to the bottom of the Compare tab and there's a **Participant
+   breakdown** — a donut chart of the **Combined Players** fund, which pools
+   *everyone's* picks into one equal-weight $100,000 book. Think of it as: all
+   the players' picks dumped into one basket, with $100k spread evenly across
+   every pick "slot" (5 players × 10 picks = 50 slots at $2,000 each). A stock
+   more than one person picked counts once for each pick, so the crowd
+   favorites (AAPL, NVDA, TSLA, CRSP today) carry double the weight. The donut
+   slices that fund by player — tap a participant to see the picks they bring
+   to the table. Below it sits an **About the players** card (same "✦ Claude
+   analysis" treatment as the per-portfolio one) that introduces the field and
+   the themes the group keeps coming back to. The Combined Players fund is also
+   a toggle-on line on the chart + leaderboard (it shows up in the fund filter,
+   off by default) and has its own drill-down at `/fund/combined-players`, just
+   like any other fund.
+
 2. **Per-player drill-down.** Tap a leaderboard card — or the *name* in any
    "What's driving it" card — and you land on that player's portfolio. Same
    big chart, their line by default — but a **Compare** pill above the chart

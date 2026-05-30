@@ -17,6 +17,7 @@ import {
   weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import { USER_LIST } from "@/lib/picks";
+import { COMBINED_FUND_ID, combinedPlayersFund } from "@/lib/combined";
 
 // Dynamic because the fund roster lives in config/funds.json and can change
 // via the funds API without a code deploy. Mirrors /portfolio/[user].
@@ -30,7 +31,12 @@ export default async function Page({
   const { id } = await params;
   const data = await loadPriceData();
   const activeFunds = await loadActiveFunds();
-  const fund = activeFunds.find((f) => f.id === id);
+  // The Combined Players fund is synthetic (roster-derived, not in funds.json),
+  // so resolve it directly rather than looking it up in the active list.
+  const fund =
+    id === COMBINED_FUND_ID
+      ? combinedPlayersFund()
+      : activeFunds.find((f) => f.id === id);
   if (!fund) notFound();
 
   const series = buildFundSeries(data, fund);
@@ -60,7 +66,10 @@ export default async function Page({
     intraday: intradayPortfolioSeries(data, u.id),
     weekly: weeklyPortfolioSeries(data, u.id),
   }));
-  const otherFunds: CompSeries[] = activeFunds
+  // Offer the Combined Players fund as an overlay too (unless this IS it).
+  const overlayFunds =
+    fund.id === COMBINED_FUND_ID ? activeFunds : [combinedPlayersFund(), ...activeFunds];
+  const otherFunds: CompSeries[] = overlayFunds
     .filter((f) => f.id !== fund.id)
     .map((f) => ({
       id: f.id,

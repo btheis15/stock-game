@@ -195,6 +195,11 @@ export interface Fund {
    *  view's Archive tab; older entries stay in the file (harmless) but
    *  the UI hides them. */
   deletedAt: string | null;
+  /** True for the roster-derived "Combined Players" fund (lib/combined.ts).
+   *  Synthetic funds aren't backed by a config/funds.json entry, so the
+   *  Manage-Funds sheet hides them — they can't be edited or archived. Absent
+   *  / false on every user-created fund. */
+  synthetic?: boolean;
   holdings: FundHolding[];
 }
 

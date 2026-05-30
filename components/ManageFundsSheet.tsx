@@ -38,11 +38,16 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const active = useMemo(() => funds.filter((f) => f.deletedAt === null), [funds]);
+  // Synthetic funds (the roster-derived Combined Players) have no funds.json
+  // entry, so they're not editable or archivable — keep them out of both tabs.
+  const active = useMemo(
+    () => funds.filter((f) => f.deletedAt === null && !f.synthetic),
+    [funds]
+  );
   const archived = useMemo(
     () =>
       funds
-        .filter((f) => f.deletedAt !== null)
+        .filter((f) => f.deletedAt !== null && !f.synthetic)
         .filter((f) => daysSince(f.deletedAt!) < FUND_RESTORE_WINDOW_DAYS)
         .sort((a, b) => b.deletedAt!.localeCompare(a.deletedAt!)),
     [funds]

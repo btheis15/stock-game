@@ -1188,6 +1188,13 @@ cheaper.
    - Update UserId type union.
    - USER_LIST and TICKER_OWNERS auto-update via the IIFE at the bottom.
    - If picks include any new tickers, add them to TICKER_NAMES.
+   - The synthetic "Combined Players" fund (lib/combined.ts) and the
+     Compare-page Participant breakdown / About-the-players cards
+     (lib/participants.ts) both derive from USER_LIST at request time, so
+     they reshape automatically — no edit needed. A hand-written investing
+     style label for the new player in PER_USER_ANALYSIS (lib/
+     portfolio-composition.ts) will also flow into the About-the-players
+     blurb; players without one are just skipped there.
 
 2. scripts/digest.swift: the roster is hardcoded here too (Apple
    Intelligence runs in Swift, no TS interop). Update three lists in lockstep:

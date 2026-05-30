@@ -24,6 +24,9 @@ import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
+import { ParticipantBreakdown } from "./ParticipantBreakdown";
+import { COMBINED_FUND_COLOR } from "@/lib/combined";
+import type { ParticipantBreakdown as ParticipantBreakdownData } from "@/lib/participants";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -62,6 +65,9 @@ interface Props {
   intradayDate: string;
   generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
+  /** The Combined Players fund sliced by player + the "About the players"
+   *  narrative. Rendered at the bottom of the page. */
+  participants: ParticipantBreakdownData;
 }
 
 interface RankedEntry {
@@ -92,6 +98,7 @@ export function CompareView({
   intradayDate,
   generatedAt,
   analyses,
+  participants,
 }: Props) {
   const router = useRouter();
   const [range, setRange] = useState<Range>("1D");
@@ -478,6 +485,13 @@ export function CompareView({
       </div>
 
       <InsightsCard analysis={analyses[range]} />
+
+      <ParticipantBreakdown
+        participants={participants.participants}
+        totalValue={participants.totalValue}
+        analysis={participants.analysis}
+        accentColor={COMBINED_FUND_COLOR}
+      />
 
       <div className="px-4 mt-6">
         <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Game rules</h2>

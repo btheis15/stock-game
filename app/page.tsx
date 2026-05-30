@@ -1,6 +1,9 @@
 import { CompareView } from "@/components/CompareView";
 import { loadPriceData } from "@/lib/data";
 import { loadFundsData } from "@/lib/funds";
+import { loadFundamentalsData } from "@/lib/fundamentals-data";
+import { combinedPlayersFund } from "@/lib/combined";
+import { buildParticipantBreakdown } from "@/lib/participants";
 import {
   analyzeRange,
   baselinePortfolioSeries,
@@ -30,10 +33,18 @@ const ALL_RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
 export default async function Page() {
   const data = await loadPriceData();
   const fundsFile = await loadFundsData();
-  // Active + soft-deleted-within-restore-window funds. The Compare view
-  // filters to active only; the Manage sheet reads the same array and
-  // renders the Archive tab from the soft-deleted subset.
-  const allKnownFunds = fundsFile.funds;
+  const fundamentals = await loadFundamentalsData();
+  // Active + soft-deleted-within-restore-window funds, plus the synthetic
+  // Combined Players fund (roster-derived; pools every player's picks into one
+  // equal-weight $100k book). The Compare view filters to active only — the
+  // combined fund is active + default-off, so it appears as an opt-in chip /
+  // chart line / leaderboard row. The Manage sheet reads the same array but
+  // hides synthetic funds (nothing to edit or archive).
+  const allKnownFunds = [combinedPlayersFund(), ...fundsFile.funds];
+
+  // Game-wide participant breakdown (the combined fund sliced by player) +
+  // the "About the players" narrative, rendered at the bottom of Compare.
+  const participants = buildParticipantBreakdown(data, fundamentals);
 
   const series = Object.fromEntries(
     USER_LIST.map((u) => [u.id, portfolioSeries(data, u.id)])
@@ -96,6 +107,7 @@ export default async function Page() {
       intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
       generatedAt={data.generatedAt}
       analyses={analyses}
+      participants={participants}
     />
   );
 }
