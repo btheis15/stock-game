@@ -375,20 +375,33 @@ const PER_USER_ANALYSIS: Record<
   },
 };
 
+/** Structural theme detection (ticker overlap — doesn't move with prices).
+ *  Shared by the per-player "About this portfolio" card and the game-wide
+ *  "About the players" card (lib/participants.ts). */
+export function detectThemes(
+  tickers: Iterable<string>
+): Array<{ name: string; tickers: string[] }> {
+  const ownedSet = new Set(tickers);
+  const matched: Array<{ name: string; tickers: string[] }> = [];
+  for (const t of THEMES) {
+    const hit = t.tickers.filter((tk) => ownedSet.has(tk));
+    if (hit.length >= t.threshold) matched.push({ name: t.name, tickers: hit });
+  }
+  matched.sort((a, b) => b.tickers.length - a.tickers.length);
+  return matched;
+}
+
+/** The one-line investing-style label for a player (e.g. "AI buildout —
+ *  picks and shovels"), or null if the player has no hand-written blurb.
+ *  Used by the game-wide About-the-players summary. */
+export function playerStyleLabel(userId: UserId): string | null {
+  return PER_USER_ANALYSIS[userId]?.styleLabel ?? null;
+}
+
 function writeAnalysis(input: AnalysisInput): PortfolioAnalysis {
   const { userId, rows } = input;
 
-  // Theme detection (structural — doesn't change with prices).
-  const ownedSet = new Set(rows.map((r) => r.ticker));
-  const matchedThemes: Array<{ name: string; tickers: string[] }> = [];
-  for (const t of THEMES) {
-    const matched = t.tickers.filter((tk) => ownedSet.has(tk));
-    if (matched.length >= t.threshold) {
-      matchedThemes.push({ name: t.name, tickers: matched });
-    }
-  }
-  matchedThemes.sort((a, b) => b.tickers.length - a.tickers.length);
-
+  const matchedThemes = detectThemes(rows.map((r) => r.ticker));
   const blurb = PER_USER_ANALYSIS[userId];
 
   return {

@@ -1,48 +1,50 @@
 "use client";
 
+// Game-wide "Participant breakdown" + "About the players" for the Compare
+// page bottom. Parallels the per-player Portfolio breakdown / About this
+// portfolio cards, but slices the pooled Combined Players fund by player
+// instead of a single portfolio by sector. Tapping a participant reveals
+// the pick slots they contribute to the fund.
+
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ParentSize } from "@visx/responsive";
-import type {
-  CompositionSlice,
-  PortfolioAnalysis,
-  PortfolioComposition,
-} from "@/lib/portfolio-composition";
+import Link from "next/link";
 import { BreakdownDonut, SliceList, SliceDetail } from "./BreakdownDonut";
-
-type ViewKey = "sector" | "industry" | "marketcap";
-
-const VIEW_LABEL: Record<ViewKey, string> = {
-  sector: "Sector",
-  industry: "Industry",
-  marketcap: "Market cap",
-};
+import { fmtPct } from "@/lib/portfolio";
+import type { PortfolioAnalysis, CompositionSlice } from "@/lib/portfolio-composition";
+import { COMBINED_FUND_ID } from "@/lib/combined";
 
 interface Props {
-  composition: PortfolioComposition;
+  participants: CompositionSlice[];
+  totalValue: number;
+  analysis: PortfolioAnalysis;
   accentColor: string;
 }
 
-export function PortfolioComposition({ composition, accentColor }: Props) {
-  const [view, setView] = useState<ViewKey>("sector");
+export function ParticipantBreakdown({
+  participants,
+  totalValue,
+  analysis,
+  accentColor,
+}: Props) {
   const [selected, setSelected] = useState<string | null>(null);
-
-  const slices = useMemo<CompositionSlice[]>(() => {
-    if (view === "sector") return composition.bySector;
-    if (view === "industry") return composition.byIndustry;
-    return composition.byMarketCap;
-  }, [view, composition]);
-
   const selectedSlice = useMemo(
-    () => slices.find((s) => s.key === selected) ?? null,
-    [selected, slices]
+    () => participants.find((s) => s.key === selected) ?? null,
+    [selected, participants]
   );
 
   return (
     <div className="px-4 mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300">Portfolio breakdown</h2>
-        <ViewTabs value={view} onChange={(v) => { setView(v); setSelected(null); }} />
+        <h2 className="text-[15px] font-semibold text-zinc-300">Participant breakdown</h2>
+        <Link
+          href={`/fund/${COMBINED_FUND_ID}`}
+          className="text-[11px] font-semibold"
+          style={{ color: accentColor }}
+        >
+          View fund ↗
+        </Link>
       </div>
 
       <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
@@ -51,11 +53,13 @@ export function PortfolioComposition({ composition, accentColor }: Props) {
             <BreakdownDonut
               width={width}
               height={300}
-              slices={slices}
+              slices={participants}
               selected={selected}
               onSelect={(k) => setSelected((cur) => (cur === k ? null : k))}
-              total={composition.totalValue}
+              total={totalValue}
               accentColor={accentColor}
+              centerSubtitle={`${participants.length} participant${participants.length === 1 ? "" : "s"}`}
+              selectedSubtitle={(s) => `${fmtPct(s.pct)} of combined fund`}
             />
           )}
         </ParentSize>
@@ -63,19 +67,24 @@ export function PortfolioComposition({ composition, accentColor }: Props) {
         <div className="mt-4 divide-y divide-zinc-800/70">
           <AnimatePresence mode="wait">
             <motion.div
-              key={view + (selectedSlice?.key ?? "all")}
+              key={selectedSlice?.key ?? "all"}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.18 }}
             >
               {selectedSlice ? (
-                <SliceDetail slice={selectedSlice} />
+                <SliceDetail
+                  slice={selectedSlice}
+                  totalNoun="combined fund"
+                  sliceNoun="participant"
+                />
               ) : (
                 <SliceList
-                  slices={slices}
+                  slices={participants}
                   onSelect={(k) => setSelected(k)}
-                  viewLabel={VIEW_LABEL[view]}
+                  viewLabel="Participant"
+                  countLabel={(c) => `${c} pick${c === 1 ? "" : "s"}`}
                 />
               )}
             </motion.div>
@@ -83,44 +92,12 @@ export function PortfolioComposition({ composition, accentColor }: Props) {
         </div>
       </div>
 
-      <AboutThisPortfolio analysis={composition.analysis} accentColor={accentColor} />
+      <AboutPlayers analysis={analysis} accentColor={accentColor} />
     </div>
   );
 }
 
-// --- View tabs (pill toggle) ----------------------------------------------
-
-function ViewTabs({
-  value,
-  onChange,
-}: {
-  value: ViewKey;
-  onChange: (v: ViewKey) => void;
-}) {
-  const tabs: ViewKey[] = ["sector", "industry", "marketcap"];
-  return (
-    <div className="inline-flex rounded-full bg-zinc-900/70 border border-zinc-800 p-0.5">
-      {tabs.map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => onChange(t)}
-          className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
-            value === t
-              ? "bg-zinc-100 text-zinc-900"
-              : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          {VIEW_LABEL[t]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// --- About this portfolio (Claude analysis) ------------------------------
-
-function AboutThisPortfolio({
+function AboutPlayers({
   analysis,
   accentColor,
 }: {
@@ -133,15 +110,13 @@ function AboutThisPortfolio({
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-[15px] font-semibold text-zinc-300">About this portfolio</h2>
+        <h2 className="text-[15px] font-semibold text-zinc-300">About the players</h2>
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
           <span style={{ color: accentColor }}>✦</span>
           <span>Claude analysis</span>
         </div>
       </div>
       <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4 space-y-3 relative overflow-hidden">
-        {/* Faint accent gradient in the corner — gives the card a touch of
-            "this was synthesized" energy without being shouty. */}
         <div
           aria-hidden
           className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
@@ -153,10 +128,7 @@ function AboutThisPortfolio({
         <div className="relative">
           <div
             className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide"
-            style={{
-              backgroundColor: `${accentColor}1f`,
-              color: accentColor,
-            }}
+            style={{ backgroundColor: `${accentColor}1f`, color: accentColor }}
           >
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
             {analysis.styleLabel}
@@ -194,9 +166,7 @@ function AboutThisPortfolio({
                   key={t.name}
                   className="inline-flex items-center px-2.5 py-1 rounded-full bg-zinc-800/70 border border-zinc-700/60"
                 >
-                  <span className="text-[11px] font-medium text-zinc-200">
-                    {t.name}
-                  </span>
+                  <span className="text-[11px] font-medium text-zinc-200">{t.name}</span>
                 </div>
               ))}
             </div>

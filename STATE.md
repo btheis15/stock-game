@@ -52,6 +52,8 @@ tickers F / STLA / TM / HMC are no longer owned by any player but stay
 browsable on the Stocks tab + `/stock/[ticker]` via `activeFundTickers()`
 (GM is still Lee's).
 
+**Combined Players** is a synthetic, roster-derived fund (`lib/combined.ts`, id `combined-players`, color `#94A3B8` slate, `synthetic: true`). It pools every player's picks into one equal-weight $100k book: imagine all N players' picks dumped together, then $100k spread evenly across every pick *slot* (5 players × 10 picks = 50 slots at $2,000 each). A ticker more than one player chose occupies one slot per pick, so it carries proportionally more weight — AAPL (Brian + Lee), NVDA / TSLA (Kevin + Rick), CRSP (Brian + Gene), RKLB (Rick + Gene) each land at 2/50 = 4% vs 2% for a single-pick name. It's expressed as a normal `Fund` whose holdings dedupe to unique tickers each weighted `times-picked / total-picks`, so `fundSeries` / `buildFundHoldingRows` value it exactly like a user-created fund. It is NOT in `config/funds.json` — `combinedPlayersFund()` rebuilds it from the roster on each request, so a pick change reshapes it automatically. `synthetic: true` keeps it out of the Manage-Funds sheet (nothing to edit/archive). It's injected into the Compare page as a default-OFF fund chip / chart line / leaderboard row, has its own `/fund/combined-players` drill-down, and is offered as a comparison overlay on the portfolio + fund pages. The Compare page bottom also renders a **Participant breakdown** (the combined fund's donut sliced by player — one slot's worth of each of their picks) + an **About the players** narrative card (see §6).
+
 Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. Players don't share share counts even when they hold the same ticker (NVDA / TSLA: Kevin + Rick; AAPL: Brian + Lee; CRSP: Brian + Gene; RKLB: Rick + Gene — same prices, independent positions, computed via `sharesFor(userId, series)`).
 
 `ALL_TICKERS` is the dedup set across all players (44 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, ASML, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, ZBRA). Fund-only tickers (F, STLA, TM, HMC) are NOT in `ALL_TICKERS` — they ride the price pipeline via `allFundTickers()` and are added to stock-page params via `activeFundTickers()`.
@@ -379,6 +381,24 @@ components/
                       the view falls back to daily closes for 1W so all lines share the same
                       x-axis treatment (compactX is only enabled when every line has weekly
                       data, baseline included).
+                      The synthetic Combined Players fund rides through the same fund
+                      machinery as user funds (default-OFF chip / chart line / leaderboard
+                      row). Below InsightsCard the page renders <ParticipantBreakdown /> —
+                      the combined fund's donut sliced by player + an "About the players"
+                      card (props `participants`, server-computed by
+                      `lib/participants.ts`).
+  ParticipantBreakdown.tsx  Compare-page-bottom donut sliced by player (the Combined
+                      Players fund's participant view) + an "About the players" Claude-
+                      analysis card. Reuses the shared <BreakdownDonut> / SliceList /
+                      SliceDetail (see BreakdownDonut.tsx). Selecting a participant reveals
+                      the one-slot-each picks they contribute (each a Link to /stock/X).
+                      Header has a "View fund ↗" link to /fund/combined-players. Accent =
+                      the combined fund's slate color.
+  BreakdownDonut.tsx  Shared donut + SliceList + SliceDetail extracted from
+                      PortfolioComposition so the per-player Portfolio breakdown and the
+                      game-wide Participant breakdown render identically. Slice wording is
+                      parameterized ("of portfolio"/"of slice" vs "of combined
+                      fund"/"of participant"; center subtitle; per-slice count label).
   PortfolioView.tsx   Per-user. Defaults to 1D. PriceHeader + ScrubChart + RangeTabs +
                       DigestPanel (portfolio-rollup digest, between RangeTabs and Holdings)
                       + Holdings list.
@@ -412,7 +432,8 @@ components/
                       `lib/portfolio-composition.ts`).
   PortfolioComposition.tsx  Bottom-of-portfolio donut chart + "About this portfolio"
                       analysis card. Three views via pill toggle: Sector / Industry /
-                      Market cap. Donut is raw SVG arc paths with framer-motion pop-out +
+                      Market cap. Donut + slice list/detail come from the shared
+                      <BreakdownDonut> module. Donut is raw SVG arc paths with framer-motion pop-out +
                       dim animation on slice select; center readout shows total $ + # of
                       positions, or the selected slice's $ + portfolio share. Below the
                       donut: a list of slices with mini-bars + portfolio %s; selecting a
@@ -762,9 +783,10 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 ```
 app/                           Next.js routes
   layout.tsx                   Root layout, metadata, OG, mounts global UI + <ThemeController>
-  page.tsx                     "/" → loads PriceData, computes daily + intraday series + analyses, renders <CompareView>
+  page.tsx                     "/" → loads PriceData, computes daily + intraday series + analyses + participant breakdown, injects the synthetic Combined Players fund, renders <CompareView>
   globals.css                  Tailwind import + CSS vars + keyframes + light-theme utility overrides
-  portfolio/[user]/page.tsx    SSG for 4 users; dispatches to <PortfolioView>
+  portfolio/[user]/page.tsx    Dynamic per user; dispatches to <PortfolioView> (Combined Players offered as an overlay)
+  fund/[id]/page.tsx           Per-fund drill-down; resolves the synthetic combined-players id directly, others from config/funds.json
   stock/[ticker]/page.tsx      SSG for ALL_TICKERS; dispatches to <StockView>
   stocks/page.tsx              Renders <StocksListView> with all TickerSeries
   tee-times/page.tsx           Renders <TeeTimesView> (deep-link landing for foreUP)
@@ -774,7 +796,9 @@ components/                    Client components (mostly)
   CompareView.tsx              Compare page logic. 1D normalizes lines.
   PortfolioView.tsx            Per-user page logic. Anchor-deep-link supported.
   PortfolioComposition.tsx     Bottom-of-portfolio donut chart (Sector / Industry / Market
-                               cap) + Claude-analysis About-this-portfolio card.
+                               cap) + Claude-analysis About-this-portfolio card. Uses shared BreakdownDonut.
+  ParticipantBreakdown.tsx     Compare-bottom donut sliced by player (Combined Players fund) + About-the-players card.
+  BreakdownDonut.tsx           Shared donut + SliceList + SliceDetail used by both breakdowns.
   StockView.tsx                Per-ticker page logic. N Position cards.
   StocksListView.tsx           Filterable ticker list.
   DigestPanel.tsx              Per-stock news-digest card (Robinhood-style).
@@ -786,6 +810,13 @@ components/                    Client components (mostly)
 
 lib/                           Pure logic, no React
   picks.ts                     Players, tickers, colors, ticker → owners[] map.
+  combined.ts                  Builds the synthetic Combined Players fund from the roster
+                               (combinedPlayersFund(): unique tickers weighted times-picked /
+                               total-picks). COMBINED_FUND_ID / _NAME / _COLOR + totalPickSlots().
+  participants.ts              Server-only. buildParticipantBreakdown(data, fundamentals) →
+                               the combined fund sliced by player (CompositionSlice[]) + a
+                               static "About the players" narrative. Consumed by
+                               ParticipantBreakdown.tsx on "/".
   changelog.ts                 Hand-curated, plain-language "What's new" entries (the source
                                of truth for WhatsNew.tsx). Add an entry per MAJOR user-facing
                                feature; `recentEntries()` filters to RECENT_WINDOW_DAYS (30).
@@ -797,7 +828,9 @@ lib/                           Pure logic, no React
                                (per UserId) "About this portfolio" narrative. The
                                narrative is intentionally number-free and stable; edit
                                PER_USER_ANALYSIS to change a player's blurb. Consumed
-                               by PortfolioComposition.tsx on /portfolio/[user].
+                               by PortfolioComposition.tsx on /portfolio/[user]. Also
+                               exports detectThemes() + playerStyleLabel() reused by
+                               lib/participants.ts.
   fundamentals.ts              Client-safe formatters for fundamentals data.
   fundamentals-data.ts         Server-only loader for public/data/fundamentals.json.
   data.ts                      Server-side loader of public/data/prices.json.

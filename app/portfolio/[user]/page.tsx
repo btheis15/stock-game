@@ -18,6 +18,7 @@ import {
   weeklyPortfolioSeries,
 } from "@/lib/portfolio";
 import { USER_LIST, type UserId } from "@/lib/picks";
+import { combinedPlayersFund } from "@/lib/combined";
 import { getThesis } from "@/lib/thesis";
 
 const VALID_USERS = new Set(USER_LIST.map((u) => u.id as string));
@@ -61,9 +62,10 @@ export default async function Page({
     })
   );
 
-  // Active funds (incl. the Legacy Auto comparison), same overlay shape.
+  // Active funds (incl. the Legacy Auto comparison) plus the synthetic
+  // Combined Players fund, same overlay shape.
   const activeFunds = await loadActiveFunds();
-  const funds = activeFunds.map((f) => ({
+  const funds = [combinedPlayersFund(), ...activeFunds].map((f) => ({
     id: f.id,
     name: f.name,
     color: f.color,
