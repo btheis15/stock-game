@@ -21,9 +21,18 @@ const VIEW_LABEL: Record<ViewKey, string> = {
 interface Props {
   composition: PortfolioComposition;
   accentColor: string;
+  /** Heading above the donut. Defaults to "Portfolio breakdown". */
+  title?: string;
+  /** Heading above the Claude-analysis card. Defaults to "About this portfolio". */
+  aboutTitle?: string;
 }
 
-export function PortfolioComposition({ composition, accentColor }: Props) {
+export function PortfolioComposition({
+  composition,
+  accentColor,
+  title = "Portfolio breakdown",
+  aboutTitle = "About this portfolio",
+}: Props) {
   const [view, setView] = useState<ViewKey>("sector");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -41,7 +50,7 @@ export function PortfolioComposition({ composition, accentColor }: Props) {
   return (
     <div className="px-4 mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300">Portfolio breakdown</h2>
+        <h2 className="text-[15px] font-semibold text-zinc-300">{title}</h2>
         <ViewTabs value={view} onChange={(v) => { setView(v); setSelected(null); }} />
       </div>
 
@@ -83,7 +92,11 @@ export function PortfolioComposition({ composition, accentColor }: Props) {
         </div>
       </div>
 
-      <AboutThisPortfolio analysis={composition.analysis} accentColor={accentColor} />
+      <AboutThisPortfolio
+        analysis={composition.analysis}
+        accentColor={accentColor}
+        title={aboutTitle}
+      />
     </div>
   );
 }
@@ -123,9 +136,11 @@ function ViewTabs({
 function AboutThisPortfolio({
   analysis,
   accentColor,
+  title = "About this portfolio",
 }: {
   analysis: PortfolioAnalysis;
   accentColor: string;
+  title?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const showParagraphs = expanded ? analysis.paragraphs : analysis.paragraphs.slice(0, 1);
@@ -133,7 +148,7 @@ function AboutThisPortfolio({
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-[15px] font-semibold text-zinc-300">About this portfolio</h2>
+        <h2 className="text-[15px] font-semibold text-zinc-300">{title}</h2>
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
           <span style={{ color: accentColor }}>✦</span>
           <span>Claude analysis</span>

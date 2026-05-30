@@ -3,10 +3,11 @@ import { loadPriceData } from "@/lib/data";
 import { loadFundsData } from "@/lib/funds";
 import { loadFundamentalsData } from "@/lib/fundamentals-data";
 import { combinedPlayersFund } from "@/lib/combined";
-import { buildParticipantBreakdown } from "@/lib/participants";
+import { buildCombinedComposition } from "@/lib/portfolio-composition";
 import {
   analyzeRange,
   baselinePortfolioSeries,
+  buildFundHoldingRows,
   fundSeries as buildFundSeries,
   intradayBaselineSeries,
   intradayFundSeries,
@@ -40,11 +41,16 @@ export default async function Page() {
   // combined fund is active + default-off, so it appears as an opt-in chip /
   // chart line / leaderboard row. The Manage sheet reads the same array but
   // hides synthetic funds (nothing to edit or archive).
-  const allKnownFunds = [combinedPlayersFund(), ...fundsFile.funds];
+  const combinedFund = combinedPlayersFund();
+  const allKnownFunds = [combinedFund, ...fundsFile.funds];
 
-  // Game-wide participant breakdown (the combined fund sliced by player) +
-  // the "About the players" narrative, rendered at the bottom of Compare.
-  const participants = buildParticipantBreakdown(data, fundamentals);
+  // Sector / industry / market-cap breakdown of the pooled combined fund +
+  // its game-wide "About" narrative, rendered at the bottom of Compare —
+  // same lens as the per-account Portfolio breakdown.
+  const combinedComposition = buildCombinedComposition(
+    buildFundHoldingRows(combinedFund, data),
+    fundamentals
+  );
 
   const series = Object.fromEntries(
     USER_LIST.map((u) => [u.id, portfolioSeries(data, u.id)])
@@ -107,7 +113,7 @@ export default async function Page() {
       intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
       generatedAt={data.generatedAt}
       analyses={analyses}
-      participants={participants}
+      combinedComposition={combinedComposition}
     />
   );
 }
