@@ -1,6 +1,6 @@
 import "server-only";
 import type { FundamentalsData, HoldingRow, TickerFundamentals } from "./types";
-import { TICKER_NAMES, USERS, type UserId } from "./picks";
+import { TICKER_NAMES, USERS, USER_LIST, type UserId } from "./picks";
 
 // Aggregates a player's holdings into composition slices for the donut chart
 // and writes a narrative "About this portfolio" analysis. Runs at build time
@@ -159,6 +159,35 @@ export function buildPortfolioComposition(
   holdings: HoldingRow[],
   fundamentals: FundamentalsData | null
 ): PortfolioComposition {
+  const { rows, totalValue, bySector, byIndustry, byMarketCap } =
+    buildCompositionSlices(holdings, fundamentals);
+
+  const analysis = writeAnalysis({
+    userId,
+    rows,
+    totalValue,
+    bySector,
+    byIndustry,
+    byMarketCap,
+  });
+
+  return { totalValue, bySector, byIndustry, byMarketCap, analysis };
+}
+
+interface CompositionSlices {
+  rows: RowWithMeta[];
+  totalValue: number;
+  bySector: CompositionSlice[];
+  byIndustry: CompositionSlice[];
+  byMarketCap: CompositionSlice[];
+}
+
+// Shared slice math behind both the per-player and the combined-fund
+// breakdowns. Pure aggregation — no narrative.
+function buildCompositionSlices(
+  holdings: HoldingRow[],
+  fundamentals: FundamentalsData | null
+): CompositionSlices {
   const fmap = fundamentals?.tickers ?? {};
   const rows: RowWithMeta[] = holdings.map((h) => {
     const f: TickerFundamentals | undefined = fmap[h.ticker];
@@ -206,15 +235,20 @@ export function buildPortfolioComposition(
     MARKET_CAP_ORDER
   );
 
-  const analysis = writeAnalysis({
-    userId,
-    rows,
-    totalValue,
-    bySector,
-    byIndustry,
-    byMarketCap,
-  });
+  return { rows, totalValue, bySector, byIndustry, byMarketCap };
+}
 
+/** Composition of the synthetic Combined Players fund — every player's picks
+ *  pooled into one equal-weight book — sliced by sector / industry / market
+ *  cap exactly like a player's portfolio, with a game-wide "About" narrative
+ *  instead of a per-player one. */
+export function buildCombinedComposition(
+  holdings: HoldingRow[],
+  fundamentals: FundamentalsData | null
+): PortfolioComposition {
+  const { rows, totalValue, bySector, byIndustry, byMarketCap } =
+    buildCompositionSlices(holdings, fundamentals);
+  const analysis = writeCombinedAnalysis(rows, bySector, byIndustry);
   return { totalValue, bySector, byIndustry, byMarketCap, analysis };
 }
 
@@ -377,7 +411,7 @@ const PER_USER_ANALYSIS: Record<
 
 /** Structural theme detection (ticker overlap — doesn't move with prices).
  *  Shared by the per-player "About this portfolio" card and the game-wide
- *  "About the players" card (lib/participants.ts). */
+ *  "About the combined portfolio" card (writeCombinedAnalysis). */
 export function detectThemes(
   tickers: Iterable<string>
 ): Array<{ name: string; tickers: string[] }> {
@@ -410,4 +444,82 @@ function writeAnalysis(input: AnalysisInput): PortfolioAnalysis {
     paragraphs: blurb.paragraphs,
     themes: matchedThemes.slice(0, 4),
   };
+}
+
+// --- Combined-fund analysis ------------------------------------------------
+//
+// The "About the combined portfolio" card on the Compare page. Same editorial
+// register as the per-player cards (qualitative, no percentages or dollar
+// amounts), but describes the pooled book: how it's constructed, which sectors
+// give it shape, and how the field's different styles blend into one fund.
+
+function writeCombinedAnalysis(
+  rows: RowWithMeta[],
+  bySector: CompositionSlice[],
+  byIndustry: CompositionSlice[]
+): PortfolioAnalysis {
+  const n = USER_LIST.length;
+  const slots = USER_LIST.reduce((s, u) => s + u.tickers.length, 0);
+
+  // Tickers more than one player chose — they hold a slot per pick, so they
+  // carry the heaviest weight in the pooled book.
+  const counts = new Map<string, number>();
+  for (const u of USER_LIST) for (const t of u.tickers) counts.set(t, (counts.get(t) ?? 0) + 1);
+  const shared = [...counts.entries()]
+    .filter(([, c]) => c >= 2)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([t]) => t);
+
+  const themes = detectThemes(rows.map((r) => r.ticker)).slice(0, 4);
+
+  // Top sectors by current value (named, not numbered). Drop the catch-all
+  // "Uncategorized" bucket so it never headlines the sentence.
+  const namedSectors = bySector.filter((s) => s.key !== "Uncategorized");
+  const topSectors = namedSectors.slice(0, 3).map((s) => s.key);
+  const sectorCount = namedSectors.length;
+  const industryCount = byIndustry.filter((s) => s.key !== "Uncategorized").length;
+
+  const styleBits = USER_LIST.map((u) => {
+    const label = playerStyleLabel(u.id);
+    return label ? `${u.name} (${label})` : null;
+  }).filter((x): x is string => x != null);
+
+  const sharedSentence =
+    shared.length > 0
+      ? ` The names more than one player picked — ${joinList(shared)} — hold a slot apiece for each pick, so they sit at the heaviest weights.`
+      : "";
+
+  const paragraphs: string[] = [
+    `This is every player's picks pooled into one equal-weight book: ${slots} pick slots across the ${n} players, each funded with the same amount at the Feb 5, 2026 open.${sharedSentence} The donut above slices that combined portfolio by sector, industry, and market cap — the same lens each individual account gets.`,
+  ];
+
+  if (topSectors.length > 0) {
+    paragraphs.push(
+      `By weight the book leans on ${joinList(topSectors)}${
+        sectorCount > topSectors.length
+          ? `, with ${sectorCount} sectors and ${industryCount} industries represented in all`
+          : ""
+      }. Because the players concentrate in different corners, the pooled fund ends up far more diversified than any one of their portfolios on its own.`
+    );
+  }
+
+  if (styleBits.length > 0) {
+    paragraphs.push(
+      `The styles that built it pull in different directions — ${joinList(styleBits)} — and ${themes.length > 0 ? `the threads they keep returning to are ${joinList(themes.map((t) => t.name))}` : "they blend into one fund no single player would have built alone"}.`
+    );
+  }
+
+  return {
+    headline: `Everyone's picks, pooled into one $100,000 fund.`,
+    styleLabel: "The combined book",
+    paragraphs,
+    themes,
+  };
+}
+
+function joinList(items: string[]): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 }

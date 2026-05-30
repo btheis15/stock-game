@@ -24,9 +24,9 @@ import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
-import { ParticipantBreakdown } from "./ParticipantBreakdown";
+import { PortfolioComposition } from "./PortfolioComposition";
 import { COMBINED_FUND_COLOR } from "@/lib/combined";
-import type { ParticipantBreakdown as ParticipantBreakdownData } from "@/lib/participants";
+import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
 
 const LIVE_LAG_MS = 30 * 60 * 1000;
 function lastPointIsLive(points: { date: string }[]): boolean {
@@ -65,9 +65,9 @@ interface Props {
   intradayDate: string;
   generatedAt: string;
   analyses: Record<Range, RangeAnalysis>;
-  /** The Combined Players fund sliced by player + the "About the players"
-   *  narrative. Rendered at the bottom of the page. */
-  participants: ParticipantBreakdownData;
+  /** Sector / industry / market-cap breakdown of the pooled Combined Players
+   *  fund + a game-wide "About" narrative. Rendered at the bottom of the page. */
+  combinedComposition: PortfolioCompositionData;
 }
 
 interface RankedEntry {
@@ -98,7 +98,7 @@ export function CompareView({
   intradayDate,
   generatedAt,
   analyses,
-  participants,
+  combinedComposition,
 }: Props) {
   const router = useRouter();
   const [range, setRange] = useState<Range>("1D");
@@ -486,11 +486,11 @@ export function CompareView({
 
       <InsightsCard analysis={analyses[range]} />
 
-      <ParticipantBreakdown
-        participants={participants.participants}
-        totalValue={participants.totalValue}
-        analysis={participants.analysis}
+      <PortfolioComposition
+        composition={combinedComposition}
         accentColor={COMBINED_FUND_COLOR}
+        title="Combined breakdown"
+        aboutTitle="About the combined portfolio"
       />
 
       <div className="px-4 mt-6">
