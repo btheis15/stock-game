@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Sheet } from "@/components/Sheet";
 import { recentEntries, type ChangelogEntry } from "@/lib/changelog";
 
 // Marks the newest update date the user has already seen. When the newest
@@ -41,28 +41,13 @@ export function WhatsNew() {
     }
   }
 
-  // Lock body scroll + close on Escape while the sheet is up.
-  useEffect(() => {
-    if (!open) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
     <>
       <button
         type="button"
         onClick={handleOpen}
         aria-label={hasUnseen ? "What's new — new updates" : "What's new"}
-        className={`relative -mt-1 -mr-1 inline-flex items-center gap-1.5 rounded-full border pl-2 pr-2.5 py-1 text-[12px] font-semibold transition-colors ${
+        className={`press relative -mt-1 -mr-1 inline-flex items-center gap-1.5 rounded-full border pl-2 pr-2.5 py-1 text-[12px] font-semibold transition-colors ${
           hasUnseen
             ? "text-white"
             : "border-zinc-700 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-zinc-600 active:bg-zinc-800"
@@ -92,130 +77,62 @@ export function WhatsNew() {
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <WhatsNewSheet
-            entries={entries}
-            expandedId={expandedId}
-            onToggle={(id) => setExpandedId((cur) => (cur === id ? null : id))}
-            onClose={() => setOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
-
-function WhatsNewSheet({
-  entries,
-  expandedId,
-  onToggle,
-  onClose,
-}: {
-  entries: ChangelogEntry[];
-  expandedId: string | null;
-  onToggle: (id: string) => void;
-  onClose: () => void;
-}) {
-  const reduce = useReducedMotion();
-
-  return (
-    // z-[100] sits above the global TabBar (z-50), matching the funds modals.
-    <motion.div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      <motion.div
-        className="w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl bg-zinc-950 border border-zinc-800 h-[92dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col overflow-hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        onClick={(e) => e.stopPropagation()}
-        initial={reduce ? { opacity: 0 } : { y: "4%", opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={reduce ? { opacity: 0 } : { y: "6%", opacity: 0 }}
-        transition={{
-          type: "spring",
-          stiffness: 380,
-          damping: 38,
-          mass: 0.9,
-        }}
-      >
-        {/* Grab handle — signals a dismissible sheet on mobile. */}
-        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
-          <span className="w-9 h-1 rounded-full bg-zinc-700" />
-        </div>
-
-        <header className="flex items-center justify-between px-5 pt-3 pb-4 sm:pt-5 border-b border-zinc-800 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: "var(--gain)" }}
-            />
-            <h2 className="text-[19px] font-semibold text-white tracking-tight">
-              What&apos;s new
-            </h2>
-          </div>
-          <button
-            className="-mr-1 w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-800"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
-              <path
-                d="M6 6l12 12M18 6L6 18"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="What's new"
+        header={
+          <header className="flex items-center justify-between px-5 pt-3 pb-4 sm:pt-5 border-b border-zinc-800 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: "var(--gain)" }}
               />
-            </svg>
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-          {entries.length === 0 ? (
-            <div className="text-[13px] text-zinc-500 py-16 text-center">
-              No new updates in the last 30 days.
+              <h2 className="text-[19px] font-semibold text-white tracking-tight">
+                What&apos;s new
+              </h2>
             </div>
-          ) : (
-            <motion.ul
-              className="space-y-2.5"
-              initial="hidden"
-              animate="show"
-              variants={{
-                hidden: {},
-                show: {
-                  transition: { staggerChildren: reduce ? 0 : 0.035 },
-                },
-              }}
+            <button
+              className="press -mr-1 w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-800"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
             >
-              {entries.map((e) => (
-                <motion.li
-                  key={e.id}
-                  variants={{
-                    hidden: reduce ? { opacity: 0 } : { opacity: 0, y: 8 },
-                    show: { opacity: 1, y: 0 },
-                  }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  <UpdateRow
-                    entry={e}
-                    expanded={expandedId === e.id}
-                    onToggle={() => onToggle(e.id)}
-                    reduce={!!reduce}
-                  />
-                </motion.li>
-              ))}
-            </motion.ul>
-          )}
-          <p className="text-[11px] text-zinc-600 leading-snug mt-5 px-1 text-center">
-            Major updates from the last 30 days.
-          </p>
-        </div>
-      </motion.div>
-    </motion.div>
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </header>
+        }
+      >
+        {entries.length === 0 ? (
+          <div className="text-[13px] text-zinc-500 py-16 text-center">
+            No new updates in the last 30 days.
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {entries.map((e) => (
+              <li key={e.id}>
+                <UpdateRow
+                  entry={e}
+                  expanded={expandedId === e.id}
+                  onToggle={() =>
+                    setExpandedId((cur) => (cur === e.id ? null : e.id))
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[11px] text-zinc-600 leading-snug mt-5 px-1 text-center">
+          Major updates from the last 30 days.
+        </p>
+      </Sheet>
+    </>
   );
 }
 
@@ -223,12 +140,10 @@ function UpdateRow({
   entry,
   expanded,
   onToggle,
-  reduce,
 }: {
   entry: ChangelogEntry;
   expanded: boolean;
   onToggle: () => void;
-  reduce: boolean;
 }) {
   return (
     <div
@@ -271,31 +186,24 @@ function UpdateRow({
         <Chevron expanded={expanded} />
       </button>
 
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            key="details"
-            initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
-            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="px-3.5 pb-4 pl-[60px]">
-              <div className="space-y-2.5 border-t border-zinc-800 pt-3">
-                {entry.details.map((p, i) => (
-                  <p
-                    key={i}
-                    className="text-[13px] leading-[1.6] text-zinc-300"
-                  >
-                    {p}
-                  </p>
-                ))}
-              </div>
+      {/* CSS-only expand/collapse: animating grid-template-rows 0fr->1fr is
+          GPU-cheap and degrades to an instant toggle on older browsers. */}
+      <div
+        className="grid transition-[grid-template-rows] duration-[250ms] ease-out"
+        style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
+          <div className="px-3.5 pb-4 pl-[60px]">
+            <div className="space-y-2.5 border-t border-zinc-800 pt-3">
+              {entry.details.map((p, i) => (
+                <p key={i} className="text-[13px] leading-[1.6] text-zinc-300">
+                  {p}
+                </p>
+              ))}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

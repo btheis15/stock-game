@@ -10,6 +10,14 @@
   --chart-baseline: rgba(255, 255, 255, 0.12);
   --chart-scrub-line: rgba(255, 255, 255, 0.35);
   --chart-axis-label: rgba(255, 255, 255, 0.4);
+  /* iOS-style motion tokens — shared by every CSS animation (route
+     transitions, the bottom sheet, press feedback) so curves and durations
+     stay consistent. */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-ios: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-press: 140ms;
+  --dur-fade: 220ms;
+  --dur-slide: 320ms;
 }
 
 html,
@@ -45,6 +53,93 @@ html {
 @keyframes livePulseFill {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
+}
+
+/* Route transitions — driven by app/template.tsx, which sets one of these
+   classes per navigation. animation-fill-mode is `backwards`, so once the
+   entrance finishes the element reverts to NO transform; that keeps inline
+   `position: fixed` modals anchored to the viewport. */
+@keyframes pageFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pagePush {
+  from { opacity: 0; transform: translate3d(16px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes pagePop {
+  from { opacity: 0; transform: translate3d(-16px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.pt-fade {
+  animation: pageFade var(--dur-fade) var(--ease-out-ios) backwards;
+}
+
+.pt-push {
+  animation: pagePush var(--dur-slide) var(--ease-ios) backwards;
+  overflow-x: clip;
+}
+
+.pt-pop {
+  animation: pagePop var(--dur-slide) var(--ease-ios) backwards;
+  overflow-x: clip;
+}
+
+/* Bottom sheet — see components/Sheet.tsx. Slides up on open; the .is-closing
+   variant slides back down (forwards fill so it stays off-screen until React
+   unmounts it on animationend). */
+@keyframes sheetIn {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes sheetOut {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0.6; }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes overlayOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.sheet-backdrop {
+  animation: overlayIn var(--dur-fade) var(--ease-out-ios) backwards;
+}
+
+.sheet-backdrop.is-closing {
+  animation: overlayOut var(--dur-fade) var(--ease-out-ios) forwards;
+}
+
+.sheet-panel {
+  animation: sheetIn var(--dur-slide) var(--ease-ios) backwards;
+}
+
+.sheet-panel.is-closing {
+  animation: sheetOut var(--dur-slide) var(--ease-ios) forwards;
+}
+
+/* Press feedback — a subtle iOS tap-shrink. Applies to native interactive
+   elements (a, button), which receive :active during touch on iOS. Uses
+   transition longhands (not the shorthand) and keeps color/background in the
+   property list so an element that also relies on Tailwind's transition-colors
+   still animates its color change when pressed. */
+.press {
+  transition-property: transform, background-color, border-color, color;
+  transition-duration: var(--dur-press);
+  transition-timing-function: var(--ease-out-ios);
+}
+
+.press:active {
+  transform: scale(0.96);
 }
 
 body {
@@ -298,4 +393,22 @@ body,
 .border-zinc-700,
 .border-zinc-600 {
   transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
+}
+
+/* Honor the OS "Reduce Motion" accessibility setting: neutralize every
+   transition and keyframe (route transitions, live pulse, theme cross-fade,
+   press) and turn off smooth scroll. framer-motion surfaces (Sheet, WhatsNew)
+   additionally drop large transforms via useReducedMotion(). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto !important;
+  }
 }

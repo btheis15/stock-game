@@ -14,6 +14,7 @@
 // (opens ManageFundsSheet).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Sheet } from "@/components/Sheet";
 
 const DEFAULT_STORAGE_KEY = "stockgame.compare.filter";
 
@@ -102,7 +103,7 @@ export function FilterToolbar({
     <div className="px-4 mb-2 flex items-center gap-2">
       <button
         onClick={onOpenFilter}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-zinc-800 border border-zinc-700 text-zinc-200 active:bg-zinc-700 transition-colors"
+        className="press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-zinc-800 border border-zinc-700 text-zinc-200 active:bg-zinc-700 transition-colors"
         aria-label="Open filter"
       >
         <FilterIcon />
@@ -114,7 +115,7 @@ export function FilterToolbar({
       {onCreate && (
         <button
           onClick={onCreate}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-black"
+          className="press inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-black"
           aria-label="Add a fund to the game"
         >
           <PlusIcon />
@@ -124,7 +125,7 @@ export function FilterToolbar({
       {onManage && (
         <button
           onClick={onManage}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-zinc-400"
+          className="press inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-zinc-400"
           aria-label="Manage funds"
         >
           Manage
@@ -183,84 +184,51 @@ export function FilterSheet({
     return g;
   }, [chips]);
 
-  if (!open) return null;
-
+  // A partial, content-height iOS sheet (drag-to-dismiss, springs up from the
+  // bottom) rather than a full-screen panel — the filter list is short, so it
+  // reads as a "card" that doesn't swallow the whole screen.
   return (
-    // z-[100] sits above the global TabBar (z-50). Safe-area paddings
-    // match CreateFundModal so the iOS status bar at the top and the
-    // home indicator at the bottom never overlap interactive content.
-    <div
-      className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header
-          className="flex items-center justify-between px-5 py-4 border-b border-zinc-800"
-          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
-        >
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
-              Filter
+    <Sheet open={open} onClose={onClose} eyebrow="Filter" title="Visible on chart">
+      {(["Players", "Baseline", "Funds"] as const).map((group) => {
+        const list = grouped[group];
+        if (!list || list.length === 0) return null;
+        return (
+          <div key={group} className="mb-5">
+            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-2">
+              {group}
             </div>
-            <h2 className="text-[17px] font-semibold text-white mt-0.5">
-              Visible on chart
-            </h2>
+            <ul className="rounded-xl bg-zinc-900/50 border border-zinc-800 divide-y divide-zinc-800">
+              {list.map((c) => {
+                const on = isOn(c.id, c.defaultOn);
+                return (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => setOn(c.id, !on)}
+                      className="w-full flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
+                      aria-pressed={on}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: c.color, opacity: on ? 1 : 0.3 }}
+                      />
+                      <span className="flex-1 text-left text-[15px] font-medium text-white truncate">
+                        {c.name}
+                      </span>
+                      <ToggleSwitch on={on} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <button
-            className="text-zinc-500 hover:text-zinc-300 text-[15px] px-2 py-1"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            Done
-          </button>
-        </header>
-        <div className="flex-1 overflow-y-auto px-5 py-3">
-          {(["Players", "Baseline", "Funds"] as const).map((group) => {
-            const list = grouped[group];
-            if (!list || list.length === 0) return null;
-            return (
-              <div key={group} className="mb-5">
-                <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-2">
-                  {group}
-                </div>
-                <ul className="rounded-xl bg-zinc-900/50 border border-zinc-800 divide-y divide-zinc-800">
-                  {list.map((c) => {
-                    const on = isOn(c.id, c.defaultOn);
-                    return (
-                      <li key={c.id}>
-                        <button
-                          onClick={() => setOn(c.id, !on)}
-                          className="w-full flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
-                          aria-pressed={on}
-                        >
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: c.color, opacity: on ? 1 : 0.3 }}
-                          />
-                          <span className="flex-1 text-left text-[15px] font-medium text-white truncate">
-                            {c.name}
-                          </span>
-                          <ToggleSwitch on={on} />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
-          {grouped.Funds.length === 0 && (
-            <div className="text-[11px] text-zinc-500 leading-snug -mt-3">
-              No funds yet — tap <span className="text-zinc-300">Add Fund</span> above to create one.
-            </div>
-          )}
+        );
+      })}
+      {grouped.Funds.length === 0 && (
+        <div className="text-[11px] text-zinc-500 leading-snug -mt-3">
+          No funds yet — tap <span className="text-zinc-300">Add Fund</span> above to create one.
         </div>
-      </div>
-    </div>
+      )}
+    </Sheet>
   );
 }
 

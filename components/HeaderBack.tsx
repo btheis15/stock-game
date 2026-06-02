@@ -30,7 +30,7 @@ export function HeaderBack({ title }: { title?: string }) {
       <button
         onClick={() => router.back()}
         aria-label="Back"
-        className="w-9 h-9 -ml-2 rounded-full flex items-center justify-center bg-zinc-900/70 hover:bg-zinc-800 active:bg-zinc-700 transition-colors"
+        className="press w-9 h-9 -ml-2 rounded-full flex items-center justify-center bg-zinc-900/70 hover:bg-zinc-800 active:bg-zinc-700"
       >
         <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
           <path

@@ -79,7 +79,7 @@ export function TabBar() {
               href={t.href}
               prefetch
               className={clsx(
-                "flex flex-col items-center gap-1 transition-colors flex-1",
+                "press flex flex-col items-center gap-1 transition-colors flex-1",
                 active ? "text-white" : "text-zinc-500"
               )}
             >
