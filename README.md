@@ -3,7 +3,9 @@
 A friendly portfolio showdown between **Brian, Kevin, Rick, and Lee**, tracked
 since **Feb 5, 2026**. Each player starts with $100,000 split evenly across
 their picks at that day's close (partial shares allowed). Mobile-first PWA,
-installable to your iPhone home screen, with a Robinhood-style scrub chart.
+installable to your iPhone home screen, with a Robinhood-style scrub chart and
+an iOS-style motion layer (tab cross-fades, drill-in push/pop, bottom sheets —
+all CSS, reduced-motion aware).
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbtheis15%2Fstock-game)
 

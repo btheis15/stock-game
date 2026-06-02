@@ -16,10 +16,13 @@
 **Robinhood-without-the-trading.** Dark by default. Single big number per
 view. Big chart that owns the upper third of the screen. Beneath it,
 information stacks vertically in card groups, each card a self-contained
-unit. Everything is one-thumb-reachable on mobile. Animation is rare and
-purposeful — a live pulse on something that's actually live, a soft flash
-on something the user just navigated to. The point of the design is to make
-it pleasant to scroll through every day, not to dazzle once.
+unit. Everything is one-thumb-reachable on mobile. Animation is purposeful,
+never decorative — a live pulse on something that's actually live, a soft
+flash on something the user just navigated to, and deliberate iOS-style
+transitions for navigation and overlays (tab cross-fade, drill-in
+push/pop, slide-up sheets), all done in CSS within a tight perf budget. The
+point of the design is to make it pleasant to scroll through every day, not
+to dazzle once.
 
 ---
 
@@ -404,21 +407,116 @@ any `[data-no-ptr]` ancestor.
 
 ## §6. Animation principles
 
-Most of the app is static. Only four things animate:
+Animation in this app serves three jobs — **liveness, feedback, and
+purposeful iOS-style transitions** — and nothing else. Content itself is
+still calm: cards don't fly in, numbers don't count up. But navigation and
+overlays now have deliberate motion, because a native-feeling app moves
+between screens, it doesn't just hard-cut.
+
+**The liveness / feedback set** (these animate because the user would notice
+them missing):
 
 1. **Live pulse** on the live-endpoint of the chart.
 2. **Holding flash** when arriving at a row via deep-link (1.6s green-tint fade).
 3. **Pull-to-refresh indicator** dropping from the top edge during the gesture.
 4. **Scrub crosshair** following the finger (movement, not a CSS animation).
+5. **`.press` tap-shrink** on interactive chrome (TabBar links, HeaderBack
+   button, FilterToolbar buttons, WhatsNew bell/close): a quick active
+   `scale(0.96)`, the same touch-down cue iOS gives every button.
 
-Things that **don't** animate, intentionally:
+**The transition / overlay set** (see §6.1 for the system):
+
+6. **Route transitions** — tab switches cross-fade; drilling into a detail
+   route pushes in from the right, backing out pops in from the left.
+7. **Sheets** — the iOS bottom-sheet primitive slides up to open and slides
+   back down to dismiss.
+
+Things that **still don't** animate, intentionally:
 - Range tab transitions (data swaps; chart re-renders crisply, no slide)
-- Tab navigation (just route change, no slide)
-- Card mount/unmount
+- Card mount/unmount inside a page (no per-item stagger)
 - Numbers (no count-up)
 
-The rule: if the user wouldn't notice the animation missing, don't add it.
-If they would (live state, deep-link target), the animation is purposeful.
+The rule is unchanged in spirit: motion must earn its place. If the user
+wouldn't notice it missing, don't add it. Liveness, feedback, and
+screen-to-screen continuity all pass that test; gratuitous polish doesn't.
+
+### §6.1. The motion layer (iOS-style transitions + sheets)
+
+A small, **CSS-only** motion layer gives the app native-feeling navigation
+and overlays. No JS animation library drives any of it — the transitions are
+pure keyframes/transitions on transform and opacity (GPU-friendly), kept
+inside the 16ms budget. (Framer Motion still ships for a few content
+micro-interactions — see §6.2 — but it is not used for navigation or sheets.)
+
+**Motion tokens** (in `app/globals.css`, alongside the color tokens):
+
+```css
+--ease-ios:     cubic-bezier(0.32, 0.72, 0, 1);   /* slides / pushes */
+--ease-out-ios: cubic-bezier(0.16, 1, 0.3, 1);    /* fades / settles */
+--dur-press: 140ms;   /* tap-shrink */
+--dur-fade:  220ms;   /* tab cross-fade */
+--dur-slide: 320ms;   /* push / pop / sheet slide */
+```
+
+**Route transitions** (`app/template.tsx`). A Next.js `template.tsx`
+re-mounts on every navigation, so it's the natural place to drive an
+enter animation. The direction is picked from a module-level "previous
+path" compared against the detail-route regex `/^\/(stock|portfolio|fund)\//`:
+
+- **Top-level tab switches** (Compare `/`, Stocks `/stocks`, Tee Times
+  `/tee-times`) **cross-fade** (`.pt-fade`).
+- **Drilling into a detail route** (`/stock/*`, `/portfolio/*`, `/fund/*`)
+  **pushes** in from the right (`.pt-push`).
+- **Backing out** of a detail route **pops** in from the left (`.pt-pop`).
+
+These keyframes use `animation-fill-mode: backwards` so **no transform
+lingers at rest**. That's deliberate: several pages render
+`position: fixed` modals inline, and a leftover ancestor transform would
+re-root those fixed elements to the transformed box. Once the enter
+animation finishes, the page is back to an untransformed layout.
+
+**Sheets** (`components/Sheet.tsx`). A reusable iOS bottom-sheet primitive:
+
+- **Portals to `document.body`**, so it's immune to any ancestor transform
+  (the same fixed-positioning concern as above — a sheet must not be
+  re-rooted by a page-transition transform).
+- **Slides up** to open (`.sheet-panel` / `sheetIn`); a `closing` state
+  **slides back down** (`.is-closing` / `sheetOut`) and then unmounts on
+  `animationend` (so the exit animation actually plays before teardown).
+- **Content-height detent by default** (sheet is only as tall as its
+  content); a `full` prop gives full height for forms.
+- Grab handle, optional custom-header slot, `role="dialog"` +
+  `aria-modal`, body-scroll lock while open, **Escape-to-close**.
+- **No drag-to-dismiss.** You close via backdrop tap, a Done control, or
+  Escape. (Drag-to-dismiss was intentionally skipped — it's gesture-budget
+  and older-device risk for little gain here.)
+
+`FilterSheet` (`components/FundsFilter.tsx`) and `WhatsNew`
+(`components/WhatsNew.tsx`) both render through `<Sheet>`. Reach for
+`<Sheet>` for any new filter / form / info / destructive-confirm overlay —
+not a bespoke modal.
+
+**Reduced motion.** `app/globals.css` now has a global
+`@media (prefers-reduced-motion: reduce)` guard that neutralizes
+transitions, animations, and smooth-scroll app-wide. (The repo previously
+had no reduced-motion handling at all — this closes that gap.) **Any new
+motion must fall under that guard** — i.e., be a plain CSS
+transition/animation so the global rule degrades it for free.
+
+### §6.2. What is NOT in the motion layer
+
+So downstream ports don't over-claim:
+
+- **No shared-element / cross-route morph** (View Transitions API). It was
+  intentionally skipped for older-device compatibility.
+- **Framer Motion was not removed.** It still drives a few content
+  micro-interactions — `BreakdownDonut` (slice-pop spring),
+  `PortfolioComposition` (view cross-fade), and `PortfolioThesis`
+  (accordion). Only `WhatsNew` moved off Framer Motion; its expand/collapse
+  is now a CSS `grid-template-rows: 0fr → 1fr` transition.
+- **No drag-to-dismiss on sheets** (see §6.1).
+- **No JS-driven per-frame animation for the chart scrub.** The 16ms gesture
+  budget and `touch-action: none` on the chart SVG are unchanged (§5.1, §14).
 
 ---
 
@@ -495,7 +593,9 @@ These are all small but they compound into a "feels native" experience:
 - **`overscroll-behavior-y: none`** on body so iOS doesn't bounce-rubber-band
   the whole app (bad on a one-screen dashboard; less bad on a long-scrolling
   page — judgment call).
-- **`scroll-behavior: smooth`** on `html` so anchor jumps animate.
+- **`scroll-behavior: smooth`** on `html` so anchor jumps animate. The
+  global `prefers-reduced-motion` guard (§6.1) overrides this to `auto`
+  for users who've opted out of motion.
 
 ---
 
@@ -800,9 +900,11 @@ bottom edge only.
   reflects it.
 - **Don't gate access to information behind expand/collapse.** If it's
   worth showing, show it. Mobile users are happy to scroll.
-- **Don't use modal sheets for navigation.** Drill into a detail page
-  via a route change with a back button. Modals are for forms and
-  destructive actions.
+- **Don't use modal sheets for navigation.** Drilling into a detail page
+  is still a real route change with a back button — now animated as an
+  iOS push/pop (§6.1), but a genuine navigation, not a sheet. Sheets and
+  modals are for forms, filters, info, and destructive actions — never for
+  getting from one screen to another.
 - **Don't add settings cogs for theme switching unless the user asked.**
   Dark mode is the design; light mode would be a different app.
 - **Don't render numbers with `Intl.NumberFormat` and call it done.**
@@ -828,6 +930,7 @@ component contracts that travel cleanly:
 | `<InstallHint>` | none — self-contained | iOS-only top banner, dismissible. |
 | `<PullToRefresh>` | none — self-contained | Mounts globally; handles both gesture and visibility-resume. |
 | `<Footer>` | `{ lastDate, generatedAt }` | Freshness indicator. |
+| `<Sheet>` | `{ open, onClose, title?, header?, full?, children }` | iOS bottom-sheet (§6.1). Portals to `<body>`; slide-up/down; Escape + backdrop close; no drag-to-dismiss. Use for filters / forms / info / confirms. |
 
 ---
 
@@ -861,8 +964,11 @@ Notes:
   signed, color-coded, formatted consistently.
 - **Color is identity, not decoration.** Use accents to encode "who" or
   "what" — never as eye candy.
-- **Animation is reserved for liveness and feedback.** Not for transitions
-  or polish.
+- **Animation is for liveness, feedback, and purposeful iOS-style
+  transitions** — all done in CSS within the perf budget. Not for
+  gratuitous polish or content razzle-dazzle. Navigation cross-fades,
+  drill-in push/pop, and slide-up sheets earn their place; a card flying
+  in for no reason does not. See §6.
 - **One screen = one job.** Compare answers "who's winning?" Detail
   answers "why?" Don't try to answer both on one screen.
 - **Mobile is the canonical width.** Test at 375px first; widen later if
@@ -870,7 +976,10 @@ Notes:
 - **Latency budget for mobile gestures: 16ms.** Everything in the chart
   must respond to touch before the next frame. Prefer math in `useMemo`,
   refs over state for high-frequency updates, and skip Framer Motion for
-  per-frame work — pure CSS transforms are faster.
+  per-frame work — pure CSS transforms are faster. The whole motion layer
+  (§6.1) follows this rule too: route transitions and sheets are CSS
+  keyframes on transform/opacity, no JS animation library in the navigation
+  or scrub path.
 
 ---
 
@@ -879,6 +988,21 @@ Notes:
 If you're starting a new project and want this same feel: pull
 `<ScrubChart>`, `<PriceHeader>`, `<RangeTabs>`, `<MarketStateBadge>`,
 `<HeaderBack>`, `<TabBar>`, `<PullToRefresh>`, `<InstallHint>`, the
-formatter library, and the CSS keyframes. That's about 1,200 lines of
-code total and it gives you the entire design language. Customize the
-accent colors and the data shapes; the chrome is invariant.
+formatter library, and the CSS keyframes. Then add the **motion layer**
+(§6.1) so navigation and overlays feel native:
+
+- **`app/template.tsx`** — the route-transition driver (tab cross-fade,
+  drill-in push/pop). Adjust the detail-route regex to your own URL shape.
+- **`components/Sheet.tsx`** — the portal-based iOS bottom-sheet primitive;
+  route every filter / form / info / confirm overlay through it.
+- **The `app/globals.css` motion block** — the motion tokens
+  (`--ease-ios`, `--ease-out-ios`, `--dur-press/fade/slide`), the
+  `.press` tap-shrink utility, the route + sheet keyframes
+  (`.pt-fade` / `.pt-push` / `.pt-pop`, `sheetIn` / `sheetOut`), and the
+  global `prefers-reduced-motion` guard. Don't ship one without the others —
+  the keyframes need the tokens, and the reduced-motion guard is what keeps
+  the whole layer accessible.
+
+That's about 1,300 lines of code total and it gives you the entire design
+language. Customize the accent colors and the data shapes; the chrome —
+including the motion layer — is invariant.

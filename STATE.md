@@ -26,7 +26,7 @@
 | Lang | TypeScript 5 (strict) |
 | UI | React 19 + Tailwind CSS v4 |
 | Charts | Visx (`@visx/scale`, `@visx/shape`, `@visx/gradient`, `@visx/responsive`, `@visx/curve`) + `d3-array` |
-| Animation | Framer Motion (sparingly) + CSS keyframes (live pulse, holding flash) |
+| Animation | CSS-first iOS motion layer (commit `ef17cd9`): route transitions in `app/template.tsx` (tab cross-fade + drill-in push / back-out pop, all CSS keyframes), the reusable `<Sheet>` bottom-sheet primitive (`components/Sheet.tsx`), a `.press` tap-shrink utility, motion tokens, and a global `prefers-reduced-motion` guard — all in `app/globals.css`. Framer Motion is still used (sparingly) but ONLY by `BreakdownDonut` (slice-pop spring), `PortfolioComposition` (view crossfade), and `PortfolioThesis` (accordion); `WhatsNew` moved off it to a CSS grid-rows transition. CSS keyframes also drive the live pulse + holding flash. Motion is transforms/opacity only (GPU-friendly), within the per-frame budget. |
 | Gestures | `@use-gesture/react` (currently unused after the touch-action fix; pointer events handle the chart) |
 | Date | `date-fns` |
 | Data source | Yahoo Finance (unofficial, via `yahoo-finance2` v3) |
@@ -257,6 +257,19 @@ app/layout.tsx        Root: <html>, metadata, dynamic SITE_URL from VERCEL_PROJE
                       `data-theme="twilight"` for pre-market/after-hours, and
                       `data-theme="light"` during regular hours).
 
+app/template.tsx      Route-transition wrapper (a `template.tsx` re-mounts on every
+                      navigation, unlike `layout.tsx`). Drives the iOS-style page motion,
+                      CSS-only — NO JS animation library. Top-level tab switches (Compare "/",
+                      Stocks "/stocks", Tee Times "/tee-times") cross-FADE (.pt-fade). Drilling
+                      INTO a detail route (/stock/*, /portfolio/*, /fund/*) PUSHes (slide in
+                      from the right, .pt-push); backing OUT POPs (slide in from the left,
+                      .pt-pop). Direction is chosen by comparing a module-level previous-path
+                      against the path regex `/^\/(stock|portfolio|fund)\//`. Keyframes use
+                      `animation-fill-mode: backwards` so NO transform lingers at rest — that's
+                      DELIBERATE: several pages render position:fixed modals inline and a
+                      lingering transform would re-root them. Honors prefers-reduced-motion via
+                      the global guard in globals.css.
+
 components/
   ScrubChart.tsx      Pointer-driven scrub chart. Props:
                         series: ChartSeries[]               (1 or 4 lines)
@@ -294,16 +307,31 @@ components/
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
+  Sheet.tsx           Reusable iOS bottom-sheet primitive (the shared replacement for the
+                      hand-copied modal shells). Portals to document.body so it's immune to
+                      ancestor transforms (matters now that route transitions apply transforms
+                      up the tree). CSS slide-up open (.sheet-panel / sheetIn keyframe); a
+                      "closing" state slides it back down (.is-closing / sheetOut) then unmounts
+                      on animationend. Partial CONTENT-HEIGHT detent by default; a `full` prop
+                      gives full height (for forms). Grab handle, optional custom-header slot,
+                      role=dialog + aria-modal, body-scroll lock, Escape-to-close. NO
+                      drag-to-dismiss — close via backdrop tap / Done / Escape. Converted so
+                      far: FilterSheet (components/FundsFilter.tsx) + WhatsNew. STILL on their
+                      own hand-rolled shells (not yet migrated): CreateFundModal,
+                      EditThesisModal, ManageFundsSheet — flagged for future consolidation.
   WhatsNew.tsx        "What's new" pill (top-right of the Compare header — bell icon + label;
                       turns green-tinted with an unread dot when there's an unseen update)
-                      + slide-up sheet. Lists major user-facing updates from the last 30 days, sourced
-                      from `lib/changelog.ts` (`recentEntries()`). Each card expands inline
-                      (framer-motion height animation) to a plain-language explanation of the
-                      feature and how to use it. An unread dot (—gain green) shows when the
-                      newest entry is more recent than the localStorage `stockgame.whatsNewSeen`
-                      marker; opening the sheet marks all current entries seen. Escape / backdrop
-                      / Close all dismiss; body scroll locks while open. z-[100] above the TabBar,
-                      matching the funds modals. Respects prefers-reduced-motion.
+                      + slide-up sheet (now rendered via the shared <Sheet> primitive; no
+                      longer a hand-copied modal shell). Lists major user-facing updates from
+                      the last 30 days, sourced from `lib/changelog.ts` (`recentEntries()`).
+                      Each card expands inline to a plain-language explanation of the feature
+                      and how to use it — the accordion is now a CSS `grid-template-rows`
+                      0fr↔1fr transition (moved OFF framer-motion). An unread dot (—gain green)
+                      shows when the newest entry is more recent than the localStorage
+                      `stockgame.whatsNewSeen` marker; opening the sheet marks all current
+                      entries seen. Escape / backdrop / Done all dismiss; body scroll locks
+                      while open (handled by <Sheet>). The bell + close get .press tap
+                      feedback. Respects prefers-reduced-motion (now via the global guard).
   PullToRefresh.tsx   Two refresh paths in one client component:
                         (a) Pull at scrollY=0, drag past 70px, release → location.reload()
                         (b) Visibility change: if hidden > 60s and becomes visible → reload
@@ -728,7 +756,11 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 
 - **`startClose` is sacred.** Do not recompute on incremental fetches. Share counts depend on it.
 - **Visx peer-dep mismatch.** React 19, but visx peers `^16 || ^17 || ^18`. `.npmrc` has `legacy-peer-deps=true` so Vercel installs cleanly.
-- **`touchAction: none` on the chart SVG.** Required for clean scrub. If you ever change this, vertical scroll-finger-drift will release the gesture mid-swipe.
+- **`touchAction: none` on the chart SVG.** Required for clean scrub. If you ever change this, vertical scroll-finger-drift will release the gesture mid-swipe. Unchanged by the motion layer — the chart scrub is still pointer-driven with a 16ms-per-frame budget and NO React/JS-driven per-frame animation.
+- **Motion layer is CSS-only, transforms/opacity, and must degrade.** The iOS motion (route transitions in `app/template.tsx`, the `<Sheet>` slide, `.press`) is implemented as CSS keyframes/transitions in `globals.css` (tokens: `--ease-ios`, `--ease-out-ios`, `--dur-press:140ms`, `--dur-fade:220ms`, `--dur-slide:320ms`) — no JS animation library was added for it. A GLOBAL `@media (prefers-reduced-motion: reduce)` guard in `globals.css` neutralizes transitions/animations/smooth-scroll (the repo had NO reduced-motion handling before this); any NEW motion must inherit or restate that degrade. Route keyframes use `animation-fill-mode: backwards` ON PURPOSE so no transform lingers at rest — a lingering transform re-roots the inline position:fixed modals. `.press` uses transition longhands (incl. color) so it doesn't clobber Tailwind's `transition-colors`. `.press` tap feedback is wired to TabBar links, HeaderBack, FilterToolbar buttons, and the WhatsNew bell/close.
+- **Don't use modal SHEETS for NAVIGATION.** Drilling into a detail page is a real route change (now animated as a push/pop) — NOT a sheet. Sheets/modals (`<Sheet>` + the remaining hand-rolled fund shells) are for forms, filters, info, and destructive actions only. Tab navigation is a route change too (now a cross-fade), not a slide-up.
+- **Motion doctrine (superseded + still-true).** The old "the app is mostly static; only the live pulse / holding flash / pull-to-refresh / scrub crosshair animate; tab nav is a plain route change with no slide; don't animate card mount/unmount" rule is SUPERSEDED for navigation + overlays only: the app now has deliberate, purposeful iOS-style transitions (tab fade, drill push/pop) and animated sheets. Animation is now for liveness, feedback, AND purposeful iOS-style transitions — all done in CSS within the perf budget. Still true: card mount/unmount itself is not animated, and the chart scrub stays JS-per-frame-free.
+- **`<Sheet>` has NO drag-to-dismiss.** Close is backdrop tap / Done / Escape. Shared-element / cross-route morph (View Transitions API) was intentionally SKIPPED for older-device compatibility — do not claim it exists. framer-motion was NOT removed from the app (BreakdownDonut / PortfolioComposition / PortfolioThesis still use it); only WhatsNew moved off it.
 - **Cache headers.** `next.config.ts` sets `no-cache, no-store, max-age=0, must-revalidate` on every user-facing document route + the data JSON snapshots. `no-store` (not just `must-revalidate`) is deliberate: iOS home-screen webclips serve a stale cached HTML snapshot on cold launch without revalidating, which strands shipped CSS/markup fixes on the OLD content-hashed bundle. The header config enumerates only document/data routes, so `/_next/static/*` keeps its `immutable` caching. First upgrade off the old header still needs one manual refresh per device; deploys after that land automatically.
 - **`metadataBase`** in `app/layout.tsx` resolves dynamically from `VERCEL_PROJECT_PRODUCTION_URL` → `VERCEL_URL` → localhost fallback. Don't hardcode the vercel.app domain.
 - **Site URL is `stock-game-gamma.vercel.app`.** Vercel assigned this; we don't control it. README + OG metadata don't depend on it (dynamic).
@@ -773,7 +805,8 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 app/                           Next.js routes
   layout.tsx                   Root layout, metadata, OG, mounts global UI + <ThemeController>
   page.tsx                     "/" → loads PriceData, computes daily + intraday series + analyses + participant breakdown, injects the synthetic Combined Players fund, renders <CompareView>
-  globals.css                  Tailwind import + CSS vars + keyframes + light-theme utility overrides
+  template.tsx                 Per-navigation route-transition wrapper. CSS-only tab cross-fade + drill-in push / back-out pop (.pt-fade / .pt-push / .pt-pop); direction from previous-path vs /^\/(stock|portfolio|fund)\//.
+  globals.css                  Tailwind import + CSS vars + light-theme utility overrides + motion tokens (--ease-ios / --ease-out-ios / --dur-press / --dur-fade / --dur-slide) + all keyframes (live pulse, holding flash, route .pt-* + sheet sheetIn/sheetOut) + .press tap-shrink utility + global @media (prefers-reduced-motion: reduce) guard
   portfolio/[user]/page.tsx    Dynamic per user; dispatches to <PortfolioView> (Combined Players offered as an overlay)
   fund/[id]/page.tsx           Per-fund drill-down; resolves the synthetic combined-players id directly, others from config/funds.json
   stock/[ticker]/page.tsx      SSG for ALL_TICKERS; dispatches to <StockView>
@@ -794,7 +827,8 @@ components/                    Client components (mostly)
   InsightsCard.tsx             "What's driving it" per-user breakdown, ranked.
   TeeTimesView.tsx             Inshalla CC tee-time iframe with header + Open-in-Safari fallback.
   ThemeController.tsx          Toggles light/dark theme based on isMarketLive.
-  WhatsNew.tsx                 Bell + "What's new" recent-updates sheet (last-30-days changelog).
+  Sheet.tsx                    Reusable iOS bottom-sheet primitive (portal, CSS slide-up/down, content-height or `full` detent, no drag-to-dismiss). Used by FilterSheet (FundsFilter.tsx) + WhatsNew so far; CreateFundModal / EditThesisModal / ManageFundsSheet still on their own shells.
+  WhatsNew.tsx                 Bell + "What's new" recent-updates sheet via <Sheet> (last-30-days changelog; accordion is a CSS grid-rows transition, moved off framer-motion).
   RangeTabs / TabBar / HeaderBack / PriceHeader / Footer / InstallHint / PullToRefresh / MarketStateBadge
 
 lib/                           Pure logic, no React

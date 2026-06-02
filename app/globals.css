@@ -395,10 +395,11 @@ body,
   transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
 }
 
-/* Honor the OS "Reduce Motion" accessibility setting: neutralize every
-   transition and keyframe (route transitions, live pulse, theme cross-fade,
-   press) and turn off smooth scroll. framer-motion surfaces (Sheet, WhatsNew)
-   additionally drop large transforms via useReducedMotion(). */
+/* Honor the OS "Reduce Motion" accessibility setting: neutralize every CSS
+   transition and keyframe (route transitions, sheet slide, live pulse, theme
+   cross-fade, press) and turn off smooth scroll. The whole motion layer is
+   CSS-only, so this global guard degrades it without any per-component JS
+   check. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

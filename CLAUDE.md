@@ -17,7 +17,12 @@
 4. **DESIGN.md** — portable design system (the UI/UX patterns, the
    distribution architecture, formatter library). Useful both for
    maintaining this app's visual consistency *and* for porting the same
-   patterns to a different project.
+   patterns to a different project. The motion doctrine lives there too;
+   note that the old "only liveness/feedback animates, transitions don't"
+   rule has been superseded by the §6.5 iOS-style motion layer (CSS-only
+   tab fade + drill push/pop + animated sheets). MLR / innjoy port from
+   this repo, so port the §6.5 primitives (motion tokens, `<Sheet>`,
+   `template.tsx`, `.press`, the reduced-motion guard) as a set.
 5. **README.md** — public intro only; mostly cosmetic.
 6. The actual code in `lib/`, `components/`, `app/`, and `scripts/`.
 
@@ -437,7 +442,9 @@ hex literals (e.g. `bg-[#xxx]`) won't.
 
 The Robinhood-light palette is intentionally muted so brand colors
 (player accents + gain-green / loss-red) stay readable on white. The
-chart's accent gradients and animations are the same in both themes.
+chart's accent gradients and animations are the same in both themes, as
+is the whole §6.5 motion layer (it animates transform/opacity, not
+color).
 
 ---
 
@@ -517,11 +524,156 @@ modifying it.
 - `style={{ touchAction: "none" }}` — without this, vertical-finger-drift
   during a horizontal scrub causes iOS Safari to steal the gesture for
   page scroll, releasing pointer capture and firing `pointercancel`. The
-  scrub feels like it "lets go." Don't change this.
+  scrub feels like it "lets go." **Don't change this** — it is unchanged
+  by the §6.5 motion layer, which never adds JS/React per-frame animation
+  to the scrub path. The 16ms gesture budget for the scrub is unchanged.
+- The live-endpoint pulse animates the circle's `r` via a CSS keyframe,
+  not an inline `style` — that's the only way `r` animates inside `<svg>`.
+  Still true; don't move it to JS.
 - Chart line / area / scrub fill the parent's full width edge-to-edge.
   Only the first / last tick labels are inset (cosmetic, see render step 5).
 - Date strings of length > 10 (full ISO) are parsed as-is; otherwise
   appended `T00:00:00Z` to anchor at UTC midnight.
+
+---
+
+## §6.5. The motion layer (iOS-style transitions, sheets, tap feedback)
+
+> Shipped in commit `ef17cd9` (on `main`). The app used to be deliberately
+> motion-sparse — only liveness/feedback animated (live pulse, holding
+> flash, pull-to-refresh, scrub crosshair). That rule is **superseded for
+> navigation and overlays**: the app now has purposeful, iOS-style
+> transitions (tab cross-fade, drill-in push/pop) and animated bottom
+> sheets. The reframed doctrine: **animation is for liveness, feedback,
+> AND purposeful iOS-style transitions — all done in CSS, within the perf
+> budget.** Three guardrails still hold absolutely:
+>
+> 1. **CSS transforms/opacity only** (GPU-friendly). No new JS/React
+>    per-frame animation. The chart-scrub 16ms gesture budget and the
+>    `touch-action: none` rule (§6) are untouched.
+> 2. **`prefers-reduced-motion` is honored globally** (see the guard
+>    below — the repo had *no* reduced-motion handling before this). Any
+>    new motion you add must degrade through it automatically.
+> 3. **Sheets/modals are for forms, filters, info, and destructive
+>    actions — NOT navigation.** Drilling into a detail route is still a
+>    real route change (now animated); don't replace it with a sheet
+>    (DESIGN.md §11 still holds).
+
+### Motion tokens (`app/globals.css` `:root`)
+
+Use these everywhere; don't hardcode durations/easings in component styles.
+
+```css
+--ease-ios:     cubic-bezier(0.32, 0.72, 0, 1);   /* slides (push/pop, sheet) */
+--ease-out-ios: cubic-bezier(0.16, 1, 0.3, 1);     /* fades, press */
+--dur-press: 140ms;   /* tap-shrink */
+--dur-fade:  220ms;   /* cross-fade, backdrop */
+--dur-slide: 320ms;   /* push/pop, sheet slide */
+```
+
+### `.press` tap feedback
+
+`.press` shrinks an element to `scale(0.96)` on `:active` for an iOS tap
+feel. It uses transition **longhands** (`transition-property: transform,
+background-color, border-color, color`) on purpose — the shorthand would
+clobber Tailwind's `transition-colors`, so an element with both still
+animates its color change. Add it to native interactive elements (`a`,
+`button`) that get `:active` on touch. Already applied to: TabBar links,
+the HeaderBack back button, the FilterToolbar buttons, and the WhatsNew
+bell/close. Add `.press` to any new tappable control for consistency.
+
+### Route transitions — `app/template.tsx`
+
+`template.tsx` (not `layout.tsx`) re-mounts its subtree on every App
+Router navigation, so a CSS entrance animation replays on each route
+change. It classifies the navigation off a **module-level `prevPath`**
+compared against the detail-route regex `/^\/(stock|portfolio|fund)\//`:
+
+- **tab ↔ tab** (Compare `/`, Stocks `/stocks`, Tee Times `/tee-times`)
+  → `.pt-fade` (cross-fade, `--dur-fade`).
+- **drilling INTO a detail** (`/stock/*`, `/portfolio/*`, `/fund/*`)
+  → `.pt-push` (slide in from the right, `--dur-slide`).
+- **backing OUT of a detail** → `.pt-pop` (slide in from the left).
+
+All three are CSS keyframes (`pageFade` / `pagePush` / `pagePop`) with
+**`animation-fill-mode: backwards`**, so NO transform lingers at rest.
+That's deliberate and load-bearing: several pages render `position: fixed`
+modals inline (CreateFundModal, EditThesisModal, …), and a lingering
+transform on the wrapper would re-root those fixed descendants and
+misplace them. Don't switch this to a framer-motion `x`/`y` wrapper for
+the same reason. **Shared-element / cross-route morph (View Transitions
+API) was intentionally skipped** for older-device compatibility — don't
+claim it exists.
+
+### `<Sheet>` primitive — `components/Sheet.tsx`
+
+The reusable iOS bottom-sheet. **Use this for any new overlay** instead of
+hand-rolling a modal shell (it replaced four hand-copied ones). It is
+CSS-only — no animation library.
+
+Props:
+
+```ts
+<Sheet
+  open={boolean}            // controlled visibility
+  onClose={() => void}      // fired by backdrop tap / Done / Escape
+  title?={string}           // heading; also the dialog's accessible name
+  eyebrow?={string}         // small uppercase kicker above the title
+  doneLabel?={string}       // top-right dismiss label (default "Done")
+  full?={boolean}           // full-height (forms/wizards); default = content-height detent
+  header?={ReactNode}       // custom header slot; replaces eyebrow/title/Done
+>                           // (must bring its own dismiss affordance + bottom border)
+  {children}
+</Sheet>
+```
+
+Behavior:
+- **Portals to `document.body`** — immune to ancestor transforms (e.g. the
+  route-transition wrapper), so it never gets re-rooted.
+- **CSS slide-up open** (`.sheet-panel` / `sheetIn`), backdrop fade
+  (`.sheet-backdrop` / `overlayIn`). Closing adds an **`.is-closing`**
+  state that slides back down (`sheetOut`, `forwards` fill) and unmounts
+  on `animationend` — that's why the panel stays in the DOM through its
+  exit.
+- **Detent**: partial **content-height** by default; `full` gives a
+  full-height sheet for forms (`100dvh` on mobile, capped on desktop).
+- Grab handle, `role="dialog"` + `aria-modal`, body-scroll lock,
+  Escape-to-close, safe-area bottom padding. On desktop (sm+) it centers
+  as a normal modal card.
+- **No drag-to-dismiss** — close via backdrop tap / Done / Escape only.
+  Don't claim a drag gesture exists.
+
+Already converted to `<Sheet>`: **FilterSheet** (`components/FundsFilter.tsx`)
+and **WhatsNew** (`components/WhatsNew.tsx`).
+
+### Global reduced-motion guard (`app/globals.css`)
+
+A single `@media (prefers-reduced-motion: reduce)` block neutralizes all
+animations/transitions (`animation-duration`/`transition-duration` → near-0,
+iteration-count → 1) and turns off smooth scroll. This is global and
+closes a gap — the repo had no reduced-motion handling before the motion
+layer. **Anything you animate is covered automatically**; don't bypass it.
+
+### framer-motion is NOT gone
+
+`framer-motion` was **not** removed from the app. The new motion layer is
+all CSS, and WhatsNew moved off framer-motion (its accordion is now a CSS
+`grid-template-rows: 0fr ↔ 1fr` transition), but framer-motion is **still
+a dependency and still used** by:
+- `BreakdownDonut` — slice-pop spring,
+- `PortfolioComposition` — view crossfade,
+- `PortfolioThesis` — accordion.
+
+Don't remove the package or assume the app is framer-free.
+
+### Theme parity
+
+The motion layer is theme-independent: it animates transform/opacity and
+reads CSS motion tokens, so it behaves identically in dark / light /
+twilight. The `.sheet-panel` surface uses bare dark-surface utilities
+(`bg-zinc-950`, `border-zinc-800`) that the §5.6 theme overrides flip —
+so new sheet content must follow the same theme-coverage rule (`npm run
+check-theme`).
 
 ---
 
@@ -1359,6 +1511,16 @@ This repo has no automated unit tests. Manual verification:
      catch an override that's the *wrong shade*.
    - Tap a leaderboard card → land on player's portfolio. Back button
      visible. Hash deep-link from the InsightsCard works.
+   - **Motion (§6.5):** tab ↔ tab cross-fades; drilling into a
+     stock/portfolio/fund slides in from the right (push) and Back
+     slides in from the left (pop). No transform lingers at rest —
+     confirm inline fixed modals (CreateFundModal, EditThesisModal) are
+     still anchored after a transition. Open a `<Sheet>` (FilterSheet /
+     WhatsNew): it slides up, dismisses on backdrop tap / Done / Escape
+     by sliding back down. Tappable controls shrink slightly on press.
+   - **Reduced motion:** in DevTools emulate `prefers-reduced-motion:
+     reduce` (Rendering panel) and re-check — transitions/animations
+     should be ~instant, nothing broken or stuck off-screen.
    - Scrub the chart with the cursor. Header values update; release
      drops scrub.
    - Switch to 1D, verify either pulsing endpoint (if market live) or
@@ -1667,6 +1829,12 @@ This is for context only — not exhaustive. Latest commit is what's true.
   workflow on PRs. Branch protection. STATE.md / OVERVIEW.md / CLAUDE.md
   canonical docs introduced and symlinked at the parent folder level
   for iCloud-Desktop discovery.
+- v6: iOS-style motion layer (commit `ef17cd9`). CSS-only route
+  transitions (`app/template.tsx`: tab cross-fade, drill push/pop),
+  reusable `<Sheet>` bottom-sheet primitive (FilterSheet + WhatsNew
+  converted), motion tokens + `.press` tap feedback, and a global
+  `prefers-reduced-motion` guard. WhatsNew moved off framer-motion;
+  framer-motion still powers the donut / composition / thesis. See §6.5.
 
 ---
 

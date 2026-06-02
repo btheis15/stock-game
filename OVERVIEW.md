@@ -40,7 +40,8 @@ Four things, on a phone screen:
    share price, the % move for the range, and the per-share dollar move
    ("points up/down"). In the top-right corner of the Compare header there's
    a **"What's new" pill** (a small bell + label that turns green when there's
-   an unseen update) — a recent-updates feed. Tapping it slides up a sheet listing
+   an unseen update) — a recent-updates feed. Tapping it slides up an iOS-style
+   bottom sheet listing
    the major updates to the app from the last 30 days (new tabs, new charts,
    new ways to compare), each written in plain English with a one-tap expand
    explaining what the feature is and how to use it. A small green dot on the
@@ -162,6 +163,18 @@ holding row's % return reflects the active range, not all-time.
 
 Tapping a holding from a portfolio view always lands you at the **top**
 of that stock's page (no mid-page scroll).
+
+Navigation now carries **iOS-style motion**. Switching between the
+top-level tabs (Compare, Stocks, Tee Times) cross-fades; drilling *into* a
+detail page (a player, a stock, a fund) slides in from the right like a
+native push, and backing out slides in from the left like a pop — so the
+app reads as a stack of screens, not a series of hard cuts. Sheets (the
+"What's new" feed, the fund filter) slide up from the bottom and back down
+to dismiss, the way an iOS sheet does. It's all deliberate and purposeful —
+navigation is still a real route change underneath, not a fake overlay —
+and all of it is plain CSS, kept light so it stays smooth on older phones.
+If your phone has **Reduce Motion** turned on, the app honors it and the
+fades and slides drop away.
 
 **The whole app flips to a clean light theme while the market is open**
 and switches back to dark when it closes. Robinhood-style: white cards
