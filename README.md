@@ -1,6 +1,6 @@
 # Stock Game
 
-A friendly portfolio showdown between **Brian, Kevin, Rick, and Lee**, tracked
+A friendly portfolio showdown between **Brian, Kevin, Rick, Lee, and Gene**, tracked
 since **Feb 5, 2026**. Each player starts with $100,000 split evenly across
 their picks at that day's close (partial shares allowed). Mobile-first PWA,
 installable to your iPhone home screen, with a Robinhood-style scrub chart and

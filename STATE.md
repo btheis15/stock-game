@@ -272,7 +272,7 @@ app/template.tsx      Route-transition wrapper (a `template.tsx` re-mounts on ev
 
 components/
   ScrubChart.tsx      Pointer-driven scrub chart. Props:
-                        series: ChartSeries[]               (1 or 4 lines)
+                        series: ChartSeries[]               (1 for a detail view; several in Compare — players + baseline + fund overlays)
                         baseline?: number                   (dashed reference line)
                         xDomain?: [Date, Date]              (force full-day axis for 1D)
                         liveEndpoint?: boolean              (pulsing concentric ring on last point)
@@ -475,7 +475,7 @@ components/
                       In 1W: same weekly hourly + compactX treatment as PortfolioView.
                       Force-scrolls to top on mount (skips on hash) so tapping a holding
                       from a scrolled portfolio view doesn't land mid-page.
-  StocksListView.tsx  All picks sorted by % return. Filter chips: All / Brian / Kevin / Rick / Lee.
+  StocksListView.tsx  All picks sorted by % return. Filter chips: All / Brian / Kevin / Rick / Lee / Gene.
                       Multi-color owner swatch when a ticker is held by 2+ users.
   DigestPanel.tsx     News-digest card composed on /stock/[ticker], /portfolio/[user], and the
                       Compare home view. Position varies per page (between RangeTabs and Position
@@ -627,7 +627,7 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
    │     6. for each window (1D / 1W / 1M / 3M / 1Y / ALL):
    │            sample top-N by relevance, generate 3-sentence prose digest
    │            (fresh session per window; window-specific prompt framing)
-   ├─ for each player (brian / kevin / rick / lee), for each window:
+   ├─ for each player (brian / kevin / rick / lee / gene), for each window:
    │     7. read public/data/prices.json — compute the player's per-ticker
    │        movers via computeUserMovers (shares × price delta) ranked by
    │        $ contribution; pick the top 3 + bottom 3 drags as the
@@ -825,7 +825,7 @@ components/                    Client components (mostly)
   StocksListView.tsx           Filterable ticker list.
   DigestPanel.tsx              Per-stock news-digest card (Robinhood-style).
   InsightsCard.tsx             "What's driving it" per-user breakdown, ranked.
-  TeeTimesView.tsx             Inshalla CC tee-time iframe with header + Open-in-Safari fallback.
+  TeeTimesView.tsx             Inshalla CC tee-time hand-off: quick-pick day chips deep-link into foreUP (new tab), plus Call-pro-shop + Daily Deals links. No iframe.
   ThemeController.tsx          Toggles light/dark theme based on isMarketLive.
   Sheet.tsx                    Reusable iOS bottom-sheet primitive (portal, CSS slide-up/down, content-height or `full` detent, no drag-to-dismiss). Used by FilterSheet (FundsFilter.tsx) + WhatsNew so far; CreateFundModal / EditThesisModal / ManageFundsSheet still on their own shells.
   WhatsNew.tsx                 Bell + "What's new" recent-updates sheet via <Sheet> (last-30-days changelog; accordion is a CSS grid-rows transition, moved off framer-motion).

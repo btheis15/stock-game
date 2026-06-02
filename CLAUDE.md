@@ -293,7 +293,7 @@ components receive prepared series and only do range-filtering and scrub.
 **Server**: load PriceData, pass `series: TickerSeries[]` (in `ALL_TICKERS`
 order) to `<StocksListView>`.
 
-**Client**: filter chips (All / Brian / Kevin / Rick / Lee), sorted by
+**Client**: filter chips (All / Brian / Kevin / Rick / Lee / Gene), sorted by
 total %-return-since-Feb-5 desc. Multi-color owner swatch when 2+ players
 own a ticker. Each row links to `/stock/{ticker}`.
 
@@ -380,20 +380,25 @@ signals confirm it's an official partner-embed product:
 5. UTM-tagged referrals from foreUP's booking engine show partners are
    expected to embed it (`utm_source=foreup-booking-engine&...`)
 
-We embed it directly via `<iframe>` in `TeeTimesView`, sized at 640px
-height. We attach `utm_source=stockgame-app&utm_medium=tee-times-tab&
-utm_campaign=daily-deals` so Inshalla's analytics can attribute traffic
-distinctly from this app vs. their other partner integrations. **This
-is fundamentally different from the foreUP situation** — Sagacity's
-widget is a sanctioned embed product where foreUP's booking page is
-the primary user-facing site that doesn't license embedding.
+Even though it's embed-friendly, `TeeTimesView` doesn't iframe it — it
+surfaces a tap-through card that opens the widget in a new tab. (We tried
+iframing it inline; the fixed-height frame never sized cleanly inside our
+card chrome on mobile, so we hand off instead, matching the foreUP
+"Quick book" rows.) We attach `utm_source=stockgame-app&
+utm_medium=tee-times-tab&utm_campaign=daily-deals` so Inshalla's analytics
+can attribute traffic distinctly from this app vs. their other partner
+integrations. **This is fundamentally different from the foreUP
+situation** — Sagacity's widget is a sanctioned embed product (we simply
+choose to hand off to it), whereas foreUP's booking page is the primary
+user-facing site that doesn't license embedding.
 
 **Reusable playbook**: `docs/embedding-third-party-booking.md` is a
 field guide covering all three patterns: deep-link-only (compliant
 default for un-licensed SaaS, what we use for foreUP), proxy +
 native-list (when permission is in hand), and explicit-embed-widget
-(when the SaaS publishes one, what we use for Sagacity Daily Deals).
-Read that file before adding the next SaaS-embed feature.
+(when the SaaS publishes one — Sagacity Daily Deals is such a widget,
+though for visual consistency we currently hand off to it rather than
+embed). Read that file before adding the next SaaS-embed feature.
 
 ### §5.6. Theme system
 
