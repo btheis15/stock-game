@@ -8,9 +8,9 @@
         "dataMaturity" : "full",
         "daysOfData" : 29,
         "daysRequired" : 1,
-        "digest" : "The dominant driver of the fund's range performance is TMO [+5.19%], which has surged by a notable percentage, likely fueled by strong earnings or market sentiment. In contrast, ABBV [+0.77%] is experiencing a significant drag, potentially due to recent negative news or market adjustments.",
+        "digest" : "The dominant driver of the fund's range performance is TMO [+5.19%], which has surged by a notable percentage, likely fueled by strong earnings or market sentiment. In contrast, ABBV [+1.22%] is experiencing a significant drag, potentially due to recent negative news or market adjustments.",
         "digestTemplate" : "The dominant driver of the fund's range performance is TMO {{TMO}}, which has surged by a notable percentage, likely fueled by strong earnings or market sentiment. In contrast, ABBV {{ABBV}} is experiencing a significant drag, potentially due to recent negative news or market adjustments.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z"
+        "generatedAt" : "2026-06-09T21:30:25.512Z"
       },
       "1W" : {
         "aiEngine" : "AppleIntelligence",
@@ -20,7 +20,7 @@
         "daysRequired" : 7,
         "digest" : "The fund's performance was primarily driven by the strong gains of UNH [+9.28%], with its stock experiencing a notable increase, while NVO [-1.70%] faced significant losses, contributing to the overall drag. Additionally, ABBV [+4.65%] also performed well, adding to the fund's positive momentum.",
         "digestTemplate" : "The fund's performance was primarily driven by the strong gains of UNH {{UNH}}, with its stock experiencing a notable increase, while NVO {{NVO}} faced significant losses, contributing to the overall drag. Additionally, ABBV {{ABBV}} also performed well, adding to the fund's positive momentum.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z"
+        "generatedAt" : "2026-06-09T21:30:25.512Z"
       }
     },
     "legacy-auto" : {
@@ -30,9 +30,9 @@
         "dataMaturity" : "full",
         "daysOfData" : 29,
         "daysRequired" : 1,
-        "digest" : "The dominant driver of the fund's range performance today is the significant positive move by STLA [-0.28%], which has surged by more than one percentage point, significantly boosting the fund's overall performance. On the other hand, TM [-1.22%] has experienced a substantial decline, contributing to a noticeable drag on the fund's range.",
+        "digest" : "The dominant driver of the fund's range performance today is the significant positive move by STLA [+0.28%], which has surged by more than one percentage point, significantly boosting the fund's overall performance. On the other hand, TM [-1.09%] has experienced a substantial decline, contributing to a noticeable drag on the fund's range.",
         "digestTemplate" : "The dominant driver of the fund's range performance today is the significant positive move by STLA {{STLA}}, which has surged by more than one percentage point, significantly boosting the fund's overall performance. On the other hand, TM {{TM}} has experienced a substantial decline, contributing to a noticeable drag on the fund's range.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z"
+        "generatedAt" : "2026-06-09T21:30:25.512Z"
       },
       "1W" : {
         "aiEngine" : "AppleIntelligence",
@@ -42,7 +42,7 @@
         "daysRequired" : 7,
         "digest" : "The dominant driver of the fund's range performance was a significant upward movement in holdings with the ticker symbol HMC [+0.87%], which outperformed its peers by over three percentage points. Conversely, the fund experienced a substantial downward drag from holdings with the ticker symbols F [-7.43%] and STLA [-8.33%], each experiencing a decline of over ten percentage points.",
         "digestTemplate" : "The dominant driver of the fund's range performance was a significant upward movement in holdings with the ticker symbol HMC {{HMC}}, which outperformed its peers by over three percentage points. Conversely, the fund experienced a substantial downward drag from holdings with the ticker symbols F {{F}} and STLA {{STLA}}, each experiencing a decline of over ten percentage points.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z"
+        "generatedAt" : "2026-06-09T21:30:25.512Z"
       }
     },
     "nasdaq-jcost" : {
@@ -74,9 +74,9 @@
       },
       "daysOfData" : 30,
       "daysRequired" : 1,
-      "digest" : "Today, Brian [-2.10%]'s portfolio saw a significant boost as his holdings in ASTS [-1.75%] rose by over six percent, driven by a strong positive move in the stock. Conversely, Lee [+0.76%]'s portfolio was negatively impacted by a decline in AAPL [-3.43%], with Brian and Lee both experiencing a slight drop in their holdings. Looking ahead, Rick [-3.42%]'s portfolio could benefit from the forward-looking catalyst of CoreWeave's AI cloud agreement with Jane Street, which promises to reshape the company's growth and valuation story.",
+      "digest" : "Today, Brian [-2.27%]'s portfolio saw a significant boost as his holdings in ASTS [-2.60%] rose by over six percent, driven by a strong positive move in the stock. Conversely, Lee [+0.82%]'s portfolio was negatively impacted by a decline in AAPL [-3.55%], with Brian and Lee both experiencing a slight drop in their holdings. Looking ahead, Rick [-3.95%]'s portfolio could benefit from the forward-looking catalyst of CoreWeave's AI cloud agreement with Jane Street, which promises to reshape the company's growth and valuation story.",
       "digestTemplate" : "Today, Brian {{user:brian}}'s portfolio saw a significant boost as his holdings in ASTS {{ASTS}} rose by over six percent, driven by a strong positive move in the stock. Conversely, Lee {{user:lee}}'s portfolio was negatively impacted by a decline in AAPL {{AAPL}}, with Brian and Lee both experiencing a slight drop in their holdings. Looking ahead, Rick {{user:rick}}'s portfolio could benefit from the forward-looking catalyst of CoreWeave's AI cloud agreement with Jane Street, which promises to reshape the company's growth and valuation story.",
-      "generatedAt" : "2026-06-09T21:15:25.226Z",
+      "generatedAt" : "2026-06-09T21:30:25.512Z",
       "sources" : [
         {
           "date" : "2026-06-09",
@@ -149,7 +149,7 @@
       "daysRequired" : 1,
       "digest" : "Kevin [+4.55%] experienced a significant boost in his portfolio as the stock of Marvell Tech surged, benefiting from positive news about AI advancements. Conversely, Gene [-3.99%] faced a substantial decline in his holdings as OKLO [-27.71%]'s stock lost value. Looking ahead, both Kevin and Rick [-2.40%] could benefit from the anticipated developments in Tesla, as its stock is expected to rise due to upcoming global events.",
       "digestTemplate" : "Kevin {{user:kevin}} experienced a significant boost in his portfolio as the stock of Marvell Tech surged, benefiting from positive news about AI advancements. Conversely, Gene {{user:gene}} faced a substantial decline in his holdings as OKLO {{OKLO}}'s stock lost value. Looking ahead, both Kevin and Rick {{user:rick}} could benefit from the anticipated developments in Tesla, as its stock is expected to rise due to upcoming global events.",
-      "generatedAt" : "2026-06-09T21:15:25.226Z",
+      "generatedAt" : "2026-06-09T21:30:25.512Z",
       "sources" : [
         {
           "date" : "2026-05-13",
@@ -222,7 +222,7 @@
       "daysRequired" : 7,
       "digest" : "Kevin [-9.38%]'s portfolio saw a significant boost after Marvell's stock surged, potentially making its entry into the S [-12.16%]&P 500 a reality. Conversely, Brian [-10.24%]'s portfolio was negatively impacted by the decline in Serv's stock, which experienced a sharp drop. Looking ahead, Kevin's portfolio remains on the radar due to Michael Burry's technical warning on Palantir, which could have broader implications for the market.",
       "digestTemplate" : "Kevin {{user:kevin}}'s portfolio saw a significant boost after Marvell's stock surged, potentially making its entry into the S {{S}}&P 500 a reality. Conversely, Brian {{user:brian}}'s portfolio was negatively impacted by the decline in Serv's stock, which experienced a sharp drop. Looking ahead, Kevin's portfolio remains on the radar due to Michael Burry's technical warning on Palantir, which could have broader implications for the market.",
-      "generatedAt" : "2026-06-09T21:15:25.226Z",
+      "generatedAt" : "2026-06-09T21:30:25.512Z",
       "sources" : [
         {
           "date" : "2026-06-08",
@@ -499,7 +499,7 @@
       ]
     }
   },
-  "generatedAt" : "2026-06-09T21:15:25.226Z",
+  "generatedAt" : "2026-06-09T21:30:25.512Z",
   "holdings" : {
     "AAPL" : {
       "1D" : {
@@ -513,9 +513,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Apple's AI announcement at WWDC left investors feeling disappointed, raising concerns about the company's ability to dominate the AI market, which could affect its stock price. The decision to not roll out Siri AI in the EU adds regulatory risk, potentially impacting Apple's competitive edge and market share. However, the ongoing AI buzz and Nvidia's potential partnership with Apple present opportunities for growth in the AI sector, suggesting a potential rebound in AAPL [-3.43%]'s stock.",
+        "digest" : "Apple's AI announcement at WWDC left investors feeling disappointed, raising concerns about the company's ability to dominate the AI market, which could affect its stock price. The decision to not roll out Siri AI in the EU adds regulatory risk, potentially impacting Apple's competitive edge and market share. However, the ongoing AI buzz and Nvidia's potential partnership with Apple present opportunities for growth in the AI sector, suggesting a potential rebound in AAPL [-3.55%]'s stock.",
         "digestTemplate" : "Apple's AI announcement at WWDC left investors feeling disappointed, raising concerns about the company's ability to dominate the AI market, which could affect its stock price. The decision to not roll out Siri AI in the EU adds regulatory risk, potentially impacting Apple's competitive edge and market share. However, the ongoing AI buzz and Nvidia's potential partnership with Apple present opportunities for growth in the AI sector, suggesting a potential rebound in AAPL {{AAPL}}'s stock.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -660,7 +660,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development of the week was Apple's unveiling of new AI-driven features at WWDC 2026, which marked a significant turning point in the company's strategy as it aimed to solidify its position in the rapidly evolving AI sector. This announcement, despite facing mixed reactions and regulatory hurdles, implies a strategic shift towards AI, which could drive future growth and innovation for AAPL [-7.82%]. However, the failure to comply with EU regulations and the perceived lack of transformative features for iPhone upgrades pose a forward-looking risk, potentially impacting investor confidence and the company's market position.",
         "digestTemplate" : "The most important business development of the week was Apple's unveiling of new AI-driven features at WWDC 2026, which marked a significant turning point in the company's strategy as it aimed to solidify its position in the rapidly evolving AI sector. This announcement, despite facing mixed reactions and regulatory hurdles, implies a strategic shift towards AI, which could drive future growth and innovation for AAPL {{AAPL}}. However, the failure to comply with EU regulations and the perceived lack of transformative features for iPhone upgrades pose a forward-looking risk, potentially impacting investor confidence and the company's market position.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -958,7 +958,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for AMRZ [+1.25%] has been a strategic focus on financial restructuring and leadership changes. The biggest catalyst was the announcement of a substantial share buyback program and the appointment of Baris Oran as CFO, which were accompanied by a price target increase from a major investment bank. Heading forward, AMRZ is poised for growth, supported by these strategic initiatives and a positive market response.",
         "digestTemplate" : "The defining theme of the past month for AMRZ {{AMRZ}} has been a strategic focus on financial restructuring and leadership changes. The biggest catalyst was the announcement of a substantial share buyback program and the appointment of Baris Oran as CFO, which were accompanied by a price target increase from a major investment bank. Heading forward, AMRZ is poised for growth, supported by these strategic initiatives and a positive market response.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -1328,7 +1328,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past three weeks for Amazon has been its strategic expansion into the AI sector, evident from its substantial AI spending initiative and the launch of Amazon Now. The biggest catalyst emerged with the announcement of Amazon-backed Anthropic's massive funding round, which underscored the increasing importance of AI and highlighted the potential for Amazon to leverage its tech expertise in the burgeoning AI market. As AMZN [-9.22%] continues to invest in AI and infrastructure, it stands poised for growth, with potential to capitalize on the expanding demand for computing power and AI solutions.",
         "digestTemplate" : "The defining theme of the past three weeks for Amazon has been its strategic expansion into the AI sector, evident from its substantial AI spending initiative and the launch of Amazon Now. The biggest catalyst emerged with the announcement of Amazon-backed Anthropic's massive funding round, which underscored the increasing importance of AI and highlighted the potential for Amazon to leverage its tech expertise in the burgeoning AI market. As AMZN {{AMZN}} continues to invest in AI and infrastructure, it stands poised for growth, with potential to capitalize on the expanding demand for computing power and AI solutions.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-14",
@@ -1689,9 +1689,9 @@
         },
         "daysOfData" : 28,
         "daysRequired" : 1,
-        "digest" : "ASML [+1.80%] Holding (ASML) has become Europe's most valuable stock, driven by surging semiconductor demand and its unique position as the only supplier of key EUV lithography systems. This development strengthens ASML's investment thesis, positioning it as a leading player in the semiconductor market. However, the potential impact of the SpaceX IPO on semiconductor stocks could present an opportunity for risk management or diversification.",
+        "digest" : "ASML [+1.30%] Holding (ASML) has become Europe's most valuable stock, driven by surging semiconductor demand and its unique position as the only supplier of key EUV lithography systems. This development strengthens ASML's investment thesis, positioning it as a leading player in the semiconductor market. However, the potential impact of the SpaceX IPO on semiconductor stocks could present an opportunity for risk management or diversification.",
         "digestTemplate" : "ASML {{ASML}} Holding (ASML) has become Europe's most valuable stock, driven by surging semiconductor demand and its unique position as the only supplier of key EUV lithography systems. This development strengthens ASML's investment thesis, positioning it as a leading player in the semiconductor market. However, the potential impact of the SpaceX IPO on semiconductor stocks could present an opportunity for risk management or diversification.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -1743,7 +1743,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for ASML [+13.54%] has been its strong performance driven by AI-related demand, as evidenced by robust trading activity and strategic developments. The biggest catalyst emerged from ASML's recent strategic move to join a joint venture in the European semiconductor industry, which helped align its guidance with increased demand for AI-related semiconductor equipment. Looking forward, ASML is poised to maintain its growth trajectory, supported by a robust order backlog and the company's ability to navigate export control concerns and rumors of reverse-engineering in China.",
         "digestTemplate" : "The defining theme of the past month for ASML {{ASML}} has been its strong performance driven by AI-related demand, as evidenced by robust trading activity and strategic developments. The biggest catalyst emerged from ASML's recent strategic move to join a joint venture in the European semiconductor industry, which helped align its guidance with increased demand for AI-related semiconductor equipment. Looking forward, ASML is poised to maintain its growth trajectory, supported by a robust order backlog and the company's ability to navigate export control concerns and rumors of reverse-engineering in China.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -1816,7 +1816,7 @@
         "daysRequired" : 7,
         "digest" : "ASML [+4.25%] Holding reached a milestone as Europe's most valuable stock, driven by its strong performance in the semiconductor sector and AI infrastructure demand. This development underscores the company's strategic positioning in the industry, potentially leading to increased market share and shareholder value. However, ongoing discussions with Elon Musk and the potential regulatory challenges in the EU could pose risks to the company's operations and future growth prospects.",
         "digestTemplate" : "ASML {{ASML}} Holding reached a milestone as Europe's most valuable stock, driven by its strong performance in the semiconductor sector and AI infrastructure demand. This development underscores the company's strategic positioning in the industry, potentially leading to increased market share and shareholder value. However, ongoing discussions with Elon Musk and the potential regulatory challenges in the EU could pose risks to the company's operations and future growth prospects.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-04",
@@ -2165,7 +2165,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for AST SpaceMobile (ASTS [+7.46%]) has been its struggle to balance operational challenges with strategic growth initiatives, highlighted by the significant loss of its BlueBird 7 satellite and the ensuing decline in stock value. The biggest catalyst emerged as the company's first-quarter earnings missed Wall Street expectations, leading to a more than 12% drop in premarket trading. Moving forward, ASTS is expected to navigate its strategic partnerships and satellite expansion plans to stabilize its financial performance and position itself for future growth, despite the ongoing risks posed by market competition and operational setbacks.",
         "digestTemplate" : "The defining theme of the past month for AST SpaceMobile (ASTS {{ASTS}}) has been its struggle to balance operational challenges with strategic growth initiatives, highlighted by the significant loss of its BlueBird 7 satellite and the ensuing decline in stock value. The biggest catalyst emerged as the company's first-quarter earnings missed Wall Street expectations, leading to a more than 12% drop in premarket trading. Moving forward, ASTS is expected to navigate its strategic partnerships and satellite expansion plans to stabilize its financial performance and position itself for future growth, despite the ongoing risks posed by market competition and operational setbacks.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -2526,9 +2526,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Broadcom (AVGO [-1.44%]) has been highlighted as a key player in the AI infrastructure sector, with analysts noting its strong position and potential for growth. The company's inclusion among billionaire Ken Fisher's top dividend stock picks and the recent upward revision of its price recommendation by DA Davidson underscore its investor appeal. However, the broader AI market's recent downturn poses an immediate risk to AVGO, potentially impacting its stock price.",
+        "digest" : "Broadcom (AVGO [-2.28%]) has been highlighted as a key player in the AI infrastructure sector, with analysts noting its strong position and potential for growth. The company's inclusion among billionaire Ken Fisher's top dividend stock picks and the recent upward revision of its price recommendation by DA Davidson underscore its investor appeal. However, the broader AI market's recent downturn poses an immediate risk to AVGO, potentially impacting its stock price.",
         "digestTemplate" : "Broadcom (AVGO {{AVGO}}) has been highlighted as a key player in the AI infrastructure sector, with analysts noting its strong position and potential for growth. The company's inclusion among billionaire Ken Fisher's top dividend stock picks and the recent upward revision of its price recommendation by DA Davidson underscore its investor appeal. However, the broader AI market's recent downturn poses an immediate risk to AVGO, potentially impacting its stock price.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -2601,7 +2601,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for AVGO [-8.47%] has been its strategic focus on AI and semiconductor development, underscored by significant financing announcements and product enhancements. The biggest catalyst emerged from the company's recent earnings surprise, which prompted a surge in investor confidence and led to increased price targets from major financial institutions. Heading forward, AVGO is poised for continued growth, bolstered by its strong AI infrastructure position and the potential for further market expansion.",
         "digestTemplate" : "The defining theme of the past month for AVGO {{AVGO}} has been its strategic focus on AI and semiconductor development, underscored by significant financing announcements and product enhancements. The biggest catalyst emerged from the company's recent earnings surprise, which prompted a surge in investor confidence and led to increased price targets from major financial institutions. Heading forward, AVGO is poised for continued growth, bolstered by its strong AI infrastructure position and the potential for further market expansion.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -2674,7 +2674,7 @@
         "daysRequired" : 7,
         "digest" : "Broadcom's stock surged following its inclusion among billionaire Ken Fisher's top dividend stock picks and Morningstar's recognition as a top tech pick, indicating renewed investor confidence despite previous challenges. This development suggests that AVGO [-18.57%]'s strong AI revenue trajectory and strategic M&A activities, such as the Anthropic financing package, are driving investor optimism. However, ongoing geopolitical tensions and broader semiconductor market corrections pose potential risks that could impact AVGO's stock performance.",
         "digestTemplate" : "Broadcom's stock surged following its inclusion among billionaire Ken Fisher's top dividend stock picks and Morningstar's recognition as a top tech pick, indicating renewed investor confidence despite previous challenges. This development suggests that AVGO {{AVGO}}'s strong AI revenue trajectory and strategic M&A activities, such as the Anthropic financing package, are driving investor optimism. However, ongoing geopolitical tensions and broader semiconductor market corrections pose potential risks that could impact AVGO's stock performance.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-08",
@@ -3009,7 +3009,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for COHR [-6.26%] was its strategic focus on AI data center optics, highlighted by significant investments and partnerships, which bolstered its market position. The biggest catalyst for this theme was the substantial $2 billion equity investment from NVIDIA, which underscored the company's strategic alignment with the rapidly expanding AI data center market. Looking forward, COHR stands poised to capitalize on the projected $1.7 trillion market by continuing to innovate and expand its portfolio of optical components.",
         "digestTemplate" : "The defining theme of the past month for COHR {{COHR}} was its strategic focus on AI data center optics, highlighted by significant investments and partnerships, which bolstered its market position. The biggest catalyst for this theme was the substantial $2 billion equity investment from NVIDIA, which underscored the company's strategic alignment with the rapidly expanding AI data center market. Looking forward, COHR stands poised to capitalize on the projected $1.7 trillion market by continuing to innovate and expand its portfolio of optical components.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -3082,7 +3082,7 @@
         "daysRequired" : 7,
         "digest" : "In the past week, COHR [-16.62%] experienced a pivotal shift in its market perception, transitioning from a slow-growth stock to a high-growth entity, largely driven by its strategic partnerships and strong market sentiment. This revaluation underscores the company's evolving role in the AI infrastructure sector and its potential for substantial growth. Moving forward, COHR's focus on optical networking and strategic initiatives, along with its continued engagement in mergers and acquisitions, could serve as catalysts for further market expansion, but investors must remain cautious of potential risks associated with rapid growth and market volatility.",
         "digestTemplate" : "In the past week, COHR {{COHR}} experienced a pivotal shift in its market perception, transitioning from a slow-growth stock to a high-growth entity, largely driven by its strategic partnerships and strong market sentiment. This revaluation underscores the company's evolving role in the AI infrastructure sector and its potential for substantial growth. Moving forward, COHR's focus on optical networking and strategic initiatives, along with its continued engagement in mergers and acquisitions, could serve as catalysts for further market expansion, but investors must remain cautious of potential risks associated with rapid growth and market volatility.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -3371,9 +3371,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "CRDO [+5.79%] stock surged 78% in the past three months, driven by increased demand for AI solutions. This growth has attracted more investors, but concerns about the company's strong valuation and whether its fundamentals can sustain such rapid gains remain. The immediate opportunity for CRDO is to capitalize on its market position and expand its AI offerings, while the risk lies in maintaining investor confidence and navigating regulatory challenges.",
+        "digest" : "CRDO [+3.93%] stock surged 78% in the past three months, driven by increased demand for AI solutions. This growth has attracted more investors, but concerns about the company's strong valuation and whether its fundamentals can sustain such rapid gains remain. The immediate opportunity for CRDO is to capitalize on its market position and expand its AI offerings, while the risk lies in maintaining investor confidence and navigating regulatory challenges.",
         "digestTemplate" : "CRDO {{CRDO}} stock surged 78% in the past three months, driven by increased demand for AI solutions. This growth has attracted more investors, but concerns about the company's strong valuation and whether its fundamentals can sustain such rapid gains remain. The immediate opportunity for CRDO is to capitalize on its market position and expand its AI offerings, while the risk lies in maintaining investor confidence and navigating regulatory challenges.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -3397,7 +3397,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past 30 days for CRDO [+11.46%] has been strategic growth and market expansion, evidenced by significant acquisitions and partnerships that have bolstered its position as a leading AI infrastructure supplier. The biggest catalyst emerged on May 11, with the company's acquisition of DustPhotonics, which broadened its product portfolio and enhanced its competitive edge. Heading forward, CRDO is expected to continue its expansion through strategic investments and initiatives, with a focus on enhancing AI infrastructure and market presence as highlighted by its upcoming financial results conference call.",
         "digestTemplate" : "The defining theme of the past 30 days for CRDO {{CRDO}} has been strategic growth and market expansion, evidenced by significant acquisitions and partnerships that have bolstered its position as a leading AI infrastructure supplier. The biggest catalyst emerged on May 11, with the company's acquisition of DustPhotonics, which broadened its product portfolio and enhanced its competitive edge. Heading forward, CRDO is expected to continue its expansion through strategic investments and initiatives, with a focus on enhancing AI infrastructure and market presence as highlighted by its upcoming financial results conference call.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -3470,7 +3470,7 @@
         "daysRequired" : 7,
         "digest" : "CRDO [+2.32%] reported a significant earnings beat on June 3, 2026, surpassing expectations and driving a surge in its stock price, which was bolstered by a strategic pivot towards an optical infrastructure growth phase. This development implies that CRDO is aligning its operations with emerging market demands and positioning itself for sustained growth, particularly in the optical sector. However, investors are scrutinizing the company's strong fundamentals to determine if its premium valuation remains justified.",
         "digestTemplate" : "CRDO {{CRDO}} reported a significant earnings beat on June 3, 2026, surpassing expectations and driving a surge in its stock price, which was bolstered by a strategic pivot towards an optical infrastructure growth phase. This development implies that CRDO is aligning its operations with emerging market demands and positioning itself for sustained growth, particularly in the optical sector. However, investors are scrutinizing the company's strong fundamentals to determine if its premium valuation remains justified.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -3768,7 +3768,7 @@
         "daysRequired" : 1,
         "digest" : "CRISPR Therapeutics' recent period was marked by a challenging market environment, with the company facing setbacks despite a strong launch for its gene therapy Casgevy. The biggest catalyst emerged from the broader market downturn, which affected both earnings and guidance, leading to a significant drop in the stock price. Looking forward, CRSP [-4.68%] is positioned to leverage its strategic growth initiatives and partnerships to navigate these challenges and potentially regain investor confidence.",
         "digestTemplate" : "CRISPR Therapeutics' recent period was marked by a challenging market environment, with the company facing setbacks despite a strong launch for its gene therapy Casgevy. The biggest catalyst emerged from the broader market downturn, which affected both earnings and guidance, leading to a significant drop in the stock price. Looking forward, CRSP {{CRSP}} is positioned to leverage its strategic growth initiatives and partnerships to navigate these challenges and potentially regain investor confidence.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -4122,9 +4122,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "CoreWeave Inc. is considering selling euro bonds to European investors, a move that could enhance its funding flexibility and strengthen its position in the global AI infrastructure market. This strategic decision aligns with the broader trend of AI-linked stocks experiencing volatility but maintaining a strong investment case. The immediate opportunity for CRWV [-3.57%] lies in capitalizing on the AI trade's momentum and securing further partnerships with leading financial institutions.",
+        "digest" : "CoreWeave Inc. is considering selling euro bonds to European investors, a move that could enhance its funding flexibility and strengthen its position in the global AI infrastructure market. This strategic decision aligns with the broader trend of AI-linked stocks experiencing volatility but maintaining a strong investment case. The immediate opportunity for CRWV [-4.17%] lies in capitalizing on the AI trade's momentum and securing further partnerships with leading financial institutions.",
         "digestTemplate" : "CoreWeave Inc. is considering selling euro bonds to European investors, a move that could enhance its funding flexibility and strengthen its position in the global AI infrastructure market. This strategic decision aligns with the broader trend of AI-linked stocks experiencing volatility but maintaining a strong investment case. The immediate opportunity for CRWV {{CRWV}} lies in capitalizing on the AI trade's momentum and securing further partnerships with leading financial institutions.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -4176,7 +4176,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period was CoreWeave's strategic focus on defending against Nvidia's dominance in the AI chip market while navigating the challenges of AI growth slowing and rising costs. The biggest catalyst emerged from the company's announcement of CoreWeave Sandboxes, which aimed to enhance its competitive edge, yet the stock fell due to concerns over the slowing AI growth story. Heading forward, CRWV [-14.17%]'s outlook remains uncertain, with Wall Street's disappointment and scrutiny over its spending and market position posing significant risks.",
         "digestTemplate" : "The defining theme of the period was CoreWeave's strategic focus on defending against Nvidia's dominance in the AI chip market while navigating the challenges of AI growth slowing and rising costs. The biggest catalyst emerged from the company's announcement of CoreWeave Sandboxes, which aimed to enhance its competitive edge, yet the stock fell due to concerns over the slowing AI growth story. Heading forward, CRWV {{CRWV}}'s outlook remains uncertain, with Wall Street's disappointment and scrutiny over its spending and market position posing significant risks.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -4249,7 +4249,7 @@
         "daysRequired" : 7,
         "digest" : "CoreWeave's significant milestone of deploying and fully validating NVIDIA's Vera Rubin NVL72 rack-scale AI system marked its first foray into AI cloud services, setting a new standard in the sector. This development has bolstered CRWV [-17.46%]'s position by reinforcing its market presence and investor confidence, as evidenced by the bullish analyst ratings and the company's stock rally. However, the potential risk lies in the volatility of the AI sector, which could impact CRWV's growth trajectory if market conditions shift unfavorably.",
         "digestTemplate" : "CoreWeave's significant milestone of deploying and fully validating NVIDIA's Vera Rubin NVL72 rack-scale AI system marked its first foray into AI cloud services, setting a new standard in the sector. This development has bolstered CRWV {{CRWV}}'s position by reinforcing its market presence and investor confidence, as evidenced by the bullish analyst ratings and the company's stock rally. However, the potential risk lies in the volatility of the AI sector, which could impact CRWV's growth trajectory if market conditions shift unfavorably.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -4547,7 +4547,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past three weeks for Dick's Sporting Goods (DKS [-0.30%]) has been strategic partnerships aimed at enhancing customer engagement and expanding product offerings. The biggest catalyst emerged on May 12, with DKS announcing a partnership with Adobe to integrate AI agents into its platforms, alongside a relaunch of its credit card program with Synchrony, which significantly boosted investor confidence. Looking ahead, DKS is poised to leverage its expanded digital capabilities and strategic partnerships to strengthen its market position, with a potentially upward trajectory in its stock price as it continues to capitalize on these initiatives.",
         "digestTemplate" : "The defining theme of the past three weeks for Dick's Sporting Goods (DKS {{DKS}}) has been strategic partnerships aimed at enhancing customer engagement and expanding product offerings. The biggest catalyst emerged on May 12, with DKS announcing a partnership with Adobe to integrate AI agents into its platforms, alongside a relaunch of its credit card program with Synchrony, which significantly boosted investor confidence. Looking ahead, DKS is poised to leverage its expanded digital capabilities and strategic partnerships to strengthen its market position, with a potentially upward trajectory in its stock price as it continues to capitalize on these initiatives.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -4620,7 +4620,7 @@
         "daysRequired" : 7,
         "digest" : "Dick's Sporting Goods (DKS [+2.25%]) reported a Q2 earnings beat, surpassing the consensus and marking a positive outcome for the company, following a period of growth and expansion. This performance, combined with the company's strong first-quarter results and strategic capital moves, implies a positive outlook for future earnings, despite a cautious market sentiment. However, the lowered guidance for upcoming quarters and the company's strategic direction suggest potential risks, such as further market volatility or challenges in sustaining growth.",
         "digestTemplate" : "Dick's Sporting Goods (DKS {{DKS}}) reported a Q2 earnings beat, surpassing the consensus and marking a positive outcome for the company, following a period of growth and expansion. This performance, combined with the company's strong first-quarter results and strategic capital moves, implies a positive outlook for future earnings, despite a cautious market sentiment. However, the lowered guidance for upcoming quarters and the company's strategic direction suggest potential risks, such as further market volatility or challenges in sustaining growth.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -4897,7 +4897,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for Exodus Movement (EXOD [-21.79%]) was strategic transformation amid financial challenges. The biggest catalyst was the acquisition of Sodot by MoonPay, which signaled a potential shift in its approach and hinted at new growth opportunities. Heading forward, EXOD is expected to continue expanding its self-custody offerings and market presence, supported by its strategic partnerships and innovative products like XO Cash.",
         "digestTemplate" : "The defining theme of the past month for Exodus Movement (EXOD {{EXOD}}) was strategic transformation amid financial challenges. The biggest catalyst was the acquisition of Sodot by MoonPay, which signaled a potential shift in its approach and hinted at new growth opportunities. Heading forward, EXOD is expected to continue expanding its self-custody offerings and market presence, supported by its strategic partnerships and innovative products like XO Cash.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -5209,9 +5209,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "GlobalFoundries (GFS [-3.31%]) experienced a surge in its stock price following a recent government announcement proposing a substantial quantum computing award. This development aligns with the company's strategic focus on AI and silicon photonics, which have seen increased demand. The immediate risk is that heightened competition in the quantum sector could affect GFS's market position, while the opportunity lies in further capitalizing on its growing market share.",
+        "digest" : "GlobalFoundries (GFS [-4.28%]) experienced a surge in its stock price following a recent government announcement proposing a substantial quantum computing award. This development aligns with the company's strategic focus on AI and silicon photonics, which have seen increased demand. The immediate risk is that heightened competition in the quantum sector could affect GFS's market position, while the opportunity lies in further capitalizing on its growing market share.",
         "digestTemplate" : "GlobalFoundries (GFS {{GFS}}) experienced a surge in its stock price following a recent government announcement proposing a substantial quantum computing award. This development aligns with the company's strategic focus on AI and silicon photonics, which have seen increased demand. The immediate risk is that heightened competition in the quantum sector could affect GFS's market position, while the opportunity lies in further capitalizing on its growing market share.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -5249,7 +5249,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period was GlobalFoundries' strategic focus on niche markets and technological innovation, highlighted by the launch of the SCALE silicon photonics platform. The biggest catalyst emerged from the company's strong performance in AI-centric markets, as well as its announcement of a new quarterly dividend, reinforcing its commitment to shareholder value. Heading forward, GFS [+0.36%] is poised for continued growth with a long-term growth roadmap and a 40% margin target, supported by its strong performance in AI-centric markets and strategic focus.",
         "digestTemplate" : "The defining theme of the period was GlobalFoundries' strategic focus on niche markets and technological innovation, highlighted by the launch of the SCALE silicon photonics platform. The biggest catalyst emerged from the company's strong performance in AI-centric markets, as well as its announcement of a new quarterly dividend, reinforcing its commitment to shareholder value. Heading forward, GFS {{GFS}} is poised for continued growth with a long-term growth roadmap and a 40% margin target, supported by its strong performance in AI-centric markets and strategic focus.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -5322,7 +5322,7 @@
         "daysRequired" : 7,
         "digest" : "GlobalFoundries' acquisition of Synopsys' ARC Processor IP Solutions marked a pivotal expansion of its AI capabilities, significantly boosting its RISC-V offerings and reinforcing its strategic position in the semiconductor industry. This acquisition, combined with recent partnerships and technological advancements, underscores GFS [-11.04%]'s commitment to innovation and expansion, positioning the company to lead in AI and photonic design. However, analysts caution that valuation and market risks may still pose challenges, and investors should remain vigilant regarding potential disruptions in the semiconductor landscape.",
         "digestTemplate" : "GlobalFoundries' acquisition of Synopsys' ARC Processor IP Solutions marked a pivotal expansion of its AI capabilities, significantly boosting its RISC-V offerings and reinforcing its strategic position in the semiconductor industry. This acquisition, combined with recent partnerships and technological advancements, underscores GFS {{GFS}}'s commitment to innovation and expansion, positioning the company to lead in AI and photonic design. However, analysts caution that valuation and market risks may still pose challenges, and investors should remain vigilant regarding potential disruptions in the semiconductor landscape.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-04",
@@ -5620,7 +5620,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for GLUE [-18.02%] (Monte Rosa Therapeutics) is its strategic expansion into the oncology space with strong clinical trial momentum. The biggest catalyst emerged with the initiation of multiple Phase 2 studies for MRT-8102 and MRT-2359, alongside significant partnerships with major pharmaceutical companies. Heading forward, GLUE is poised for continued growth, bolstered by its innovative molecular glue degrader programs and strategic collaborations, with the potential for further market expansion and increased investor confidence.",
         "digestTemplate" : "The defining theme of the past month for GLUE {{GLUE}} (Monte Rosa Therapeutics) is its strategic expansion into the oncology space with strong clinical trial momentum. The biggest catalyst emerged with the initiation of multiple Phase 2 studies for MRT-8102 and MRT-2359, alongside significant partnerships with major pharmaceutical companies. Heading forward, GLUE is poised for continued growth, bolstered by its innovative molecular glue degrader programs and strategic collaborations, with the potential for further market expansion and increased investor confidence.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -5693,7 +5693,7 @@
         "daysRequired" : 7,
         "digest" : "Monte Rosa Therapeutics reported a positive earnings report, marking a significant milestone for the company and underscoring its strong financial performance. This achievement, coupled with a substantial stock increase, has bolstered investor confidence and market sentiment, positioning GLUE [-6.37%] for continued growth. However, the company faces a forward-looking risk of increased competition in the therapeutic sector, which could impact its market share and profitability.",
         "digestTemplate" : "Monte Rosa Therapeutics reported a positive earnings report, marking a significant milestone for the company and underscoring its strong financial performance. This achievement, coupled with a substantial stock increase, has bolstered investor confidence and market sentiment, positioning GLUE {{GLUE}} for continued growth. However, the company faces a forward-looking risk of increased competition in the therapeutic sector, which could impact its market share and profitability.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -5933,9 +5933,9 @@
         },
         "daysOfData" : 29,
         "daysRequired" : 1,
-        "digest" : "HL Mando was selected as GM [+0.45%]'s Supplier of the Year for the sixth consecutive year, underscoring the company's commitment to quality and reliability. This recognition could enhance GM's competitive position by strengthening its supply chain and potentially leading to more favorable terms with other suppliers. However, the ongoing geopolitical tensions between China and the US may pose a risk to GM's operations and investments in China.",
+        "digest" : "HL Mando was selected as GM [-0.19%]'s Supplier of the Year for the sixth consecutive year, underscoring the company's commitment to quality and reliability. This recognition could enhance GM's competitive position by strengthening its supply chain and potentially leading to more favorable terms with other suppliers. However, the ongoing geopolitical tensions between China and the US may pose a risk to GM's operations and investments in China.",
         "digestTemplate" : "HL Mando was selected as GM {{GM}}'s Supplier of the Year for the sixth consecutive year, underscoring the company's commitment to quality and reliability. This recognition could enhance GM's competitive position by strengthening its supply chain and potentially leading to more favorable terms with other suppliers. However, the ongoing geopolitical tensions between China and the US may pose a risk to GM's operations and investments in China.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -5973,7 +5973,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for General Motors was a strategic pivot towards AI and data privacy amid ongoing industry pressures and regulatory challenges. The biggest catalyst emerged from the significant California privacy probe settlement, which included a substantial financial penalty and a 5-year ban on selling driver data, impacting GM [+11.25%]'s stock and highlighting the need for stringent compliance. Looking forward, GM is expected to leverage its strategic pivot to enhance its market position, although the company will continue to navigate the complexities of the electric vehicle market and evolving regulatory landscapes.",
         "digestTemplate" : "The defining theme of the past month for General Motors was a strategic pivot towards AI and data privacy amid ongoing industry pressures and regulatory challenges. The biggest catalyst emerged from the significant California privacy probe settlement, which included a substantial financial penalty and a 5-year ban on selling driver data, impacting GM {{GM}}'s stock and highlighting the need for stringent compliance. Looking forward, GM is expected to leverage its strategic pivot to enhance its market position, although the company will continue to navigate the complexities of the electric vehicle market and evolving regulatory landscapes.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -6046,7 +6046,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development of the week was the recognition of GM [+2.48%] as a 2025 Supplier of the Year by Aspen Aerogels, Inc., underscoring the company's commitment to sustainability and electrification solutions. This development implies that GM is well-positioned to leverage its strategic focus on electrification to enhance its competitive edge in the automotive sector. However, a forward-looking catalyst for GM could be the success of the SpaceX IPO, which might attract further investor confidence and capital for expanding its electric vehicle offerings.",
         "digestTemplate" : "The most important business development of the week was the recognition of GM {{GM}} as a 2025 Supplier of the Year by Aspen Aerogels, Inc., underscoring the company's commitment to sustainability and electrification solutions. This development implies that GM is well-positioned to leverage its strategic focus on electrification to enhance its competitive edge in the automotive sector. However, a forward-looking catalyst for GM could be the success of the SpaceX IPO, which might attract further investor confidence and capital for expanding its electric vehicle offerings.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -6409,7 +6409,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month was Alphabet's unwavering commitment to AI and innovation, evident through its strategic bond sales, partnerships with Adeia Inc., and increased focus on AI-driven growth. The biggest catalyst emerged on May 15 when Alphabet's yen bond sale for AI surpassed previous records, highlighting its significant financial capabilities and reinforcing its strategic focus on AI infrastructure. Heading forward, GOOGL [-6.27%] is poised for continued growth, with strategic partnerships and technological advancements positioning it for further market expansion and dominance in the AI sector.",
         "digestTemplate" : "The defining theme of the past month was Alphabet's unwavering commitment to AI and innovation, evident through its strategic bond sales, partnerships with Adeia Inc., and increased focus on AI-driven growth. The biggest catalyst emerged on May 15 when Alphabet's yen bond sale for AI surpassed previous records, highlighting its significant financial capabilities and reinforcing its strategic focus on AI infrastructure. Heading forward, GOOGL {{GOOGL}} is poised for continued growth, with strategic partnerships and technological advancements positioning it for further market expansion and dominance in the AI sector.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -6482,7 +6482,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development of the week was Alphabet's strategic alignment with SpaceX, which underscores its commitment to AI infrastructure and its potential to boost IPO prospects. This move positions GOOGL [+0.67%] as a leader in the AI and energy sectors, reinforcing its competitive advantage and strategic focus. A forward-looking catalyst for GOOGL is the anticipated partnership with Anthropic, which could further solidify its position as a tech and AI powerhouse, while a risk is the continued cooling AI trade sentiment, which might impact market sentiment and investor confidence.",
         "digestTemplate" : "The most important business development of the week was Alphabet's strategic alignment with SpaceX, which underscores its commitment to AI infrastructure and its potential to boost IPO prospects. This move positions GOOGL {{GOOGL}} as a leader in the AI and energy sectors, reinforcing its competitive advantage and strategic focus. A forward-looking catalyst for GOOGL is the anticipated partnership with Anthropic, which could further solidify its position as a tech and AI powerhouse, while a risk is the continued cooling AI trade sentiment, which might impact market sentiment and investor confidence.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -6824,7 +6824,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month has been Home Depot's strategic focus on diversification and technological advancements, evident from the partnership with Hertz for a military campaign and the acquisition of Mingledorff's to bolster its HVAC distribution network. The biggest catalyst emerged on May 15 when HD [+3.19%] announced its Q1 earnings, which highlighted a rise in sales driven by increased Pro demand and digital tools, prompting analysts to upgrade their ratings to \"Buy\" and reinforcing its appeal as a dividend-paying option. Heading forward, HD is positioned to leverage its AI and Pro-focused growth strategies to sustain its market position and drive future expansion, despite ongoing macroeconomic uncertainties.",
         "digestTemplate" : "The defining theme of the past month has been Home Depot's strategic focus on diversification and technological advancements, evident from the partnership with Hertz for a military campaign and the acquisition of Mingledorff's to bolster its HVAC distribution network. The biggest catalyst emerged on May 15 when HD {{HD}} announced its Q1 earnings, which highlighted a rise in sales driven by increased Pro demand and digital tools, prompting analysts to upgrade their ratings to \"Buy\" and reinforcing its appeal as a dividend-paying option. Heading forward, HD is positioned to leverage its AI and Pro-focused growth strategies to sustain its market position and drive future expansion, despite ongoing macroeconomic uncertainties.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -7185,9 +7185,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Honeywell announced updated guidance and plans for its upcoming aerospace division split, which could impact its stock price by altering investor expectations and potentially affecting its competitive positioning in the aerospace sector. This development is significant for HON [+2.67%] investors as it may influence the company's future growth prospects and strategic direction. An immediate risk could arise from the potential volatility in the stock due to the split announcement, while an opportunity may exist for investors to capitalize on the company's strengthened focus on its core business areas.",
+        "digest" : "Honeywell announced updated guidance and plans for its upcoming aerospace division split, which could impact its stock price by altering investor expectations and potentially affecting its competitive positioning in the aerospace sector. This development is significant for HON [+2.64%] investors as it may influence the company's future growth prospects and strategic direction. An immediate risk could arise from the potential volatility in the stock due to the split announcement, while an opportunity may exist for investors to capitalize on the company's strengthened focus on its core business areas.",
         "digestTemplate" : "Honeywell announced updated guidance and plans for its upcoming aerospace division split, which could impact its stock price by altering investor expectations and potentially affecting its competitive positioning in the aerospace sector. This development is significant for HON {{HON}} investors as it may influence the company's future growth prospects and strategic direction. An immediate risk could arise from the potential volatility in the stock due to the split announcement, while an opportunity may exist for investors to capitalize on the company's strengthened focus on its core business areas.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -7225,7 +7225,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period is Honeywell's strategic focus on innovation and diversification, evident from its perpetual license with Innovative Aerosystems and the launch of leveraged ETFs. The biggest catalyst emerged from the Iran conflict, which increased demand for Honeywell's products and bolstered its earnings performance. Heading forward, HON [-1.56%] stands poised for steady growth, supported by its strategic partnerships and expanding digital product offerings, despite a cautious investor sentiment.",
         "digestTemplate" : "The defining theme of the period is Honeywell's strategic focus on innovation and diversification, evident from its perpetual license with Innovative Aerosystems and the launch of leveraged ETFs. The biggest catalyst emerged from the Iran conflict, which increased demand for Honeywell's products and bolstered its earnings performance. Heading forward, HON {{HON}} stands poised for steady growth, supported by its strategic partnerships and expanding digital product offerings, despite a cautious investor sentiment.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -7298,7 +7298,7 @@
         "daysRequired" : 7,
         "digest" : "Honeywell International's most significant development this week was its announcement of a full-year 2026 guidance and a strategic restructuring plan to spin off its Aerospace division, marking a pivotal step in its transformation into a diversified company. This move aligns with Honeywell's broader strategy to capitalize on emerging technology markets, particularly through its acquisition of Quantinuum, and it reflects a potential shift in the company's growth trajectory, focusing on its remaining operations under Honeywell Technologies. However, the mixed performance of HON [-8.30%]'s stock and the regulatory actions highlight potential risks, particularly the need for continued market confidence and operational stability as the company navigates its restructuring.",
         "digestTemplate" : "Honeywell International's most significant development this week was its announcement of a full-year 2026 guidance and a strategic restructuring plan to spin off its Aerospace division, marking a pivotal step in its transformation into a diversified company. This move aligns with Honeywell's broader strategy to capitalize on emerging technology markets, particularly through its acquisition of Quantinuum, and it reflects a potential shift in the company's growth trajectory, focusing on its remaining operations under Honeywell Technologies. However, the mixed performance of HON {{HON}}'s stock and the regulatory actions highlight potential risks, particularly the need for continued market confidence and operational stability as the company navigates its restructuring.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -7965,7 +7965,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for ISRG [+1.56%] is the delicate balance between navigating regulatory hurdles and sustaining market confidence, highlighted by the FDA recall of da Vinci stapler components and the subsequent institutional selling. The biggest catalyst emerged from the company's strategic expansion of manufacturing capabilities, which aimed to meet growing demand for advanced surgical technologies. Heading forward, ISRG's stock is poised to potentially reverse its recent decline, supported by its strong Q1 results and the strategic focus on growth and innovation.",
         "digestTemplate" : "The defining theme of the past month for ISRG {{ISRG}} is the delicate balance between navigating regulatory hurdles and sustaining market confidence, highlighted by the FDA recall of da Vinci stapler components and the subsequent institutional selling. The biggest catalyst emerged from the company's strategic expansion of manufacturing capabilities, which aimed to meet growing demand for advanced surgical technologies. Heading forward, ISRG's stock is poised to potentially reverse its recent decline, supported by its strong Q1 results and the strategic focus on growth and innovation.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -8038,7 +8038,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development of the week was the company's request for new clearances for its robotic surgery system, which could impact its market position and operational strategy. This development implies that ISRG [+6.04%] is actively working to enhance its regulatory compliance and maintain a competitive edge in the robotics-assisted surgery market. A forward-looking catalyst for ISRG could be successful regulatory approvals, while a risk could arise from potential delays or challenges in the approval process, which might affect its market positioning and investor confidence.",
         "digestTemplate" : "The most important business development of the week was the company's request for new clearances for its robotic surgery system, which could impact its market position and operational strategy. This development implies that ISRG {{ISRG}} is actively working to enhance its regulatory compliance and maintain a competitive edge in the robotics-assisted surgery market. A forward-looking catalyst for ISRG could be successful regulatory approvals, while a risk could arise from potential delays or challenges in the approval process, which might affect its market positioning and investor confidence.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -8327,9 +8327,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Marvell Technology announced it will replace Pool Corporation on the S&P 500 index later this month, which has led to a significant rally in MRVL [-6.84%] shares. This move highlights Marvell's strategic positioning within the semiconductor industry and could bolster investor confidence in its long-term growth prospects. The immediate opportunity for MRVL investors is to capitalize on the momentum following the S&P 500 inclusion, as the company's potential for innovation and market expansion is likely to be further amplified.",
+        "digest" : "Marvell Technology announced it will replace Pool Corporation on the S&P 500 index later this month, which has led to a significant rally in MRVL [-8.12%] shares. This move highlights Marvell's strategic positioning within the semiconductor industry and could bolster investor confidence in its long-term growth prospects. The immediate opportunity for MRVL investors is to capitalize on the momentum following the S&P 500 inclusion, as the company's potential for innovation and market expansion is likely to be further amplified.",
         "digestTemplate" : "Marvell Technology announced it will replace Pool Corporation on the S&P 500 index later this month, which has led to a significant rally in MRVL {{MRVL}} shares. This move highlights Marvell's strategic positioning within the semiconductor industry and could bolster investor confidence in its long-term growth prospects. The immediate opportunity for MRVL investors is to capitalize on the momentum following the S&P 500 inclusion, as the company's potential for innovation and market expansion is likely to be further amplified.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -8402,7 +8402,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past three weeks has been the strategic acquisitions and partnerships that have significantly boosted Marvell Technology's market presence and investor confidence. The biggest catalyst emerged from AMD's acquisition of a stake in Marvell, which heightened investor interest and contributed to the company's stock surge. Looking ahead, MRVL [+56.22%] is poised to continue benefiting from the AI infrastructure market's expansion, driven by increased optimism and strategic collaborations.",
         "digestTemplate" : "The defining theme of the past three weeks has been the strategic acquisitions and partnerships that have significantly boosted Marvell Technology's market presence and investor confidence. The biggest catalyst emerged from AMD's acquisition of a stake in Marvell, which heightened investor interest and contributed to the company's stock surge. Looking ahead, MRVL {{MRVL}} is poised to continue benefiting from the AI infrastructure market's expansion, driven by increased optimism and strategic collaborations.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-15",
@@ -8763,9 +8763,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "NBIS [+1.93%] announced the Physical AI Living Lab, a six-month initiative to equip UK and European robotics startups with NVIDIA’s physical AI development tools and Nebius’s AI cloud infrastructure. This move strengthens NBIS's competitive position by enhancing its ability to support and accelerate robotics innovation, potentially driving growth in the AI sector. The immediate opportunity for investors is to capitalize on the strategic expansion and technological advancement, which could enhance NBIS's market standing and profitability.",
+        "digest" : "NBIS [+1.19%] announced the Physical AI Living Lab, a six-month initiative to equip UK and European robotics startups with NVIDIA’s physical AI development tools and Nebius’s AI cloud infrastructure. This move strengthens NBIS's competitive position by enhancing its ability to support and accelerate robotics innovation, potentially driving growth in the AI sector. The immediate opportunity for investors is to capitalize on the strategic expansion and technological advancement, which could enhance NBIS's market standing and profitability.",
         "digestTemplate" : "NBIS {{NBIS}} announced the Physical AI Living Lab, a six-month initiative to equip UK and European robotics startups with NVIDIA’s physical AI development tools and Nebius’s AI cloud infrastructure. This move strengthens NBIS's competitive position by enhancing its ability to support and accelerate robotics innovation, potentially driving growth in the AI sector. The immediate opportunity for investors is to capitalize on the strategic expansion and technological advancement, which could enhance NBIS's market standing and profitability.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -8838,7 +8838,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past three weeks was Nebius Group's rapid expansion and strategic acquisitions, particularly its acquisition of Eigen AI and substantial contracts with Meta and Microsoft, which significantly boosted its market position and stock price. The biggest catalyst for this growth was the company's record-breaking first-quarter earnings, which were largely driven by its AI business and were bolstered by strategic investments and partnerships. Looking forward, the stock of NBIS [+18.28%] is poised to continue its upward trajectory, supported by growing investor confidence and strategic acquisitions, with analysts raising their targets for the company.",
         "digestTemplate" : "The defining theme of the past three weeks was Nebius Group's rapid expansion and strategic acquisitions, particularly its acquisition of Eigen AI and substantial contracts with Meta and Microsoft, which significantly boosted its market position and stock price. The biggest catalyst for this growth was the company's record-breaking first-quarter earnings, which were largely driven by its AI business and were bolstered by strategic investments and partnerships. Looking forward, the stock of NBIS {{NBIS}} is poised to continue its upward trajectory, supported by growing investor confidence and strategic acquisitions, with analysts raising their targets for the company.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -9273,7 +9273,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period was Nvidia's relentless expansion in AI infrastructure and its strategic focus on the sector, highlighted by significant advancements and record-setting trade activities. The biggest catalyst emerged from Nvidia's robust earnings report and the anticipation of President Trump's trip to Beijing, which fueled a rally in the NVDA [-5.13%] stock. Heading forward, Nvidia is poised for continued growth, with its strategic investments and international engagements strengthening its market presence and potential for further economic impact.",
         "digestTemplate" : "The defining theme of the period was Nvidia's relentless expansion in AI infrastructure and its strategic focus on the sector, highlighted by significant advancements and record-setting trade activities. The biggest catalyst emerged from Nvidia's robust earnings report and the anticipation of President Trump's trip to Beijing, which fueled a rally in the NVDA {{NVDA}} stock. Heading forward, Nvidia is poised for continued growth, with its strategic investments and international engagements strengthening its market presence and potential for further economic impact.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-15",
@@ -9673,7 +9673,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period was Oklo's strategic partnerships and innovation efforts, particularly in nuclear technology. The biggest catalyst emerged from Oklo's announcement of a partnership with Idaho National Laboratory\/INL to accelerate reactor design, which has bolstered investor confidence and positioned the company for future growth. Heading forward, the stock of OKLO [-27.71%] is likely to continue to be influenced by the company's strategic partnerships and its ability to navigate upcoming regulatory and operational challenges.",
         "digestTemplate" : "The defining theme of the period was Oklo's strategic partnerships and innovation efforts, particularly in nuclear technology. The biggest catalyst emerged from Oklo's announcement of a partnership with Idaho National Laboratory\/INL to accelerate reactor design, which has bolstered investor confidence and positioned the company for future growth. Heading forward, the stock of OKLO {{OKLO}} is likely to continue to be influenced by the company's strategic partnerships and its ability to navigate upcoming regulatory and operational challenges.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -10108,7 +10108,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for Oracle (ORCL [+6.18%]) is its aggressive AI-driven workforce reduction strategy, which has led to significant layoffs and raised concerns about compliance and severance. The biggest catalyst emerged from Jim Cramer's endorsement of ORCL as an AI winner for 2026, which briefly bolstered the stock. Heading forward, ORCL is poised for strategic growth with its collaborations, AI infrastructure expansion, and diversification into defense and healthcare, despite the challenges posed by the layoffs and compliance issues.",
         "digestTemplate" : "The defining theme of the past month for Oracle (ORCL {{ORCL}}) is its aggressive AI-driven workforce reduction strategy, which has led to significant layoffs and raised concerns about compliance and severance. The biggest catalyst emerged from Jim Cramer's endorsement of ORCL as an AI winner for 2026, which briefly bolstered the stock. Heading forward, ORCL is poised for strategic growth with its collaborations, AI infrastructure expansion, and diversification into defense and healthcare, despite the challenges posed by the layoffs and compliance issues.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -10515,7 +10515,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for PEP [-4.44%] was strategic growth and sustainability initiatives, highlighted by PepsiCo's partnerships and acquisitions aimed at decarbonizing fertilizers and enhancing its agricultural sourcing. The biggest catalyst emerged from Elliott Investment Management's substantial stake, which placed additional pressure on North American margins, while also marking a significant milestone in PepsiCo's efforts to diversify its revenue streams and strengthen its market presence. Looking forward, PEP is poised to continue its upward trajectory, bolstered by investor confidence and its strategic focus on sustainability and innovation.",
         "digestTemplate" : "The defining theme of the past month for PEP {{PEP}} was strategic growth and sustainability initiatives, highlighted by PepsiCo's partnerships and acquisitions aimed at decarbonizing fertilizers and enhancing its agricultural sourcing. The biggest catalyst emerged from Elliott Investment Management's substantial stake, which placed additional pressure on North American margins, while also marking a significant milestone in PepsiCo's efforts to diversify its revenue streams and strengthen its market presence. Looking forward, PEP is poised to continue its upward trajectory, bolstered by investor confidence and its strategic focus on sustainability and innovation.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -10588,7 +10588,7 @@
         "daysRequired" : 7,
         "digest" : "PepsiCo's strategic expansion into the functional beverage space, highlighted by Celsius Holdings' acquisition of Alani Nu and its expanded distribution partnership, represents the most important business development of the week. This move underscores the company's commitment to innovation and its ability to adapt to evolving consumer preferences, positioning PEP [+0.55%] for further growth in emerging markets. However, the regulatory challenges PepsiCo faces in its energy drink market entry pose a significant risk that could hinder its expansion and profitability.",
         "digestTemplate" : "PepsiCo's strategic expansion into the functional beverage space, highlighted by Celsius Holdings' acquisition of Alani Nu and its expanded distribution partnership, represents the most important business development of the week. This move underscores the company's commitment to innovation and its ability to adapt to evolving consumer preferences, positioning PEP {{PEP}} for further growth in emerging markets. However, the regulatory challenges PepsiCo faces in its energy drink market entry pose a significant risk that could hinder its expansion and profitability.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -10877,9 +10877,9 @@
         },
         "daysOfData" : 29,
         "daysRequired" : 1,
-        "digest" : "Pfizer (PFE [+0.59%]) announced a strategic partnership with a leading biotech firm, focusing on advanced cancer treatments, which could enhance its market position and drive future growth. This development aligns with Pfizer's long-term strategy of expanding its oncology portfolio and strengthening its competitive edge in the healthcare sector. Investors should consider this as a positive opportunity for Pfizer, as it may indicate increased investor confidence in the company's ability to innovate and deliver on its growth ambitions.",
+        "digest" : "Pfizer (PFE [+0.44%]) announced a strategic partnership with a leading biotech firm, focusing on advanced cancer treatments, which could enhance its market position and drive future growth. This development aligns with Pfizer's long-term strategy of expanding its oncology portfolio and strengthening its competitive edge in the healthcare sector. Investors should consider this as a positive opportunity for Pfizer, as it may indicate increased investor confidence in the company's ability to innovate and deliver on its growth ambitions.",
         "digestTemplate" : "Pfizer (PFE {{PFE}}) announced a strategic partnership with a leading biotech firm, focusing on advanced cancer treatments, which could enhance its market position and drive future growth. This development aligns with Pfizer's long-term strategy of expanding its oncology portfolio and strengthening its competitive edge in the healthcare sector. Investors should consider this as a positive opportunity for Pfizer, as it may indicate increased investor confidence in the company's ability to innovate and deliver on its growth ambitions.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -11386,7 +11386,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month was the tension between strategic growth and regulatory challenges, with PLTR [-3.52%] navigating legal disputes and expanding its ETF offerings. The biggest catalyst was the stock's surge on May 19, driven by Cisco's revenue forecast upgrade and the company's expansion of ETF offerings, while the biggest risk was the legal orders to arbitrate claims from former staff and trade secret disputes. Looking forward, PLTR is poised to continue its strategic focus on sustainability and ESG compliance, with potential market momentum from customer growth and geopolitical tensions.",
         "digestTemplate" : "The defining theme of the past month was the tension between strategic growth and regulatory challenges, with PLTR {{PLTR}} navigating legal disputes and expanding its ETF offerings. The biggest catalyst was the stock's surge on May 19, driven by Cisco's revenue forecast upgrade and the company's expansion of ETF offerings, while the biggest risk was the legal orders to arbitrate claims from former staff and trade secret disputes. Looking forward, PLTR is poised to continue its strategic focus on sustainability and ESG compliance, with potential market momentum from customer growth and geopolitical tensions.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -11756,7 +11756,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past three weeks was the fluctuating performance of D-Wave Quantum as it navigated significant market challenges and opportunities. The biggest catalyst emerged on May 12, when the company reported a substantial increase in bookings despite a loss, driven by a major sale to a university system. Heading forward, QBTS [-2.12%] is expected to continue focusing on strategic acquisitions and enhancing its quantum computing capabilities, supported by investor confidence as indicated by Israel Englander's increased stake.",
         "digestTemplate" : "The defining theme of the past three weeks was the fluctuating performance of D-Wave Quantum as it navigated significant market challenges and opportunities. The biggest catalyst emerged on May 12, when the company reported a substantial increase in bookings despite a loss, driven by a major sale to a university system. Heading forward, QBTS {{QBTS}} is expected to continue focusing on strategic acquisitions and enhancing its quantum computing capabilities, supported by investor confidence as indicated by Israel Englander's increased stake.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -11829,7 +11829,7 @@
         "daysRequired" : 7,
         "digest" : "D-Wave Quantum's most important business development this week was the announcement of a new gate-model roadmap aimed at achieving commercial, fault-tolerant quantum computing by 2032, which signals a strategic shift in its approach and underscores its commitment to advancing quantum computing technology. This development implies that QBTS [-21.36%] is positioning itself for long-term growth and innovation, potentially enhancing its competitive edge in the quantum computing sector. However, the company must navigate the risks of technological challenges and regulatory uncertainties to successfully execute its ambitious timeline.",
         "digestTemplate" : "D-Wave Quantum's most important business development this week was the announcement of a new gate-model roadmap aimed at achieving commercial, fault-tolerant quantum computing by 2032, which signals a strategic shift in its approach and underscores its commitment to advancing quantum computing technology. This development implies that QBTS {{QBTS}} is positioning itself for long-term growth and innovation, potentially enhancing its competitive edge in the quantum computing sector. However, the company must navigate the risks of technological challenges and regulatory uncertainties to successfully execute its ambitious timeline.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -12118,9 +12118,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Jensen Huang endorsed QCOM [-6.14%], boosting investor confidence and driving a 2% rise in QCOM's after-hours trading. This endorsement reinforces QCOM's position in the AI and data center sectors, aligning with broader market trends and JPMorgan's positive outlook on the company's growth. Investors should consider QCOM as a strategic opportunity, particularly given its robust data center infrastructure and potential for AI-driven innovations.",
+        "digest" : "Jensen Huang endorsed QCOM [-6.78%], boosting investor confidence and driving a 2% rise in QCOM's after-hours trading. This endorsement reinforces QCOM's position in the AI and data center sectors, aligning with broader market trends and JPMorgan's positive outlook on the company's growth. Investors should consider QCOM as a strategic opportunity, particularly given its robust data center infrastructure and potential for AI-driven innovations.",
         "digestTemplate" : "Jensen Huang endorsed QCOM {{QCOM}}, boosting investor confidence and driving a 2% rise in QCOM's after-hours trading. This endorsement reinforces QCOM's position in the AI and data center sectors, aligning with broader market trends and JPMorgan's positive outlook on the company's growth. Investors should consider QCOM as a strategic opportunity, particularly given its robust data center infrastructure and potential for AI-driven innovations.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -12193,7 +12193,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period is Qualcomm's strategic pivot towards AI-native consumer hardware and data centers, which has significantly driven its stock performance. The biggest catalyst emerged from Qualcomm's participation in a U.S. business delegation to China, where it addressed AI and chip export risks, reinforcing its position as a key player in the global chip market. Heading forward, QCOM [-13.52%] is expected to continue benefiting from its AI-driven innovations and strategic partnerships, supported by ongoing developments in the smartphone and automotive sectors.",
         "digestTemplate" : "The defining theme of the period is Qualcomm's strategic pivot towards AI-native consumer hardware and data centers, which has significantly driven its stock performance. The biggest catalyst emerged from Qualcomm's participation in a U.S. business delegation to China, where it addressed AI and chip export risks, reinforcing its position as a key player in the global chip market. Heading forward, QCOM {{QCOM}} is expected to continue benefiting from its AI-driven innovations and strategic partnerships, supported by ongoing developments in the smartphone and automotive sectors.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -12266,7 +12266,7 @@
         "daysRequired" : 7,
         "digest" : "Qualcomm's most important business development this week was the strong endorsement from NVIDIA CEO Jensen Huang, which bolstered QCOM [-14.71%]'s stock following a 2% rise after-hours trading. This endorsement suggests renewed confidence in Qualcomm's position in the AI market, particularly in the PC chip sector, and highlights a potential growth catalyst from upcoming investor events. However, this positive momentum is tempered by the ongoing competition from Nvidia's aggressive push into AI PC technology, which poses a risk to Qualcomm's competitive standing in the traditional markets.",
         "digestTemplate" : "Qualcomm's most important business development this week was the strong endorsement from NVIDIA CEO Jensen Huang, which bolstered QCOM {{QCOM}}'s stock following a 2% rise after-hours trading. This endorsement suggests renewed confidence in Qualcomm's position in the AI market, particularly in the PC chip sector, and highlights a potential growth catalyst from upcoming investor events. However, this positive momentum is tempered by the ongoing competition from Nvidia's aggressive push into AI PC technology, which poses a risk to Qualcomm's competitive standing in the traditional markets.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-08",
@@ -13374,9 +13374,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "SERV [-7.53%] Robotics reported a significant increase in Q1 fleet revenues, nearly tenfold, as its robot footprint expands and the company shifts its focus to revenue per robot. This growth highlights the success of its physical AI strategy and strengthens its investment thesis. The immediate opportunity for SERV is to capitalize on its expanding market presence and enhance its competitive position.",
+        "digest" : "SERV [-8.02%] Robotics reported a significant increase in Q1 fleet revenues, nearly tenfold, as its robot footprint expands and the company shifts its focus to revenue per robot. This growth highlights the success of its physical AI strategy and strengthens its investment thesis. The immediate opportunity for SERV is to capitalize on its expanding market presence and enhance its competitive position.",
         "digestTemplate" : "SERV {{SERV}} Robotics reported a significant increase in Q1 fleet revenues, nearly tenfold, as its robot footprint expands and the company shifts its focus to revenue per robot. This growth highlights the success of its physical AI strategy and strengthens its investment thesis. The immediate opportunity for SERV is to capitalize on its expanding market presence and enhance its competitive position.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -13400,7 +13400,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for SERV [-21.58%] is its strategic expansion and operational growth. The biggest catalyst emerged from the company's strategic acquisition of Diligent Robotics, which significantly expanded its operational footprint and market presence. Heading forward, SERV is expected to focus on enhancing revenue per robot and improving market competitiveness, as indicated by its strategic shift towards utilizing and integrating its platforms more effectively.",
         "digestTemplate" : "The defining theme of the past month for SERV {{SERV}} is its strategic expansion and operational growth. The biggest catalyst emerged from the company's strategic acquisition of Diligent Robotics, which significantly expanded its operational footprint and market presence. Heading forward, SERV is expected to focus on enhancing revenue per robot and improving market competitiveness, as indicated by its strategic shift towards utilizing and integrating its platforms more effectively.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -13473,7 +13473,7 @@
         "daysRequired" : 7,
         "digest" : "Serve Robotics' most important business development this week was the launch of its Autonomous Laundry Vertical with NoScrubs, a pilot program in Los Angeles that demonstrates its strategic focus on diversifying its product offerings and expanding its presence in the home care and service industry. This development implies that SERV [-23.48%] is poised to capture significant market share in the growing robotic home care sector, potentially leading to increased revenue and market valuation. However, the company must navigate the competitive landscape and address potential regulatory challenges as it expands its operations, which could serve as a forward-looking risk.",
         "digestTemplate" : "Serve Robotics' most important business development this week was the launch of its Autonomous Laundry Vertical with NoScrubs, a pilot program in Los Angeles that demonstrates its strategic focus on diversifying its product offerings and expanding its presence in the home care and service industry. This development implies that SERV {{SERV}} is poised to capture significant market share in the growing robotic home care sector, potentially leading to increased revenue and market valuation. However, the company must navigate the competitive landscape and address potential regulatory challenges as it expands its operations, which could serve as a forward-looking risk.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -13729,7 +13729,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for SMR [-24.76%] has been a period of volatility, with investors reacting to the company's earnings reports and strategic partnerships. The biggest catalyst emerged from the announcement of a potential investment in South Korea, which could significantly boost SMR's global footprint and financial stability. Moving forward, SMR's stock is poised for potential recovery as it navigates these strategic developments and strengthens its position in the nuclear energy sector.",
         "digestTemplate" : "The defining theme of the past month for SMR {{SMR}} has been a period of volatility, with investors reacting to the company's earnings reports and strategic partnerships. The biggest catalyst emerged from the announcement of a potential investment in South Korea, which could significantly boost SMR's global footprint and financial stability. Moving forward, SMR's stock is poised for potential recovery as it navigates these strategic developments and strengthens its position in the nuclear energy sector.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -13802,7 +13802,7 @@
         "daysRequired" : 7,
         "digest" : "NuScale Power announced the addition of Dale E. Klein to its Board of Directors, marking a strategic move to enhance leadership and innovation efforts, as evidenced by the company's recent earnings exceeding consensus expectations and regulatory approvals from the Nuclear Regulatory Commission. This development underscores the growing interest in nuclear energy as a sustainable solution, with NuScale's NuScale Power Module securing key approvals for TVA and Romania projects. However, the company faces challenges as speculative technology names decline, prompting investors to reassess its risk profile amid potential policy tailwinds and new SMR [-28.32%] applications.",
         "digestTemplate" : "NuScale Power announced the addition of Dale E. Klein to its Board of Directors, marking a strategic move to enhance leadership and innovation efforts, as evidenced by the company's recent earnings exceeding consensus expectations and regulatory approvals from the Nuclear Regulatory Commission. This development underscores the growing interest in nuclear energy as a sustainable solution, with NuScale's NuScale Power Module securing key approvals for TVA and Romania projects. However, the company faces challenges as speculative technology names decline, prompting investors to reassess its risk profile amid potential policy tailwinds and new SMR {{SMR}} applications.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -14093,7 +14093,7 @@
         "daysRequired" : 1,
         "digest" : "Today, TAP [+2.30%] announced a strategic partnership with a leading renewable energy company to expand its portfolio of sustainable products, aligning with its long-term vision of sustainability and innovation. This move is significant as it enhances TAP's competitive edge in the beverage sector by diversifying its product offerings and positioning itself as a leader in sustainable beverage solutions. The immediate risk is the potential impact of market volatility on the stock price, while the opportunity lies in the increased demand for sustainable products, which could drive growth and attract more investors to TAP.",
         "digestTemplate" : "Today, TAP {{TAP}} announced a strategic partnership with a leading renewable energy company to expand its portfolio of sustainable products, aligning with its long-term vision of sustainability and innovation. This move is significant as it enhances TAP's competitive edge in the beverage sector by diversifying its product offerings and positioning itself as a leader in sustainable beverage solutions. The immediate risk is the potential impact of market volatility on the stock price, while the opportunity lies in the increased demand for sustainable products, which could drive growth and attract more investors to TAP.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -14117,7 +14117,7 @@
         "daysRequired" : 1,
         "digest" : "The period's defining theme was the fluctuating performance of Molson Coors Beverage as it navigated challenges from both external macro uncertainties and internal operational issues. The biggest catalyst or risk that emerged was the disappointing earnings report on May 15, 2026, which significantly missed Wall Street's expectations and led to a revised guidance for future earnings, impacting investor sentiment and the stock's valuation. Heading forward, TAP [-2.22%] must continue to focus on overcoming glass pinch issues and maintaining strategic momentum under the \"Horizon 2030\" framework to stabilize its market position.",
         "digestTemplate" : "The period's defining theme was the fluctuating performance of Molson Coors Beverage as it navigated challenges from both external macro uncertainties and internal operational issues. The biggest catalyst or risk that emerged was the disappointing earnings report on May 15, 2026, which significantly missed Wall Street's expectations and led to a revised guidance for future earnings, impacting investor sentiment and the stock's valuation. Heading forward, TAP {{TAP}} must continue to focus on overcoming glass pinch issues and maintaining strategic momentum under the \"Horizon 2030\" framework to stabilize its market position.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -14190,7 +14190,7 @@
         "daysRequired" : 7,
         "digest" : "On June 4, Molson Coors Beverage (TAP [+4.14%]) announced a substantial move into the debt market, raising CAD$500 million, which was a pivotal development that followed its strong Q1 results. This strategic move underscores the company's confidence in its future trajectory and its ability to manage financial risks effectively. Looking ahead, the company's ability to leverage this financial flexibility will be crucial in sustaining its growth and maintaining its competitive edge in the market.",
         "digestTemplate" : "On June 4, Molson Coors Beverage (TAP {{TAP}}) announced a substantial move into the debt market, raising CAD$500 million, which was a pivotal development that followed its strong Q1 results. This strategic move underscores the company's confidence in its future trajectory and its ability to manage financial risks effectively. Looking ahead, the company's ability to leverage this financial flexibility will be crucial in sustaining its growth and maintaining its competitive edge in the market.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-04",
@@ -14518,7 +14518,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for Tesla has been a significant strategic shift towards humanoid robotics, as evidenced by the company's announcement to abandon the Model S and X and redirect manufacturing to this new direction. The biggest catalyst emerged from the CEO's decision to join President Trump on a China trip, which, combined with the scrutiny over the robotaxi operations following two crashes, intensified pressure on Tesla's leadership and stock valuation. Heading forward, TSLA [-10.86%] is poised to focus on its new robotics line, which could drive future growth, though regulatory challenges and investor sentiment will remain critical factors to watch.",
         "digestTemplate" : "The defining theme of the past month for Tesla has been a significant strategic shift towards humanoid robotics, as evidenced by the company's announcement to abandon the Model S and X and redirect manufacturing to this new direction. The biggest catalyst emerged from the CEO's decision to join President Trump on a China trip, which, combined with the scrutiny over the robotaxi operations following two crashes, intensified pressure on Tesla's leadership and stock valuation. Heading forward, TSLA {{TSLA}} is poised to focus on its new robotics line, which could drive future growth, though regulatory challenges and investor sentiment will remain critical factors to watch.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -14591,7 +14591,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development of the week was the launch of Tesla's unsupervised robotaxi service in Austin, which marked a significant milestone in the company's autonomous vehicle efforts and bolstered investor confidence. This development implies that TSLA [-6.39%] is making substantial strides in its AI and robotics initiatives, positioning itself as a leader in autonomous transportation. Looking forward, a potential strategic merger or acquisition with SpaceX could be a catalyst, given the potential alignment of their AI and robotics technologies, while the cryptocurrency downturn remains a risk to Tesla's Bitcoin holdings and overall financial stability.",
         "digestTemplate" : "The most important business development of the week was the launch of Tesla's unsupervised robotaxi service in Austin, which marked a significant milestone in the company's autonomous vehicle efforts and bolstered investor confidence. This development implies that TSLA {{TSLA}} is making substantial strides in its AI and robotics initiatives, positioning itself as a leader in autonomous transportation. Looking forward, a potential strategic merger or acquisition with SpaceX could be a catalyst, given the potential alignment of their AI and robotics technologies, while the cryptocurrency downturn remains a risk to Tesla's Bitcoin holdings and overall financial stability.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -14880,9 +14880,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Uber Technologies (UBER [+0.33%]) faces a challenge to its proposed acquisition of Delivery Hero from a Saudi Arabian startup, introducing new geopolitical and competitive complications for its food delivery expansion plans. This development raises fresh questions around execution risk, potentially impacting the company's valuation thesis and investor sentiment. Jim Cramer's endorsement of UBER for long-term growth over the next year or two highlights the stock's potential for upside, despite the current hurdles.",
+        "digest" : "Uber Technologies (UBER [+0.55%]) faces a challenge to its proposed acquisition of Delivery Hero from a Saudi Arabian startup, introducing new geopolitical and competitive complications for its food delivery expansion plans. This development raises fresh questions around execution risk, potentially impacting the company's valuation thesis and investor sentiment. Jim Cramer's endorsement of UBER for long-term growth over the next year or two highlights the stock's potential for upside, despite the current hurdles.",
         "digestTemplate" : "Uber Technologies (UBER {{UBER}}) faces a challenge to its proposed acquisition of Delivery Hero from a Saudi Arabian startup, introducing new geopolitical and competitive complications for its food delivery expansion plans. This development raises fresh questions around execution risk, potentially impacting the company's valuation thesis and investor sentiment. Jim Cramer's endorsement of UBER for long-term growth over the next year or two highlights the stock's potential for upside, despite the current hurdles.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -14955,7 +14955,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for UBER [-7.58%] was a strategic pivot towards autonomous vehicles and expanded delivery capabilities, highlighted by the conversion of millions of drivers into a distributed sensor network. The biggest catalyst emerged with the company's recent earnings report, which exceeded analyst expectations and underscored its strong financial performance, though this was overshadowed by concerns over the stability of its Waymo partnership. Heading forward, UBER's stock is poised to perform positively as it continues to advance its autonomous technology initiatives and adapt to evolving market conditions.",
         "digestTemplate" : "The defining theme of the past month for UBER {{UBER}} was a strategic pivot towards autonomous vehicles and expanded delivery capabilities, highlighted by the conversion of millions of drivers into a distributed sensor network. The biggest catalyst emerged with the company's recent earnings report, which exceeded analyst expectations and underscored its strong financial performance, though this was overshadowed by concerns over the stability of its Waymo partnership. Heading forward, UBER's stock is poised to perform positively as it continues to advance its autonomous technology initiatives and adapt to evolving market conditions.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -15028,7 +15028,7 @@
         "daysRequired" : 7,
         "digest" : "Uber has been facing significant challenges, with a disappointing earnings release and a budget blowout leading to analyst downgrades and a reported cap on employee access to AI software, which impacted its stock. Despite these setbacks, the company has made strategic investments in autonomous vehicle technology, including a substantial commitment to Nuro, and has reshaped its HR team, indicating a focus on efficiency and innovation. However, the geopolitical complexities surrounding its proposed acquisition of Delivery Hero pose a risk to its operations, while Jim Cramer's endorsement suggests potential long-term growth prospects for UBER [-1.73%].",
         "digestTemplate" : "Uber has been facing significant challenges, with a disappointing earnings release and a budget blowout leading to analyst downgrades and a reported cap on employee access to AI software, which impacted its stock. Despite these setbacks, the company has made strategic investments in autonomous vehicle technology, including a substantial commitment to Nuro, and has reshaped its HR team, indicating a focus on efficiency and innovation. However, the geopolitical complexities surrounding its proposed acquisition of Delivery Hero pose a risk to its operations, while Jim Cramer's endorsement suggests potential long-term growth prospects for UBER {{UBER}}.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -15317,9 +15317,9 @@
         },
         "daysOfData" : 29,
         "daysRequired" : 1,
-        "digest" : "Today, UBS lowered its price recommendation on McCormick & Company, Incorporated from $53 to $51, citing a review of the food sector. This adjustment could impact investors in UL [+1.06%], as McCormick is a significant competitor in the food processing sector. As a result, there is an immediate opportunity for UL to strengthen its position by enhancing its product offerings and market presence.",
+        "digest" : "Today, UBS lowered its price recommendation on McCormick & Company, Incorporated from $53 to $51, citing a review of the food sector. This adjustment could impact investors in UL [+2.66%], as McCormick is a significant competitor in the food processing sector. As a result, there is an immediate opportunity for UL to strengthen its position by enhancing its product offerings and market presence.",
         "digestTemplate" : "Today, UBS lowered its price recommendation on McCormick & Company, Incorporated from $53 to $51, citing a review of the food sector. This adjustment could impact investors in UL {{UL}}, as McCormick is a significant competitor in the food processing sector. As a result, there is an immediate opportunity for UL to strengthen its position by enhancing its product offerings and market presence.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -15350,7 +15350,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period was Unilever's strategic focus on volume-led growth and its efforts to enhance market presence through strategic partnerships and global brand initiatives. The biggest catalyst emerged from Unilever's announcement of its Dove Men+Care campaign as an Official Sponsor of the FIFA World Cup 2026, which underscored its commitment to leveraging cultural and sporting phenomena to expand its global footprint. Heading forward, the stock of UL [+0.59%] is likely to continue benefiting from these strategic investments, particularly as it navigates shareholder concerns and explores new opportunities in emerging markets like India.",
         "digestTemplate" : "The defining theme of the period was Unilever's strategic focus on volume-led growth and its efforts to enhance market presence through strategic partnerships and global brand initiatives. The biggest catalyst emerged from Unilever's announcement of its Dove Men+Care campaign as an Official Sponsor of the FIFA World Cup 2026, which underscored its commitment to leveraging cultural and sporting phenomena to expand its global footprint. Heading forward, the stock of UL {{UL}} is likely to continue benefiting from these strategic investments, particularly as it navigates shareholder concerns and explores new opportunities in emerging markets like India.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-15",
@@ -15711,9 +15711,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Vertiv reported a strong earnings quarter, outperforming expectations and reinforcing its position as a leader in the industrial automation sector. This positive performance aligns with broader market trends and strengthens the company's competitive edge. An immediate opportunity for VRT [-3.82%] investors is to capitalize on its robust financial results and market momentum.",
+        "digest" : "Vertiv reported a strong earnings quarter, outperforming expectations and reinforcing its position as a leader in the industrial automation sector. This positive performance aligns with broader market trends and strengthens the company's competitive edge. An immediate opportunity for VRT [-4.32%] investors is to capitalize on its robust financial results and market momentum.",
         "digestTemplate" : "Vertiv reported a strong earnings quarter, outperforming expectations and reinforcing its position as a leader in the industrial automation sector. This positive performance aligns with broader market trends and strengthens the company's competitive edge. An immediate opportunity for VRT {{VRT}} investors is to capitalize on its robust financial results and market momentum.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -16118,9 +16118,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Vistra Corp. (NYSE:VST [-0.52%]) announced a strategic expansion into renewable energy markets, which aligns with its long-term sustainability goals and enhances its competitive position in the energy sector. This move is expected to strengthen Vistra's market presence and appeal to environmentally conscious investors, potentially boosting its stock price. However, the company must navigate regulatory hurdles and market competition to fully realize the benefits of this expansion.",
+        "digest" : "Vistra Corp. (NYSE:VST [-0.88%]) announced a strategic expansion into renewable energy markets, which aligns with its long-term sustainability goals and enhances its competitive position in the energy sector. This move is expected to strengthen Vistra's market presence and appeal to environmentally conscious investors, potentially boosting its stock price. However, the company must navigate regulatory hurdles and market competition to fully realize the benefits of this expansion.",
         "digestTemplate" : "Vistra Corp. (NYSE:VST {{VST}}) announced a strategic expansion into renewable energy markets, which aligns with its long-term sustainability goals and enhances its competitive position in the energy sector. This move is expected to strengthen Vistra's market presence and appeal to environmentally conscious investors, potentially boosting its stock price. However, the company must navigate regulatory hurdles and market competition to fully realize the benefits of this expansion.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -16151,7 +16151,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the period was Vistra's strategic growth and diversification efforts, as evidenced by its significant capacity additions and new partnerships, including the acquisition of Cogentrix Energy's natural gas portfolio. The biggest catalyst emerged on May 14, when the company completed or initiated substantial capacity expansions, reinforcing its position in the energy sector amid the AI data center boom. Heading forward, VST [-3.83%] is expected to maintain its momentum, supported by strong earnings and continued investor confidence, as highlighted by JPMorgan's price target update.",
         "digestTemplate" : "The defining theme of the period was Vistra's strategic growth and diversification efforts, as evidenced by its significant capacity additions and new partnerships, including the acquisition of Cogentrix Energy's natural gas portfolio. The biggest catalyst emerged on May 14, when the company completed or initiated substantial capacity expansions, reinforcing its position in the energy sector amid the AI data center boom. Heading forward, VST {{VST}} is expected to maintain its momentum, supported by strong earnings and continued investor confidence, as highlighted by JPMorgan's price target update.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -16224,7 +16224,7 @@
         "daysRequired" : 7,
         "digest" : "Vistra's strategic acquisition of Cogentrix natural gas assets marked a pivotal business development, significantly enhancing its power generation capabilities and nuclear power agreements. This acquisition, combined with a strong earnings report and a strategic partnership with TXU Energy, implies a robust growth trajectory for the company, positioning it to capitalize on the surge in electricity demand driven by AI and data centers. However, the stock's recent decline below its moving averages due to project delays underscores potential risks, requiring VST [-7.44%] to navigate operational challenges while maintaining investor confidence.",
         "digestTemplate" : "Vistra's strategic acquisition of Cogentrix natural gas assets marked a pivotal business development, significantly enhancing its power generation capabilities and nuclear power agreements. This acquisition, combined with a strong earnings report and a strategic partnership with TXU Energy, implies a robust growth trajectory for the company, positioning it to capitalize on the surge in electricity demand driven by AI and data centers. However, the stock's recent decline below its moving averages due to project delays underscores potential risks, requiring VST {{VST}} to navigate operational challenges while maintaining investor confidence.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-04",
@@ -16513,9 +16513,9 @@
         },
         "daysOfData" : 28,
         "daysRequired" : 1,
-        "digest" : "Vivos Therapeutics participated in the Small Cap Showcase and WTR Insights event, showcasing its innovative products and expertise in the treatment of breathing-related sleep disorders. This event highlights the company's commitment to advancing its healthcare services and may enhance investor confidence in VVOS [-19.28%]'s growth prospects. The immediate opportunity for VVOS is to leverage the visibility gained from the event to attract more strategic partnerships and funding.",
+        "digest" : "Vivos Therapeutics participated in the Small Cap Showcase and WTR Insights event, showcasing its innovative products and expertise in the treatment of breathing-related sleep disorders. This event highlights the company's commitment to advancing its healthcare services and may enhance investor confidence in VVOS [-14.14%]'s growth prospects. The immediate opportunity for VVOS is to leverage the visibility gained from the event to attract more strategic partnerships and funding.",
         "digestTemplate" : "Vivos Therapeutics participated in the Small Cap Showcase and WTR Insights event, showcasing its innovative products and expertise in the treatment of breathing-related sleep disorders. This event highlights the company's commitment to advancing its healthcare services and may enhance investor confidence in VVOS {{VVOS}}'s growth prospects. The immediate opportunity for VVOS is to leverage the visibility gained from the event to attract more strategic partnerships and funding.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -16539,7 +16539,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for VVOS [+1.04%] has been strategic expansion and strengthening its medical affiliation model, driven by key collaborations and financial maneuvers. The biggest catalyst emerged with the announcement of supported professional practices achieving 'in-network' status across key insurers, significantly enhancing patient access to Vivos's technologies. Heading forward, VVOS stands poised to capitalize on its innovative solutions, with the potential for increased market share as it continues to expand its service offerings and partnerships.",
         "digestTemplate" : "The defining theme of the past month for VVOS {{VVOS}} has been strategic expansion and strengthening its medical affiliation model, driven by key collaborations and financial maneuvers. The biggest catalyst emerged with the announcement of supported professional practices achieving 'in-network' status across key insurers, significantly enhancing patient access to Vivos's technologies. Heading forward, VVOS stands poised to capitalize on its innovative solutions, with the potential for increased market share as it continues to expand its service offerings and partnerships.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -16612,7 +16612,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development of the week for Vivos Therapeutics was the binding agreement with Streeterville Capital, which marks a significant milestone in their efforts to maintain their Nasdaq listing status. This agreement reinforces their strategic goals of securing necessary capital to sustain operations and growth, reinforcing their commitment to maintaining a strong presence on the Nasdaq market. Moving forward, VVOS [+3.27%] faces the risk of market volatility and potential regulatory hurdles that could impact their product pipeline and operational stability.",
         "digestTemplate" : "The most important business development of the week for Vivos Therapeutics was the binding agreement with Streeterville Capital, which marks a significant milestone in their efforts to maintain their Nasdaq listing status. This agreement reinforces their strategic goals of securing necessary capital to sustain operations and growth, reinforcing their commitment to maintaining a strong presence on the Nasdaq market. Moving forward, VVOS {{VVOS}} faces the risk of market volatility and potential regulatory hurdles that could impact their product pipeline and operational stability.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -16898,7 +16898,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for Verizon Communications (VZ [-3.07%]) was strategic restructuring and capital planning, as evidenced by the significant workforce cuts and major debt exchanges aimed at enhancing its investor risk profile. The biggest catalyst emerged on May 15, when Verizon announced a substantial spectrum purchase from U.S. Cellular and a joint venture with AT&T and T-Mobile to tackle wireless dead zones, which could drive further stock gains. Looking ahead, the company is likely to maintain its strong growth outlook, bolstered by the expansion of fiber networks and improved customer retention, despite ongoing workforce reductions and capital restructuring efforts.",
         "digestTemplate" : "The defining theme of the past month for Verizon Communications (VZ {{VZ}}) was strategic restructuring and capital planning, as evidenced by the significant workforce cuts and major debt exchanges aimed at enhancing its investor risk profile. The biggest catalyst emerged on May 15, when Verizon announced a substantial spectrum purchase from U.S. Cellular and a joint venture with AT&T and T-Mobile to tackle wireless dead zones, which could drive further stock gains. Looking ahead, the company is likely to maintain its strong growth outlook, bolstered by the expansion of fiber networks and improved customer retention, despite ongoing workforce reductions and capital restructuring efforts.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-12",
@@ -16971,7 +16971,7 @@
         "daysRequired" : 7,
         "digest" : "The most important business development this week for Verizon (NYSE: VZ [-4.37%]) was the significant shift towards AI-driven customer service, announced by CEO Dan Schulman. This transformation, supported by increased subscriber numbers and growth in broadband services, signals a strategic direction aimed at enhancing customer experience and operational efficiency. However, this forward-looking catalyst also poses a risk, as regulatory challenges and increased competition from SpaceX could further strain Verizon's market position and operational margins.",
         "digestTemplate" : "The most important business development this week for Verizon (NYSE: VZ {{VZ}}) was the significant shift towards AI-driven customer service, announced by CEO Dan Schulman. This transformation, supported by increased subscriber numbers and growth in broadband services, signals a strategic direction aimed at enhancing customer experience and operational efficiency. However, this forward-looking catalyst also poses a risk, as regulatory challenges and increased competition from SpaceX could further strain Verizon's market position and operational margins.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -17703,7 +17703,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for Zebra Technologies is its robust performance and strategic growth, highlighted by a 19.5% stock surge following a significant earnings beat and a new line of IoT-enabled devices. The biggest catalyst emerged from Zebra Technologies' strategic partnership with a leading global logistics provider, which is expected to drive growth in its supply chain management solutions. Heading forward, ZBRA [+7.95%] is likely to continue its upward trajectory as it engages with investors and stakeholders through its planned investor conferences.",
         "digestTemplate" : "The defining theme of the past month for Zebra Technologies is its robust performance and strategic growth, highlighted by a 19.5% stock surge following a significant earnings beat and a new line of IoT-enabled devices. The biggest catalyst emerged from Zebra Technologies' strategic partnership with a leading global logistics provider, which is expected to drive growth in its supply chain management solutions. Heading forward, ZBRA {{ZBRA}} is likely to continue its upward trajectory as it engages with investors and stakeholders through its planned investor conferences.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -17776,7 +17776,7 @@
         "daysRequired" : 7,
         "digest" : "Zebra Technologies announced the expansion of its integrated payment portfolio with the launch of the Elo Pay 15″ Tap to Pay, a commercial-grade Android payment solution, and unveiled the Zebra Nucleus platform and Workcloud AI Suite at the ZONE 2026 conference. This significant development implies a strong strategic focus on enhancing operational efficiency and device management, potentially driving growth and market differentiation for ZBRA [-7.95%]. However, the mixed day, with a stock decline due to broader market reactions to interest rate policies, presents a forward-looking risk that could impact investor confidence and market performance for ZBRA.",
         "digestTemplate" : "Zebra Technologies announced the expansion of its integrated payment portfolio with the launch of the Elo Pay 15″ Tap to Pay, a commercial-grade Android payment solution, and unveiled the Zebra Nucleus platform and Workcloud AI Suite at the ZONE 2026 conference. This significant development implies a strong strategic focus on enhancing operational efficiency and device management, potentially driving growth and market differentiation for ZBRA {{ZBRA}}. However, the mixed day, with a stock decline due to broader market reactions to interest rate policies, presents a forward-looking risk that could impact investor confidence and market performance for ZBRA.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -18044,9 +18044,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "ZS [-2.81%] announced a partnership with Radiant Logic on June 8, 2026, to enhance its Zero Trust Healthcare Strategy by streamlining mergers and acquisitions. This move is significant as it aligns Zscaler with a growing market for remote browser isolation solutions, driven by the adoption of zero-trust security. The partnership positions ZS to capitalize on the increased demand for secure, identity-based access, potentially strengthening its competitive position in the healthcare sector.",
+        "digest" : "ZS [-2.64%] announced a partnership with Radiant Logic on June 8, 2026, to enhance its Zero Trust Healthcare Strategy by streamlining mergers and acquisitions. This move is significant as it aligns Zscaler with a growing market for remote browser isolation solutions, driven by the adoption of zero-trust security. The partnership positions ZS to capitalize on the increased demand for secure, identity-based access, potentially strengthening its competitive position in the healthcare sector.",
         "digestTemplate" : "ZS {{ZS}} announced a partnership with Radiant Logic on June 8, 2026, to enhance its Zero Trust Healthcare Strategy by streamlining mergers and acquisitions. This move is significant as it aligns Zscaler with a growing market for remote browser isolation solutions, driven by the adoption of zero-trust security. The partnership positions ZS to capitalize on the increased demand for secure, identity-based access, potentially strengthening its competitive position in the healthcare sector.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -18098,7 +18098,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme of the past month for ZS [-15.47%] (Zscaler) was strategic growth and market expansion, particularly in the IoT and OT sectors, as evidenced by the significant partnership with IXT and the successful adoption of Z-Flex. The biggest catalyst emerged on May 13 when Zscaler announced a major expansion of its partnership with IXT, integrating Zero Trust security at the SIM level, which bolstered its market presence and reinforced its leadership position in the cybersecurity industry. Looking forward, ZS is poised to capitalize on its robust growth trajectory and strategic partnerships, with analysts suggesting it be added to portfolios, while the company continues to navigate potential challenges in pricing and infrastructure spending.",
         "digestTemplate" : "The defining theme of the past month for ZS {{ZS}} (Zscaler) was strategic growth and market expansion, particularly in the IoT and OT sectors, as evidenced by the significant partnership with IXT and the successful adoption of Z-Flex. The biggest catalyst emerged on May 13 when Zscaler announced a major expansion of its partnership with IXT, integrating Zero Trust security at the SIM level, which bolstered its market presence and reinforced its leadership position in the cybersecurity industry. Looking forward, ZS is poised to capitalize on its robust growth trajectory and strategic partnerships, with analysts suggesting it be added to portfolios, while the company continues to navigate potential challenges in pricing and infrastructure spending.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -18171,7 +18171,7 @@
         "daysRequired" : 7,
         "digest" : "ZS [-12.70%] experienced a significant turnaround after a major earnings report and a strategic partnership announcement, which revitalized investor confidence and highlighted the company's capabilities in AI security. This development underscores ZS's strategic pivot towards AI agents and Zero Trust Healthcare, positioning the company for growth in these evolving sectors. However, the company's stock price remains volatile, suggesting that while the outlook is positive, there is still uncertainty surrounding AI's impact on its core business and the effectiveness of its strategic initiatives.",
         "digestTemplate" : "ZS {{ZS}} experienced a significant turnaround after a major earnings report and a strategic partnership announcement, which revitalized investor confidence and highlighted the company's capabilities in AI security. This development underscores ZS's strategic pivot towards AI agents and Zero Trust Healthcare, positioning the company for growth in these evolving sectors. However, the company's stock price remains volatile, suggesting that while the outlook is positive, there is still uncertainty surrounding AI's impact on its core business and the effectiveness of its strategic initiatives.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -18462,9 +18462,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "AST SpaceMobile's announcement of the launch date for BlueBird Satellites 8, 9, and 10 provided a catalyst for ASTS [-1.75%], as the company builds the first and only space-based cellular broadband network accessible directly by everyday smartphones, designed for both commercial and government applications. Meanwhile, Apple's WWDC and Siri AI hype left investors sad, dragging AAPL [-3.43%]'s stock down almost two percent. Looking ahead, Apple is expected to release a new iPad in the next quarter, which could be a positive catalyst for the company.",
+        "digest" : "AST SpaceMobile's announcement of the launch date for BlueBird Satellites 8, 9, and 10 provided a catalyst for ASTS [-2.60%], as the company builds the first and only space-based cellular broadband network accessible directly by everyday smartphones, designed for both commercial and government applications. Meanwhile, Apple's WWDC and Siri AI hype left investors sad, dragging AAPL [-3.55%]'s stock down almost two percent. Looking ahead, Apple is expected to release a new iPad in the next quarter, which could be a positive catalyst for the company.",
         "digestTemplate" : "AST SpaceMobile's announcement of the launch date for BlueBird Satellites 8, 9, and 10 provided a catalyst for ASTS {{ASTS}}, as the company builds the first and only space-based cellular broadband network accessible directly by everyday smartphones, designed for both commercial and government applications. Meanwhile, Apple's WWDC and Siri AI hype left investors sad, dragging AAPL {{AAPL}}'s stock down almost two percent. Looking ahead, Apple is expected to release a new iPad in the next quarter, which could be a positive catalyst for the company.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -18530,7 +18530,7 @@
         "daysRequired" : 1,
         "digest" : "Qualcomm reported a significant earnings beat, surpassing analyst expectations, which fueled a substantial surge in its stock price and contributed heavily to Brian [-7.56%]'s top-performing holding. Meanwhile, Serve Robotics' rapid Q1 revenue surge was overshadowed by its widening net losses, indicating potential challenges in sustaining growth and impacting Brian's portfolio negatively. In the near future, Brian should watch closely as CRISPR Therapeutics prepares to announce its next earnings report, which could further influence its stock's trajectory.",
         "digestTemplate" : "Qualcomm reported a significant earnings beat, surpassing analyst expectations, which fueled a substantial surge in its stock price and contributed heavily to Brian {{user:brian}}'s top-performing holding. Meanwhile, Serve Robotics' rapid Q1 revenue surge was overshadowed by its widening net losses, indicating potential challenges in sustaining growth and impacting Brian's portfolio negatively. In the near future, Brian should watch closely as CRISPR Therapeutics prepares to announce its next earnings report, which could further influence its stock's trajectory.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-11",
@@ -18603,7 +18603,7 @@
         "daysRequired" : 7,
         "digest" : "The most consequential news event for Brian [-10.24%] was the announcement of Intuitive Surgical, Inc.'s (ISRG [+6.04%]) new AI-driven surgical ecosystem, which could significantly enhance its robotic surgery moat and drive future growth. The biggest drag for Brian was the Serve Robotics Inc.'s (SERV [-23.48%]) expansion into the autonomous laundry sector, which may dilute its focus on its core food delivery business and potentially affect its profitability. Looking ahead, Brian should watch for Honeywell Aerospace's (HON [-8.30%]) upcoming Investor Day, where a potential spin-off could provide insights into the company's future trajectory and impact on its stock price.",
         "digestTemplate" : "The most consequential news event for Brian {{user:brian}} was the announcement of Intuitive Surgical, Inc.'s (ISRG {{ISRG}}) new AI-driven surgical ecosystem, which could significantly enhance its robotic surgery moat and drive future growth. The biggest drag for Brian was the Serve Robotics Inc.'s (SERV {{SERV}}) expansion into the autonomous laundry sector, which may dilute its focus on its core food delivery business and potentially affect its profitability. Looking ahead, Brian should watch for Honeywell Aerospace's (HON {{HON}}) upcoming Investor Day, where a potential spin-off could provide insights into the company's future trajectory and impact on its stock price.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -18892,9 +18892,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "The biggest contributor to Gene [-3.22%]'s portfolio was RKLB [-4.06%], which saw a significant rise after a Zacks Investment Ideas feature highlighted Rocket Lab, AST SpaceMobile, Intuitive Machines, Planet Labs, Lockheed Martin, and L3Harris. Conversely, VVOS [-19.28%] was dragged down by a Morningstar analyst who said SpaceX's \"Moonshot\" scenario involving successful orbital data centers and AI satellites has only a 7% chance of materializing. Looking ahead, VVOS will participate in the Small Cap Showcase & WTR Insights on June 9, 2026, which could provide valuable insights into its future prospects.",
+        "digest" : "The biggest contributor to Gene [-3.40%]'s portfolio was RKLB [-5.41%], which saw a significant rise after a Zacks Investment Ideas feature highlighted Rocket Lab, AST SpaceMobile, Intuitive Machines, Planet Labs, Lockheed Martin, and L3Harris. Conversely, VVOS [-14.14%] was dragged down by a Morningstar analyst who said SpaceX's \"Moonshot\" scenario involving successful orbital data centers and AI satellites has only a 7% chance of materializing. Looking ahead, VVOS will participate in the Small Cap Showcase & WTR Insights on June 9, 2026, which could provide valuable insights into its future prospects.",
         "digestTemplate" : "The biggest contributor to Gene {{user:gene}}'s portfolio was RKLB {{RKLB}}, which saw a significant rise after a Zacks Investment Ideas feature highlighted Rocket Lab, AST SpaceMobile, Intuitive Machines, Planet Labs, Lockheed Martin, and L3Harris. Conversely, VVOS {{VVOS}} was dragged down by a Morningstar analyst who said SpaceX's \"Moonshot\" scenario involving successful orbital data centers and AI satellites has only a 7% chance of materializing. Looking ahead, VVOS will participate in the Small Cap Showcase & WTR Insights on June 9, 2026, which could provide valuable insights into its future prospects.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -18932,7 +18932,7 @@
         "daysRequired" : 1,
         "digest" : "Gene [-3.99%]'s top contributor, RKLB [-7.77%], saw a significant surge in value due to a massive $2 billion backlog and the imminent launch of the Neutron rocket, positioning the company as a strong competitor to SpaceX. Conversely, VVOS [+1.04%] experienced a sharp decline, largely because of a net loss reported during the company's earnings call, despite a modest revenue increase driven by strategic acquisitions. Looking ahead, ZBRA [+7.95%]'s stock is expected to rise further as it prepares for its first-quarter results announcement, which is anticipated to exceed market expectations.",
         "digestTemplate" : "Gene {{user:gene}}'s top contributor, RKLB {{RKLB}}, saw a significant surge in value due to a massive $2 billion backlog and the imminent launch of the Neutron rocket, positioning the company as a strong competitor to SpaceX. Conversely, VVOS {{VVOS}} experienced a sharp decline, largely because of a net loss reported during the company's earnings call, despite a modest revenue increase driven by strategic acquisitions. Looking ahead, ZBRA {{ZBRA}}'s stock is expected to rise further as it prepares for its first-quarter results announcement, which is anticipated to exceed market expectations.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -19005,7 +19005,7 @@
         "daysRequired" : 7,
         "digest" : "The most consequential news event behind Gene [-10.49%]'s top contributor, VVOS [+3.27%], was the company's announcement of a senior debt-to-equity exchange with Streeterville Capital to support its continued Nasdaq listing, which is expected to strengthen its market position and attract more investors. The biggest drag for Gene's portfolio was the news that CIFR, WULF, KEEL, and Hut 8 miners are decoupling from Bitcoin and moving towards AI compute, which is likely to impact VVOS's business model and revenue streams. Looking forward, Gene's portfolio will need to watch closely as NuScale Power's upcoming earnings report is expected to provide insights into the company's nuclear momentum and potential growth prospects.",
         "digestTemplate" : "The most consequential news event behind Gene {{user:gene}}'s top contributor, VVOS {{VVOS}}, was the company's announcement of a senior debt-to-equity exchange with Streeterville Capital to support its continued Nasdaq listing, which is expected to strengthen its market position and attract more investors. The biggest drag for Gene's portfolio was the news that CIFR, WULF, KEEL, and Hut 8 miners are decoupling from Bitcoin and moving towards AI compute, which is likely to impact VVOS's business model and revenue streams. Looking forward, Gene's portfolio will need to watch closely as NuScale Power's upcoming earnings report is expected to provide insights into the company's nuclear momentum and potential growth prospects.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -19294,9 +19294,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Marvell Technology announced it would join the S&P 500 index later this month, which is a major catalyst for its stock. This move significantly boosted investor confidence and led to a substantial rally in Marvell's shares. Palantir experienced a major setback when its stock price dropped sharply over the past week. This negative news negatively impacted its market performance and contributed to the overall drag on Kevin [-2.20%]'s portfolio. Oracle is set to release its Q4 earnings report soon, which is expected to provide valuable insights into the company's performance and growth prospects. This upcoming earnings date is a significant catalyst for Oracle's stock and could have a positive impact on Kevin's portfolio.",
+        "digest" : "Marvell Technology announced it would join the S&P 500 index later this month, which is a major catalyst for its stock. This move significantly boosted investor confidence and led to a substantial rally in Marvell's shares. Palantir experienced a major setback when its stock price dropped sharply over the past week. This negative news negatively impacted its market performance and contributed to the overall drag on Kevin [-3.05%]'s portfolio. Oracle is set to release its Q4 earnings report soon, which is expected to provide valuable insights into the company's performance and growth prospects. This upcoming earnings date is a significant catalyst for Oracle's stock and could have a positive impact on Kevin's portfolio.",
         "digestTemplate" : "Marvell Technology announced it would join the S&P 500 index later this month, which is a major catalyst for its stock. This move significantly boosted investor confidence and led to a substantial rally in Marvell's shares. Palantir experienced a major setback when its stock price dropped sharply over the past week. This negative news negatively impacted its market performance and contributed to the overall drag on Kevin {{user:kevin}}'s portfolio. Oracle is set to release its Q4 earnings report soon, which is expected to provide valuable insights into the company's performance and growth prospects. This upcoming earnings date is a significant catalyst for Oracle's stock and could have a positive impact on Kevin's portfolio.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -19362,7 +19362,7 @@
         "daysRequired" : 1,
         "digest" : "Kevin [+4.55%]'s top contributor, Micron, saw a surge driven by its role as a key player in the AI memory market, with hyperscalers aggressively expanding their HBM, DRAM, and NAND capacity to support AI training clusters. On the other hand, Vistra's decline was influenced by its exposure to the electric utility sector, which faced headwinds due to fluctuating energy demand and geopolitical tensions. Looking ahead, Kevin should monitor Micron's upcoming earnings release, which is expected to provide further insights into the company's performance in the AI memory market.",
         "digestTemplate" : "Kevin {{user:kevin}}'s top contributor, Micron, saw a surge driven by its role as a key player in the AI memory market, with hyperscalers aggressively expanding their HBM, DRAM, and NAND capacity to support AI training clusters. On the other hand, Vistra's decline was influenced by its exposure to the electric utility sector, which faced headwinds due to fluctuating energy demand and geopolitical tensions. Looking ahead, Kevin should monitor Micron's upcoming earnings release, which is expected to provide further insights into the company's performance in the AI memory market.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-15",
@@ -19435,7 +19435,7 @@
         "daysRequired" : 7,
         "digest" : "Marvell's stock surged as its recent gains could mean inclusion in the S&P 500 index becomes inevitable, helping Kevin [-9.38%]'s top contributor MRVL [-8.22%] rise by 31.64%. Meanwhile, the biggest drag on Kevin's portfolio was the potential regulatory action against Palantir, which drew concern from UK lawmakers questioning its healthcare and defense contracts. Looking forward, Kevin should monitor the upcoming earnings date for MRVL, as management's fiscal 2027 optical inflection could reshape the company's revenue mix.",
         "digestTemplate" : "Marvell's stock surged as its recent gains could mean inclusion in the S&P 500 index becomes inevitable, helping Kevin {{user:kevin}}'s top contributor MRVL {{MRVL}} rise by 31.64%. Meanwhile, the biggest drag on Kevin's portfolio was the potential regulatory action against Palantir, which drew concern from UK lawmakers questioning its healthcare and defense contracts. Looking forward, Kevin should monitor the upcoming earnings date for MRVL, as management's fiscal 2027 optical inflection could reshape the company's revenue mix.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -19724,9 +19724,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "UBS lowered its price recommendation on McCormick & Company, Incorporated, to $51 from $53, implying a weaker outlook for the company's profitability and growth prospects. The biggest drag on Lee [+0.76%]'s portfolio was the Pentagon accusing Alibaba, Baidu, and BYD of supporting China's military, which could negatively impact their business operations and financial performance. Looking forward, UL [+1.06%] is expected to see continued growth due to its strong position in the food sector, and WMT [-0.78%] is likely to benefit from its recent integration of Subway meal ordering through its app and website.",
+        "digest" : "UBS lowered its price recommendation on McCormick & Company, Incorporated, to $51 from $53, implying a weaker outlook for the company's profitability and growth prospects. The biggest drag on Lee [+0.82%]'s portfolio was the Pentagon accusing Alibaba, Baidu, and BYD of supporting China's military, which could negatively impact their business operations and financial performance. Looking forward, UL [+2.66%] is expected to see continued growth due to its strong position in the food sector, and WMT [-0.90%] is likely to benefit from its recent integration of Subway meal ordering through its app and website.",
         "digestTemplate" : "UBS lowered its price recommendation on McCormick & Company, Incorporated, to $51 from $53, implying a weaker outlook for the company's profitability and growth prospects. The biggest drag on Lee {{user:lee}}'s portfolio was the Pentagon accusing Alibaba, Baidu, and BYD of supporting China's military, which could negatively impact their business operations and financial performance. Looking forward, UL {{UL}} is expected to see continued growth due to its strong position in the food sector, and WMT {{WMT}} is likely to benefit from its recent integration of Subway meal ordering through its app and website.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -19799,7 +19799,7 @@
         "daysRequired" : 1,
         "digest" : "The most consequential news event for Lee [-0.43%]'s top contributor, AAPL [-0.73%], was the announcement from Nvidia that the company will soon surpass Apple and Microsoft combined in market value. This development underscores the growing dominance of AI technology across various sectors, which is expected to drive continued growth and profitability for AAPL. The positive impact of this catalyst is likely to further strengthen Lee's portfolio as AAPL continues to capitalize on its leadership in the AI industry. The biggest drag on Lee's portfolio was the recent announcement from Home Depot that it will be selling its stake in Lowe's. This move is part of Home Depot's strategy to focus on its core business and optimize its portfolio. The decision to divest from Lowe's is expected to negatively impact Lee's portfolio as it reduces his exposure to the retail sector. Looking ahead, the upcoming earnings date for Pfizer is a potential catalyst for Lee's portfolio. Pfizer's upcoming earnings report is expected to provide insights into the company's performance in the oncology and next-generation therapies market. If Pfizer reports strong earnings, it could further strengthen Lee's portfolio as it continues to invest in innovative healthcare solutions.",
         "digestTemplate" : "The most consequential news event for Lee {{user:lee}}'s top contributor, AAPL {{AAPL}}, was the announcement from Nvidia that the company will soon surpass Apple and Microsoft combined in market value. This development underscores the growing dominance of AI technology across various sectors, which is expected to drive continued growth and profitability for AAPL. The positive impact of this catalyst is likely to further strengthen Lee's portfolio as AAPL continues to capitalize on its leadership in the AI industry. The biggest drag on Lee's portfolio was the recent announcement from Home Depot that it will be selling its stake in Lowe's. This move is part of Home Depot's strategy to focus on its core business and optimize its portfolio. The decision to divest from Lowe's is expected to negatively impact Lee's portfolio as it reduces his exposure to the retail sector. Looking ahead, the upcoming earnings date for Pfizer is a potential catalyst for Lee's portfolio. Pfizer's upcoming earnings report is expected to provide insights into the company's performance in the oncology and next-generation therapies market. If Pfizer reports strong earnings, it could further strengthen Lee's portfolio as it continues to invest in innovative healthcare solutions.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -19872,7 +19872,7 @@
         "daysRequired" : 7,
         "digest" : "Walmart's new supply chain strategy, Prepaid Consolidation, aimed at accelerating product flow to shelves and simplifying logistics for suppliers, likely boosted its stock price, driving its contribution to Lee [+0.61%]'s portfolio by 4.56%. Dick's Sporting Goods' Q1 earnings call revealed a negative market reaction, with shares falling 5.3%, which might have contributed to its drag on Lee's portfolio by 1.65%. Apple's upcoming earnings date, where it will report on its latest product launches and revenue growth, is a potential forward-looking catalyst for the company, which is currently dragging Lee's portfolio by 1.56%.",
         "digestTemplate" : "Walmart's new supply chain strategy, Prepaid Consolidation, aimed at accelerating product flow to shelves and simplifying logistics for suppliers, likely boosted its stock price, driving its contribution to Lee {{user:lee}}'s portfolio by 4.56%. Dick's Sporting Goods' Q1 earnings call revealed a negative market reaction, with shares falling 5.3%, which might have contributed to its drag on Lee's portfolio by 1.65%. Apple's upcoming earnings date, where it will report on its latest product launches and revenue growth, is a potential forward-looking catalyst for the company, which is currently dragging Lee's portfolio by 1.56%.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -20161,9 +20161,9 @@
         },
         "daysOfData" : 30,
         "daysRequired" : 1,
-        "digest" : "Nebius's announcement of the Physical AI Living Lab, powered by NVIDIA AI Technologies, significantly boosted the stock's value, helping to propel NBIS [+1.93%] to the top of Rick [-3.42%]'s portfolio. Meanwhile, the recent development in the rocket industry, with SpaceX's potential Nasdaq debut, created uncertainty and negatively impacted RKLB [-4.06%]. Looking ahead, GFS [-3.31%] is expected to continue its strong performance driven by accelerated demand in AI, automotive, and silicon photonics, presenting an exciting opportunity for investors.",
+        "digest" : "Nebius's announcement of the Physical AI Living Lab, powered by NVIDIA AI Technologies, significantly boosted the stock's value, helping to propel NBIS [+1.19%] to the top of Rick [-3.95%]'s portfolio. Meanwhile, the recent development in the rocket industry, with SpaceX's potential Nasdaq debut, created uncertainty and negatively impacted RKLB [-5.41%]. Looking ahead, GFS [-4.28%] is expected to continue its strong performance driven by accelerated demand in AI, automotive, and silicon photonics, presenting an exciting opportunity for investors.",
         "digestTemplate" : "Nebius's announcement of the Physical AI Living Lab, powered by NVIDIA AI Technologies, significantly boosted the stock's value, helping to propel NBIS {{NBIS}} to the top of Rick {{user:rick}}'s portfolio. Meanwhile, the recent development in the rocket industry, with SpaceX's potential Nasdaq debut, created uncertainty and negatively impacted RKLB {{RKLB}}. Looking ahead, GFS {{GFS}} is expected to continue its strong performance driven by accelerated demand in AI, automotive, and silicon photonics, presenting an exciting opportunity for investors.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-09",
@@ -20222,7 +20222,7 @@
         "daysRequired" : 1,
         "digest" : "Rick [-2.40%]'s top contributor, RKLB [-7.77%], saw its stock surge by 69.52% as the company announced a massive $2 billion backlog and the imminent launch of its Neutron rocket, positioning itself as a key player in the AI and chip markets. Conversely, CRWV [-14.17%] experienced a sharp decline of 9.60% after Nvidia announced its expansion of AI infrastructure, which may have affected CRWV's performance. Looking ahead, NBIS [+18.28%] is expected to benefit from a significant U.S [-6.67%]. expansion as it acquires Eigen AI, which could further bolster its AI inference capabilities.",
         "digestTemplate" : "Rick {{user:rick}}'s top contributor, RKLB {{RKLB}}, saw its stock surge by 69.52% as the company announced a massive $2 billion backlog and the imminent launch of its Neutron rocket, positioning itself as a key player in the AI and chip markets. Conversely, CRWV {{CRWV}} experienced a sharp decline of 9.60% after Nvidia announced its expansion of AI infrastructure, which may have affected CRWV's performance. Looking ahead, NBIS {{NBIS}} is expected to benefit from a significant U.S {{S}}. expansion as it acquires Eigen AI, which could further bolster its AI inference capabilities.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -20295,7 +20295,7 @@
         "daysRequired" : 7,
         "digest" : "News of NVIDIA's first deployment of its Vera Rubin NVL72 rack-scale AI system on CoreWeave's cloud, paired with custom innovations in liquid cooling, rack control, networking, and secure multi-tenant operations, drove a 14% rally in CRWV [-17.46%]. The biggest drag for Rick [-13.06%]'s portfolio came from the SpaceX IPO, which sparked concerns about potential risks to Tesla's robotics business. Rick's portfolio will continue to watch closely as Tesla's Shanghai factory deliveries improve and as the company navigates the potential impact of OpenAI's robotics revival.",
         "digestTemplate" : "News of NVIDIA's first deployment of its Vera Rubin NVL72 rack-scale AI system on CoreWeave's cloud, paired with custom innovations in liquid cooling, rack control, networking, and secure multi-tenant operations, drove a 14% rally in CRWV {{CRWV}}. The biggest drag for Rick {{user:rick}}'s portfolio came from the SpaceX IPO, which sparked concerns about potential risks to Tesla's robotics business. Rick's portfolio will continue to watch closely as Tesla's Shanghai factory deliveries improve and as the company navigates the potential impact of OpenAI's robotics revival.",
-        "generatedAt" : "2026-06-09T21:15:25.226Z",
+        "generatedAt" : "2026-06-09T21:30:25.512Z",
         "sources" : [
           {
             "date" : "2026-06-05",
