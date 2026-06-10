@@ -615,7 +615,11 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
 [swift] scripts/digest.swift
    ├─ Apple Intelligence availability check (SystemLanguageModel.default.availability)
    │     unavailable → exit 0 silently; previous digests.json keeps serving
-   ├─ for each ticker (sequential, ~17s each):
+   ├─ engine selection (AIEngine.resolve): probe PCC, commit to it only if it
+   │     actually generates, else on-device for the whole run — see
+   │     "AI engine selection (PCC vs on-device)" below
+   ├─ for each ticker (fanned out via mapConcurrent, ≤DIGEST_AI_CONCURRENCY
+   │     in flight, AIGate-throttled; ~17s each serially pre-27):
    │     1. fetch RSS from finance.yahoo.com (per-ticker URL)
    │     2. Stage 1 keyword filter (pure Swift, instant)
    │            hard-reject: "arrested", "charity", "obituary", "sports", …
@@ -627,7 +631,8 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
    │     6. for each window (1D / 1W / 1M / 3M / 1Y / ALL):
    │            sample top-N by relevance, generate 3-sentence prose digest
    │            (fresh session per window; window-specific prompt framing)
-   ├─ for each player (brian / kevin / rick / lee / gene), for each window:
+   ├─ for each player (brian / kevin / rick / lee / gene; also fanned out via
+   │     mapConcurrent), for each window:
    │     7. read public/data/prices.json — compute the player's per-ticker
    │        movers via computeUserMovers (shares × price delta) ranked by
    │        $ contribution; pick the top 3 + bottom 3 drags as the
@@ -671,7 +676,7 @@ End-to-end runtime: ~12 minutes for 45 tickers from cold archive (scaled from ea
 |---|---|
 | (no args) | full pipeline, all 45 tickers, default `~/Repos/stock-game/public/digests.json` |
 | `HON AAPL ...` | restrict to listed tickers |
-| `--check` | probe Apple Intelligence availability and exit |
+| `--check` | probe on-device + Private Cloud Compute availability/usability, print the selected engine, and exit |
 | `--dry-run` | fetch + filter + score; write nothing |
 | `--verbose` | log per-article filter decisions |
 | `--fetch-only` | fetch + archive, skip digest generation |
@@ -679,6 +684,80 @@ End-to-end runtime: ~12 minutes for 45 tickers from cold archive (scaled from ea
 | `--output PATH` | override the JSON destination |
 
 `scripts/digest-update.sh` honors a `DIGEST_MODE` env var: `full` (default — RSS fetch + Stage-2 scoring + digests) or `digests-only` (skip the slow article-fetch path, regenerate from the existing archive in ~8 min). The scheduler UI sets this via the "Skip article fetch" checkbox.
+
+### AI engine selection (PCC vs on-device) — macOS 27
+
+`digest.swift` runs entirely on Apple Intelligence. macOS 27's FoundationModels
+exposes two models, both reached over Apple's privacy-preserving path (neither
+is a third-party cloud, so the "Apple Intelligence is the only engine"
+invariant holds):
+
+- **On-device** (`SystemLanguageModel.default`) — the pre-27 model, ~4k-token
+  context. This is the reason the pipeline summarizes hierarchically (facts →
+  daily → weekly → monthly) and caps per-window article counts.
+- **Private Cloud Compute** (`PrivateCloudComputeLanguageModel`, new in 27) —
+  larger context window + deeper reasoning. Preferred when usable.
+
+`AIEngine.resolve()` (called once at startup, before any fan-out) picks the
+engine. Selection is **usability-probed, not availability-only**: PCC can
+report `.available` yet fail every generation when the host process lacks the
+PCC entitlement — a bare `swift digest.swift` CLI run hits
+`ModelManagerError 1046`. So `resolve()` sends one real probe request and only
+commits to PCC if it actually generates; otherwise it uses on-device for the
+whole run (logged once, no per-call retries). All AI calls funnel through
+`aiRespond(_:reasoning:)`, which applies a `ContextOptions.reasoningLevel`
+(`.moderate` for classification/extraction, `.deep` for synthesis) when on PCC,
+and falls back to a one-shot on-device request if a committed-PCC call throws
+mid-run (e.g. quota exhausts).
+
+**Generation options + structured output.** `aiRespond` passes a
+`GenerationOptions` per tier (via `generationOptions(for:)`): temperature **0.0**
+for `.standard` (classification/extraction — deterministic, so the same article
+scores identically every run) and **0.4** for `.deep` (prose synthesis — natural
+phrasing without drifting into the fabricated figures the facts-first prompts
+guard against). Temperature is engine-independent (applies on both on-device and
+PCC). The Stage-2 relevance scorer (`scoreArticleAI`) no longer brace-matches
+free-text JSON: it calls `aiRespondStructured` with a `GenerationSchema` (built
+once as `RELEVANCE_SCHEMA` from `DynamicGenerationSchema`) and reads typed
+`score` / `reason` via `GeneratedContent.value(_:forProperty:)`. The runtime
+`DynamicGenerationSchema` API is used deliberately — the `@Generable` *macro*
+does **not** work under the interpreted `swift digest.swift` (its
+`FoundationModelsMacros` compiler plugin ships only with Xcode, which the Mac
+mini doesn't have). `aiRespondStructured` mirrors `aiRespond` (same `AIGate`
+slot, engine selection, and PCC→on-device fallback) and forces
+`ContextOptions.includeSchemaInPrompt = true` so the small on-device model still
+sees the field layout. If schema construction or the structured call fails, the
+scorer falls back to the original prompt-for-JSON + `parseScoreJSON` path, so it
+can never regress.
+
+`DIGEST_ENGINE` env var overrides the choice: `auto` (default) probes PCC;
+`on-device` forces the legacy path and skips the probe; `pcc` trusts PCC and
+skips the probe (use once the pipeline runs from a signed, entitled context).
+
+**Current reality:** from the Mac mini's `swift digest.swift` CLI invocation,
+PCC generation is entitlement-gated and fails the probe, so the pipeline keeps
+using the on-device model — byte-for-byte the same path as before 27. The PCC
+path lights up automatically the moment the pipeline runs from a context where
+PCC generation is permitted (a signed `.app` bundle carrying the entitlement,
+or `DIGEST_ENGINE=pcc`). The `aiEngine` field stored in `digests.json` stays
+`"AppleIntelligence"` regardless (PCC *is* Apple Intelligence); the actual
+engine chosen per run is logged to `/tmp/stock-game.log`.
+
+**In-process AI concurrency (macOS 27).** On iOS/macOS 26 the model serialized
+concurrent `respond()` calls, so the digest pipeline processed tickers strictly
+one at a time. macOS 27 runs concurrent `respond()` calls genuinely in parallel
+(measured ~2.7x for 4-way on-device on the 8 GB M1 mini). So the three
+per-item phases — tickers, portfolios, funds — now fan out via `mapConcurrent`
+instead of serial `for` loops (phases still run in order; tickers cache the
+daily summaries that portfolios/game read, and output order is preserved). A
+single global `actor AIGate` throttles **all** AI calls (every `aiRespond` first
+acquires a slot), so total in-flight inference stays bounded no matter how the
+outer fan-out nests with each item's per-window `withTaskGroup`. The cap is
+`DIGEST_AI_CONCURRENCY` (default **4**); set it to `1` to restore the old
+strictly-serial behavior. The PCC→on-device fallback reuses the one held slot,
+and summary-chain sub-calls each acquire/release in turn, so the fan-out cannot
+deadlock. When PCC eventually engages, the same gate bounds PCC requests too,
+keeping the run under PCC's quota.
 
 The price refresh pipeline (`cron-update.sh`) and the digest pipeline (`digest-update.sh`) are allowed to run **concurrently**. They stage different files (`public/data/prices.json` vs `public/digests.json`), so they never conflict in the working tree. **Only `cron-update.sh` pushes to `origin/main`** — `digest-update.sh` just commits locally and lets the next 15-min refresh push it along with whatever fresh prices were captured. This eliminates the push race entirely (one publisher, no contention). Trade-off: a manual `Run Briefing Now` on a day when the refresh isn't firing (paused / weekend with weekdays-only on) leaves the digest commit unpushed until the next refresh; `git push` from the repo dir resolves it. The Python scheduler reflects the concurrency with two independent locks (`refresh_lock` + `digest_lock`); a long digest run never blocks the 15-min stock refresh.
 

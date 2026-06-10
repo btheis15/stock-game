@@ -8,15 +8,19 @@
 // for each ticker. Output is written to a single digests.json the web app
 // reads directly.
 //
-// Apple Intelligence is the only AI engine — no Claude / cloud fallback.
-// If `LanguageModelSession.isAvailable` is false, the run is skipped and
-// the previous digests.json keeps serving.
+// Apple Intelligence is the only AI engine — no third-party cloud. On macOS 27
+// it prefers Apple's Private Cloud Compute model (larger context window +
+// deeper reasoning, reached over the same privacy-preserving path) and falls
+// back per-call to the on-device model; set DIGEST_ENGINE=on-device to force
+// the legacy on-device-only path. If on-device Apple Intelligence is
+// unavailable the run is skipped and the previous digests.json keeps serving.
 //
 // Usage:
 //   swift digest.swift                    # all tickers, default config
 //   swift digest.swift HON                # specific tickers only
 //   swift digest.swift HON AAPL --verbose
-//   swift digest.swift --check            # availability probe and exit
+//   swift digest.swift --check            # availability probe (on-device + PCC) and exit
+//   DIGEST_ENGINE=on-device swift digest.swift   # force on-device, skip PCC
 //   swift digest.swift --dry-run HON      # fetch + filter, write nothing
 //   swift digest.swift --output PATH      # override digests.json destination
 //   swift digest.swift --fetch-only       # fetch + archive, skip digest gen
@@ -786,14 +790,283 @@ func keywordFilter(_ a: Article, ticker: String) -> (passed: Bool, alwaysAccept:
     return (true, false)
 }
 
+// MARK: - AI engine selection (Apple Intelligence: PCC + on-device)
+//
+// iOS/macOS 26 only exposed the on-device model (~4k-token context), which is
+// the whole reason this pipeline summarizes hierarchically (facts → daily →
+// weekly → monthly) to keep every prompt small. macOS 27's FoundationModels
+// adds `PrivateCloudComputeLanguageModel` — Apple's own Private Cloud Compute
+// model, with a much larger context window and stronger reasoning, reached
+// over the same privacy-preserving Apple Intelligence path. It is NOT a
+// third-party cloud, so preferring it keeps the "Apple Intelligence is the
+// only engine" invariant intact.
+//
+// We prefer PCC when the device is enrolled and PCC reports available, and
+// transparently fall back to the on-device model on a per-call basis if a PCC
+// request throws (quota exhausted, transient network). Worst case the run
+// degrades to exactly the pre-27 on-device behavior. Override with the
+// DIGEST_ENGINE env var: `on-device` forces the legacy path; `auto` (default)
+// prefers PCC.
+
+enum DigestReasoning {
+    case standard      // classification / extraction — keep it cheap + fast
+    case deep          // multi-summary synthesis, leaderboard reasoning
+}
+
+final class AIEngine: @unchecked Sendable {
+    enum Kind: String { case privateCloudCompute = "Private Cloud Compute", onDevice = "on-device" }
+    let kind: Kind
+    private let pcc: PrivateCloudComputeLanguageModel?
+
+    private init(kind: Kind, pcc: PrivateCloudComputeLanguageModel?) {
+        self.kind = kind
+        self.pcc = pcc
+    }
+
+    static let onDevice = AIEngine(kind: .onDevice, pcc: nil)
+
+    // PCC can report `.available` yet fail EVERY generation when the host
+    // process lacks the PCC entitlement — a bare `swift digest.swift` CLI run
+    // hits `ModelManagerError 1046` even with quota to spare. So engine
+    // selection is NOT just an availability check: we send one real probe
+    // request and only commit to PCC if it actually generates; otherwise we
+    // use the on-device model for the whole run (no per-call PCC retries, no
+    // log flooding). Resolved once at startup, before any fan-out.
+    // DIGEST_ENGINE overrides: `on-device` skips PCC entirely; `pcc` trusts
+    // PCC and skips the probe (use once the pipeline runs from a signed,
+    // entitled context where PCC generation is permitted).
+    static func resolve() async -> AIEngine {
+        let env = (ProcessInfo.processInfo.environment["DIGEST_ENGINE"] ?? "auto").lowercased()
+        if env == "on-device" || env == "ondevice" { return .onDevice }
+
+        let pcc = PrivateCloudComputeLanguageModel()
+        guard case .available = pcc.availability else { return .onDevice }
+        let candidate = AIEngine(kind: .privateCloudCompute, pcc: pcc)
+        if env == "pcc" || env == "force-pcc" { return candidate }
+
+        do {
+            _ = try await candidate.newSession().respond(
+                to: "Reply with the single word: ok",
+                contextOptions: candidate.contextOptions(for: .standard)
+            )
+            return candidate
+        } catch {
+            logErr("PCC reported available but its probe request failed (\(error.localizedDescription)) — using the on-device model for this run. Set DIGEST_ENGINE=pcc to skip this probe once PCC generation is entitled.")
+            return .onDevice
+        }
+    }
+
+    // Fresh session per call site — the pipeline intentionally never reuses a
+    // session, so per-article / per-window prompts can't bleed context.
+    func newSession() -> LanguageModelSession {
+        if let pcc { return LanguageModelSession(model: pcc) }
+        return LanguageModelSession()       // SystemLanguageModel.default (on-device)
+    }
+
+    // reasoningLevel only applies to the PCC model; leaving it nil on-device
+    // preserves byte-identical pre-27 behavior on the fallback path.
+    func contextOptions(for reasoning: DigestReasoning) -> ContextOptions {
+        guard kind == .privateCloudCompute else { return ContextOptions() }
+        switch reasoning {
+        case .standard: return ContextOptions(reasoningLevel: .moderate)
+        case .deep:     return ContextOptions(reasoningLevel: .deep)
+        }
+    }
+}
+
+// Set once by main() before any fan-out (via AIEngine.resolve()); read-only
+// thereafter, so the concurrent per-window task groups can read it without
+// synchronization. Defaults to on-device so any code path that runs before
+// resolution still works.
+nonisolated(unsafe) var AI_ENGINE: AIEngine = .onDevice
+
+// Bounds the number of Apple Intelligence requests in flight at once.
+//
+// On iOS/macOS 26 the model SERIALIZED concurrent respond() calls — firing
+// several gave no overlap — so this pipeline processed tickers strictly one at
+// a time. macOS 27 runs concurrent respond() calls genuinely in parallel
+// (measured ~2.7x for 4-way on-device on this M1). So we now fan the
+// previously-serial ticker / portfolio / fund loops out (see mapConcurrent
+// below). This actor is the single global throttle: every AI call funnels
+// through it, so no matter how the outer loops nest with the per-window
+// withTaskGroups inside each item, total in-flight inference never exceeds the
+// limit — which keeps us from swamping the model queue / memory on constrained
+// hardware (the 8 GB M1 mini). Tune with DIGEST_AI_CONCURRENCY (default 4); 1
+// restores the old strictly-serial behavior.
+actor AIGate {
+    static let limit: Int = {
+        if let v = ProcessInfo.processInfo.environment["DIGEST_AI_CONCURRENCY"],
+           let n = Int(v), n >= 1 { return n }
+        return 4
+    }()
+    static let shared = AIGate()
+    private var available = AIGate.limit
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if available > 0 { available -= 1; return }
+        await withCheckedContinuation { waiters.append($0) }   // resumed = slot handed to us
+    }
+    func release() {
+        if waiters.isEmpty { available += 1 }
+        else { waiters.removeFirst().resume() }                 // hand the slot straight to a waiter
+    }
+}
+
+// Single entry point that replaces the old two-liner
+//   `let session = LanguageModelSession(); let r = try await session.respond(to: prompt)`
+// at every call site. Acquires a global concurrency slot (AIGate), applies the
+// reasoning level when on PCC, and if a PCC request throws mid-run (e.g. quota
+// exhausts after the startup probe passed) falls back to a one-shot on-device
+// request so the digest still ships. The slot is released on both paths — and
+// only ONE slot is held per logical call (the PCC→on-device fallback reuses it),
+// and never across the summary-chain sub-calls (those each acquire/release in
+// turn), so the fan-out can't deadlock.
+func aiRespond(_ prompt: String, reasoning: DigestReasoning = .deep) async throws -> String {
+    await AIGate.shared.acquire()
+    do {
+        let out = try await aiRespondUngated(prompt, reasoning: reasoning)
+        await AIGate.shared.release()
+        return out
+    } catch {
+        await AIGate.shared.release()
+        throw error
+    }
+}
+
+// Temperature is engine-independent (applies on both PCC and on-device).
+// Classification/extraction (.standard) runs at 0.0 so the same article scores
+// identically every run — determinism matters more than variety for a filter.
+// Prose synthesis (.deep) gets a mild temperature to read naturally without
+// drifting into the fabricated figures the facts-first prompts guard against.
+func generationOptions(for reasoning: DigestReasoning) -> GenerationOptions {
+    switch reasoning {
+    case .standard: return GenerationOptions(temperature: 0.0)
+    case .deep:     return GenerationOptions(temperature: 0.4)
+    }
+}
+
+func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning) async throws -> String {
+    let engine = AI_ENGINE
+    let options = generationOptions(for: reasoning)
+    do {
+        let response = try await engine.newSession().respond(
+            to: prompt,
+            options: options,
+            contextOptions: engine.contextOptions(for: reasoning)
+        )
+        return response.content
+    } catch {
+        guard engine.kind == .privateCloudCompute else { throw error }
+        logErr("PCC request failed mid-run (\(error.localizedDescription)) — falling back to on-device for this call")
+        let response = try await LanguageModelSession().respond(to: prompt, options: options)
+        return response.content
+    }
+}
+
+// Structured-output sibling of aiRespond. Same AIGate slot + engine selection +
+// temperature + PCC→on-device fallback, but constrains the model to a
+// GenerationSchema so callers get typed fields back instead of parsing
+// free-text JSON. Caller reads properties via `.value(_:forProperty:)`.
+func aiRespondStructured(_ prompt: String, schema: GenerationSchema, reasoning: DigestReasoning = .standard) async throws -> GeneratedContent {
+    await AIGate.shared.acquire()
+    do {
+        let out = try await aiRespondStructuredUngated(prompt, schema: schema, reasoning: reasoning)
+        await AIGate.shared.release()
+        return out
+    } catch {
+        await AIGate.shared.release()
+        throw error
+    }
+}
+
+func aiRespondStructuredUngated(_ prompt: String, schema: GenerationSchema, reasoning: DigestReasoning) async throws -> GeneratedContent {
+    let engine = AI_ENGINE
+    let options = generationOptions(for: reasoning)
+    // Force includeSchemaInPrompt=true (the field defaults to nil) so the small
+    // on-device model still sees the field layout; preserve the engine's
+    // reasoningLevel (nil on-device, set on PCC).
+    let base = engine.contextOptions(for: reasoning)
+    let ctx = ContextOptions(includeSchemaInPrompt: true, reasoningLevel: base.reasoningLevel)
+    do {
+        return try await engine.newSession().respond(
+            to: prompt,
+            schema: schema,
+            options: options,
+            contextOptions: ctx
+        ).content
+    } catch {
+        guard engine.kind == .privateCloudCompute else { throw error }
+        logErr("PCC structured request failed mid-run (\(error.localizedDescription)) — falling back to on-device for this call")
+        return try await LanguageModelSession().respond(to: prompt, schema: schema, options: options).content
+    }
+}
+
+// Runs `body` over `items` with at most `limit` tasks live at once, preserving
+// input order in the result. Used to fan out the per-ticker / per-portfolio /
+// per-fund phases that used to be serial for-loops. AIGate (above) is the real
+// inference throttle; bounding task creation here too just caps how many items'
+// working sets (article arrays, prompts) sit in memory simultaneously. Falls
+// back to a plain serial pass when limit==1 or there's nothing to overlap.
+func mapConcurrent<T: Sendable, R: Sendable>(
+    _ items: [T], limit: Int, _ body: @Sendable @escaping (T) async -> R
+) async -> [R] {
+    if limit <= 1 || items.count <= 1 {
+        var out: [R] = []
+        out.reserveCapacity(items.count)
+        for it in items { out.append(await body(it)) }
+        return out
+    }
+    var results = [R?](repeating: nil, count: items.count)
+    await withTaskGroup(of: (Int, R).self) { group in
+        var next = 0
+        let prime = min(limit, items.count)
+        while next < prime {
+            let i = next, it = items[i]
+            group.addTask { (i, await body(it)) }
+            next += 1
+        }
+        for await (i, r) in group {
+            results[i] = r
+            if next < items.count {
+                let j = next, it = items[j]
+                group.addTask { (j, await body(it)) }
+                next += 1
+            }
+        }
+    }
+    return results.map { $0! }
+}
+
 // MARK: - Stage 2 AI relevance scoring
 
 struct AIScore { let score: Int; let reason: String }
 
+// Schema for the relevance scorer's structured output. Built once at startup.
+// Constraining the model to {score, reason} means we read typed fields back via
+// `.value(_:forProperty:)` instead of brace-matching free-text JSON. `try?` so a
+// schema-build failure degrades to the parseScoreJSON text path below rather
+// than crashing the run.
+let RELEVANCE_SCHEMA: GenerationSchema? = {
+    let score = DynamicGenerationSchema.Property(
+        name: "score", description: "Investor relevance, an integer from 1 to 10",
+        schema: DynamicGenerationSchema(type: Int.self))
+    let reason = DynamicGenerationSchema.Property(
+        name: "reason", description: "One sentence explaining the score",
+        schema: DynamicGenerationSchema(type: String.self))
+    let root = DynamicGenerationSchema(
+        name: "ArticleRelevance",
+        description: "Relevance assessment for one financial news article",
+        properties: [score, reason])
+    return try? GenerationSchema(root: root, dependencies: [])
+}()
+
 func scoreArticleAI(_ article: Article, ticker: String) async -> AIScore? {
     let title = article.title
     let desc = String(article.description.prefix(DESC_TRUNCATE))
-    let prompt = """
+    // Shared criteria — used verbatim by the structured path; the text-fallback
+    // path appends the JSON-format instruction.
+    let criteria = """
     You are a financial news filter for an investor tracking \(ticker) stock.
 
     Score this article's investor relevance from 1 to 10.
@@ -801,16 +1074,30 @@ func scoreArticleAI(_ article: Article, ticker: String) async -> AIScore? {
     5-7: Industry trends, competitive developments, macro factors directly affecting this company.
     1-4: Individual employee misconduct, local store openings, charity, sponsorship, lifestyle content, tangentially related stories.
 
-    Reply with JSON only, no other text:
-    {"score": <integer 1-10>, "reason": "<one sentence explaining why>"}
-
     Article title: \(title)
     Article description: \(desc)
     """
+
+    // Preferred: schema-constrained structured output — no free-text JSON to parse.
+    if let schema = RELEVANCE_SCHEMA {
+        do {
+            let gc = try await aiRespondStructured(criteria, schema: schema, reasoning: .standard)
+            let score = try gc.value(Int.self, forProperty: "score")
+            if score >= 1 && score <= 10 {
+                let reason = (try? gc.value(String.self, forProperty: "reason")) ?? ""
+                return AIScore(score: score, reason: reason)
+            }
+            // Out-of-range → fall through and let the text path take a second pass.
+        } catch {
+            logErr("scoreArticleAI structured path failed for \(ticker) (\(error.localizedDescription)) — retrying via text+parse")
+        }
+    }
+
+    // Fallback: ask for JSON in the prompt and parse it (pre-structured behavior).
+    let textPrompt = criteria + "\n\nReply with JSON only, no other text:\n{\"score\": <integer 1-10>, \"reason\": \"<one sentence explaining why>\"}"
     do {
-        let session = LanguageModelSession()    // fresh session per article
-        let response = try await session.respond(to: prompt)
-        return parseScoreJSON(response.content)
+        let content = try await aiRespond(textPrompt, reasoning: .standard)
+        return parseScoreJSON(content)
     } catch {
         logErr("scoreArticleAI threw for \(ticker): \(error.localizedDescription)")
         return nil
@@ -1192,9 +1479,7 @@ func extractFactsForDay(_ ticker: String, date: String, articles: [Article]) asy
     let name = TICKER_NAMES[ticker] ?? ticker
     let prompt = buildFactsExtractionPrompt(ticker: ticker, name: name, date: date, articles: articles)
     do {
-        let session = LanguageModelSession()
-        let response = try await session.respond(to: prompt)
-        let raw = response.content
+        let raw = try await aiRespond(prompt)
         let parsed = parseFactsResponse(raw, articles: articles)
         let recent = loadRecentFacts(ticker, before: date, days: 7)
         let deduped = dedupFactsAgainstRecent(parsed, recent: recent)
@@ -1606,9 +1891,7 @@ func buildMonthlySummaryPrompt(ticker: String, name: String, yearMonth: String, 
 }
 
 func runAISummary(prompt: String) async throws -> String? {
-    let session = LanguageModelSession()
-    let response = try await session.respond(to: prompt)
-    let text = cleanDigestProse(response.content)
+    let text = cleanDigestProse(try await aiRespond(prompt))
     return text.isEmpty ? nil : text
 }
 
@@ -2018,9 +2301,7 @@ func generateDigestText(ticker: String, window: WindowKey, articles: [Article], 
     guard !articles.isEmpty else { return nil }
     let prompt = buildDigestPrompt(ticker: ticker, window: window, articles: articles, gameAge: gameAge)
     do {
-        let session = LanguageModelSession()
-        let response = try await session.respond(to: prompt)
-        let text = cleanDigestProse(response.content)
+        let text = cleanDigestProse(try await aiRespond(prompt))
         return text.isEmpty ? nil : text
     } catch {
         logErr("generateDigestText error \(ticker) \(window.rawValue): \(error.localizedDescription)")
@@ -2537,9 +2818,7 @@ func generatePortfolioDigestText(
 ) async -> String? {
     let prompt = buildPortfolioPrompt(player: player, window: window, articles: articles, movers: movers, gameAge: gameAge)
     do {
-        let session = LanguageModelSession()        // fresh session per (user, window)
-        let response = try await session.respond(to: prompt)
-        let text = cleanDigestProse(response.content)
+        let text = cleanDigestProse(try await aiRespond(prompt))
         if !text.isEmpty {
             // QA: portfolio digests should reference only player.tickers.
             // Anything else is a hallucination worth logging. We don't
@@ -2850,9 +3129,7 @@ func processFund(
                 let prompt = buildFundDigestPrompt(fund: fund, window: w, movers: movers, gameAge: gameAge)
                 var digestText: String? = nil
                 do {
-                    let session = LanguageModelSession()
-                    let response = try await session.respond(to: prompt)
-                    digestText = cleanDigestProse(response.content)
+                    digestText = cleanDigestProse(try await aiRespond(prompt))
                 } catch {
                     logErr("processFund error \(fund.id) \(w.rawValue): \(error.localizedDescription)")
                 }
@@ -3565,9 +3842,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                 let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
                 var digestText: String? = nil
                 do {
-                    let session = LanguageModelSession()
-                    let response = try await session.respond(to: prompt)
-                    digestText = cleanDigestProse(response.content)
+                    digestText = cleanDigestProse(try await aiRespond(prompt))
                 } catch {
                     logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
                 }
@@ -4107,11 +4382,30 @@ func runMain() async {
         let model = SystemLanguageModel.default
         switch model.availability {
         case .available:
-            print("✅ Apple Intelligence available (on-device and/or PCC)")
+            print("✅ Apple Intelligence on-device model available")
         case .unavailable(let reason):
             print("❌ Apple Intelligence unavailable: \(reason)")
             print("   Enable in System Settings → Apple Intelligence & Siri.")
             exit(1)
+        }
+        let pccAvailable: Bool
+        switch PrivateCloudComputeLanguageModel().availability {
+        case .available:
+            print("✅ Private Cloud Compute reports available (larger context + deeper reasoning)")
+            pccAvailable = true
+        case .unavailable(let reason):
+            print("⚠️  Private Cloud Compute unavailable: \(reason) — will use the on-device model")
+            pccAvailable = false
+        }
+        // resolve() sends a real probe request — availability != usability, since
+        // an unentitled CLI process can report available yet fail every call.
+        let engine = await AIEngine.resolve()
+        print("→ Selected engine: \(engine.kind.rawValue) (override with DIGEST_ENGINE=on-device|pcc)")
+        let engineEnv = (ProcessInfo.processInfo.environment["DIGEST_ENGINE"] ?? "auto").lowercased()
+        if engineEnv == "on-device" || engineEnv == "ondevice" {
+            print("   (on-device forced via DIGEST_ENGINE=on-device; PCC probe skipped.)")
+        } else if pccAvailable && engine.kind == .onDevice {
+            print("   (PCC reported available but its generation probe failed — likely entitlement-gated; using on-device.)")
         }
         return
     }
@@ -4138,9 +4432,14 @@ func runMain() async {
         exit(0)        // soft skip
     }
 
+    // Pick the engine once, before any per-ticker / per-window fan-out. This
+    // sends one real PCC probe request (see AIEngine.resolve) and commits to
+    // PCC only if it generates, else uses on-device for the whole run.
+    AI_ENGINE = await AIEngine.resolve()
+
     let tickers = args.tickers.isEmpty ? DEFAULT_TICKERS : args.tickers
     log("Stock News Digest — \(tickers.count) ticker(s), scope=\(args.scope.rawValue)")
-    log("Engine: Apple Intelligence on-device/PCC")
+    log("Engine: Apple Intelligence — \(AI_ENGINE.kind.rawValue)")
     if args.dryRun { log("DRY RUN — nothing will be written") }
 
     // Scope dictates which windows each entity regenerates. The other windows
@@ -4202,17 +4501,23 @@ func runMain() async {
         }
     }
 
-    // Top level (across tickers / portfolios / game) stays sequential — the
-    // bottleneck is Apple Intelligence, and the on-device + PCC serializers
-    // give us no meaningful overlap when we try to interleave tickers. WITHIN
-    // a ticker / portfolio / game-window-group we fan out via withTaskGroup
-    // so the per-window prompts at least pipeline through the model queue
-    // back-to-back without per-call setup/teardown gaps.
+    // Each phase (tickers / portfolios / funds) fans its items out with
+    // mapConcurrent; phases still run in order (tickers cache the daily
+    // summaries that portfolios/game read). macOS 27 runs concurrent
+    // respond() calls in parallel, so this is a real speedup over the old
+    // serial for-loops — AIGate caps total in-flight inference (default 4) so
+    // the cross-item fan-out plus each item's per-window withTaskGroup can't
+    // overload the model queue / memory. DIGEST_AI_CONCURRENCY=1 restores the
+    // old strictly-serial behavior. Order is preserved so output diffs stay
+    // stable.
     var outcomes: [TickerOutcome] = []
     if !holdingsWindows.isEmpty {
-        for t in tickers {
-            let o = await processTicker(t, args: argsForWindows, windows: holdingsWindows, priceData: priceData)
-            outcomes.append(o)
+        // Immutable copies for the @Sendable fan-out closure (both are settled
+        // vars by now; capturing them as `var` is a Swift 6 concurrency error).
+        let tickerArgs = argsForWindows
+        let tickerPrices = priceData
+        outcomes = await mapConcurrent(tickers, limit: AIGate.limit) { t in
+            await processTicker(t, args: tickerArgs, windows: holdingsWindows, priceData: tickerPrices)
         }
     } else {
         log("Skipping per-ticker digests for scope=\(args.scope.rawValue).")
@@ -4230,9 +4535,8 @@ func runMain() async {
     var portfolios: [PortfolioOutcome] = []
     if !portfolioWindows.isEmpty, runAllTickers, let pd = priceData {
         let gameAge = gameAgeInDays()
-        for player in PLAYERS {
-            let p = await processPortfolio(player, data: pd, gameAge: gameAge, windows: portfolioWindows)
-            portfolios.append(p)
+        portfolios = await mapConcurrent(PLAYERS, limit: AIGate.limit) { player in
+            await processPortfolio(player, data: pd, gameAge: gameAge, windows: portfolioWindows)
         }
     } else if portfolioWindows.isEmpty {
         log("Skipping portfolio rollups for scope=\(args.scope.rawValue).")
@@ -4262,9 +4566,8 @@ func runMain() async {
     if !portfolioWindows.isEmpty, runAllTickers, let pd = priceData, !ACTIVE_FUNDS.isEmpty {
         let gameAge = gameAgeInDays()
         log("Phase 4: generating digests for \(ACTIVE_FUNDS.count) active fund(s).")
-        for fund in ACTIVE_FUNDS {
-            let f = await processFund(fund, data: pd, gameAge: gameAge, windows: FUND_WINDOWS_DAILY)
-            fundOutcomes.append(f)
+        fundOutcomes = await mapConcurrent(ACTIVE_FUNDS, limit: AIGate.limit) { fund in
+            await processFund(fund, data: pd, gameAge: gameAge, windows: FUND_WINDOWS_DAILY)
         }
     } else if ACTIVE_FUNDS.isEmpty {
         log("Skipping fund digests (no active funds in config/funds.json).")

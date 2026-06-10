@@ -921,6 +921,43 @@ The digest pipeline is the second of the two writers to `main` and produces
 owning a disjoint slice of `digests.json`. Whatever a scope doesn't touch is
 preserved on the next merge.
 
+> **AI engine (macOS 27 — PCC + on-device).** Every AI call now funnels
+> through one helper, `aiRespond(_:reasoning:)`, instead of inlining
+> `LanguageModelSession()`. At startup `AIEngine.resolve()` prefers Apple's
+> Private Cloud Compute model (bigger context + deeper reasoning) but commits
+> to it **only after a real probe request succeeds** — PCC can report
+> `.available` yet fail every generation when the process isn't entitled
+> (a bare `swift digest.swift` CLI run hits `ModelManagerError 1046`), so we
+> probe once and fall back to the on-device model for the whole run rather
+> than failing per-call. Override with `DIGEST_ENGINE=on-device|pcc|auto`.
+> **As of now, from the Mac mini's CLI invocation, PCC is entitlement-gated
+> and the pipeline keeps using on-device — same output as pre-27.** The PCC
+> path engages automatically once the pipeline runs from a signed/entitled
+> context. `aiEngine` in `digests.json` stays `"AppleIntelligence"` (PCC *is*
+> Apple Intelligence; the frontend keys its attribution off that exact
+> string), and the engine actually used is logged to `/tmp/stock-game.log`.
+> Full detail in STATE.md → "AI engine selection (PCC vs on-device)". If you
+> tune prompts, note Apple also *replaces* the on-device model on each OS
+> upgrade, so prompt behavior can shift even with no code change.
+>
+> **Generation options + structured output.** `aiRespond` sets temperature per
+> tier (`generationOptions(for:)`): **0.0** for `.standard` (deterministic
+> classification/extraction) and **0.4** for `.deep` (prose). The relevance
+> scorer (`scoreArticleAI`) uses `aiRespondStructured` + a `DynamicGenerationSchema`
+> (`RELEVANCE_SCHEMA`) for typed `{score, reason}` output instead of parsing
+> JSON, with the old `parseScoreJSON` path kept as a fallback. Use the runtime
+> `DynamicGenerationSchema` API, **not** the `@Generable` macro — the macro's
+> compiler plugin needs Xcode, which the Mac mini doesn't have, so it won't
+> build under interpreted `swift digest.swift`.
+>
+> **Concurrency (macOS 27).** iOS/macOS 26 serialized concurrent `respond()`
+> calls; 27 runs them in parallel (~2.7x for 4-way on-device on the M1 mini).
+> So the ticker / portfolio / fund phases now fan out via `mapConcurrent`
+> instead of serial loops, with a global `actor AIGate` capping total in-flight
+> inference (`DIGEST_AI_CONCURRENCY`, default 4; `1` = old serial behavior).
+> Phases still run in order and output order is preserved. Detail in
+> STATE.md → "In-process AI concurrency".
+
 **`--scope fast`** — runs from `cron-update.sh` step 6, after every 15-min
 price refresh. No RSS, no Apple Intelligence calls. Reads the existing
 `digests.json`, opens each game window in `TEMPLATED_GAME_WINDOWS` (1D / 1W
