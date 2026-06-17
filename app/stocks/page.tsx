@@ -1,7 +1,7 @@
 import { StocksListView } from "@/components/StocksListView";
 import { loadPriceData } from "@/lib/data";
 import { activeFundTickers } from "@/lib/funds";
-import { ALL_TICKERS } from "@/lib/picks";
+import { ALL_TICKERS, SPINOFF_CHILD_TICKERS } from "@/lib/picks";
 
 // Dynamic (not force-static) because the displayed list now includes
 // active-fund holdings, which can change via the funds API without a code
@@ -13,7 +13,11 @@ export default async function Page() {
   // Player picks first (in roster order), then any fund-only tickers that no
   // player owns (e.g. the Legacy Auto comparison fund's holdings). De-duped.
   const fundTickers = await activeFundTickers();
-  const tickers = [...new Set([...ALL_TICKERS, ...fundTickers])];
+  // Spin-off children (e.g. HONA) appear once they're trading; before their
+  // listing day they're absent from prices.json and filtered out below.
+  const tickers = [
+    ...new Set([...ALL_TICKERS, ...SPINOFF_CHILD_TICKERS, ...fundTickers]),
+  ];
   const series = tickers.map((t) => data.tickers[t]).filter((s) => s != null);
   return <StocksListView series={series} />;
 }

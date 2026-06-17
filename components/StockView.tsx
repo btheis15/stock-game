@@ -31,9 +31,14 @@ interface Props {
   intradayDate: string;
   generatedAt: string;
   fundamentals: TickerFundamentals | null;
+  // Per-owner share counts for spin-off children (e.g. HONA), where shares are
+  // derived from the parent position (parentShares × ratio) rather than a
+  // $100k/N pick. Omitted for normal tickers — PositionCard falls back to
+  // sharesFor. Keyed by UserId.
+  ownerShares?: Record<UserId, number>;
 }
 
-export function StockView({ series, intradayDate, generatedAt, fundamentals }: Props) {
+export function StockView({ series, intradayDate, generatedAt, fundamentals, ownerShares }: Props) {
   const [range, setRange] = useState<Range>("ALL");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const { loading: digestsLoading, getDigest } = useDigests();
@@ -129,6 +134,7 @@ export function StockView({ series, intradayDate, generatedAt, fundamentals }: P
               series={series}
               currentPrice={price}
               lastDate={lastDate}
+              sharesOverride={ownerShares?.[ownerId]}
             />
           ))}
         </div>
@@ -168,14 +174,16 @@ function PositionCard({
   series,
   currentPrice,
   lastDate,
+  sharesOverride,
 }: {
   ownerId: UserId;
   series: TickerSeries;
   currentPrice: number;
   lastDate: string;
+  sharesOverride?: number;
 }) {
   const owner = USERS[ownerId];
-  const shares = sharesFor(ownerId, series);
+  const shares = sharesOverride ?? sharesFor(ownerId, series);
   const divCash = dividendsReceived(series, shares, lastDate);
   const positionValue = shares * currentPrice + divCash;
   const costBasis = shares * series.startClose;

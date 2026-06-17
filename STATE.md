@@ -95,10 +95,10 @@ TickerSeries {
 
 Notes:
 - `startClose` is set on first fetch and **never overwritten** — incremental refetches preserve it. If you re-pick after Feb 5, you'd need `--full` and a code change.
-- `closes[i].close` is **unadjusted close** (not adjusted-close) — matches what Robinhood-style charts show.
+- `closes[i].close` is **unadjusted close** (not adjusted-close) — matches what Robinhood-style charts show. **Exception:** tickers in `REVERSE_SPLITS` (`lib/events.ts`) have every fetched close divided by `priceUnitDivisor` once the split is effective, to undo Yahoo's retroactive split re-scaling and keep the series in inception-day share units (so the frozen `startClose` and the fixed share count stay consistent). HON is normalized this way from its 2026-06-29 1-for-2 reverse split forward.
 - `intraday[].t` and `weekly[].t` are full ISO UTC (`2026-05-05T19:30:00.000Z`); `closes[].date` is `YYYY-MM-DD`. The chart distinguishes by `date.length > 10`.
 - `weekly` bars come at hour boundaries (`:30:00.000Z` for US-market alignment). Yahoo also returns a "live current-quote" bar with the actual second-of-now timestamp when fetched mid-hour — the render-time `isHourBoundaryBar` filter in `lib/portfolio.ts` drops these so all 1W plot points are at consistent hourly intervals.
-- Spin-offs go in `lib/events.ts` (currently empty list). When populated, a child ticker is fetched as if it had a START_DATE of its `effectiveDate`.
+- Spin-offs + reverse splits go in `lib/events.ts`. A spin-off child is fetched as if it had a START_DATE of its `effectiveDate` (no backtracked history — value is purely additive from listing day forward). Children are surfaced as first-class holdings/stocks via `SPINOFF_CHILD_TICKERS` + the derived-ownership augmentation in `TICKER_OWNERS`, **without** being added to any user's `tickers` array (that would change `perHoldingDollars` = $100k/N and dilute the user's other picks). Currently populated: **HON → HONA** (Honeywell Aerospace, ratio 0.5, effective 2026-06-29) plus the bundled **HON 1-for-2 reverse split** (`REVERSE_SPLITS`, same date).
 
 ### `public/digests.json`
 
@@ -870,7 +870,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 
 ## 13. v-next backlog (reasonable next steps)
 
-- Real corporate-action handling for HON spin-off when announced (template in `lib/events.ts`).
+- ~~Real corporate-action handling for HON spin-off when announced~~ **DONE** — HON → HONA spin-off + the bundled HON 1-for-2 reverse split are live in `lib/events.ts` (effective 2026-06-29). Optional follow-ups: add HONA to `scripts/digest.swift`'s roster so it gets per-stock AI briefings, and to `fetch-fundamentals` coverage (it's currently keyed off `ALL_TICKERS`, which excludes spin-off children).
 - Per-stock 1D chart (currently uses single-ticker intraday but with the same axis; could add a "5D" / "1M" intraday).
 - Better DST detection (use a real library or a lookup of US DST transition dates).
 - Per-user dividend totals on the portfolio drill-down ("Dividends received: $X").
@@ -918,7 +918,7 @@ lib/                           Pure logic, no React
   changelog.ts                 Hand-curated, plain-language "What's new" entries (the source
                                of truth for WhatsNew.tsx). Add an entry per MAJOR user-facing
                                feature; `recentEntries()` filters to RECENT_WINDOW_DAYS (30).
-  events.ts                    Spin-off events (currently empty).
+  events.ts                    Corporate actions: SPINOFFS (HON→HONA) + REVERSE_SPLITS (HON 1-for-2) + priceUnitDivisor.
   types.ts                     All TS interfaces.
   portfolio.ts                 (337 LOC) All math + formatters.
   portfolio-composition.ts     Server-side aggregator: holdings + fundamentals →

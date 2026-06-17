@@ -739,11 +739,72 @@ export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
 
 const HOLDING_RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
 
+// Shares of a spin-off child a user holds = parentShares × ratio. Derived
+// from the parent (NOT a fresh $100k/N pick), so it's purely additive and
+// doesn't dilute the user's other holdings.
+export function spinoffChildShares(
+  userId: UserId,
+  parent: TickerSeries,
+  sharesPerParentShare: number
+): number {
+  return sharesFor(userId, parent) * sharesPerParentShare;
+}
+
+// First-class holding rows for the spin-off children a user holds (e.g. HONA
+// for HON owners). They appear only once the child is trading (present in
+// prices.json with a startClose on its listing day) — no backtracked history,
+// value added on top from that day forward, exactly like receiving the
+// distribution in a real brokerage account. Cost basis = the received shares
+// valued at the child's first close, so the row tracks the child's own return.
+function spinoffHoldingRows(userId: UserId, data: PriceData): HoldingRow[] {
+  return SPINOFFS.flatMap((so) => {
+    if (!USERS[userId].tickers.includes(so.parentTicker)) return [];
+    const parent = data.tickers[so.parentTicker];
+    const child = data.tickers[so.childTicker];
+    if (!parent || !child || child.closes.length === 0) return [];
+
+    const last = child.closes[child.closes.length - 1];
+    const currentClose = last.close;
+    const shares = spinoffChildShares(userId, parent, so.sharesPerParentShare);
+    const divCash = dividendsReceived(child, shares, last.date);
+    const currentValue = shares * currentClose + divCash;
+    const costBasis = shares * child.startClose;
+    const pl = currentValue - costBasis;
+    const plPct = costBasis === 0 ? 0 : pl / costBasis;
+
+    const rangeStats = {} as HoldingRow["rangeStats"];
+    for (const r of HOLDING_RANGES) {
+      const { startClose, endClose } = rangeCloses(child, data, r);
+      const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
+      rangeStats[r] = {
+        pct,
+        dollars: shares * (endClose - startClose),
+        endClose,
+      };
+    }
+
+    return [
+      {
+        ticker: so.childTicker,
+        name: child.name,
+        shares,
+        startClose: child.startClose,
+        currentClose,
+        costBasis,
+        currentValue,
+        pl,
+        plPct,
+        rangeStats,
+      },
+    ];
+  });
+}
+
 export function buildHoldingRows(
   userId: UserId,
   data: PriceData
 ): HoldingRow[] {
-  return USERS[userId].tickers.flatMap((t) => {
+  const directRows = USERS[userId].tickers.flatMap((t) => {
     const s = data.tickers[t];
     if (!s || s.closes.length === 0) return [];
     const last = s.closes[s.closes.length - 1];
@@ -784,6 +845,7 @@ export function buildHoldingRows(
       },
     ];
   });
+  return [...directRows, ...spinoffHoldingRows(userId, data)];
 }
 
 // Per-holding rows for a fund's drill-down page — same HoldingRow shape as a

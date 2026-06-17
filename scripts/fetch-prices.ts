@@ -17,7 +17,7 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ALL_TICKERS, BASELINE, START_DATE, TICKER_NAMES } from "../lib/picks";
 import { allFundTickers } from "../lib/funds";
-import { getSpinoffTickers, SPINOFFS } from "../lib/events";
+import { getSpinoffTickers, priceUnitDivisor, SPINOFFS } from "../lib/events";
 import type {
   DailyClose,
   DividendEvent,
@@ -75,18 +75,26 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     events: "div",
   });
 
+  // Reverse-split normalization: once a split is effective Yahoo retroactively
+  // re-scales the WHOLE series, so divide every fetched value back into the
+  // inception-day share units our frozen `startClose` lives in (see
+  // priceUnitDivisor). 1 (no-op) for every ticker until its split's effective
+  // date. Applies uniformly to whatever Yahoo returns this run, so it stays
+  // consistent across incremental merges and `--full` refetches.
+  const divisor = priceUnitDivisor(plan.ticker);
+
   const fresh = (result.quotes ?? [])
     .filter((q) => q.close != null && q.date != null)
     .map<DailyClose>((q) => ({
       date: fmtDate(new Date(q.date as Date)),
-      close: q.close as number,
+      close: (q.close as number) / divisor,
     }))
     .filter((c) => c.date >= START_DATE);
 
   const freshDivs: DividendEvent[] = (result.events?.dividends ?? [])
     .map((d) => ({
       date: fmtDate(new Date(d.date as Date)),
-      amount: d.amount as number,
+      amount: (d.amount as number) / divisor,
     }))
     .filter((d) => d.date >= START_DATE);
 
@@ -154,12 +162,13 @@ async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
       interval: INTRADAY_INTERVAL,
       includePrePost: true,
     });
+    const divisor = priceUnitDivisor(ticker);
     const quotes = result.quotes ?? [];
     return quotes
       .filter((q) => q.close != null && q.date != null)
       .map<IntradayBar>((q) => ({
         t: new Date(q.date as Date).toISOString(),
-        close: q.close as number,
+        close: (q.close as number) / divisor,
       }));
   } catch {
     return [];
@@ -178,12 +187,13 @@ async function fetchWeeklyHourly(ticker: string): Promise<IntradayBar[]> {
       period2,
       interval: WEEKLY_INTERVAL,
     });
+    const divisor = priceUnitDivisor(ticker);
     const quotes = result.quotes ?? [];
     return quotes
       .filter((q) => q.close != null && q.date != null)
       .map<IntradayBar>((q) => ({
         t: new Date(q.date as Date).toISOString(),
-        close: q.close as number,
+        close: (q.close as number) / divisor,
       }));
   } catch {
     return [];
@@ -283,6 +293,15 @@ async function main() {
       console.log(`${s.closes.length} days, last=${last.date} @ $${last.close.toFixed(2)}`);
     } catch (err) {
       console.log(`FAIL: ${(err as Error).message}`);
+      // A spin-off child has no price history until it begins trading on its
+      // effective date (e.g. HONA before 2026-06-29). Skip it gracefully
+      // rather than aborting the whole refresh; it gets picked up on the first
+      // run after it lists. portfolioSeries / buildHoldingRows already guard
+      // against the child being absent from prices.json.
+      if (isSpinoffChild(ticker)) {
+        console.log(`  (spin-off child not trading yet — skipping)`);
+        continue;
+      }
       throw err;
     }
   }
@@ -310,6 +329,7 @@ async function main() {
   const todayPrefix = todayInETDate();
   const [sessionOpen, sessionClose] = extendedSessionBoundsET(todayPrefix);
   for (const ticker of tickersToFetch) {
+    if (!out[ticker]) continue; // spin-off child skipped above (not trading yet)
     process.stdout.write(`  ${ticker}... `);
     const bars = await fetchIntraday(ticker);
     const today = bars.filter((b) => b.t.slice(0, 10) === todayPrefix);
@@ -329,6 +349,7 @@ async function main() {
   // 5–7 daily closes).
   console.log(`Fetching weekly ${WEEKLY_INTERVAL} bars for the past ${WEEKLY_LOOKBACK_DAYS} days...`);
   for (const ticker of tickersToFetch) {
+    if (!out[ticker]) continue; // spin-off child skipped above (not trading yet)
     process.stdout.write(`  ${ticker}... `);
     const bars = await fetchWeeklyHourly(ticker);
     if (bars.length > 0) {

@@ -1464,30 +1464,60 @@ cheaper.
 6. STATE.md: nothing structural changed, just the new range.
 ```
 
-### §10.4. Add a spin-off (when HON announces theirs)
+### §10.4. Add a spin-off (and an accompanying split)
+
+The **HON → HONA** spin-off (effective 2026-06-29, ratio 0.5) bundled with a
+**HON 1-for-2 reverse split** is the live, worked example — see `lib/events.ts`
+(`SPINOFFS` + `REVERSE_SPLITS`). The wiring below is already built, so a future
+spin-off is mostly a config edit:
 
 ```
-1. lib/events.ts: push to SPINOFFS:
-   {
-     parentTicker: "HON",
-     childTicker: "NEWCO",
-     childName: "Honeywell Aerospace",
-     effectiveDate: "2026-XX-XX",
-     sharesPerParentShare: 0.25,   // distribution ratio
-   }
+1. lib/events.ts:
+   a. push to SPINOFFS:
+      {
+        parentTicker: "HON",
+        childTicker: "NEWCO",
+        childName: "...",
+        effectiveDate: "YYYY-MM-DD",   // child's first regular-way trading day
+        sharesPerParentShare: 0.5,     // distribution ratio (child per parent)
+      }
+   b. If the parent ALSO splits (common — companies often reverse-split the
+      stub after a large carve-out), push to REVERSE_SPLITS:
+      { ticker: "PARENT", effectiveDate: "YYYY-MM-DD", factor: 2 }
+      `factor` = the number to divide Yahoo's split-adjusted close by to
+      restore inception-day share units. 1-for-2 reverse split → 2;
+      2-for-1 forward split → 0.5. WITHOUT this, Yahoo's retroactive price
+      re-scaling makes the parent show a fake ~±100% jump (the frozen
+      startClose + fixed share count get out of units with the closes).
 
-2. lib/picks.ts: add NEWCO to TICKER_NAMES. Don't add to any user's
-   tickers — the spin-off engine handles ownership via the parent.
+2. config/roster.json: add NEWCO to `ticker_names`. Do NOT add it to any
+   user's `tickers` — that would change perHoldingDollars ($100k / N) and
+   dilute the user's other picks. Ownership is derived from the parent
+   (lib/picks.ts TICKER_OWNERS + SPINOFF_CHILD_TICKERS), and it's exported
+   as a first-class holding/stock automatically.
 
-3. npm run fetch-prices -- --full (grabs NEWCO's history starting at its
-   effectiveDate; startClose for NEWCO is set to its first close).
+3. The child needs no fetch-script change — it's pulled via
+   getSpinoffTickers(). It can't trade before its effectiveDate, so the
+   fetcher SKIPS a spin-off child whose fetch returns no data (instead of
+   aborting). On/after the effective date a normal incremental fetch picks
+   it up; running `npm run fetch-prices -- --full` from the laptop after the
+   event gives the cleanest result (re-normalizes the parent's whole series).
 
-4. portfolioSeries auto-includes the child position from effectiveDate
-   forward. No view changes needed.
+4. No view changes. portfolioSeries adds the child position from
+   effectiveDate forward (purely additive — no backtracked history, like
+   receiving the distribution in a real brokerage account, so the parent's
+   holders are made whole rather than punished). buildHoldingRows appends a
+   derived child row (shares = parentShares × ratio), and the child gets its
+   own /stock page + /stocks list entry + owner PositionCards.
 
-5. STATE.md / OVERVIEW.md: note the new event in the players' picks if
-   you want it visible.
+5. STATE.md / OVERVIEW.md: note the event.
 ```
+
+**HON-specific operational note (June 2026):** the spin-off + reverse split
+both land 2026-06-29. Everything above is date-gated, so it's inert until then
+and activates automatically on the first fetch on/after that date (Yahoo only
+re-scales HON once the split processes). HONA has no price data until it lists,
+so it shows as a 404/absent everywhere until 2026-06-29 — that's expected.
 
 ### §10.5. Change a player's color
 
