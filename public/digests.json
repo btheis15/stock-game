@@ -74,37 +74,30 @@
       },
       "daysOfData" : 38,
       "daysRequired" : 1,
-      "digest" : "Brian [-0.34%] and Lee [-1.97%] saw their portfolios impacted by a rise in NBIS [+7.52%]. Gene [+1.42%] faced a decline in value due to VVOS [-6.44%]. Looking ahead, Lee and Brian might be influenced by a shift in AAPL [-0.63%].",
-      "digestTemplate" : "Brian {{user:brian}} and Lee {{user:lee}} saw their portfolios impacted by a rise in NBIS {{NBIS}}. Gene {{user:gene}} faced a decline in value due to VVOS {{VVOS}}. Looking ahead, Lee and Brian might be influenced by a shift in AAPL {{AAPL}}.",
-      "generatedAt" : "2026-06-17T22:30:26.748Z",
+      "digest" : "NBIS moved generically upward, helping Rick. VVOS moved generically downward, dragging Gene. Looking ahead, VZ declined as DeepL expands into Silicon Valley, adds Mixhalo team and technology to accelerate Voice AI at scale, which could affect Lee.",
+      "digestTemplate" : "NBIS {{NBIS}} moved generically upward, helping Rick {{user:rick}}. VVOS {{VVOS}} moved generically downward, dragging Gene {{user:gene}}. Looking ahead, VZ {{VZ}} declined as DeepL expands into Silicon Valley, adds Mixhalo team and technology to accelerate Voice AI at scale, which could affect Lee {{user:lee}}.",
+      "generatedAt" : "2026-06-17T22:37:59.271Z",
       "sources" : [
         {
           "date" : "2026-06-17",
-          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/apple-investors-tired-ai-promises-112159204.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/deepl-expands-silicon-valley-adds-122800338.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Apple Investors Are Tired of AI Promises, Want Tangible Progress"
+          "title" : "DeepL expands into Silicon Valley, adds Mixhalo team and technology to accelerate Voice AI at scale"
         },
         {
           "date" : "2026-06-17",
-          "link" : "https:\/\/cryptonews.com\/news\/india-telegram-ban-pavel-durov-counters\/?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/verizon-announces-expiration-final-results-114700368.html?.tsrc=rss",
           "score" : 8,
-          "source" : "cryptonews.com",
-          "title" : "India Bans Pavel Durov Telegram: GRAM and Crypto Hammered, Whatsapp Accused"
+          "source" : "Yahoo Finance",
+          "title" : "Verizon announces expiration and final results of its tender offers and consent solicitations for 20 series of Verizon and certain of its subsidiaries’ notes"
         },
         {
           "date" : "2026-06-17",
-          "link" : "https:\/\/finance.yahoo.com\/m\/0b64b2ac-8d9c-35f6-8021-0e545f6fb76e\/intel-stock-pops-as.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/verizon-announces-expiration-final-results-114700521.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Intel Stock Pops as Chip-Making Bet Moves Closer to Paying Off"
-        },
-        {
-          "date" : "2026-06-17",
-          "link" : "https:\/\/finance.yahoo.com\/m\/4ee0e1c0-1d36-302b-97c3-aacc9c50d415\/how-america-got-to-spacex%3A.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "How America Got to SpaceX: The Long Trail of Big IPOs That Began in 1783"
+          "title" : "Verizon announces expiration and final results of its private exchange offers and consent solicitations for 11 series of notes"
         },
         {
           "date" : "2026-06-17",
@@ -115,24 +108,31 @@
         },
         {
           "date" : "2026-06-17",
-          "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/apple-aapl-faces-italy-dma-211241335.html?.tsrc=rss",
+          "link" : "https:\/\/www.foxbusiness.com\/markets\/verizon-launches-simpler-plans-new-loyalty-program-drops-some-fees?.tsrc=rss",
           "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Apple (AAPL) Faces Italy DMA Probe Over Cloud Interoperability"
+          "source" : "foxbusiness.com",
+          "title" : "Verizon launches simpler plans and new loyalty program, drops some fees"
         },
         {
           "date" : "2026-06-17",
-          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/snap-unveils-2-195-augmented-204248151.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/verizon-drops-40-fees-wireless-191947206.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Snap unveils its $2,195 augmented reality glasses as rivalry with Meta heats up"
+          "title" : "Verizon Drops $40 Fees as Wireless Freebies Race Heats Up"
         },
         {
           "date" : "2026-06-17",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/sector-tech-stocks-fall-afternoon-194407031.html?.tsrc=rss",
+          "link" : "https:\/\/beincrypto.com\/cathie-wood-sells-tesla-buys-spacex-ark-musk-pivot\/?.tsrc=rss",
+          "score" : 8,
+          "source" : "beincrypto.com",
+          "title" : "Cathie Wood Swaps Tesla for SpaceX in $529M Elon Musk Pivot"
+        },
+        {
+          "date" : "2026-06-17",
+          "link" : "https:\/\/finance.yahoo.com\/video\/ai-vs-inflation-why-wall-100000624.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Sector Update: Tech Stocks Fall Late Afternoon"
+          "title" : "AI vs. inflation: why Wall Street is ignoring soaring rates"
         }
       ]
     },
@@ -147,190 +147,10 @@
       },
       "daysOfData" : 38,
       "daysRequired" : 1,
-      "digest" : "Brian [-3.01%] and Kevin [+14.60%] saw a surge in MARVL, as reported in the headline about U.S [-15.62%].-Iran talks impacting AI stocks. Meanwhile, Kevin faced a decline in ZS [-28.80%], following market shifts without a specific explanation. Looking ahead, Rick [+6.89%] may be influenced by developments surrounding COHR [+4.42%], highlighted in the week’s stock outlook.",
-      "digestTemplate" : "Brian {{user:brian}} and Kevin {{user:kevin}} saw a surge in MARVL, as reported in the headline about U.S {{S}}.-Iran talks impacting AI stocks. Meanwhile, Kevin faced a decline in ZS {{ZS}}, following market shifts without a specific explanation. Looking ahead, Rick {{user:rick}} may be influenced by developments surrounding COHR {{COHR}}, highlighted in the week’s stock outlook.",
-      "generatedAt" : "2026-06-17T22:30:26.748Z",
+      "digest" : "MRVL soared amid ongoing U.S.-Iran talks and market coverage highlighting AI momentum, helping Kevin. ZS declined substantially, dragging Kevin. Looking ahead, Investing.com highlighted COHR as a stock of the week to watch, which could affect Rick.",
+      "digestTemplate" : "MRVL {{MRVL}} soared amid ongoing U.S {{S}}.-Iran talks and market coverage highlighting AI momentum, helping Kevin {{user:kevin}}. ZS {{ZS}} declined substantially, dragging Kevin. Looking ahead, Investing.com highlighted COHR {{COHR}} as a stock of the week to watch, which could affect Rick {{user:rick}}.",
+      "generatedAt" : "2026-06-17T22:37:59.271Z",
       "sources" : [
-        {
-          "date" : "2026-05-19",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/stanley-druckenmiller-dumps-amazon-alphabet-104609134.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Stanley Druckenmiller Dumps Amazon And Alphabet While Loading Up On Commodities, Argentina And Biotech"
-        },
-        {
-          "date" : "2026-05-25",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/24\/amazon-spending-200-billion-on-ai-infrastructure\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Amazon Is Spending $200 Billion on AI Infrastructure. Here's What It Means for Investors."
-        },
-        {
-          "date" : "2026-05-28",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/28\/amazon-just-delivered-mind-boggling-news-to-shareh\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Amazon Just Delivered Mind-Boggling News to Shareholders"
-        },
-        {
-          "date" : "2026-05-29",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/jim-cramer-explains-one-reasons-105001588.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Jim Cramer Explains One of the Reasons “Amazon Stock Has Been Going Ever Higher”"
-        },
-        {
-          "date" : "2026-06-02",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/jim-cramer-discusses-amazon-com-042958733.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Jim Cramer Discusses Amazon.com (AMZN) & Rocket Explosion"
-        },
-        {
-          "date" : "2026-06-08",
-          "link" : "https:\/\/www.trefis.com\/articles\/601407\/nvidia-stock-and-the-hundred-fold-compute-whisper\/2026-06-04?.tsrc=rss",
-          "score" : 10,
-          "source" : "trefis.com",
-          "title" : "NVIDIA Stock and the Hundred-Fold Compute Whisper"
-        },
-        {
-          "date" : "2026-06-05",
-          "link" : "https:\/\/www.marketbeat.com\/articles\/the-speed-of-light-5-stocks-powering-ais-optical-future\/?utm_source=yahoofinance&utm_medium=yahoofinance&.tsrc=rss",
-          "score" : 10,
-          "source" : "marketbeat.com",
-          "title" : "The Speed of Light: 5 Stocks Powering AI’s Optical Future"
-        },
-        {
-          "date" : "2026-06-08",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/investing-com-stocks-week-184514770.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Investing.com’s stocks of the week"
-        }
-      ]
-    },
-    "1W" : {
-      "aiEngine" : "AppleIntelligence",
-      "articleCount" : 15,
-      "avgRelevanceScore" : 8.133333333333333,
-      "dataMaturity" : "full",
-      "dateRange" : {
-        "from" : "2026-06-10",
-        "to" : "2026-06-17"
-      },
-      "daysOfData" : 38,
-      "daysRequired" : 7,
-      "digest" : "Brian [+3.57%] saw gains from NBIS [+32.70%], while Rick [+10.48%] experienced losses from VVOS [-20.00%]. Gene [+7.47%] faced declines from VVOS, whereas Lee [-0.08%] benefited from DKS [+4.59%]. Looking ahead, DKS may influence Lee’s portfolio.",
-      "digestTemplate" : "Brian {{user:brian}} saw gains from NBIS {{NBIS}}, while Rick {{user:rick}} experienced losses from VVOS {{VVOS}}. Gene {{user:gene}} faced declines from VVOS, whereas Lee {{user:lee}} benefited from DKS {{DKS}}. Looking ahead, DKS may influence Lee’s portfolio.",
-      "generatedAt" : "2026-06-17T22:30:26.748Z",
-      "sources" : [
-        {
-          "date" : "2026-06-15",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/14\/why-marvell-technology-stock-surged-this-week\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Why Marvell Technology Stock Surged This Week"
-        },
-        {
-          "date" : "2026-06-12",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/dicks-sportings-q1-comps-rise-141400161.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "DICK'S Sporting's Q1 Comps Rise 6%: Can Market Share Gains Continue?"
-        },
-        {
-          "date" : "2026-06-15",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/dicks-sporting-goods-announces-partnership-130300262.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "DICK'S Sporting Goods Announces Partnership with Lids to Launch Lids Shops Inside 100 DICK'S Locations"
-        },
-        {
-          "date" : "2026-06-15",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/jpmorgan-raises-dick-sporting-goods-051346286.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "JPMorgan Raises Dick’s Sporting Goods (DKS) Target, Citing Momentum after Q1 Beat"
-        },
-        {
-          "date" : "2026-06-15",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/investors-may-willing-look-past-120007508.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Some Investors May Be Willing To Look Past DICK'S Sporting Goods' (NYSE:DKS) Soft Earnings"
-        },
-        {
-          "date" : "2026-06-16",
-          "link" : "https:\/\/www.thestreet.com\/retail\/dicks-sporting-goods-ceo-sees-writing-on-the-wall-for-consumers?.tsrc=rss",
-          "score" : 8,
-          "source" : "thestreet.com",
-          "title" : "Dick's Sporting Goods CEO sees writing on the wall for consumers"
-        },
-        {
-          "date" : "2026-06-11",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/11\/apple-will-make-billions-from-ai-in-these-2-ways-i\/?.tsrc=rss",
-          "score" : 8,
-          "source" : "Motley Fool",
-          "title" : "Apple Will Make Billions From AI in These 2 Ways. Is It Time to Buy the Stock?"
-        },
-        {
-          "date" : "2026-06-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/apple-ai-workloads-highlight-google-071546133.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Apple AI Workloads Highlight Google Cloud Role And Alphabet Valuation Gap"
-        }
-      ]
-    },
-    "1Y" : {
-      "aiEngine" : "AppleIntelligence",
-      "articleCount" : 15,
-      "avgRelevanceScore" : 10,
-      "dataMaturity" : "full",
-      "dateRange" : {
-        "from" : "2026-02-05",
-        "to" : "2026-06-17"
-      },
-      "daysOfData" : 38,
-      "daysRequired" : 1,
-      "digest" : "Brian and Kevin saw strong gains from MRVL. Gene faced losses from VVOS. Looking ahead, Gene may be affected by developments involving OKLO.",
-      "generatedAt" : "2026-06-17T17:06:14.719Z",
-      "sources" : [
-        {
-          "date" : "2026-05-19",
-          "link" : "https:\/\/www.trefis.com\/articles\/599646\/can-nuscale-power-stock-grow-10x\/2026-05-18?.tsrc=rss",
-          "score" : 10,
-          "source" : "trefis.com",
-          "title" : "Can NuScale Power Stock Grow 10x?"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/11\/how-buying-nuscale-power-stock-today-could-10x-you\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "How Buying NuScale Power Stock Today Could 10X Your Net Worth"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/m\/77cd0e94-2ac0-323b-9210-824ed82a9688\/nvidia-stock-heads-for-record.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Nvidia Stock Heads for Record as AI Push Expands"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/sectors\/technology\/articles\/nvidia-expands-ai-investment-push-213531266.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Nvidia Expands AI Investment Push"
-        },
-        {
-          "date" : "2026-05-15",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/14\/better-datacenter-stock-coreweave-or-nebius\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Better Datacenter Stock: CoreWeave (CRWV) or Nebius (NBIS)?"
-        },
         {
           "date" : "2026-05-28",
           "link" : "https:\/\/www.barchart.com\/story\/news\/2109712\/1-outstanding-ai-stock-youll-regret-ignoring-10-years-from-now?.tsrc=rss",
@@ -346,87 +166,123 @@
           "title" : "This Top Artificial Intelligence (AI) Stock Is Benefiting From the Next Infrastructure Bottleneck, and It Just Became an Attractive Buy"
         },
         {
-          "date" : "2026-05-29",
-          "link" : "https:\/\/www.fool.com\/coverage\/better-buy\/2026\/05\/28\/progressive-vs-lemonade-which-financial-stock-is-a-better-buy-in-2026\/?.tsrc=rss",
+          "date" : "2026-06-05",
+          "link" : "https:\/\/www.marketbeat.com\/articles\/the-speed-of-light-5-stocks-powering-ais-optical-future\/?utm_source=yahoofinance&utm_medium=yahoofinance&.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Progressive vs. Lemonade: Which Financial Stock Is a Better Buy in 2026?"
-        }
-      ]
-    },
-    "3M" : {
-      "aiEngine" : "AppleIntelligence",
-      "articleCount" : 15,
-      "avgRelevanceScore" : 10,
-      "dataMaturity" : "full",
-      "dateRange" : {
-        "from" : "2026-03-19",
-        "to" : "2026-06-17"
-      },
-      "daysOfData" : 38,
-      "daysRequired" : 1,
-      "digest" : "Brian and Kevin saw their portfolios rise as the AI name soared in the latest market shift. Gene faced a sharp decline with their holdings as the sector faced unexpected challenges. Looking ahead, Brian’s holdings may respond to upcoming investor insights.",
-      "generatedAt" : "2026-06-17T17:06:14.719Z",
-      "sources" : [
-        {
-          "date" : "2026-05-14",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/currencies\/articles\/ai-bond-binge-overwhelms-wall-070748648.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "$300 Billion AI Debt Binge Spreads From Wall Street to Tokyo"
+          "source" : "marketbeat.com",
+          "title" : "The Speed of Light: 5 Stocks Powering AI’s Optical Future"
         },
         {
-          "date" : "2026-05-19",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/stanley-druckenmiller-dumps-amazon-alphabet-104609134.html?.tsrc=rss",
+          "date" : "2026-06-08",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/investing-com-stocks-week-184514770.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Stanley Druckenmiller Dumps Amazon And Alphabet While Loading Up On Commodities, Argentina And Biotech"
-        },
-        {
-          "date" : "2026-05-25",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/24\/amazon-spending-200-billion-on-ai-infrastructure\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Amazon Is Spending $200 Billion on AI Infrastructure. Here's What It Means for Investors."
+          "title" : "Investing.com’s stocks of the week"
         },
         {
           "date" : "2026-05-28",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/28\/amazon-just-delivered-mind-boggling-news-to-shareh\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Amazon Just Delivered Mind-Boggling News to Shareholders"
-        },
-        {
-          "date" : "2026-05-29",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/jim-cramer-explains-one-reasons-105001588.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/m\/b25040cd-8912-3ed1-856f-41c340c9b172\/spacex-went-up-1%2C000-fold%E2%80%94and.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Jim Cramer Explains One of the Reasons “Amazon Stock Has Been Going Ever Higher”"
+          "title" : "SpaceX Went Up 1,000-Fold—and You Couldn’t Buy It"
         },
         {
-          "date" : "2026-06-02",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/jim-cramer-discusses-amazon-com-042958733.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Jim Cramer Discusses Amazon.com (AMZN) & Rocket Explosion"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/08\/qualcomm-just-ripped-70-in-a-month-is-it-time-to-sell-in-may-and-go-away\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "247wallst.com",
-          "title" : "Qualcomm Just Ripped 70% in a Month. Is It Time to Sell in May and Go Away?"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/www.barchart.com\/story\/news\/1885389\/dear-qualcomm-stock-fans-mark-your-calendars-for-june-24?.tsrc=rss",
+          "date" : "2026-05-28",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/2133759\/arm-surges-as-nvidia-s-vera-drives-cpu-demand?.tsrc=rss",
           "score" : 10,
           "source" : "barchart.com",
-          "title" : "Dear Qualcomm Stock Fans, Mark Your Calendars for June 24"
+          "title" : "Arm Surges as Nvidia's Vera Drives CPU Demand"
+        },
+        {
+          "date" : "2026-06-03",
+          "link" : "https:\/\/finance.yahoo.com\/m\/b3058533-e53a-3866-ae57-686eaea3bc18\/google%E2%80%99s-%2480-billion-equity.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Google’s $80 Billion Equity Plan Suggests Bond Markets Are Feeling the Strain of AI Spending"
+        },
+        {
+          "date" : "2026-06-08",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/arista-networks-inc-anet-good-201352864.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Is Arista Networks, Inc. (ANET) A Good Stock To Buy Now?"
         }
       ]
     },
-    "ALL" : {
+    "1W" : {
+      "aiEngine" : "AppleIntelligence",
+      "articleCount" : 15,
+      "avgRelevanceScore" : 8.133333333333333,
+      "dataMaturity" : "full",
+      "dateRange" : {
+        "from" : "2026-06-10",
+        "to" : "2026-06-17"
+      },
+      "daysOfData" : 38,
+      "daysRequired" : 7,
+      "digest" : "NBIS experienced a generic upward movement that helped Rick. VVOS saw a generic decline that dragged Gene. Looking ahead, VZ faces scrutiny over whether T-Mobile can sustain its strong customer growth momentum amid intense telecom competition, which could affect Lee.",
+      "digestTemplate" : "NBIS {{NBIS}} experienced a generic upward movement that helped Rick {{user:rick}}. VVOS {{VVOS}} saw a generic decline that dragged Gene {{user:gene}}. Looking ahead, VZ {{VZ}} faces scrutiny over whether T-Mobile can sustain its strong customer growth momentum amid intense telecom competition, which could affect Lee {{user:lee}}.",
+      "generatedAt" : "2026-06-17T22:37:59.271Z",
+      "sources" : [
+        {
+          "date" : "2026-06-15",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/14\/why-marvell-technology-stock-surged-this-week\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Why Marvell Technology Stock Surged This Week"
+        },
+        {
+          "date" : "2026-06-11",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/t-mobile-sustain-strong-customer-134100185.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "Can T-Mobile Sustain Its Strong Customer Growth Momentum?"
+        },
+        {
+          "date" : "2026-06-11",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/06\/10\/3-dividend-stocks-built-for-retirement-to-buy-in-june\/?.tsrc=rss",
+          "score" : 8,
+          "source" : "247wallst.com",
+          "title" : "3 Dividend Stocks Built for Retirement to Buy in June"
+        },
+        {
+          "date" : "2026-06-11",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/vz-vs-asts-connectivity-stock-160600077.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "VZ vs. ASTS: Which Connectivity Stock is the Better Buy?"
+        },
+        {
+          "date" : "2026-06-11",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/t-vs-t-mobile-communications-141500823.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "AT&T vs. T-Mobile: Which Communications Stock is the Smarter Buy?"
+        },
+        {
+          "date" : "2026-06-11",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/10\/better-telecom-stock-verizon-rogers-communications\/?.tsrc=rss",
+          "score" : 8,
+          "source" : "Motley Fool",
+          "title" : "Better Telecom Stock: Verizon or Rogers Communications?"
+        },
+        {
+          "date" : "2026-06-11",
+          "link" : "https:\/\/finance.yahoo.com\/sectors\/technology\/articles\/hoxhunt-2026-research-reports-reveal-130000220.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "Hoxhunt 2026 Research Reports Reveal a Surge in Phishing Attacks, Reinforcing the Need for Human-Centric Cybersecurity"
+        },
+        {
+          "date" : "2026-06-12",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/amd-upgraded-adobe-downgraded-wall-133850577.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "AMD upgraded, Adobe downgraded: Wall Street's top analyst calls"
+        }
+      ]
+    },
+    "1Y" : {
       "aiEngine" : "AppleIntelligence",
       "articleCount" : 15,
       "avgRelevanceScore" : 10,
@@ -437,22 +293,15 @@
       },
       "daysOfData" : 38,
       "daysRequired" : 1,
-      "digest" : "Brian and Kevin saw a strong rise in MRVL. Gene faced a sharp decline in VVOS. Looking ahead, Rick may be impacted by a forward-looking move in NBIS.",
-      "generatedAt" : "2026-06-17T17:06:14.719Z",
+      "digest" : "MRVL rose sharply, benefiting Kevin. VVOS declined substantially, dragging Gene. Looking ahead, a broadband space tech investment involving VZ could affect Lee.",
+      "generatedAt" : "2026-06-17T22:37:59.271Z",
       "sources" : [
         {
-          "date" : "2026-05-29",
-          "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/nbis-stock-jumps-after-ex-openai-researchers-fund-discloses-major-stake\/cZgiqlCRet3?.tsrc=rss",
+          "date" : "2026-05-21",
+          "link" : "https:\/\/www.thestreet.com\/investing\/stocks\/att-verizon-back-1-2b-broadband-bet-in-space-tech-leader?.tsrc=rss",
           "score" : 10,
-          "source" : "stocktwits.com",
-          "title" : "NBIS Stock Soars Over 10% — Ex-OpenAI Researcher’s Fund Reveals Massive Stake"
-        },
-        {
-          "date" : "2026-06-10",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/09\/this-top-artificial-intelligence-ai-stock-is-benef\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "This Top Artificial Intelligence (AI) Stock Is Benefiting From the Next Infrastructure Bottleneck, and It Just Became an Attractive Buy"
+          "source" : "thestreet.com",
+          "title" : "AT&T, Verizon back $1.2B broadband bet in space tech leader"
         },
         {
           "date" : "2026-05-13",
@@ -469,37 +318,188 @@
           "title" : "Apple Intel Foundry Link Puts ASML Growth And Valuation In Focus"
         },
         {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/11\/how-buying-nuscale-power-stock-today-could-10x-you\/?.tsrc=rss",
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ast-spacemobile-provides-business-first-203000787.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "AST SpaceMobile Provides Business Update and First Quarter 2026 Results"
+        },
+        {
+          "date" : "2026-05-21",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/14\/why-ast-spacemobile-stock-crushed-it-on-thursday\/?.tsrc=rss",
           "score" : 10,
           "source" : "Motley Fool",
-          "title" : "How Buying NuScale Power Stock Today Could 10X Your Net Worth"
+          "title" : "Why AST SpaceMobile Stock Crushed it on Thursday"
+        },
+        {
+          "date" : "2026-05-22",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/too-consider-ast-spacemobile-asts-201034017.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Is It Too Late To Consider AST SpaceMobile (ASTS) After Its Recent 17x Three Year Surge?"
         },
         {
           "date" : "2026-06-02",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/01\/nuscale-is-on-sale-could-this-be-the-buy-that\/?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/sectors\/technology\/articles\/honeywell-hon-quantum-isn-t-133845818.html?.tsrc=rss",
           "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "NuScale Power Is on Sale. Could This Be the Buy That Sets You Up for Life?"
+          "source" : "Yahoo Finance",
+          "title" : "Honeywell’s (HON) Quantum Isn’t A Science Project, Asserts Jim Cramer"
         },
         {
-          "date" : "2026-05-18",
-          "link" : "https:\/\/www.barchart.com\/story\/news\/1962255\/oracle-went-from-tech-dinosaur-to-ai-heavyweight?.tsrc=rss",
+          "date" : "2026-05-11",
+          "link" : "https:\/\/finance.yahoo.com\/m\/77cd0e94-2ac0-323b-9210-824ed82a9688\/nvidia-stock-heads-for-record.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Nvidia Stock Heads for Record as AI Push Expands"
+        }
+      ]
+    },
+    "3M" : {
+      "aiEngine" : "AppleIntelligence",
+      "articleCount" : 15,
+      "avgRelevanceScore" : 10,
+      "dataMaturity" : "full",
+      "dateRange" : {
+        "from" : "2026-03-19",
+        "to" : "2026-06-17"
+      },
+      "daysOfData" : 38,
+      "daysRequired" : 1,
+      "digest" : "MRVL experienced a broad upward movement that helped Kevin. VVOS saw a sustained decline that dragged Gene. Looking ahead, PFE could attract investors if Kevin Warsh heading the Fed leads to market turbulence, a development that could affect Lee.",
+      "generatedAt" : "2026-06-17T22:37:59.271Z",
+      "sources" : [
+        {
+          "date" : "2026-06-01",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/01\/is-pfizer-the-perfect-stock-to-own-with-kevin-wars\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Is Pfizer the Perfect Stock to Own with Kevin Warsh Heading the Fed?"
+        },
+        {
+          "date" : "2026-06-01",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/31\/is-pfizer-stock-a-value-trap-or-a-generational-opp\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Is Pfizer Stock a \"Value Trap\" or a Generational Opportunity?"
+        },
+        {
+          "date" : "2026-06-04",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/03\/meet-the-biotech-stock-thats-trouncing-lilly-merck\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Meet the Biotech Stock That's Trouncing Lilly, Merck, and Pfizer in 2026"
+        },
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/13\/nvidia-will-soon-make-more-than-apple-and-microsoft-combined\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "Nvidia Will Soon Make More than Apple and Microsoft Combined"
+        },
+        {
+          "date" : "2026-05-25",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/2102609\/the-microsoft-disaster-why-dropping-the-openai-leash-flips-the-entire-script-for-msft-stock?.tsrc=rss",
           "score" : 10,
           "source" : "barchart.com",
-          "title" : "Oracle Went From Tech Dinosaur to AI Heavyweight"
+          "title" : "The Microsoft Disaster: Why Dropping the OpenAI Leash Flips the Entire Script for MSFT Stock"
         },
         {
           "date" : "2026-05-28",
-          "link" : "https:\/\/www.barchart.com\/story\/news\/2133759\/arm-surges-as-nvidia-s-vera-drives-cpu-demand?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/video\/how-apples-ai-weakness-could-become-its-biggest-agentic-advantage-200853250.html?.tsrc=rss",
           "score" : 10,
-          "source" : "barchart.com",
-          "title" : "Arm Surges as Nvidia's Vera Drives CPU Demand"
+          "source" : "Yahoo Finance",
+          "title" : "How Apple's AI weakness could become its biggest 'agentic advantage'"
+        },
+        {
+          "date" : "2026-06-02",
+          "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/apple-s-wwdc-2026-key-catalyst-for-aapl-stock-will-decide-ai-positioning-morgan-stanley\/cZ0WeZpRev1?.tsrc=rss",
+          "score" : 10,
+          "source" : "stocktwits.com",
+          "title" : "Apple’s WWDC 2026 ‘Key Catalyst’ For AAPL Stock, Will Decide AI Positioning: Morgan Stanley"
+        },
+        {
+          "date" : "2026-06-05",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/05\/warren-buffetts-successor-greg-abel-dumped-amazon\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Warren Buffett's Successor, Greg Abel, Dumped Amazon and Bought 3 Million Shares of This Undervalued Stock"
+        }
+      ]
+    },
+    "ALL" : {
+      "aiEngine" : "AppleIntelligence",
+      "articleCount" : 15,
+      "avgRelevanceScore" : 10,
+      "dataMaturity" : "full",
+      "dateRange" : {
+        "from" : "2026-02-05",
+        "to" : "2026-06-17"
+      },
+      "daysOfData" : 38,
+      "daysRequired" : 1,
+      "digest" : "MRVL’s generic price movement helped Kevin. VVOS’s generic price movement dragged Gene. Looking ahead, RKLB’s rise amid market gains fueled by AI and chip stocks amid oil and valuation shifts could affect Rick and Gene.",
+      "generatedAt" : "2026-06-17T22:37:59.271Z",
+      "sources" : [
+        {
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/11\/stock-market-today-may-11-markets-eke-small-gains-as-oil-rises\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Today, May 11: Markets Inch Upwards Even As Oil Prices Rise"
+        },
+        {
+          "date" : "2026-05-19",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/18\/rocket-lab-vs-spacex-which-stock-is-the-better-aer\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Rocket Lab vs. SpaceX: Which Stock is the Better Aerospace Buy?"
+        },
+        {
+          "date" : "2026-06-01",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/05\/29\/stock-market-today-may-29-markets-extend-gains-as-dell-soars-33\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Today, May 29: Markets Extend Gains as Dell Soars 33%"
+        },
+        {
+          "date" : "2026-06-01",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/29\/ast-spacemobile-plunges-17-planet-labs-drops-8-on-blue-origin-explosion-while-virgin-galactic-surges-11\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "AST SpaceMobile Plunges 17%, Planet Labs Drops 8% on Blue Origin Explosion, While Virgin Galactic Surges 11%"
+        },
+        {
+          "date" : "2026-06-02",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/01\/why-rocket-lab-stock-plummeted-today\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "Why Rocket Lab Stock Plummeted Today"
+        },
+        {
+          "date" : "2026-06-10",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/09\/spacex-vs-rocket-lab-how-do-they-compare-as-invest\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "SpaceX vs. Rocket Lab: How Do They Compare as Investments?"
+        },
+        {
+          "date" : "2026-05-29",
+          "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/nbis-stock-jumps-after-ex-openai-researchers-fund-discloses-major-stake\/cZgiqlCRet3?.tsrc=rss",
+          "score" : 10,
+          "source" : "stocktwits.com",
+          "title" : "NBIS Stock Soars Over 10% — Ex-OpenAI Researcher’s Fund Reveals Massive Stake"
+        },
+        {
+          "date" : "2026-06-10",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/09\/this-top-artificial-intelligence-ai-stock-is-benef\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "This Top Artificial Intelligence (AI) Stock Is Benefiting From the Next Infrastructure Bottleneck, and It Just Became an Attractive Buy"
         }
       ]
     }
   },
-  "generatedAt" : "2026-06-17T22:30:26.748Z",
+  "generatedAt" : "2026-06-17T22:38:02.163Z",
   "holdings" : {
     "AAPL" : {
       "1D" : {
