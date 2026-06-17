@@ -4,148 +4,147 @@ How to use Apple Intelligence (on-device, Private Cloud Compute, and a cloud
 fallback) from code on the Mac mini, and how to wire responses into the web apps.
 Read this before asking for "PCC code" — it captures hard-won rules that aren't obvious.
 
-> **Environment this was verified on:** Mac mini (Apple M1, 8 GB), macOS 27 dev beta
-> (build `26A5353q`), signed-in Apple Account with Apple Intelligence enabled.
+> **Verified on:** Mac mini (Apple M1, 8 GB), macOS 27 dev beta (build `26A5353q`),
+> signed-in Apple Account with Apple Intelligence enabled.
 
 ---
 
 ## TL;DR — the rules that actually matter
 
-1. **There are three engines:** on-device, Private Cloud Compute (PCC), and a cloud LLM.
-2. **PCC is interactive-only on this machine.** It answers from a Terminal you're sitting at, but is **refused from every background/automated context** — launchd agents, daemons, cron, subprocesses — with `PCC inference is not available in this context`. *Verified 2026-06-17* by running `fm respond --model pcc` from a GUI-session LaunchAgent (the exact context our services use) → it failed.
-3. **Therefore: anything automated (the web-app features) must use on-device or a cloud LLM.** Use PCC only for manual, you-run-it tasks where you want the bigger model.
-4. **The Python SDK (`apple_fm_sdk`) is on-device only** — there is no PCC class in it. PCC is reachable **only via the `fm` CLI** (`fm respond --model pcc`), on your personal Apple-Intelligence quota.
-5. **The in-process Swift `PrivateCloudComputeLanguageModel` API needs an App-Store entitlement** (Small Business Program + <2M downloads + an app distributed on the App Store). Not relevant to our daemons/web apps — ignore it.
+1. **Three engines:** on-device, Private Cloud Compute (PCC), and a cloud LLM.
+2. **PCC works only when the `fm` process runs inside a *foreground GUI-app context* (Terminal.app).**
+   A background service (launchd/daemon/cron) calling `fm --model pcc` *directly* fails with
+   `PCC inference is not available in this context`. **But a background server CAN orchestrate it:**
+   tell Terminal to run the command (Apple Events) and read the result — *that* runs in a PCC-eligible
+   context. **Verified working 2026-06-17.**
+3. **So PCC *can* be automated** via a Terminal-hosted `fm` — best as a persistent **`fm serve`**
+   you launch in Terminal, which your server then hits over localhost. Requirements: the mini is
+   **logged into its GUI session**, the orchestrator has **Automation (TCC) permission** to control
+   Terminal, and you stay within the **personal Apple-Intelligence quota** (low volume).
+4. **The Python SDK (`apple_fm_sdk`) is on-device only** — no PCC. PCC is reachable only via the
+   `fm` CLI (`--model pcc`).
+5. **The in-process Swift `PrivateCloudComputeLanguageModel` API needs an App-Store entitlement**
+   (SBP + <2M downloads + an App-Store-distributed app). Not relevant to our daemons/web apps — ignore it.
 
 | Engine | Quality | Automatable on the server? | Cost / limits | How to call |
 |---|---|---|---|---|
-| **On-device** | good (small, ~4k ctx) | ✅ yes (works in our LaunchAgent context) | free, unlimited, local | `fm --model system`, `apple_fm_sdk`, or Swift `SystemLanguageModel` |
-| **PCC** | better (bigger, ~32k ctx, reasoning) | ❌ **no** — interactive Terminal only | personal AI daily quota | `fm --model pcc` (CLI only), run by hand |
-| **Cloud (e.g. Claude)** | best | ✅ yes | API cost | HTTP from the server |
+| **On-device** | good (small, ~4k ctx) | ✅ easily (works in any context, incl. launchd) | free, unlimited | `fm --model system`, `apple_fm_sdk`, Swift `SystemLanguageModel` |
+| **PCC** | better (bigger, ~32k ctx, reasoning) | ✅ **yes, but only via a Terminal-hosted `fm`** (see below) | personal AI daily quota | `fm --model pcc` run inside Terminal / `fm serve` in Terminal |
+| **Cloud (e.g. Claude)** | best | ✅ easily | API cost | HTTP from the server |
 
 ---
 
-## A) On-device — the engine for automated features
+## Automating PCC from your server (the important part)
 
-Always available, no network, no quota, and it **works in our server's launchd context**. This is what the web apps should use for automated summaries.
+PCC requires the **executing** process to live in a foreground GUI-app context. A background
+LaunchAgent fails — *but it can drive Terminal.app, which qualifies.* Two proven methods:
 
-### From the `fm` CLI (pre-installed on macOS 27)
+### Method 1 — persistent `fm serve` in Terminal (recommended)
+`fm serve` is an OpenAI-compatible Chat Completions server and **supports `model: pcc`.**
+Launch it once *inside Terminal* (so it holds the PCC-eligible context); your server then just
+makes localhost HTTP calls — no per-request Terminal spawn.
+
+Bootstrap (e.g. at login, or from the media-server once):
+```bash
+osascript -e 'tell application "Terminal" to do script "fm serve --port 8799"'
+```
+Then call it like any OpenAI endpoint:
+```bash
+curl -s localhost:8799/v1/chat/completions -H 'content-type: application/json' -d '{
+  "model": "pcc",
+  "messages": [{"role":"user","content":"Summarize: …"}],
+  "stream": false
+}'
+# → {"choices":[{"message":{"content":"…"}}], "model":"pcc", ...}   (verified)
+```
+Endpoints: `POST /v1/chat/completions`, `GET /v1/models`, `GET /health`.
+(`fm serve` also supports `--socket /tmp/fm.sock` for a Unix socket instead of TCP.)
+
+> To auto-start at login: a LaunchAgent (or login item) that runs the `osascript … do script
+> "fm serve …"` line — the osascript runs in the background but *Terminal* hosts `fm serve`, so it
+> lands in the PCC-eligible context. (A LaunchAgent that runs `fm serve` *directly* would NOT get PCC.)
+
+### Method 2 — one-shot `osascript` per request (simpler, noisier)
+```bash
+osascript -e 'tell application "Terminal" to do script \
+  "fm respond --model pcc \"<prompt>\" > /tmp/fm_out.txt 2>&1"'
+# …then read /tmp/fm_out.txt
+```
+Works (verified), but opens a Terminal window per call and hands off via a file. Prefer Method 1.
+
+### Requirements & caveats
+- **The mini must be logged into its GUI (Aqua) session** — not sitting at the login screen.
+- **Automation/TCC permission** to control Terminal (approve the prompt once).
+- **Personal Apple-Intelligence quota** applies (`fm quota-usage`) — keep volume low; not for high-traffic multi-user.
+- `fm --model pcc` **never silently falls back** — if you get text + exit 0, it's genuinely PCC.
+
+---
+
+## A) On-device — the simplest automatable engine
+
+Always available, no network, no quota, works in **any** context (incl. our launchd services).
+
 ```bash
 fm respond --model system "Summarize this: <text>"
 ```
-
-### From Python (`apple_fm_sdk`)
-Install once (needs **full Xcode**, not just Command Line Tools — see Gotchas):
-```bash
-sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer   # full Xcode
-pip3 install --user apple_fm_sdk                                        # Python 3.10+, Apple silicon
-```
+Python (`apple_fm_sdk`; needs full Xcode + Apple silicon + Python 3.10+):
 ```python
 import apple_fm_sdk as fm
-
-# availability
-model = fm.SystemLanguageModel()
-ok, reason = model.is_available()
-
-# basic (respond is async)
 session = fm.LanguageModelSession(instructions="Summarize concisely.")
-text = await session.respond("…long content…")
+text = await session.respond("…")                          # respond() is async
 
-# structured / type-safe output
-@fm.generable("A short summary")
+@fm.generable("A short summary")                            # structured output
 class Summary:
     bullets: list[str] = fm.guide("Key points as short bullets")
 result = await session.respond("Summarize: …", generating=Summary)
-
-# tool calling
-class GetOrders(fm.Tool):
-    name = "get_past_orders"
-    description = "Retrieve the user's recent orders."
-    @fm.generable("args")
-    class Arguments:
-        n: str = fm.guide("How many orders")
-    @property
-    def arguments_schema(self) -> fm.GenerationSchema:
-        return self.Arguments.generation_schema()
-    async def call(self, args: fm.GeneratedContent) -> str:
-        return await load_orders(args.value(int, for_property="n"))
-session = fm.LanguageModelSession(instructions="…", tools=[GetOrders()])
 ```
-Useful classes (from the SDK): `GenerationOptions`, `SamplingMode`, `Attachment` / `ImageAttachment`
-(image prompts, v0.2.0+), `Transcript` (multi-turn), and errors `RateLimitedError`,
-`GuardrailViolationError`, `ExceededContextWindowSizeError`, `RefusalError`,
-`ConcurrentRequestsError`. **Note: the SDK cannot target PCC — on-device only.**
+Tools via `fm.Tool` (+ `@fm.generable` Arguments). Also: `GenerationOptions`, `SamplingMode`,
+`Attachment`/`ImageAttachment` (image prompts), `Transcript`, errors `RateLimitedError`,
+`GuardrailViolationError`, `ExceededContextWindowSizeError`, `RefusalError`. **SDK = on-device only.**
 
-### From Swift in-process (what `fm-service` uses)
+Swift in-process (what `fm-service` uses):
 ```swift
 import FoundationModels
-let model = SystemLanguageModel.default          // on-device, no entitlement
-let session = LanguageModelSession(model: model, instructions: "Summarize concisely.")
+let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: "Summarize.")
 let reply = try await session.respond(to: text)
+// PrivateCloudComputeLanguageModel() here → ModelManagerError 1046 (entitlement-gated)
 ```
-(Swapping to `PrivateCloudComputeLanguageModel()` throws `ModelManagerError 1046` here — entitlement-gated.)
+
+## B) Cloud LLM — automatable + best quality
+For automated high-quality output, call a cloud model (e.g. the Claude API) over HTTPS from the
+mini's server. No Apple context rules, no quota; costs API $$.
 
 ---
 
-## B) Private Cloud Compute — interactive only, higher quality
-
-Bigger model, larger context, better on complex prompts. **Only reachable via the `fm` CLI, and only from a Terminal you're actively in.** It will fail from any script the server runs unattended.
-
-```bash
-fm respond --model pcc "Provide a comprehensive regex in Swift to parse an email"
-fm respond --model pcc "What apps are in this screenshot?" --image Screenshot.png
-fm chat                       # interactive; then  /model pcc  to switch
-fm quota-usage                # see remaining PCC quota (confirms it's really PCC, not on-device)
+## `fm` CLI quick reference
 ```
-Structured output via CLI:
-```bash
-fm schema object --name Triage --string final_files --array --string draft_files --array > schema.json
-fm respond --instructions "Sort these files…" "$files" --schema schema.json --model pcc
+fm respond  --model {system|pcc} [--stream] [--image f] [--schema f] [--instructions t] [--save-transcript n] '<prompt>'
+fm chat                     # interactive; /model pcc to switch
+fm serve    [--port N | --socket path] [--host H]    # OpenAI-compatible API, supports model "pcc"
+fm schema object --name N --string field --array     # build a JSON schema
+fm token-count | fm available | fm quota-usage
 ```
-
-**Using PCC results in an app:** generate them **by hand in Terminal**, save the output
-(file / DB), and let the web app read the saved result. The server cannot generate them on a schedule.
-
----
-
-## C) Cloud LLM — automatable + best quality
-
-For automated, high-quality summaries in the web apps, call a cloud model (e.g. the
-Claude API) from the mini's server. No Apple context limits, no quota; costs API $$.
-This is the recommended path when on-device quality isn't enough for an automated feature.
-
----
 
 ## How this Mac mini is wired
+- **launchd LaunchAgents** in the GUI session (`~/Library/LaunchAgents`, RunAtLoad+KeepAlive):
+  - `com.mlr.media-server` → `caffeinate -is node server.js` (Express, 8787)
+  - `com.mlr.fm-service` → Swift AI service, `127.0.0.1:8788` (answers on-device; in-process API can't reach PCC)
+- **Data path:** web app (Vercel) → tunnel → mini server → engine → store/return.
+- For **PCC** content, the server routes through a **Terminal-hosted `fm`/`fm serve`** (above); for
+  on-device or cloud it calls directly.
 
-- **Process manager: launchd** (no pm2). Two **LaunchAgents** in the GUI login session
-  (`~/Library/LaunchAgents`, `RunAtLoad` + `KeepAlive`):
-  - `com.mlr.media-server` → `caffeinate -is node server.js` (Express, port 8787).
-  - `com.mlr.fm-service` → Swift AI service, `127.0.0.1:8788`, shared-secret header,
-    answers **on-device** (uses the in-process API, so never PCC).
-- **Web apps (Vercel) → tunnel → mini → engine → store/return.** Because these run as
-  background services, **only on-device (or cloud) is available to them — never PCC.**
-
----
-
-## Gotchas (learned the hard way)
-
-- **`PCC inference is not available in this context`** → you're calling PCC from a
-  non-interactive/background process. Expected. Use on-device (or cloud) for anything automated.
-- **SDK build fails with `SwiftToolingError … full Xcode required`** → the toolchain points at
-  Command Line Tools. Fix: `sudo xcode-select -s /path/to/Xcode-beta.app/Contents/Developer`,
+## Gotchas
+- **`PCC inference is not available in this context`** → the `fm` call ran in a background context.
+  Route it through Terminal (`fm serve` in Terminal, or `osascript … do script`). Don't call `fm --model pcc`
+  straight from a launchd service.
+- **SDK build fails `SwiftToolingError … full Xcode required`** → `sudo xcode-select -s /path/to/Xcode-beta.app/Contents/Developer`,
   then `sudo xcodebuild -license accept && sudo xcodebuild -runFirstLaunch`, then reinstall.
-- **`apple_fm_sdk` requires** Apple silicon, Python ≥ 3.10, full Xcode, Apple Intelligence enabled.
-- **PCC has a personal daily quota; on-device is unlimited.** Don't build a high-volume
-  multi-user feature on PCC even where it works.
-- **A paid Apple Developer account does NOT unlock PCC for a daemon/web app** — the entitlement
-  path is for apps distributed on the App Store only.
-
----
+- **`apple_fm_sdk` needs** Apple silicon, Python ≥3.10, full Xcode, Apple Intelligence enabled.
+- **PCC has a personal daily quota; on-device is unlimited.** Don't build high-volume features on PCC.
+- A paid Apple Developer account does **not** unlock the in-process PCC API for a daemon/web app
+  (that path is App-Store-distribution only) — but you don't need it: the Terminal-hosted `fm` route above works.
 
 ## References
 - Python SDK: <https://github.com/apple/python-apple-fm-sdk> · docs <https://apple.github.io/python-apple-fm-sdk/>
-- WWDC26: "Build AI-powered scripts with the fm CLI and Python SDK" (session 334),
-  "What's new in the Foundation Models framework" (241),
-  "Build with the new Apple Foundation Model on Private Cloud Compute" (319)
-- `fm --help`, `fm respond --help`
+- WWDC26 sessions 334 (fm CLI + Python SDK), 241 (Foundation Models), 319 (PCC)
+- `fm --help`, `fm respond --help`, `fm serve --help`
