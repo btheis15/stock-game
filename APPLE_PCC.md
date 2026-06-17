@@ -60,9 +60,12 @@ curl -s localhost:8799/v1/chat/completions -H 'content-type: application/json' -
 Endpoints: `POST /v1/chat/completions`, `GET /v1/models`, `GET /health`.
 (`fm serve` also supports `--socket /tmp/fm.sock` for a Unix socket instead of TCP.)
 
-> To auto-start at login: a LaunchAgent (or login item) that runs the `osascript … do script
-> "fm serve …"` line — the osascript runs in the background but *Terminal* hosts `fm serve`, so it
-> lands in the PCC-eligible context. (A LaunchAgent that runs `fm serve` *directly* would NOT get PCC.)
+> To auto-start at login: add a **GUI Login Item** that opens Terminal running `fm serve`
+> (System Settings → General → Login Items). Login items run in your session, so Terminal gets the
+> Automation permission it needs. **Do NOT use a launchd LaunchAgent that osascripts Terminal** — a
+> background agent can't get that permission and silently fails (verified 2026-06-17); a LaunchAgent
+> running `fm serve` *directly* also won't get PCC (background context). If the server's down, callers
+> fall back to on-device automatically.
 
 ### Method 2 — one-shot `osascript` per request (simpler, noisier)
 ```bash
