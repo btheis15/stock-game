@@ -3799,6 +3799,70 @@ struct GameOutcome {
     let windows: [String: WindowDigest]
 }
 
+// ── Game-level summary engine: Private Cloud Compute via `fm serve` ──────────
+// The game-wide briefings synthesize many articles at once, where the bigger
+// PCC model is clearly better than the small on-device one. PCC isn't reachable
+// from this CLI in-process (entitlement-gated → ModelManagerError 1046), so we
+// POST to the local `fm serve` endpoint, which hosts PCC inside a Terminal/GUI
+// context (see APPLE_PCC.md). processGameSummary only runs on the daily / game
+// scopes (the 15-min fast tier does no AI), so this stays ~once a day. Falls
+// back to the on-device engine if `fm serve` is unreachable or PCC errors.
+// Override with GAME_SUMMARY_ENGINE=on-device to skip PCC entirely.
+let GAME_SERVE_URL = ProcessInfo.processInfo.environment["FM_SERVE_URL"]
+    ?? "http://127.0.0.1:8799/v1/chat/completions"
+let GAME_SUMMARY_ENGINE = (ProcessInfo.processInfo.environment["GAME_SUMMARY_ENGINE"] ?? "pcc").lowercased()
+
+func fmServePCCRespond(_ prompt: String, temperature: Double) async throws -> String {
+    struct Req: Encodable { let model: String; let temperature: Double; let stream: Bool; let messages: [[String: String]] }
+    let body = Req(model: "pcc", temperature: temperature, stream: false,
+                   messages: [["role": "user", "content": prompt]])
+    var r = URLRequest(url: URL(string: GAME_SERVE_URL)!)
+    r.httpMethod = "POST"
+    r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    r.httpBody = try JSONEncoder().encode(body)
+    r.timeoutInterval = 120
+    let (data, resp) = try await URLSession.shared.data(for: r)
+    guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
+        throw NSError(domain: "fmserve", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: "fm serve HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"])
+    }
+    struct Resp: Decodable {
+        struct Choice: Decodable { struct Msg: Decodable { let content: String }; let message: Msg }
+        let choices: [Choice]
+    }
+    let decoded = try JSONDecoder().decode(Resp.self, from: data)
+    guard let content = decoded.choices.first?.message.content, !content.isEmpty else {
+        throw NSError(domain: "fmserve", code: 2, userInfo: [NSLocalizedDescriptionKey: "fm serve empty content"])
+    }
+    return content
+}
+
+// Prefer PCC (via fm serve), fall back to the on-device engine. Holds one AIGate
+// slot so the per-window fan-out can't overrun PCC's rate limits (and mirrors
+// aiRespond's gating for the on-device fallback).
+func gameSummaryRespond(_ prompt: String) async throws -> String {
+    await AIGate.shared.acquire()
+    do {
+        let result = try await gameSummaryRespondInner(prompt)
+        await AIGate.shared.release()
+        return result
+    } catch {
+        await AIGate.shared.release()
+        throw error
+    }
+}
+
+func gameSummaryRespondInner(_ prompt: String) async throws -> String {
+    if GAME_SUMMARY_ENGINE != "on-device" {
+        do {
+            return try await fmServePCCRespond(prompt, temperature: 0.4)
+        } catch {
+            logErr("Game summary PCC via fm serve failed (\(error.localizedDescription)) — falling back to on-device")
+        }
+    }
+    return try await aiRespondUngated(prompt, reasoning: .deep)
+}
+
 func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] = WindowKey.allCases) async -> GameOutcome {
     log("• Game-wide summary: start (\(windows.map { $0.rawValue }.joined(separator: ", ")))")
     var perWindow: [String: WindowDigest] = [:]
@@ -3842,7 +3906,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                 let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
                 var digestText: String? = nil
                 do {
-                    digestText = cleanDigestProse(try await aiRespond(prompt))
+                    digestText = cleanDigestProse(try await gameSummaryRespond(prompt))
                 } catch {
                     logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
                 }

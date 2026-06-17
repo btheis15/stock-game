@@ -921,7 +921,7 @@ The digest pipeline is the second of the two writers to `main` and produces
 owning a disjoint slice of `digests.json`. Whatever a scope doesn't touch is
 preserved on the next merge.
 
-> **AI engine (macOS 27 — PCC + on-device).** Every AI call now funnels
+> **AI engine (macOS 27 — PCC + on-device).** [UPDATE 2026-06-17: the **game-level summaries** now use PCC via the Terminal-hosted `fm serve` — `processGameSummary` routes through `gameSummaryRespond` → POST `model=pcc` to the local `fm serve` (PCC isn't reachable in-process from the CLI; fm serve hosts it in a GUI context — see `APPLE_PCC.md`), with on-device fallback if the server is down or PCC errors. Override `GAME_SUMMARY_ENGINE=on-device`. Only the game summary uses PCC (highest-value multi-article synthesis); per-ticker/portfolio/scoring stay on-device in-process. Runs on daily/game scopes only, so ~once a day. Requires `fm serve` running (LaunchAgent `com.mlr.fm-pcc-serve` if installed, else started manually in Terminal).] Every AI call now funnels
 > through one helper, `aiRespond(_:reasoning:)`, instead of inlining
 > `LanguageModelSession()`. At startup `AIEngine.resolve()` prefers Apple's
 > Private Cloud Compute model (bigger context + deeper reasoning) but commits
