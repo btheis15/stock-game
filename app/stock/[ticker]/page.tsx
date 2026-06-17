@@ -4,14 +4,19 @@ import { StockView } from "@/components/StockView";
 import { loadPriceData } from "@/lib/data";
 import { loadFundamentalsForTicker } from "@/lib/fundamentals-data";
 import { activeFundTickers } from "@/lib/funds";
-import { ALL_TICKERS } from "@/lib/picks";
+import { ALL_TICKERS, SPINOFF_CHILD_TICKERS, TICKER_OWNERS } from "@/lib/picks";
+import { spinoffForChild } from "@/lib/events";
+import { spinoffChildShares } from "@/lib/portfolio";
 
-// Player picks + active-fund holdings (e.g. the Legacy Auto comparison fund's
-// Ford / Toyota / Honda, which no player owns). StockView already renders a
-// no-owner state, so fund-only tickers get a working detail page.
+// Player picks + spin-off children (e.g. HONA) + active-fund holdings (e.g.
+// the Legacy Auto comparison fund's Ford / Toyota / Honda, which no player
+// owns). StockView already renders a no-owner state, so fund-only tickers get
+// a working detail page.
 async function browsableTickers(): Promise<string[]> {
   const fundTickers = await activeFundTickers();
-  return [...new Set([...ALL_TICKERS, ...fundTickers])];
+  return [
+    ...new Set([...ALL_TICKERS, ...SPINOFF_CHILD_TICKERS, ...fundTickers]),
+  ];
 }
 
 export async function generateStaticParams() {
@@ -34,6 +39,22 @@ export default async function Page({
   // Fundamentals load is best-effort — missing file or missing ticker just
   // hides the About/Financials/Earnings sections in the view.
   const fundamentals = await loadFundamentalsForTicker(upper);
+
+  // Spin-off child (e.g. HONA): each owner's shares are derived from the parent
+  // position (parentShares × ratio), not a $100k/N pick, so pass explicit per-
+  // owner share counts for the PositionCards.
+  const spinoff = spinoffForChild(upper);
+  const parent = spinoff ? data.tickers[spinoff.parentTicker] : undefined;
+  const ownerShares =
+    spinoff && parent
+      ? Object.fromEntries(
+          (TICKER_OWNERS[upper] ?? []).map((ownerId) => [
+            ownerId,
+            spinoffChildShares(ownerId, parent, spinoff.sharesPerParentShare),
+          ])
+        )
+      : undefined;
+
   return (
     <>
       <HeaderBack />
@@ -42,6 +63,7 @@ export default async function Page({
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
         generatedAt={data.generatedAt}
         fundamentals={fundamentals}
+        ownerShares={ownerShares}
       />
     </>
   );

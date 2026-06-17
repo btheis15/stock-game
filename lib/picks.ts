@@ -15,6 +15,7 @@
 // union. Callers that use `userId: UserId` and index `USERS[userId]`
 // continue to work; the runtime contract is unchanged.
 import rosterData from "@/config/roster.json";
+import { SPINOFFS } from "./events";
 
 export type UserId = string;
 
@@ -92,8 +93,25 @@ export const TICKER_OWNERS: Record<string, UserId[]> = (() => {
       out[t].push(u.id);
     }
   }
+  // Spin-off children are owned by whoever owns the parent (e.g. HONA is held
+  // by every HON holder). They're deliberately NOT in any user's `tickers`
+  // array — that would change `perHoldingDollars` ($100k / N) and dilute the
+  // user's other picks. The position is derived from the parent instead (see
+  // `buildHoldingRows` + `spinoffChildShares` in lib/portfolio.ts), so it
+  // surfaces as a first-class holding/stock that's purely additive from the
+  // spin-off's effective date forward.
+  for (const so of SPINOFFS) {
+    const parentOwners = out[so.parentTicker];
+    if (parentOwners?.length) out[so.childTicker] = [...parentOwners];
+  }
   return out;
 })();
+
+// Spin-off child tickers (e.g. HONA). Used by the /stocks list and
+// /stock/[ticker] params to surface them as first-class detail pages, kept
+// separate from ALL_TICKERS (player picks) so the digest + game-facts
+// pipeline, which iterate ALL_TICKERS, are unaffected.
+export const SPINOFF_CHILD_TICKERS: string[] = SPINOFFS.map((s) => s.childTicker);
 
 export const ALL_TICKERS: string[] = [
   ...new Set(USER_LIST.flatMap((u) => u.tickers)),

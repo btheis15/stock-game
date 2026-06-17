@@ -538,20 +538,32 @@ the git log providing the audit trail.
 repo), `GITHUB_OWNER`, `GITHUB_REPO`. Without these, "Save Fund" fails
 with a clear error message; the rest of the site keeps working.
 
-### Add a spin-off (when HON announces theirs)
-Edit `lib/events.ts`. Drop in:
+### Spin-offs (the Honeywell Aerospace breakup)
+On **2026-06-29** Honeywell split its Aerospace business into a standalone
+company, **Honeywell Aerospace (HONA)** — Brian, who holds HON, receives **1
+HONA share for every 2 HON shares** he owns. Honeywell also did a 1-for-2
+reverse split of the remaining (Automation) business the same day.
+
+The app handles this the way a real brokerage account would: HONA shows up as
+a **new, 11th holding** for Brian the day it starts trading — no backtracked
+history, its value simply added on top from that day forward, like receiving
+a distribution. HON itself reflects that the Aerospace value has left (it's a
+smaller company now), but because Brian *also* now holds HONA, his total is
+made whole — he isn't punished for holding through the spin-off. The reverse
+split is invisible to the numbers (it's economically a no-op; the app
+normalizes it away so HON's history stays continuous).
+
+It's wired in `lib/events.ts`:
 ```ts
-{
-  parentTicker: "HON",
-  childTicker: "NEWCO",
-  childName: "Honeywell Aerospace",
-  effectiveDate: "2026-XX-XX",
-  sharesPerParentShare: 0.25,
-}
+// SPINOFFS
+{ parentTicker: "HON", childTicker: "HONA", childName: "Honeywell Aerospace",
+  effectiveDate: "2026-06-29", sharesPerParentShare: 0.5 }
+// REVERSE_SPLITS
+{ ticker: "HON", effectiveDate: "2026-06-29", factor: 2 }
 ```
-Run `npm run fetch-prices -- --full`. The portfolio engine handles the rest:
-on the effective date, Brian gains `42.76 × 0.25 ≈ 10.69` shares of NEWCO,
-and his portfolio total includes the new position from that date forward.
+For a future spin-off, add the same kind of entry, add the child to
+`config/roster.json` `ticker_names`, and it surfaces automatically (own
+holding row, own stock page). See CLAUDE.md §10.4.
 
 ### Set up a new machine
 Whether it's the Mac mini that runs the schedule or a laptop where you
