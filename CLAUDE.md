@@ -921,42 +921,63 @@ The digest pipeline is the second of the two writers to `main` and produces
 owning a disjoint slice of `digests.json`. Whatever a scope doesn't touch is
 preserved on the next merge.
 
-> **AI engine (macOS 27 — PCC + on-device).** [UPDATE 2026-06-17: the **game-level summaries** now use PCC via the Terminal-hosted `fm serve` — `processGameSummary` routes through `gameSummaryRespond` → POST `model=pcc` to the local `fm serve` (PCC isn't reachable in-process from the CLI; fm serve hosts it in a GUI context — see `APPLE_PCC.md`), with on-device fallback if the server is down or PCC errors. Override `GAME_SUMMARY_ENGINE=on-device`. Only the game summary uses PCC (highest-value multi-article synthesis); per-ticker/portfolio/scoring stay on-device in-process. Runs on daily/game scopes only, so ~once a day. Requires `fm serve` running (LaunchAgent `com.mlr.fm-pcc-serve` if installed, else started manually in Terminal).] Every AI call now funnels
-> through one helper, `aiRespond(_:reasoning:)`, instead of inlining
-> `LanguageModelSession()`. At startup `AIEngine.resolve()` prefers Apple's
-> Private Cloud Compute model (bigger context + deeper reasoning) but commits
-> to it **only after a real probe request succeeds** — PCC can report
-> `.available` yet fail every generation when the process isn't entitled
-> (a bare `swift digest.swift` CLI run hits `ModelManagerError 1046`), so we
-> probe once and fall back to the on-device model for the whole run rather
-> than failing per-call. Override with `DIGEST_ENGINE=on-device|pcc|auto`.
-> **As of now, from the Mac mini's CLI invocation, PCC is entitlement-gated
-> and the pipeline keeps using on-device — same output as pre-27.** The PCC
-> path engages automatically once the pipeline runs from a signed/entitled
-> context. `aiEngine` in `digests.json` stays `"AppleIntelligence"` (PCC *is*
-> Apple Intelligence; the frontend keys its attribution off that exact
-> string), and the engine actually used is logged to `/tmp/stock-game.log`.
-> Full detail in STATE.md → "AI engine selection (PCC vs on-device)". If you
-> tune prompts, note Apple also *replaces* the on-device model on each OS
-> upgrade, so prompt behavior can shift even with no code change.
+> **AI engine (macOS 27 — PCC for ALL prose).** [UPDATE 2026-06-18: **every
+> prose summary now runs on PCC** via the Terminal-hosted `fm serve`, not just
+> the game digest. The central helper `aiRespond(_:reasoning:preferPCCServe:)`
+> POSTs to the local `fm serve` with `model=pcc` (`pccServeRespond`) and falls
+> back to the in-process on-device model only if the server is down or PCC
+> errors — so facts extraction, daily/weekly/monthly summaries, company briefs,
+> and per-stock / portfolio / fund / game window digests all get the bigger PCC
+> model. This is what fixed the vague, "generic"-padded on-device output. PCC
+> isn't reachable in-process from the CLI (entitlement-gated → `ModelManagerError
+> 1046`), so `fm serve` hosts it in a GUI/Login-Item context — see `APPLE_PCC.md`.
+> The Stage-2 **relevance scorer (`scoreArticleAI`) deliberately stays on-device**
+> (high-volume, temperature-0 per-article filter, not a summary; its rare
+> text-fallback passes `preferPCCServe: false`). Override the whole prose
+> pipeline back to on-device with `SUMMARY_ENGINE=on-device` (the older
+> `GAME_SUMMARY_ENGINE` env is still honored for back-compat); point at a
+> different endpoint with `FM_SERVE_URL`. Requires `fm serve` running (Login Item
+> on the mini, else started manually in Terminal); if it's down the pipeline
+> fails open to on-device. **Prompts were also de-rigidified** for the stronger
+> model — the old "write exactly 3 sentences (1)…(2)…(3)", "load-bearing hard
+> rules" walls, and the game prompt's "describe the move generically" fallback
+> are gone; prompts now state the goal + the few load-bearing constraints
+> (ticker symbols, player names, no numbers, real ownership) and trust the model.
+> The game prompt now explicitly lets the model reconcile a price move that
+> contradicts its headline ("fell despite good news") instead of forcing an
+> incoherent sentence.] Every AI call still funnels
+> through one helper instead of inlining `LanguageModelSession()`. At startup
+> `AIEngine.resolve()` still probes the in-process PCC path and falls back to
+> on-device (the resolved engine is the on-device *fallback* now that PCC comes
+> via `fm serve`); override with `DIGEST_ENGINE=on-device|pcc|auto`. `aiEngine`
+> in `digests.json` stays `"AppleIntelligence"` (PCC *is* Apple Intelligence; the
+> frontend keys attribution off that exact string), and the engine actually used
+> is logged to `/tmp/stock-game.log`. Full detail in STATE.md → "AI engine
+> selection (PCC vs on-device)". If you tune prompts, note Apple also *replaces*
+> the on-device model on each OS upgrade, so prompt behavior can shift even with
+> no code change.
 >
 > **Generation options + structured output.** `aiRespond` sets temperature per
-> tier (`generationOptions(for:)`): **0.0** for `.standard` (deterministic
-> classification/extraction) and **0.4** for `.deep` (prose). The relevance
+> tier (`temperatureFor`): **0.0** for `.standard` (deterministic
+> classification/extraction) and **0.4** for `.deep` (prose) — passed to PCC over
+> `fm serve` and applied identically on the on-device fallback. The relevance
 > scorer (`scoreArticleAI`) uses `aiRespondStructured` + a `DynamicGenerationSchema`
 > (`RELEVANCE_SCHEMA`) for typed `{score, reason}` output instead of parsing
-> JSON, with the old `parseScoreJSON` path kept as a fallback. Use the runtime
-> `DynamicGenerationSchema` API, **not** the `@Generable` macro — the macro's
-> compiler plugin needs Xcode, which the Mac mini doesn't have, so it won't
-> build under interpreted `swift digest.swift`.
+> JSON, with the old `parseScoreJSON` path kept as a fallback. Structured output
+> stays in-process/on-device (no JSON-schema response_format over `fm serve`).
+> Use the runtime `DynamicGenerationSchema` API, **not** the `@Generable` macro —
+> the macro's compiler plugin needs Xcode, which the Mac mini doesn't have, so it
+> won't build under interpreted `swift digest.swift`.
 >
-> **Concurrency (macOS 27).** iOS/macOS 26 serialized concurrent `respond()`
-> calls; 27 runs them in parallel (~2.7x for 4-way on-device on the M1 mini).
-> So the ticker / portfolio / fund phases now fan out via `mapConcurrent`
-> instead of serial loops, with a global `actor AIGate` capping total in-flight
-> inference (`DIGEST_AI_CONCURRENCY`, default 4; `1` = old serial behavior).
-> Phases still run in order and output order is preserved. Detail in
-> STATE.md → "In-process AI concurrency".
+> **Concurrency (macOS 27).** The ticker / portfolio / fund / game phases fan
+> out via `mapConcurrent`, and each prose call self-gates by engine: PCC calls
+> go through `actor PCCGate` and on-device calls through `actor AIGate`. PCC runs
+> in the cloud, not on the mini's 8 GB of RAM, so its cap is wider —
+> `DIGEST_PCC_CONCURRENCY` (default 8) vs `DIGEST_AI_CONCURRENCY` (default 4, the
+> memory-bound on-device limit; `1` = serial). A failed PCC call releases its
+> slot before the on-device fallback takes an AIGate slot, so the two gates are
+> never held at once and can't deadlock. Phases still run in order and output
+> order is preserved. Detail in STATE.md → "In-process AI concurrency".
 
 **`--scope fast`** — runs from `cron-update.sh` step 6, after every 15-min
 price refresh. No RSS, no Apple Intelligence calls. Reads the existing
@@ -1060,17 +1081,25 @@ every `owners[].name + portfolioPct`, and one article (highest
   Falls back to the highest-relevance unused article if no
   future-event match exists.
 
-The prompt renders each anchor as a labeled `FACT 1 / FACT 2 / FACT 3`
-block (ticker + pct + owners + their portfolio pcts + article headline +
-article excerpt) and tells the model: *"Do NOT introduce ANY information
-not present in the FACT block — no extra percentages, no dates, no
-growth figures. Every number must come from a FACT block."* The model's
-only job is to phrase each block as one natural-sounding sentence. When
-a slot has no data (no positive movers, no relevant articles, etc.) the
-FACT block is marked `[skip — no data]` and the model omits that
-sentence rather than fabricating. The sentence-shape template requires
-a bracketed pct after every TOKEN so the fast-tier templater can still
-substitute live numbers later.
+`renderFactBlock` renders each anchor as a compact fact (ticker, its
+holders, and the single best article as the "Catalyst"). The prompt
+(rewritten 2026-06-18 for the PCC model) gives the model these facts and
+asks for three flowing sentences — top gainer, biggest drag, what's
+worth watching — with only a few load-bearing constraints: use ticker
+symbols + player first names exactly, only ever credit a stock to its
+real holders, and write no numbers (the fast tier injects live pcts).
+Two deliberate behaviors fix the old failure modes: (1) when an anchor
+has **no article**, the block says *"moved on no notable news rather than
+inventing a reason"* — this replaced the old "describe the move
+generically" fallback that literally produced "a generic market move";
+(2) when a price move **contradicts its headline** (e.g. ASTS down on a
+day its best article is a positive launch story), the model is told to
+say so plainly ("fell despite…") instead of being forced to paraphrase
+the headline as the cause of a drag — the old rigid "FACT 2 = drag,
+paraphrase the headline" slot produced incoherent "popped… that dragged"
+sentences. A slot with no data is marked "skip this sentence" and the
+model omits it. `tickerPct`/`portfolioPct` are still on `GameAnchor` but
+no longer shown to the model (it can't write numbers anyway).
 
 #### Ownership QA backstop
 

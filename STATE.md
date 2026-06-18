@@ -615,11 +615,11 @@ End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Verc
 [swift] scripts/digest.swift
    ├─ Apple Intelligence availability check (SystemLanguageModel.default.availability)
    │     unavailable → exit 0 silently; previous digests.json keeps serving
-   ├─ engine selection (AIEngine.resolve): probe PCC, commit to it only if it
-   │     actually generates, else on-device for the whole run — see
-   │     "AI engine selection (PCC vs on-device)" below
-   ├─ for each ticker (fanned out via mapConcurrent, ≤DIGEST_AI_CONCURRENCY
-   │     in flight, AIGate-throttled; ~17s each serially pre-27):
+   ├─ engine: prose summaries → PCC via `fm serve` (pccServeRespond, model=pcc),
+   │     on-device fallback; relevance scorer stays on-device. AIEngine.resolve()
+   │     picks the on-device fallback — see "AI engine selection" below
+   ├─ for each ticker (fanned out via mapConcurrent; prose ≤DIGEST_PCC_CONCURRENCY
+   │     via PCCGate, on-device ≤DIGEST_AI_CONCURRENCY via AIGate):
    │     1. fetch RSS from finance.yahoo.com (per-ticker URL)
    │     2. Stage 1 keyword filter (pure Swift, instant)
    │            hard-reject: "arrested", "charity", "obituary", "sports", …
@@ -698,66 +698,66 @@ invariant holds):
 - **Private Cloud Compute** (`PrivateCloudComputeLanguageModel`, new in 27) —
   larger context window + deeper reasoning. Preferred when usable.
 
-`AIEngine.resolve()` (called once at startup, before any fan-out) picks the
-engine. Selection is **usability-probed, not availability-only**: PCC can
-report `.available` yet fail every generation when the host process lacks the
-PCC entitlement — a bare `swift digest.swift` CLI run hits
-`ModelManagerError 1046`. So `resolve()` sends one real probe request and only
-commits to PCC if it actually generates; otherwise it uses on-device for the
-whole run (logged once, no per-call retries). All AI calls funnel through
-`aiRespond(_:reasoning:)`, which applies a `ContextOptions.reasoningLevel`
-(`.moderate` for classification/extraction, `.deep` for synthesis) when on PCC,
-and falls back to a one-shot on-device request if a committed-PCC call throws
-mid-run (e.g. quota exhausts).
+**How PCC is reached (updated 2026-06-18).** There are two ways to reach PCC,
+and only one works from the Mac mini's CLI:
+- **In-process** (`PrivateCloudComputeLanguageModel`) — entitlement-gated; a
+  bare `swift digest.swift` run hits `ModelManagerError 1046` on every
+  generation. `AIEngine.resolve()` still probes this once at startup and, since
+  it fails from the CLI, resolves to **on-device** — which is now the *fallback*
+  engine, not the primary.
+- **`fm serve`** (the path the pipeline actually uses) — Apple's
+  OpenAI-compatible local HTTP endpoint, hosted in a foreground Terminal/Login-
+  Item GUI context (see `APPLE_PCC.md`), which reaches PCC on our behalf.
 
-**Generation options + structured output.** `aiRespond` passes a
-`GenerationOptions` per tier (via `generationOptions(for:)`): temperature **0.0**
-for `.standard` (classification/extraction — deterministic, so the same article
-scores identically every run) and **0.4** for `.deep` (prose synthesis — natural
-phrasing without drifting into the fabricated figures the facts-first prompts
-guard against). Temperature is engine-independent (applies on both on-device and
-PCC). The Stage-2 relevance scorer (`scoreArticleAI`) no longer brace-matches
-free-text JSON: it calls `aiRespondStructured` with a `GenerationSchema` (built
-once as `RELEVANCE_SCHEMA` from `DynamicGenerationSchema`) and reads typed
-`score` / `reason` via `GeneratedContent.value(_:forProperty:)`. The runtime
-`DynamicGenerationSchema` API is used deliberately — the `@Generable` *macro*
-does **not** work under the interpreted `swift digest.swift` (its
-`FoundationModelsMacros` compiler plugin ships only with Xcode, which the Mac
-mini doesn't have). `aiRespondStructured` mirrors `aiRespond` (same `AIGate`
-slot, engine selection, and PCC→on-device fallback) and forces
-`ContextOptions.includeSchemaInPrompt = true` so the small on-device model still
-sees the field layout. If schema construction or the structured call fails, the
-scorer falls back to the original prompt-for-JSON + `parseScoreJSON` path, so it
-can never regress.
+**All prose summaries run on PCC via `fm serve`.** The central helper
+`aiRespond(_:reasoning:preferPCCServe:)` calls `pccServeRespond` — a `POST` to
+`FM_SERVE_URL` (default `http://127.0.0.1:8799/v1/chat/completions`) with
+`model=pcc` and the tier's temperature — and only falls back to the in-process
+on-device model if `fm serve` is unreachable or PCC errors mid-run. So facts
+extraction, daily/weekly/monthly summaries, company briefs, and per-stock /
+portfolio / fund / game window digests all run on the larger PCC model (this is
+what fixed the vague, "generic"-padded on-device summaries). All AI stays inside
+Apple — `fm serve` is Apple's own binary talking to Apple's PCC; no third-party
+API, no per-use cost. `SUMMARY_ENGINE=on-device` (or the legacy
+`GAME_SUMMARY_ENGINE`) forces the whole prose pipeline back on-device.
 
-`DIGEST_ENGINE` env var overrides the choice: `auto` (default) probes PCC;
-`on-device` forces the legacy path and skips the probe; `pcc` trusts PCC and
-skips the probe (use once the pipeline runs from a signed, entitled context).
+**The relevance scorer stays on-device.** `scoreArticleAI` is a high-volume,
+temperature-0 per-article filter (hundreds of calls per run), not a summary, so
+it runs on-device for speed + determinism; its rare text-fallback passes
+`preferPCCServe: false`. It calls `aiRespondStructured` with a `GenerationSchema`
+(built once as `RELEVANCE_SCHEMA` from `DynamicGenerationSchema`) and reads typed
+`score` / `reason` via `GeneratedContent.value(_:forProperty:)` — structured
+output stays in-process (no JSON-schema `response_format` over `fm serve`). The
+runtime `DynamicGenerationSchema` API is used deliberately — the `@Generable`
+*macro* does **not** work under the interpreted `swift digest.swift` (its
+`FoundationModelsMacros` compiler plugin ships only with Xcode). If schema
+construction or the structured call fails, the scorer falls back to the original
+prompt-for-JSON + `parseScoreJSON` path, so it can never regress.
 
-**Current reality:** from the Mac mini's `swift digest.swift` CLI invocation,
-PCC generation is entitlement-gated and fails the probe, so the pipeline keeps
-using the on-device model — byte-for-byte the same path as before 27. The PCC
-path lights up automatically the moment the pipeline runs from a context where
-PCC generation is permitted (a signed `.app` bundle carrying the entitlement,
-or `DIGEST_ENGINE=pcc`). The `aiEngine` field stored in `digests.json` stays
-`"AppleIntelligence"` regardless (PCC *is* Apple Intelligence); the actual
-engine chosen per run is logged to `/tmp/stock-game.log`.
+**Generation options.** `temperatureFor(_:)` sets **0.0** for `.standard`
+(deterministic classification/extraction) and **0.4** for `.deep` (prose) —
+passed to PCC over `fm serve` and applied identically on the on-device fallback.
 
-**In-process AI concurrency (macOS 27).** On iOS/macOS 26 the model serialized
-concurrent `respond()` calls, so the digest pipeline processed tickers strictly
-one at a time. macOS 27 runs concurrent `respond()` calls genuinely in parallel
-(measured ~2.7x for 4-way on-device on the 8 GB M1 mini). So the three
-per-item phases — tickers, portfolios, funds — now fan out via `mapConcurrent`
-instead of serial `for` loops (phases still run in order; tickers cache the
-daily summaries that portfolios/game read, and output order is preserved). A
-single global `actor AIGate` throttles **all** AI calls (every `aiRespond` first
-acquires a slot), so total in-flight inference stays bounded no matter how the
-outer fan-out nests with each item's per-window `withTaskGroup`. The cap is
-`DIGEST_AI_CONCURRENCY` (default **4**); set it to `1` to restore the old
-strictly-serial behavior. The PCC→on-device fallback reuses the one held slot,
-and summary-chain sub-calls each acquire/release in turn, so the fan-out cannot
-deadlock. When PCC eventually engages, the same gate bounds PCC requests too,
-keeping the run under PCC's quota.
+`DIGEST_ENGINE` still overrides the in-process probe (`auto` default / `on-device`
+/ `pcc`), but since prose now goes through `fm serve`, the knob that matters
+day-to-day is `SUMMARY_ENGINE`. The `aiEngine` field stored in `digests.json`
+stays `"AppleIntelligence"` regardless (PCC *is* Apple Intelligence; the frontend
+keys attribution off that exact string); the engine actually used per call is
+logged to `/tmp/stock-game.log`. **Operational dependency:** `fm serve` must be
+running (Login Item on the mini, else started manually in Terminal); if it's
+down the pipeline fails open to on-device, so a digest always ships.
+
+**AI concurrency (macOS 27).** The three per-item phases — tickers, portfolios,
+funds (plus the game pass) — fan out via `mapConcurrent` instead of serial `for`
+loops (phases still run in order; tickers cache the daily summaries that
+portfolios/game read, and output order is preserved). Each prose call self-gates
+by engine: **PCC calls go through `actor PCCGate`, on-device calls through
+`actor AIGate`.** PCC runs in the cloud, not on the mini's 8 GB of RAM, so its
+cap is wider — `DIGEST_PCC_CONCURRENCY` (default **8**) vs `DIGEST_AI_CONCURRENCY`
+(default **4**, the memory-bound on-device limit; `1` = serial). A failed PCC
+call hands its slot back *before* the on-device fallback acquires an AIGate slot,
+so the two gates are never held at once and can't deadlock. The structured
+scorer uses AIGate (on-device).
 
 The price refresh pipeline (`cron-update.sh`) and the digest pipeline (`digest-update.sh`) are allowed to run **concurrently**. They stage different files (`public/data/prices.json` vs `public/digests.json`), so they never conflict in the working tree. **Only `cron-update.sh` pushes to `origin/main`** — `digest-update.sh` just commits locally and lets the next 15-min refresh push it along with whatever fresh prices were captured. This eliminates the push race entirely (one publisher, no contention). Trade-off: a manual `Run Briefing Now` on a day when the refresh isn't firing (paused / weekend with weekdays-only on) leaves the digest commit unpushed until the next refresh; `git push` from the repo dir resolves it. The Python scheduler reflects the concurrency with two independent locks (`refresh_lock` + `digest_lock`); a long digest run never blocks the 15-min stock refresh.
 

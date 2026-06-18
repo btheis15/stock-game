@@ -913,40 +913,137 @@ actor AIGate {
     }
 }
 
+// Concurrency cap for PCC-via-fm-serve prose calls. PCC runs in the cloud, not
+// on the mini's 8 GB of RAM, so it isn't bound by the on-device memory limit
+// that pins AIGate at 4 — we can fan the per-ticker / per-window summary calls
+// out much wider. The real ceiling here is fm serve / PCC throughput. Tune with
+// DIGEST_PCC_CONCURRENCY (default 8). A failed PCC call hands its slot back
+// before the on-device fallback acquires an AIGate slot, so the two gates are
+// never held at once and can't deadlock.
+actor PCCGate {
+    static let limit: Int = {
+        if let v = ProcessInfo.processInfo.environment["DIGEST_PCC_CONCURRENCY"],
+           let n = Int(v), n >= 1 { return n }
+        return 8
+    }()
+    static let shared = PCCGate()
+    private var available = PCCGate.limit
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    func acquire() async {
+        if available > 0 { available -= 1; return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func release() {
+        if waiters.isEmpty { available += 1 }
+        else { waiters.removeFirst().resume() }
+    }
+}
+
+// ── Apple Intelligence prose engine: Private Cloud Compute via `fm serve` ────
+//
+// Every PROSE summary in this pipeline (facts, daily/weekly/monthly summaries,
+// company briefs, per-stock / portfolio / fund / game window digests) now runs
+// on PCC. PCC's larger model is dramatically better at multi-source synthesis
+// than the small on-device one — it's what fixes the vague, "generic"-padded
+// summaries the on-device model produced.
+//
+// PCC isn't reachable in-process from a plain `swift digest.swift` CLI run — the
+// process isn't entitled, so every in-process PCC generation fails with
+// `ModelManagerError 1046`. Apple's own `fm serve` is the way through: an
+// OpenAI-compatible HTTP endpoint, hosted inside a foreground Terminal/GUI
+// context (a Login Item on the Mac mini — see APPLE_PCC.md), that reaches PCC on
+// our behalf. So prose calls POST to fm serve with `model=pcc`, and fall back to
+// the in-process on-device model if the server is down or PCC errors mid-run, so
+// the digest always ships. All AI stays inside Apple — no third-party API.
+//
+// The relevance SCORER (scoreArticleAI) is deliberately NOT routed here: it's a
+// high-volume, temperature-0 per-article filter (hundreds of calls per run), not
+// a summary, so it stays on-device for speed + determinism. Callers that must
+// stay on-device pass `preferPCCServe: false`.
+//
+// SUMMARY_ENGINE=on-device forces the whole prose pipeline back on-device.
+let FM_SERVE_URL = ProcessInfo.processInfo.environment["FM_SERVE_URL"]
+    ?? "http://127.0.0.1:8799/v1/chat/completions"
+let SUMMARY_ENGINE: String = (
+    ProcessInfo.processInfo.environment["SUMMARY_ENGINE"]
+        // GAME_SUMMARY_ENGINE was the older game-only knob; honor it for back-compat.
+        ?? ProcessInfo.processInfo.environment["GAME_SUMMARY_ENGINE"]
+        ?? "pcc"
+).lowercased()
+let SUMMARY_USES_PCC = (SUMMARY_ENGINE != "on-device" && SUMMARY_ENGINE != "ondevice")
+
+// Temperature per tier (engine-independent). Classification/extraction
+// (.standard) runs at 0.0 so the same input scores identically every run; prose
+// synthesis (.deep) gets a mild temperature to read naturally.
+func temperatureFor(_ reasoning: DigestReasoning) -> Double {
+    switch reasoning {
+    case .standard: return 0.0
+    case .deep:     return 0.4
+    }
+}
+
+func generationOptions(for reasoning: DigestReasoning) -> GenerationOptions {
+    GenerationOptions(temperature: temperatureFor(reasoning))
+}
+
+// POST one prompt to `fm serve` (PCC) and return the completion text. Throws on
+// any transport / HTTP / empty-content failure so the caller can fall back.
+func pccServeRespond(_ prompt: String, temperature: Double) async throws -> String {
+    struct Req: Encodable { let model: String; let temperature: Double; let stream: Bool; let messages: [[String: String]] }
+    let body = Req(model: "pcc", temperature: temperature, stream: false,
+                   messages: [["role": "user", "content": prompt]])
+    var r = URLRequest(url: URL(string: FM_SERVE_URL)!)
+    r.httpMethod = "POST"
+    r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    r.httpBody = try JSONEncoder().encode(body)
+    r.timeoutInterval = 180
+    let (data, resp) = try await URLSession.shared.data(for: r)
+    guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
+        throw NSError(domain: "fmserve", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: "fm serve HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"])
+    }
+    struct Resp: Decodable {
+        struct Choice: Decodable { struct Msg: Decodable { let content: String }; let message: Msg }
+        let choices: [Choice]
+    }
+    let decoded = try JSONDecoder().decode(Resp.self, from: data)
+    guard let content = decoded.choices.first?.message.content, !content.isEmpty else {
+        throw NSError(domain: "fmserve", code: 2, userInfo: [NSLocalizedDescriptionKey: "fm serve empty content"])
+    }
+    return content
+}
+
 // Single entry point that replaces the old two-liner
 //   `let session = LanguageModelSession(); let r = try await session.respond(to: prompt)`
-// at every call site. Acquires a global concurrency slot (AIGate), applies the
-// reasoning level when on PCC, and if a PCC request throws mid-run (e.g. quota
-// exhausts after the startup probe passed) falls back to a one-shot on-device
-// request so the digest still ships. The slot is released on both paths — and
-// only ONE slot is held per logical call (the PCC→on-device fallback reuses it),
-// and never across the summary-chain sub-calls (those each acquire/release in
-// turn), so the fan-out can't deadlock.
-func aiRespond(_ prompt: String, reasoning: DigestReasoning = .deep) async throws -> String {
+// at every call site. Prefers PCC (via fm serve) for prose, and falls back to a
+// one-shot on-device request if PCC is unreachable / errors so the digest still
+// ships. Each engine path self-gates — PCC through PCCGate (wide, cloud-bound),
+// on-device through AIGate (narrow, memory-bound) — so the whole pipeline of
+// per-ticker / per-window summaries runs in parallel up to those caps.
+func aiRespond(_ prompt: String, reasoning: DigestReasoning = .deep, preferPCCServe: Bool = true) async throws -> String {
+    try await aiRespondUngated(prompt, reasoning: reasoning, preferPCCServe: preferPCCServe)
+}
+
+func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning, preferPCCServe: Bool = true) async throws -> String {
+    // Primary path: PCC via fm serve (the better model), gated by PCCGate. One
+    // failed attempt hands the slot back, logs, and degrades this single call to
+    // on-device rather than failing the run.
+    if preferPCCServe && SUMMARY_USES_PCC {
+        await PCCGate.shared.acquire()
+        do {
+            let out = try await pccServeRespond(prompt, temperature: temperatureFor(reasoning))
+            await PCCGate.shared.release()
+            return out
+        } catch {
+            await PCCGate.shared.release()
+            logErr("PCC via fm serve failed (\(error.localizedDescription)) — falling back to on-device for this call")
+        }
+    }
+    // Fallback path: in-process model, gated by AIGate (the 8 GB memory cap).
+    // AI_ENGINE is on-device from the CLI (PCC is entitlement-gated in-process);
+    // the inner PCC→on-device retry only fires in the rare case AI_ENGINE
+    // actually resolved to in-process PCC.
     await AIGate.shared.acquire()
-    do {
-        let out = try await aiRespondUngated(prompt, reasoning: reasoning)
-        await AIGate.shared.release()
-        return out
-    } catch {
-        await AIGate.shared.release()
-        throw error
-    }
-}
-
-// Temperature is engine-independent (applies on both PCC and on-device).
-// Classification/extraction (.standard) runs at 0.0 so the same article scores
-// identically every run — determinism matters more than variety for a filter.
-// Prose synthesis (.deep) gets a mild temperature to read naturally without
-// drifting into the fabricated figures the facts-first prompts guard against.
-func generationOptions(for reasoning: DigestReasoning) -> GenerationOptions {
-    switch reasoning {
-    case .standard: return GenerationOptions(temperature: 0.0)
-    case .deep:     return GenerationOptions(temperature: 0.4)
-    }
-}
-
-func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning) async throws -> String {
     let engine = AI_ENGINE
     let options = generationOptions(for: reasoning)
     do {
@@ -955,12 +1052,19 @@ func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning) async throws
             options: options,
             contextOptions: engine.contextOptions(for: reasoning)
         )
+        await AIGate.shared.release()
         return response.content
     } catch {
-        guard engine.kind == .privateCloudCompute else { throw error }
-        logErr("PCC request failed mid-run (\(error.localizedDescription)) — falling back to on-device for this call")
-        let response = try await LanguageModelSession().respond(to: prompt, options: options)
-        return response.content
+        guard engine.kind == .privateCloudCompute else { await AIGate.shared.release(); throw error }
+        logErr("in-process PCC request failed mid-run (\(error.localizedDescription)) — falling back to on-device for this call")
+        do {
+            let response = try await LanguageModelSession().respond(to: prompt, options: options)
+            await AIGate.shared.release()
+            return response.content
+        } catch {
+            await AIGate.shared.release()
+            throw error
+        }
     }
 }
 
@@ -1094,9 +1198,11 @@ func scoreArticleAI(_ article: Article, ticker: String) async -> AIScore? {
     }
 
     // Fallback: ask for JSON in the prompt and parse it (pre-structured behavior).
+    // preferPCCServe:false keeps scoring on-device — it's a high-volume,
+    // deterministic per-article filter, not a summary, so it doesn't go to PCC.
     let textPrompt = criteria + "\n\nReply with JSON only, no other text:\n{\"score\": <integer 1-10>, \"reason\": \"<one sentence explaining why>\"}"
     do {
-        let content = try await aiRespond(textPrompt, reasoning: .standard)
+        let content = try await aiRespond(textPrompt, reasoning: .standard, preferPCCServe: false)
         return parseScoreJSON(content)
     } catch {
         logErr("scoreArticleAI threw for \(ticker): \(error.localizedDescription)")
@@ -1558,14 +1664,7 @@ func buildCompanyBriefPrompt(ticker: String, name: String, yearMonth: String, mo
         lines += "\(ms.yearMonth): \(ms.summary)\n\n"
     }
     return """
-    Write a concise 4-5 sentence company brief for \(ticker) (\(name)) as of \(yearMonth).
-
-    Sentence 1: What the company does — core products, business model, end markets.
-    Sentence 2: Where it sits competitively — major competitors, market position.
-    Sentence 3-4: The dominant narrative driving the stock over the past several months, drawn from the monthly summaries below.
-    Sentence 5: The most important catalyst or risk to watch from here.
-
-    Plain prose, single paragraph, no preface, no numbered lists. Be specific — name actual products, competitors, catalysts. No filler.
+    Write a concise 4-5 sentence company brief for \(ticker) (\(name)) as of \(yearMonth): what the company does and where it sits competitively, the dominant narrative driving the stock over the past several months (from the summaries below), and the most important catalyst or risk from here. Be specific — name actual products, competitors, and catalysts. Plain prose, one paragraph.
 
     Recent monthly summaries (oldest first):
     \(lines)
@@ -1698,90 +1797,37 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
         let desc = String(a.description.prefix(DESC_TRUNCATE))
         articleText += "\(i + 1). \(a.title)\n\(desc)\n\n"
     }
-    // The templated short windows (1D/1W/1M) used to ask the model to write
-    // "TICKER [+X.XX%]" so the fast tier could swap the bracket every 15 min.
-    // That format requirement leaked example numbers and produced
-    // hallucinated values too often, so now the model is asked to mention
-    // the ticker symbol only — code injects the placeholder after generation
-    // (see injectDigestPlaceholders).
-    let noNumbersBlock = TEMPLATED_HOLDING_WINDOWS.contains(window)
-        ? "\n\nHARD RULE: do NOT include any percentages, dollar amounts, or other specific numbers in your prose. Mention the ticker symbol \(ticker) at least once; the live price percentage is added automatically by a downstream system."
+    // Templated short windows (1D/1W/1M) get their live pct injected after
+    // generation, so the model must name the ticker symbol and write no numbers.
+    let numbersNote = TEMPLATED_HOLDING_WINDOWS.contains(window)
+        ? " Mention the ticker symbol \(ticker), and don't write any numbers or percentages — the live figure is added automatically afterward."
         : ""
+    let framing: String
     switch window {
     case .d1:
-        return """
-        You are a financial analyst writing a daily briefing for an investor holding \(ticker) (\(name)).
-        These articles have been pre-filtered for investor relevance: earnings, products, regulatory news, analyst moves, executive changes only.
-        Write exactly 3 sentences: (1) what happened today, (2) why it matters to the stock price or investment thesis, (3) the immediate risk or opportunity.
-        No store openings, employee stories, charity, or anything unrelated to financial or competitive position.
-        Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.\(noNumbersBlock)
-
-        Articles:
-        \(articleText)
-        """
+        framing = "what happened to \(ticker) (\(name)) today and why it matters to the stock"
     case .w1:
-        return """
-        You are a financial analyst writing a weekly briefing for an investor holding \(ticker) (\(name)).
-        These articles represent the most significant market-relevant developments from the past 7 days.
-        Write exactly 3 sentences: (1) the dominant narrative or theme this week, (2) key catalysts or sentiment shifts, (3) momentum heading into next week and what to watch.
-        Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.\(noNumbersBlock)
-
-        Articles:
-        \(articleText)
-        """
+        framing = "the week's dominant story for \(ticker) (\(name)) and what to watch heading into next week"
     case .m1:
-        let scope = gameAge < 30
-            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full month)"
-            : "over the past 30 days"
-        return """
-        You are a financial analyst writing a monthly-style briefing for an investor holding \(ticker) (\(name)) \(scope).
-        These are the highest-signal developments in this period, ranked by investor relevance.
-        Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward.
-        Be specific — cite actual events, not vague generalities. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.\(noNumbersBlock)
-
-        Articles:
-        \(articleText)
-        """
+        let scope = gameAge < 30 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "over the past month"
+        framing = "the defining theme for \(ticker) (\(name)) \(scope), the biggest catalyst or risk that emerged, and where it stands now"
     case .m3:
-        let scope = gameAge < 90
-            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full quarter)"
-            : "over the past 90 days"
-        return """
-        You are a financial analyst writing a quarterly-style briefing for an investor holding \(ticker) (\(name)) \(scope).
-        These are the highest-signal developments in this period, ranked by investor relevance.
-        Write exactly 3 sentences: (1) the period's defining theme or catalyst, (2) major risks or opportunities that emerged, (3) how the investment thesis has evolved.
-        Be specific — cite actual events, not vague generalities. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
-
-        Articles:
-        \(articleText)
-        """
+        let scope = gameAge < 90 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "over the past quarter"
+        framing = "the defining theme for \(ticker) (\(name)) \(scope), the major risks or opportunities that emerged, and how the investment thesis has evolved"
     case .y1:
-        // Until the game is at least a year old, "1Y" effectively means
-        // "since February 5, 2026" — there is no earlier history to draw on.
-        let isYoung = gameAge < 365
-        let scopeFraming = isYoung
-            ? "since the game's start on February 5, 2026 (the game has been running for \(gameAge) days, so this covers the entire holding period to date)"
-            : "over the past 12 months"
-        return """
-        You are a financial analyst writing an annual-style briefing for an investor holding \(ticker) (\(name)) \(scopeFraming).
-        These are the most material business developments in this period, filtered for relevance.
-        Write exactly 3 sentences: (1) the period's most important storyline and its market impact, (2) how the company's competitive position or financial trajectory changed, (3) the long-term outlook based on this arc of events.
-        Be concrete and specific. No filler. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
-
-        Articles:
-        \(articleText)
-        """
+        let scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "over the past year"
+        framing = "the most important storyline for \(ticker) (\(name)) \(scope), how its competitive position or trajectory changed, and the long-term outlook"
     case .all:
-        return """
-        You are a financial analyst writing a since-inception summary for an investor holding \(ticker) (\(name)) since February 5, 2026 — the start of the tracking period (\(gameAge) days ago).
-        These are the most material business developments across the entire holding period, filtered for investor relevance and ranked by signal.
-        Write exactly 3 sentences: (1) the defining arc of the company since February 5, 2026 — biggest catalysts, pivots, or regime changes, (2) how the original investment thesis has evolved or been challenged, (3) the structural outlook from here based on what these events imply about competitive position and execution.
-        Be concrete and specific. Reference actual events, not generic commentary. Do not refer to "5 years" — the timeframe is whatever has elapsed since February 5, 2026. Write only the 3-sentence digest as a single paragraph of plain prose. Do not preface it. Do not number the sentences. Do not use bullet points.
-
-        Articles:
-        \(articleText)
-        """
+        framing = "the defining arc for \(ticker) (\(name)) since February 5, 2026 (\(gameAge) days ago), how the original thesis has held up or been challenged, and the outlook from here"
     }
+    return """
+    You're writing a short briefing for an investor holding \(ticker) (\(name)). The articles below are pre-filtered for investor relevance.
+
+    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler.\(numbersNote)
+
+    Articles:
+    \(articleText)
+    """
 }
 
 // MARK: - Intermediate summary prompts + generators (Phase 2)
@@ -1814,11 +1860,9 @@ func buildDailySummaryPrompt(ticker: String, name: String, date: String, article
         ? " (top \(DAILY_SUMMARY_ARTICLE_CAP) by relevance out of \(articles.count) archived)"
         : ""
     return """
-    Summarize one day of business news for \(ticker) (\(name)), \(date). \(min(articles.count, DAILY_SUMMARY_ARTICLE_CAP)) article(s) below\(totalNote).
+    Summarize the day's business news for \(ticker) (\(name)), \(date) — \(min(articles.count, DAILY_SUMMARY_ARTICLE_CAP)) article(s) below\(totalNote).
 
-    Write 2-3 sentences capturing the day's key business developments. Focus on concrete events: earnings, guidance, M&A, regulatory actions, product launches, executive changes, analyst rating shifts. Skip generic market commentary, store openings, employee stories. If there's no material business news, write one sentence noting that the day was quiet for this ticker.
-
-    Plain prose, single paragraph, no preface, no numbered lists.
+    In 2-3 sentences, capture the day's key developments, focusing on concrete events (earnings, guidance, M&A, regulatory actions, launches, executive or analyst moves). If there's no material business news, just say the day was quiet for this ticker. Plain prose, one paragraph.
 
     Articles:
     \(lines)
@@ -1846,13 +1890,11 @@ func buildDailySummaryFromFactsPrompt(
         """
     }()
     return """
-    Write a 2-3 sentence daily summary for \(ticker) (\(name)) on \(date).
+    Write a 2-3 sentence daily summary for \(ticker) (\(name)) on \(date), synthesizing today's facts below into plain prose. Lead with the highest-signal event and combine facts that share a theme.
     \(yesterdayBlock)
     Today's facts (already deduped against the prior 7 days):
     \(factLines)
-    Synthesize the facts into plain prose. Lead with the highest-signal event. If multiple facts share a theme (e.g., two analyst notes after an earnings beat), combine them. If today's facts extend yesterday's narrative, you may write "extending yesterday's…" or "following yesterday's…" — but do not re-state yesterday's events.
-
-    Plain prose, single paragraph, no preface, no numbered lists, no bullets.
+    If today extends yesterday's narrative you can note that briefly, but don't restate yesterday's events. Plain prose, one paragraph.
     """
 }
 
@@ -1862,11 +1904,9 @@ func buildWeeklySummaryPrompt(ticker: String, name: String, weekStartMonday: Str
         lines += "\(d.date): \(d.summary)\n\n"
     }
     return """
-    Summarize one week of business news for \(ticker) (\(name)) covering \(weekStartMonday) through \(weekEndSunday). The daily summaries below are already filtered to material business developments.
+    Summarize the week of business news for \(ticker) (\(name)), \(weekStartMonday) through \(weekEndSunday), from the daily summaries below.
 
-    Synthesize 3-4 sentences capturing the week's most important storylines — what changed, what was confirmed, what's new. Focus on themes that span multiple days; do NOT list day-by-day.
-
-    Plain prose, single paragraph, no preface.
+    In 3-4 sentences, capture the week's most important storylines — what changed, what was confirmed, what's new — as themes that span the week, not a day-by-day list. Plain prose, one paragraph.
 
     Daily summaries:
     \(lines)
@@ -1879,11 +1919,9 @@ func buildMonthlySummaryPrompt(ticker: String, name: String, yearMonth: String, 
         lines += "Week of \(w.weekStartMonday): \(w.summary)\n\n"
     }
     return """
-    Summarize one month of business news for \(ticker) (\(name)) covering \(yearMonth). The weekly summaries below are already filtered to material business developments.
+    Summarize the month of business news for \(ticker) (\(name)), \(yearMonth), from the weekly summaries below.
 
-    Write 4-5 sentences capturing the month's key narratives — what trajectories developed, what themes emerged, what stayed stable, what catalysts mattered most. Synthesize across weeks; do NOT list week-by-week.
-
-    Plain prose, single paragraph, no preface.
+    In 4-5 sentences, capture the month's key narratives — what trajectories developed, what themes emerged, what catalysts mattered most — synthesized across the weeks, not a week-by-week list. Plain prose, one paragraph.
 
     Weekly summaries:
     \(lines)
@@ -2143,11 +2181,10 @@ func buildSummaryBackedWindowPrompt(
     gameAge: Int
 ) -> String? {
     let name = TICKER_NAMES[ticker] ?? ticker
-    // Templated short windows mention the ticker symbol so the post-AI
-    // injector can append the placeholder right after; the fast tier then
-    // renders the live pct every 15 min. No numbers asked of the AI.
-    let noNumbersBlock = TEMPLATED_HOLDING_WINDOWS.contains(window)
-        ? "\n\nHARD RULE: do NOT include any percentages, dollar amounts, or other specific numbers in your prose. Mention the ticker symbol \(ticker) at least once; the live price percentage is added automatically by a downstream system."
+    // Templated short windows get their live pct injected after generation, so
+    // the model must name the ticker symbol and write no numbers.
+    let numbersNote = TEMPLATED_HOLDING_WINDOWS.contains(window)
+        ? " Mention the ticker symbol \(ticker), and don't write any numbers or percentages — the live figure is added automatically afterward."
         : ""
 
     // Company-brief context block — the most recent rolling brief, prepended
@@ -2179,63 +2216,63 @@ func buildSummaryBackedWindowPrompt(
     case .w1:
         guard !dailies.isEmpty else { return nil }
         return """
-        You are writing a 1-week briefing for an investor in \(ticker) (\(name)). The daily summaries below are already filtered to material business developments.
+        You're writing a 1-week briefing for an investor in \(ticker) (\(name)). The daily summaries below are already filtered to material business news.
 
         Daily summaries (past 7 days, oldest first):
         \(renderDailies(dailies))
 
-        Write exactly 3 sentences synthesizing the week's story: (1) the most important business development, (2) what it implies for the company, (3) a forward-looking catalyst or risk based on these events. Plain prose, single paragraph, no preface, no numbered lists, no bullets.\(noNumbersBlock)
+        In three sentences, synthesize the week's story — the most important development, what it implies for the company, and a catalyst or risk ahead. Plain prose, one paragraph.\(numbersNote)
         """
     case .m1:
         let scope = gameAge < 30
-            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full month)"
-            : "over the past 30 days"
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago)"
+            : "over the past month"
         let weeklyBlock = weeklies.isEmpty ? "(none yet)" : renderWeeklies(weeklies)
         let dailyBlock = dailies.isEmpty ? "" : "\n\nRecent daily summaries (current partial week):\n\(renderDailies(dailies))"
         return """
-        You are writing a 1-month briefing for an investor in \(ticker) (\(name)) \(scope). The summaries below are already filtered to material business developments.
+        You're writing a 1-month briefing for an investor in \(ticker) (\(name)) \(scope). The summaries below are already filtered to material business news.
 
         \(briefBlock)Weekly summaries (oldest first):
         \(weeklyBlock)\(dailyBlock)
 
-        Write exactly 3 sentences: (1) the period's defining theme, (2) the biggest catalyst or risk that emerged, (3) where the stock stands heading forward. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.\(noNumbersBlock)
+        In three sentences, cover the period's defining theme, the biggest catalyst or risk that emerged, and where the stock stands now — citing actual events from the summaries. Plain prose, one paragraph.\(numbersNote)
         """
     case .m3:
         let scope = gameAge < 90
-            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — not yet a full quarter)"
-            : "over the past 90 days"
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago)"
+            : "over the past quarter"
         let weeklyBlock = weeklies.isEmpty ? "(none yet)" : renderWeeklies(weeklies)
         return """
-        You are writing a quarterly-style briefing for an investor in \(ticker) (\(name)) \(scope). The weekly summaries below are already filtered to material business developments.
+        You're writing a quarterly briefing for an investor in \(ticker) (\(name)) \(scope). The weekly summaries below are already filtered to material business news.
 
         \(briefBlock)Weekly summaries (oldest first):
         \(weeklyBlock)
 
-        Write exactly 3 sentences: (1) the period's defining theme or catalyst, (2) major risks or opportunities that emerged, (3) how the investment thesis has evolved. Be specific — cite actual events from the summaries, not vague generalities. Plain prose, single paragraph, no preface.
+        In three sentences, cover the period's defining theme or catalyst, the major risks or opportunities that emerged, and how the investment thesis has evolved — citing actual events from the summaries. Plain prose, one paragraph.
         """
     case .y1:
         let isYoung = gameAge < 365
         let scope = isYoung
-            ? "since the game's start on February 5, 2026 (the game has been running for \(gameAge) days, so this covers the entire holding period to date)"
+            ? "since the game's start on February 5, 2026 (\(gameAge) days ago — the whole holding period so far)"
             : "over the past 12 months"
         let monthlyBlock = monthlies.isEmpty ? "(none yet)" : renderMonthlies(monthlies)
         return """
-        You are writing an annual-style briefing for an investor in \(ticker) (\(name)) \(scope). The monthly summaries below cover the period's most material business developments.
+        You're writing an annual briefing for an investor in \(ticker) (\(name)) \(scope). The monthly summaries below cover the period's most material business news.
 
         \(briefBlock)Monthly summaries (oldest first):
         \(monthlyBlock)
 
-        Write exactly 3 sentences: (1) the period's most important storyline and its market impact, (2) how the company's competitive position or financial trajectory changed, (3) the long-term outlook based on this arc of events. Plain prose, single paragraph, no preface.
+        In three sentences, cover the period's most important storyline and its market impact, how the company's competitive position or trajectory changed, and the long-term outlook. Plain prose, one paragraph.
         """
     case .all:
         let monthlyBlock = monthlies.isEmpty ? "(none yet)" : renderMonthlies(monthlies)
         return """
-        You are writing a since-inception summary for an investor in \(ticker) (\(name)) since February 5, 2026 — the start of the tracking period (\(gameAge) days ago). The monthly summaries below cover the period's most material business developments.
+        You're writing a since-inception summary for an investor in \(ticker) (\(name)) since February 5, 2026 — the start of tracking (\(gameAge) days ago). The monthly summaries below cover the period's most material business news.
 
         \(briefBlock)Monthly summaries (oldest first):
         \(monthlyBlock)
 
-        Write exactly 3 sentences: (1) the defining arc of the company since February 5, 2026 — biggest catalysts, pivots, or regime changes, (2) how the original investment thesis has evolved or been challenged, (3) the structural outlook from here. Be concrete and specific. Plain prose, single paragraph, no preface.
+        In three sentences, cover the defining arc since February 5, 2026 (biggest catalysts, pivots, regime changes), how the original thesis has held up or been challenged, and the outlook from here. Plain prose, one paragraph.
         """
     case .d1:
         // 1D continues to use raw articles directly — small input, the user
@@ -2764,30 +2801,20 @@ func buildPortfolioPrompt(
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
     return """
-    You are a financial analyst writing a portfolio briefing for \(player.name), who is a player in a stock-picking game and the HOLDER of the portfolio below. \(player.name) is the reader; \(player.name) is NOT a journalist, NOT a research analyst, and did NOT report any of the news in the articles below. The articles come from external news sources (Yahoo Finance, Barchart, etc.) — never attribute a news event to \(player.name) or any other player.
+    Write a short portfolio briefing for \(player.name), a player in a paper-stock game who HOLDS the portfolio below. \(player.name) is the reader, not a reporter — the news comes from outside sources, so never attribute it to \(player.name) or any other player.
 
-    \(player.name)'s portfolio holds: \(player.tickers.joined(separator: ", ")).
+    \(player.name)'s holdings: \(player.tickers.joined(separator: ", ")).
 
-    STANDINGS — \(player.name)'s holdings for \(scope), ranked by contribution to portfolio (most positive at top, drags at bottom):
+    Standings for \(scope) (top contributors first, drags last — \(player.name) can already see these numbers on the page):
     \(standingsBlock)
 
-    Articles from the period (each tagged with the ticker it relates to; every ticker shown is one \(player.name) holds):
+    Articles from the period (each tagged with the ticker it's about — all are \(player.name)'s holdings):
     \(articleText)
 
-    Your reader can already see the STANDINGS table on the page with the actual percentages. Your job is to explain WHAT HAPPENED IN THE NEWS that produced those numbers — not to restate the numbers. Lead every sentence with a concrete catalyst from the article archive — an earnings beat or miss, an FDA decision, an M&A announcement, an analyst upgrade or downgrade with a specific reason, a guidance change, a product launch, an executive change, a regulatory action.
+    In three short, flowing sentences (one paragraph), explain the news behind the numbers in your own words — don't quote or paste the article text: the event driving the top contributor, the event behind the biggest drag, and one concrete thing to watch next. Open with the actual catalyst (an earnings beat, an analyst move, an FDA decision, a launch, a guidance change), not a restatement of the standings.
 
-    Write exactly 3 sentences as a single paragraph of plain prose:
-    Sentence 1: Lead with the most consequential news event behind \(player.name)'s top contributor (the #1 ticker in STANDINGS) — what happened, what it implies for the business. Mention the ticker symbol.
-    Sentence 2: Lead with the specific news event behind the biggest drag (from the Drag section of STANDINGS, or the smallest gainer if no drags exist) — what happened, what it implies. Mention the ticker symbol.
-    Sentence 3: A specific forward-looking catalyst pulled from the article archive — an upcoming earnings date, regulatory milestone, product launch, or named risk for one of \(player.name)'s holdings. Mention the ticker symbol and the catalyst.
-
-    Hard rules (read carefully — these are load-bearing):
-    - DO NOT include any percentages, dollar amounts, or other specific numbers in your prose. Numbers are added automatically by a downstream system; your job is the narrative only. Phrases like "+3.85%", "down 10%", "$1.2M", "40% growth" — all forbidden.
-    - Refer only to ticker symbols from \(player.name)'s portfolio listed above. Use the SYMBOL (e.g. WMT, TSLA), not the company name.
-    - Mention \(player.name) by name in at least one sentence (e.g. "helping \(player.name)" or "dragging \(player.name)'s portfolio").
-    - NEVER write phrases like "as reported by \(player.name)", "according to \(player.name)", "\(player.name) noted that". The player is the portfolio holder; news comes from outside sources.
-    - Do NOT use the structure "X drove the portfolio with +Y%, Z was the drag with -W%" — that's just restating the table. Open every sentence with the news event itself.
-    - Do not preface the digest. Do not number the sentences. Do not use bullet points.
+    - Use ticker symbols (e.g. WMT, TSLA), only ones \(player.name) holds, and mention \(player.name) by name at least once.
+    - Don't write any numbers or percentages — those are filled in automatically afterward.
     """
 }
 
@@ -3068,19 +3095,14 @@ func buildFundDigestPrompt(
         .map { "\($0.ticker) (\(String(format: "%.1f", $0.weight * 100))%)" }
         .joined(separator: ", ")
     return """
-    You are writing a brief 2-sentence market summary for the user-created comparison fund "\(fund.name)" \(scope). The fund is a $100,000 paper portfolio split across the holdings below at the Feb 5, 2026 close (day \(gameAge) of the game).
+    Write a brief 2-sentence summary of what's driving the user-created comparison fund "\(fund.name)" \(scope). It's a $100,000 paper portfolio split across the holdings below as of the Feb 5, 2026 close (day \(gameAge)).
 
     Holdings (with allocations): \(holdingsLine)
 
-    STANDINGS — top movers in this fund for \(scope):
+    Top movers for \(scope):
     \(formatFundStandingsBlock(movers))
 
-    Write exactly 2 sentences explaining what's driving the fund's range performance: sentence 1 describes the dominant driver (a specific holding's news or move), sentence 2 covers a secondary contributor or drag. Mention the ticker SYMBOL (e.g. AAPL, VTI) of each cited holding so a downstream system can swap in the live percentage.
-
-    Hard rules (read carefully — load-bearing):
-    - DO NOT include any percentages, dollar amounts, or other specific numbers. Numbers are added automatically by a downstream system.
-    - Use ticker SYMBOLS, not company names where the symbol is the standard reference.
-    - Plain prose, single paragraph, no preface, no numbered lists, no bullets.
+    Two short sentences in your own words (don't quote the articles): the dominant driver (a specific holding's move or news), then a secondary contributor or drag. Refer to each cited holding by its ticker symbol (e.g. AAPL, VTI), and don't write any numbers or percentages — those are filled in automatically afterward.
     """
 }
 
@@ -3535,21 +3557,32 @@ func computeGameDigestFacts(
         let text = (ta.article.title + " " + ta.article.description).lowercased()
         return FUTURE_EVENT_KEYWORDS.contains { text.contains($0) }
     }
-    let pickFuture: TaggedArticle? = {
-        if let unused = futureArticles
-            .filter({ !usedTickers.contains($0.ticker) })
-            .sorted(by: {
-                ($0.article.relevanceScore ?? 0) > ($1.article.relevanceScore ?? 0)
-            })
-            .first { return unused }
-        if let unused = articles
-            .filter({ !usedTickers.contains($0.ticker) })
-            .sorted(by: {
-                ($0.article.relevanceScore ?? 0) > ($1.article.relevanceScore ?? 0)
-            })
-            .first { return unused }
-        return futureArticles.first
-    }()
+    // Only treat an article as "about" its ticker if the title/description
+    // actually names that ticker (symbol or company name). This stops the
+    // forward slot from pairing a ticker with a story that's really about a
+    // different company (e.g. a GOOGL-filed article that's actually about
+    // Apple) — those read incoherently and tripped the ownership QA.
+    func aboutItsTicker(_ ta: TaggedArticle) -> Bool {
+        let hay = (ta.article.title + " " + ta.article.description).uppercased()
+        if hay.range(of: "\\b\(NSRegularExpression.escapedPattern(for: ta.ticker))\\b", options: .regularExpression) != nil { return true }
+        if let name = TICKER_NAMES[ta.ticker]?.uppercased(),
+           let firstWord = name.split(separator: " ").first.map(String.init),
+           firstWord.count >= 3, hay.contains(firstWord) { return true }
+        return false
+    }
+    func bestUnused(_ pool: [TaggedArticle]) -> TaggedArticle? {
+        pool.filter { !usedTickers.contains($0.ticker) }
+            .sorted { ($0.article.relevanceScore ?? 0) > ($1.article.relevanceScore ?? 0) }
+            .first
+    }
+    // Preference order: on-topic future-event article, then on-topic anything,
+    // then any future-event article, then anything unused, then last resort.
+    let pickFuture: TaggedArticle? =
+        bestUnused(futureArticles.filter(aboutItsTicker))
+        ?? bestUnused(articles.filter(aboutItsTicker))
+        ?? bestUnused(futureArticles)
+        ?? bestUnused(articles)
+        ?? futureArticles.first
     let forwardCatalyst: GameAnchor? = pickFuture.flatMap { ta in
         anchor(forTicker: ta.ticker, withArticle: ta)
     }
@@ -3561,26 +3594,25 @@ func computeGameDigestFacts(
     )
 }
 
-// Render one GameAnchor into a labeled FACT block the model can transform
-// into one sentence. The model is told to use ONLY these numbers and the
-// ONE article excerpt — no extrapolation.
-func renderFactBlock(_ anchor: GameAnchor?, label: String, intent: String) -> String {
+// Render one GameAnchor into a compact fact the model turns into a sentence.
+// Carries the ticker, its holders, and the single best article (the catalyst).
+// When there's no article, we tell the model to say the stock moved on no
+// notable news — never to invent a cause, and never the word "generic".
+func renderFactBlock(_ anchor: GameAnchor?, role: String) -> String {
     guard let a = anchor else {
-        return "FACT \(label) — \(intent):\n  [skip — no data for this slot; omit this sentence]\n"
+        return "\(role): none this period — skip this sentence."
     }
-    let tickerPctStr = String(format: "%+.2f%%", a.tickerPct * 100)
-    let ownerList = a.owners.map { o in
-        "\(o.name) (portfolio \(String(format: "%+.2f%%", o.portfolioPct * 100)))"
-    }.joined(separator: ", ")
-    let title = a.article?.article.title ?? "(no article available — describe the move generically without inventing causes)"
-    let excerpt = String((a.article?.article.description ?? "").prefix(280))
+    let owners = a.owners.map { $0.name }.joined(separator: ", ")
+    let catalyst: String
+    if let art = a.article?.article {
+        let excerpt = String(art.description.prefix(160))
+        catalyst = "Catalyst (summarize in your own words, don't quote) — \(art.title)" + (excerpt.isEmpty ? "" : ": \(excerpt)")
+    } else {
+        catalyst = "Catalyst — none in the news this period; say it moved on no notable news rather than inventing a reason."
+    }
     return """
-    FACT \(label) — \(intent):
-      Ticker: \(a.ticker)
-      \(a.ticker) window pct: \(tickerPctStr)
-      Held by (only these players — never attribute to anyone else): \(ownerList)
-      Article headline: \(title)
-      Article excerpt: \(excerpt)
+    \(role): \(a.ticker), held by \(owners).
+      \(catalyst)
     """
 }
 
@@ -3594,43 +3626,34 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     case .y1:  scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "this past year"
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
-    // Compute the three structured anchors. The prompt is templated around
-    // them — the model rephrases, doesn't invent.
+    // Swift picks the gainer / drag / forward-looking anchors deterministically
+    // from prices + the article archive; the model just narrates them.
     let facts = computeGameDigestFacts(
         data: data,
         window: window,
         standings: standings,
         articles: articles
     )
-    let topMoverBlock = renderFactBlock(facts.topMover, label: "1", intent: "the strongest positive mover of \(scope)")
-    let topDragBlock  = renderFactBlock(facts.topDrag,  label: "2", intent: "the biggest drag of \(scope)")
-    let forwardBlock  = renderFactBlock(facts.forwardCatalyst, label: "3", intent: "a forward-looking catalyst to watch")
+    let moverBlock = renderFactBlock(facts.topMover, role: "Top gainer of \(scope)")
+    let dragBlock  = renderFactBlock(facts.topDrag,  role: "Biggest drag of \(scope)")
+    let aheadBlock = renderFactBlock(facts.forwardCatalyst, role: "Worth watching next")
 
     return """
-    You are writing a 3-sentence summary of the live leaderboard for a \(PLAYERS.count)-player paper-portfolio competition that started on February 5, 2026. Today is day \(gameAge). Each player started with $100,000. The players are HOLDERS of portfolios — they did NOT write or report any of the news below. Players just own stocks; news comes from outside sources.
+    Write the short "what's driving the leaderboard" blurb for a \(PLAYERS.count)-player paper-stock game — each player started with $100,000 on February 5, 2026; today is day \(gameAge). The players just hold stocks; they don't write or report the news.
 
-    PLAYERS (only source of truth for who owns what):
+    Who owns what:
     \(playersBlockForPrompt())
 
-    You will be given THREE structured FACT blocks below. Each names the ticker that moved, the player(s) who own it, and the article headline that explains why. Your job is to convert each FACT block into ONE natural-sounding sentence about WHAT HAPPENED — the news event — naming the ticker symbol and the player(s) it affected.
+    Facts to work from (use only these — don't invent events, dates, or figures):
+    \(moverBlock)
+    \(dragBlock)
+    \(aheadBlock)
 
-    \(topMoverBlock)
+    Write three short, flowing sentences as one paragraph: the day's top gainer and who it helped, the biggest drag and who it hurt, and what's worth watching next. Keep it tight and natural — summarize each catalyst in your own words in a clause or two; never quote or paste the article text.
 
-    \(topDragBlock)
-
-    \(forwardBlock)
-
-    Sentence 1: Lead with the news event from FACT 1 (paraphrase the headline). Name the ticker symbol and the player(s) it helped.
-    Sentence 2: Lead with the news event from FACT 2. Name the ticker symbol and the player(s) it dragged.
-    Sentence 3: "Looking ahead, …" — paraphrase FACT 3's forward-looking catalyst. Name the ticker symbol and the player(s) it could affect.
-
-    Hard rules (read carefully — these are load-bearing):
-    - DO NOT include any percentages, dollar amounts, or other specific numbers in your prose. Numbers are added automatically by a downstream system; your job is the narrative only. Phrases like "+3.85%", "down 10%", "$1.2M", "40% growth", "two decimals" — all forbidden.
-    - DO NOT invent events, dates, or growth figures. Only paraphrase the FACT block headlines.
-    - DO NOT attribute news to a player ("as reported by Brian", "Kevin's analysis"). Players hold portfolios; news comes from outside sources.
-    - Use ticker SYMBOLS (e.g., TSLA, AAPL, ZS), not company names where the FACT block uses the symbol. Use the player first names exactly as supplied.
-    - If a FACT block says "[skip — no data]", omit that sentence entirely.
-    - Write three sentences as a single paragraph of plain prose. No preface, no numbering, no bullets.
+    - Name stocks by ticker symbol (e.g. TSLA, AAPL) and players by first name, exactly as listed above, and only ever credit a stock's move to the players who actually hold it. Only name the tickers given in the facts — don't name other companies a catalyst article happens to mention in passing.
+    - If a stock fell despite good-sounding news (or rose despite bad news), just say so — don't twist the headline to match the move.
+    - Don't write any numbers or percentages; those are filled in automatically afterward. Skip any line marked "skip this sentence".
     """
 }
 
@@ -3799,70 +3822,10 @@ struct GameOutcome {
     let windows: [String: WindowDigest]
 }
 
-// ── Game-level summary engine: Private Cloud Compute via `fm serve` ──────────
-// The game-wide briefings synthesize many articles at once, where the bigger
-// PCC model is clearly better than the small on-device one. PCC isn't reachable
-// from this CLI in-process (entitlement-gated → ModelManagerError 1046), so we
-// POST to the local `fm serve` endpoint, which hosts PCC inside a Terminal/GUI
-// context (see APPLE_PCC.md). processGameSummary only runs on the daily / game
-// scopes (the 15-min fast tier does no AI), so this stays ~once a day. Falls
-// back to the on-device engine if `fm serve` is unreachable or PCC errors.
-// Override with GAME_SUMMARY_ENGINE=on-device to skip PCC entirely.
-let GAME_SERVE_URL = ProcessInfo.processInfo.environment["FM_SERVE_URL"]
-    ?? "http://127.0.0.1:8799/v1/chat/completions"
-let GAME_SUMMARY_ENGINE = (ProcessInfo.processInfo.environment["GAME_SUMMARY_ENGINE"] ?? "pcc").lowercased()
-
-func fmServePCCRespond(_ prompt: String, temperature: Double) async throws -> String {
-    struct Req: Encodable { let model: String; let temperature: Double; let stream: Bool; let messages: [[String: String]] }
-    let body = Req(model: "pcc", temperature: temperature, stream: false,
-                   messages: [["role": "user", "content": prompt]])
-    var r = URLRequest(url: URL(string: GAME_SERVE_URL)!)
-    r.httpMethod = "POST"
-    r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    r.httpBody = try JSONEncoder().encode(body)
-    r.timeoutInterval = 120
-    let (data, resp) = try await URLSession.shared.data(for: r)
-    guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
-        throw NSError(domain: "fmserve", code: 1,
-                      userInfo: [NSLocalizedDescriptionKey: "fm serve HTTP \((resp as? HTTPURLResponse)?.statusCode ?? -1)"])
-    }
-    struct Resp: Decodable {
-        struct Choice: Decodable { struct Msg: Decodable { let content: String }; let message: Msg }
-        let choices: [Choice]
-    }
-    let decoded = try JSONDecoder().decode(Resp.self, from: data)
-    guard let content = decoded.choices.first?.message.content, !content.isEmpty else {
-        throw NSError(domain: "fmserve", code: 2, userInfo: [NSLocalizedDescriptionKey: "fm serve empty content"])
-    }
-    return content
-}
-
-// Prefer PCC (via fm serve), fall back to the on-device engine. Holds one AIGate
-// slot so the per-window fan-out can't overrun PCC's rate limits (and mirrors
-// aiRespond's gating for the on-device fallback).
-func gameSummaryRespond(_ prompt: String) async throws -> String {
-    await AIGate.shared.acquire()
-    do {
-        let result = try await gameSummaryRespondInner(prompt)
-        await AIGate.shared.release()
-        return result
-    } catch {
-        await AIGate.shared.release()
-        throw error
-    }
-}
-
-func gameSummaryRespondInner(_ prompt: String) async throws -> String {
-    if GAME_SUMMARY_ENGINE != "on-device" {
-        do {
-            return try await fmServePCCRespond(prompt, temperature: 0.4)
-        } catch {
-            logErr("Game summary PCC via fm serve failed (\(error.localizedDescription)) — falling back to on-device")
-        }
-    }
-    return try await aiRespondUngated(prompt, reasoning: .deep)
-}
-
+// Game-level summaries route through the same central aiRespond as every other
+// prose summary now — PCC via fm serve, on-device fallback (see the prose-engine
+// section near aiRespond). processGameSummary only runs on the daily / game
+// scopes (the 15-min fast tier does no AI), so this stays ~once a day.
 func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] = WindowKey.allCases) async -> GameOutcome {
     log("• Game-wide summary: start (\(windows.map { $0.rawValue }.joined(separator: ", ")))")
     var perWindow: [String: WindowDigest] = [:]
@@ -3906,7 +3869,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                 let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
                 var digestText: String? = nil
                 do {
-                    digestText = cleanDigestProse(try await gameSummaryRespond(prompt))
+                    digestText = cleanDigestProse(try await aiRespond(prompt))
                 } catch {
                     logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
                 }
