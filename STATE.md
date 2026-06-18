@@ -682,6 +682,9 @@ End-to-end runtime: ~12 minutes for 45 tickers from cold archive (scaled from ea
 | `--fetch-only` | fetch + archive, skip digest generation |
 | `--digests-only` | regenerate digests from archive without re-fetching |
 | `--output PATH` | override the JSON destination |
+| `--scope fast\|daily\|weekly\|game\|finalize\|backfill` | which slice of the pipeline runs (see §8.6 in CLAUDE.md) |
+
+**`--scope backfill`** is a one-time PCC cache rebuild: it regenerates the `~/StockDigests` summary chain (daily→weekly→monthly→brief) on PCC, sequentially (concurrency ~1), with strict PCC (failed call skips the write rather than poisoning the cache), a hard-stop after `BACKFILL_ABORT_AFTER` (default 5) PCC failures, and per-ticker resume markers under `~/StockDigests/.backfill-done` (`BACKFILL_RESET=1` clears them; `BACKFILL_TICKERS=AAPL,MSFT` scopes it). It writes only the cache, never `digests.json`, and is sized to stay within PCC limits + not starve the MLR moderation sharing the same `fm serve`.
 
 `scripts/digest-update.sh` honors a `DIGEST_MODE` env var: `full` (default — RSS fetch + Stage-2 scoring + digests) or `digests-only` (skip the slow article-fetch path, regenerate from the existing archive in ~8 min). The scheduler UI sets this via the "Skip article fetch" checkbox.
 

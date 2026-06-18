@@ -313,7 +313,7 @@ let ERROR_LOG_FILE = ARCHIVE_DIR.appendingPathComponent("digest-error.log")
 //          for both holdings and portfolios: 1M / 3M / 1Y / ALL. Game digests
 //          are not touched (they refresh daily / fast).
 enum Scope: String {
-    case fast, daily, weekly, game, finalize
+    case fast, daily, weekly, game, finalize, backfill
 }
 
 struct Args {
@@ -352,7 +352,7 @@ func parseArgs() -> Args {
             if i < argv.count, let s = Scope(rawValue: argv[i].lowercased()) {
                 a.scope = s
             } else {
-                fputs("--scope requires one of: fast, daily, weekly, game, finalize\n", stderr)
+                fputs("--scope requires one of: fast, daily, weekly, game, finalize, backfill\n", stderr)
                 exit(2)
             }
         case "--chunk":
@@ -972,6 +972,19 @@ let SUMMARY_ENGINE: String = (
 ).lowercased()
 let SUMMARY_USES_PCC = (SUMMARY_ENGINE != "on-device" && SUMMARY_ENGINE != "ondevice")
 
+// Backfill mode (--scope backfill) regenerates the cached summary chain on PCC.
+// When strict, a PCC failure does NOT fall back to on-device — which would
+// poison the write-once cache with a lesser summary that then looks "done" —
+// instead it throws, the generator skips the write, and the entry is retried on
+// the next backfill run. The failure count drives the run's quota hard-stop.
+nonisolated(unsafe) var BACKFILL_STRICT_PCC = false
+actor PCCFailureTracker {
+    static let shared = PCCFailureTracker()
+    private var n = 0
+    func record() { n += 1 }
+    func count() -> Int { n }
+}
+
 // Temperature per tier (engine-independent). Classification/extraction
 // (.standard) runs at 0.0 so the same input scores identically every run; prose
 // synthesis (.deep) gets a mild temperature to read naturally.
@@ -1036,6 +1049,10 @@ func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning, preferPCCSer
             return out
         } catch {
             await PCCGate.shared.release()
+            if BACKFILL_STRICT_PCC {
+                await PCCFailureTracker.shared.record()
+                throw error            // no on-device fallback during backfill — don't poison the cache
+            }
             logErr("PCC via fm serve failed (\(error.localizedDescription)) — falling back to on-device for this call")
         }
     }
@@ -2124,6 +2141,93 @@ func getOrGenerateMonthlySummary(_ ticker: String, yearMonth: String) async -> M
         cursor = next
     }
     return await generateAndCacheMonthlySummary(ticker, yearMonth: yearMonth, weeklies: weeklies)
+}
+
+// MARK: - PCC cache backfill (--scope backfill)
+//
+// One-time pass that regenerates the hierarchical summary cache (daily → weekly
+// → monthly → company brief) on PCC, replacing summaries left over from the
+// on-device era. It's deliberately conservative to stay well within PCC limits
+// and to never starve the other PCC client on this Mac (the MLR moderation that
+// shares the same `fm serve`):
+//   • Runs the chain SEQUENTIALLY (one ticker at a time; the cascade within a
+//     ticker is awaited in series), so PCC concurrency stays ~1 — far gentler
+//     than the daily briefing's fan-out.
+//   • STRICT PCC: a failed PCC call doesn't fall back to on-device (that would
+//     poison the write-once cache); it skips the write and is retried next run.
+//   • Hard-stops after BACKFILL_ABORT_AFTER (default 5) PCC failures — the
+//     signal that quota is exhausted — leaving the rest of the cache untouched.
+//   • Resumable: a per-ticker marker under ~/StockDigests/.backfill-done is
+//     written only when a ticker completes with zero PCC failures, so a re-run
+//     skips finished tickers. BACKFILL_RESET=1 clears the markers.
+//   • Facts (Layer 0.5) and raw articles are left as-is, so the bulk of the
+//     volume is just the summary layers. Limit to specific tickers with
+//     BACKFILL_TICKERS=AAPL,MSFT.
+
+func backfillYearMonths(_ ticker: String) -> [String] {
+    let dir = archiveDirFor(ticker)
+    guard let entries = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [] }
+    var months = Set<String>()
+    for e in entries where e.hasSuffix(".json") {
+        let day = String(e.dropLast(5))                       // YYYY-MM-DD
+        if day.count >= 7 { months.insert(String(day.prefix(7))) }   // YYYY-MM
+    }
+    return months.sorted()
+}
+
+func backfillClearTickerSummaries(_ ticker: String) {
+    for layer in ["daily", "weekly", "monthly"] {
+        try? FileManager.default.removeItem(at: summaryDirFor(ticker, layer: layer))
+    }
+    try? FileManager.default.removeItem(at: BRIEFS_DIR.appendingPathComponent(ticker))
+}
+
+func runBackfill() async {
+    BACKFILL_STRICT_PCC = true
+    let env = ProcessInfo.processInfo.environment
+    let only = (env["BACKFILL_TICKERS"] ?? "")
+        .split(separator: ",")
+        .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
+        .filter { !$0.isEmpty }
+    let tickers = only.isEmpty ? DEFAULT_TICKERS : only
+    let abortAfter = Int(env["BACKFILL_ABORT_AFTER"] ?? "") ?? 5
+
+    let doneDir = ARCHIVE_DIR.appendingPathComponent(".backfill-done")
+    if env["BACKFILL_RESET"] == "1" { try? FileManager.default.removeItem(at: doneDir) }
+    try? FileManager.default.createDirectory(at: doneDir, withIntermediateDirectories: true)
+
+    log("Backfill — regenerating summary chain on PCC for \(tickers.count) ticker(s), sequentially. Strict PCC (no on-device fallback); hard-stop after \(abortAfter) PCC failures. Facts + raw articles kept.")
+    var done = 0, skipped = 0
+    for ticker in tickers {
+        let marker = doneDir.appendingPathComponent(ticker)
+        if FileManager.default.fileExists(atPath: marker.path) { skipped += 1; continue }
+
+        let failsBefore = await PCCFailureTracker.shared.count()
+        // Clear only THIS ticker's cache right before rebuilding it, so an abort
+        // leaves every not-yet-started ticker's existing cache intact.
+        backfillClearTickerSummaries(ticker)
+        let months = backfillYearMonths(ticker)
+        for ym in months { _ = await getOrGenerateMonthlySummary(ticker, yearMonth: ym) }  // cascades to weekly → daily
+        if let latest = months.last {
+            var monthlies: [MonthlySummary] = []
+            for ym in months { if let m = loadMonthlySummary(ticker, yearMonth: ym) { monthlies.append(m) } }
+            _ = await generateAndCacheCompanyBrief(ticker, yearMonth: latest, monthlies: monthlies)
+        }
+        let totalFails = await PCCFailureTracker.shared.count()
+
+        if totalFails == failsBefore {
+            FileManager.default.createFile(atPath: marker.path, contents: Data())
+            done += 1
+            log("  ✓ \(ticker) backfilled (\(months.count) month(s))")
+        } else {
+            log("  ⚠ \(ticker): \(totalFails - failsBefore) PCC failure(s) — not marked done, will retry on re-run")
+        }
+        if totalFails >= abortAfter {
+            logErr("Backfill HARD-STOP: \(totalFails) PCC failures (likely quota exhausted). \(done) done, \(skipped) skipped this run. Re-run `--scope backfill` later to resume where it left off.")
+            return
+        }
+    }
+    log("Backfill pass complete — \(done) ticker(s) regenerated, \(skipped) already done, \(await PCCFailureTracker.shared.count()) PCC failure(s).")
 }
 
 // Walk back N days from `endDate` (inclusive), collecting any cached or
@@ -4464,6 +4568,12 @@ func runMain() async {
     // PCC only if it generates, else uses on-device for the whole run.
     AI_ENGINE = await AIEngine.resolve()
 
+    // One-time PCC cache backfill — self-contained, doesn't touch digests.json.
+    if args.scope == .backfill {
+        await runBackfill()
+        return
+    }
+
     let tickers = args.tickers.isEmpty ? DEFAULT_TICKERS : args.tickers
     log("Stock News Digest — \(tickers.count) ticker(s), scope=\(args.scope.rawValue)")
     log("Engine: Apple Intelligence — \(AI_ENGINE.kind.rawValue)")
@@ -4505,8 +4615,8 @@ func runMain() async {
         portfolioWindows = PORTFOLIO_WINDOWS_DAILY
         gameWindows = WindowKey.allCases
         skipFetch = true
-    case .fast:
-        // Unreachable — handled above.
+    case .fast, .backfill:
+        // Unreachable — both handled by early returns above.
         return
     }
 

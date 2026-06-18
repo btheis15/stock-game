@@ -1016,6 +1016,22 @@ Used for previewing prompt-tuning changes mid-day without sitting through
 the full daily run; 1D/1W/1M emit fresh `digestTemplate`s so the next
 fast tier picks up the new prose.
 
+**`--scope backfill`** — manual, one-time. Regenerates the hierarchical
+summary cache under `~/StockDigests` (daily → weekly → monthly → company
+brief) on PCC, replacing summaries left from the on-device era. Run
+directly: `swift scripts/digest.swift --scope backfill` (it writes only the
+cache, never `digests.json`). Deliberately conservative so it stays within
+PCC limits and doesn't starve the MLR moderation that shares the same
+`fm serve`: it runs the chain **sequentially** (PCC concurrency ~1), uses
+**strict PCC** (a failed PCC call skips the write instead of poisoning the
+cache with an on-device fallback), **hard-stops** after `BACKFILL_ABORT_AFTER`
+(default 5) PCC failures (the quota-exhausted signal), and is **resumable**
+via per-ticker markers under `~/StockDigests/.backfill-done` (re-run to
+continue; `BACKFILL_RESET=1` clears them). Scope to specific names with
+`BACKFILL_TICKERS=AAPL,MSFT`. Facts (Layer 0.5) and raw articles are left
+as-is. After it runs, the next daily/weekly briefing's window digests
+synthesize from the now-PCC-quality chain.
+
 `digest-update.sh` reads two env vars from the scheduler:
 
 - `DIGEST_SCOPE` (default `daily`) — forwarded as `--scope`. Accepts
