@@ -36,6 +36,20 @@ export interface ChangelogEntry {
 // reverse-chronological order makes the file easy to scan.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "smarter-news-briefings",
+    date: "2026-06-18",
+    category: "Improved",
+    icon: "✨",
+    title: "Smarter news summaries",
+    summary:
+      "The daily briefings now use Apple's new Private Cloud Compute (macOS 27) — a much bigger, private AI model — so they're sharper, more specific, and no longer vague.",
+    details: [
+      "The plain-English summaries that explain what's moving the game and each stock are now written by Apple's Private Cloud Compute, a feature new to macOS 27. Until now they came from the small AI model that runs directly on the Mac; the same kind of request now goes to Apple's much larger AI model running on Apple's own private servers, which is far better at reading a whole day of news and writing a tight, accurate recap.",
+      "It's still entirely Apple — nothing is ever sent to an outside AI service. Apple's private servers are built so that your request is processed and then deleted, and no one (not even Apple) can see what was sent. So you get the quality of a big cloud model with the privacy of something running on your own device.",
+      "Why you'll notice the difference: the old summaries tended to pad with filler like “rose in a generic market move,” and sometimes paired a stock with the wrong piece of news. The new ones name the actual catalyst — an earnings beat, an analyst call, a product launch — keep it to a couple of tight sentences, and read like a real market recap. Tap “Show more” on any briefing to read the full version.",
+    ],
+  },
+  {
     id: "combined-players-fund",
     date: "2026-05-30",
     category: "New",
