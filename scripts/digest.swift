@@ -1817,7 +1817,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     // Templated short windows (1D/1W/1M) get their live pct injected after
     // generation, so the model must name the ticker symbol and write no numbers.
     let numbersNote = TEMPLATED_HOLDING_WINDOWS.contains(window)
-        ? " Mention the ticker symbol \(ticker), and don't write any numbers or percentages — the live figure is added automatically afterward."
+        ? " Mention the ticker symbol \(ticker); don't include any percentages or numbers in the prose."
         : ""
     let framing: String
     switch window {
@@ -1840,7 +1840,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     return """
     You're writing a short briefing for an investor holding \(ticker) (\(name)). The articles below are pre-filtered for investor relevance.
 
-    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler.\(numbersNote)
+    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler. Output only the briefing — no notes about yourself or how it was generated.\(numbersNote)
 
     Articles:
     \(articleText)
@@ -2288,7 +2288,7 @@ func buildSummaryBackedWindowPrompt(
     // Templated short windows get their live pct injected after generation, so
     // the model must name the ticker symbol and write no numbers.
     let numbersNote = TEMPLATED_HOLDING_WINDOWS.contains(window)
-        ? " Mention the ticker symbol \(ticker), and don't write any numbers or percentages — the live figure is added automatically afterward."
+        ? " Mention the ticker symbol \(ticker); don't include any percentages or numbers in the prose."
         : ""
 
     // Company-brief context block — the most recent rolling brief, prepended
@@ -2486,6 +2486,19 @@ func cleanDigestProse(_ raw: String) -> String {
         with: " ",
         options: .regularExpression
     )
+    // Backstop for the larger PCC model: it occasionally breaks character and
+    // appends assistant/meta boilerplate ("As a foundation model developed by
+    // Apple, I'm designed to…", "—another way this model supports…") or invents
+    // a placeholder bracket for the live pct ("[Live figure: AAPL is currently
+    // at …]"). The on-device model never did this. Prompts tell it not to, but
+    // strip it here so it can never reach the page. Done on the single-lined
+    // string so the trailing-clause `.*$` anchors at the true end.
+    s = s.replacingOccurrences(
+        of: #"(?i)\s*\[[^\]]*(?:live figure|figure is|placeholder|insert|current (?:value|price)|\.\.\.)[^\]]*\]"#,
+        with: "", options: .regularExpression)
+    s = s.replacingOccurrences(
+        of: #"(?i)\s*[—-]?\s*[^.!?—]*\b(?:foundation model|language model|as an ai|i'?m designed|i am designed|developed by apple|this model supports|as your assistant)\b.*$"#,
+        with: "", options: .regularExpression)
     return s.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
@@ -2918,7 +2931,8 @@ func buildPortfolioPrompt(
     In three short, flowing sentences (one paragraph), explain the news behind the numbers in your own words — don't quote or paste the article text: the event driving the top contributor, the event behind the biggest drag, and one concrete thing to watch next. Open with the actual catalyst (an earnings beat, an analyst move, an FDA decision, a launch, a guidance change), not a restatement of the standings.
 
     - Use ticker symbols (e.g. WMT, TSLA), only ones \(player.name) holds, and mention \(player.name) by name at least once.
-    - Don't write any numbers or percentages — those are filled in automatically afterward.
+    - Don't include any percentages or numbers in the prose.
+    - Output only the briefing itself — no notes about yourself, being an AI/model, or how it was generated.
     """
 }
 
@@ -3206,7 +3220,7 @@ func buildFundDigestPrompt(
     Top movers for \(scope):
     \(formatFundStandingsBlock(movers))
 
-    Two short sentences in your own words (don't quote the articles): the dominant driver (a specific holding's move or news), then a secondary contributor or drag. Refer to each cited holding by its ticker symbol (e.g. AAPL, VTI), and don't write any numbers or percentages — those are filled in automatically afterward.
+    Two short sentences in your own words (don't quote the articles): the dominant driver (a specific holding's move or news), then a secondary contributor or drag. Refer to each cited holding by its ticker symbol (e.g. AAPL, VTI), and don't include any percentages or numbers. Output only the summary — no notes about yourself or how it was generated.
     """
 }
 
@@ -3757,7 +3771,8 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
 
     - Name stocks by ticker symbol (e.g. TSLA, AAPL) and players by first name, exactly as listed above, and only ever credit a stock's move to the players who actually hold it. Only name the tickers given in the facts — don't name other companies a catalyst article happens to mention in passing.
     - If a stock fell despite good-sounding news (or rose despite bad news), just say so — don't twist the headline to match the move.
-    - Don't write any numbers or percentages; those are filled in automatically afterward. Skip any line marked "skip this sentence".
+    - Don't include any percentages or numbers. Skip any line marked "skip this sentence".
+    - Output only the three sentences — no notes about yourself, being an AI/model, or how this was produced.
     """
 }
 
