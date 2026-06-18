@@ -2496,8 +2496,14 @@ func cleanDigestProse(_ raw: String) -> String {
     s = s.replacingOccurrences(
         of: #"(?i)\s*\[[^\]]*(?:live figure|figure is|placeholder|insert|current (?:value|price)|\.\.\.)[^\]]*\]"#,
         with: "", options: .regularExpression)
+    // Markers are deliberately SELF-REFERENCE-specific (first person, or the
+    // exact "As a foundation model developed by Apple" boilerplate). A broad
+    // "as an ai" / "foundation model" marker would wrongly truncate legitimate
+    // prose about AI companies ("cemented its position as an AI leader",
+    // "released a new foundation model") — the cut runs to end-of-string, so a
+    // false match is destructive. Keep these tight.
     s = s.replacingOccurrences(
-        of: #"(?i)\s*[—-]?\s*[^.!?—]*\b(?:foundation model|language model|as an ai|i'?m designed|i am designed|developed by apple|this model supports|as your assistant)\b.*$"#,
+        of: #"(?i)\s*[—-]?\s*[^.!?—]*\b(?:i'?m designed|i am designed|i'?m an ai|i am an ai|i'?m a (?:large )?language model|as an ai (?:model|assistant|language)|as a foundation model developed by apple|this (?:foundation |language )?model (?:supports|is designed|can help)|as your (?:ai )?assistant|i can (?:help|assist) you)\b.*$"#,
         with: "", options: .regularExpression)
     return s.trimmingCharacters(in: .whitespacesAndNewlines)
 }
