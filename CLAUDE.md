@@ -1105,9 +1105,11 @@ worth watching — with only a few load-bearing constraints: use ticker
 symbols + player first names exactly, only ever credit a stock to its
 real holders, and write no numbers (the fast tier injects live pcts).
 Two deliberate behaviors fix the old failure modes: (1) when an anchor
-has **no article**, the block says *"moved on no notable news rather than
-inventing a reason"* — this replaced the old "describe the move
-generically" fallback that literally produced "a generic market move";
+has **no article in the (widened) news window**, the block says the move
+has *"no notable news in the last several days; attribute it to ongoing
+momentum or positioning rather than inventing a specific event"* — this
+replaced the old "describe the move generically" fallback that literally
+produced "a generic market move";
 (2) when a price move **contradicts its headline** (e.g. ASTS down on a
 day its best article is a positive launch story), the model is told to
 say so plainly ("fell despite…") instead of being forced to paraphrase
@@ -1116,6 +1118,24 @@ paraphrase the headline" slot produced incoherent "popped… that dragged"
 sentences. A slot with no data is marked "skip this sentence" and the
 model omits it. `tickerPct`/`portfolioPct` are still on `GameAnchor` but
 no longer shown to the model (it can't write numbers anyway).
+
+**News lookback is WIDER than the price window for short windows (added
+2026-06-19).** `WindowKey.newsLookback(gameAge:)` returns 5 days for 1D
+and 10 for 1W (long windows fall through to `effectiveLookback`). The
+three article loaders — `articlesForWindow`, `gameNewsArticles`,
+`portfolioArticlesForWindow` — all use it. Rationale: a catalyst from a
+few days ago often still explains where the price sits (a Thursday report
+a stock is still riding on Friday; Friday news read on Monday). Searching
+only the 1-day price window made every still-elevated-but-quiet-today
+stock report "no notable news," which read as misleading. To stop an
+older catalyst being passed off as fresh, each fact/headline is tagged
+with `articleRecencyPhrase` ("reported today" / "reported yesterday" /
+"reported N days ago"), and both the game prompt and the per-stock 1D
+prompt instruct the model to frame an older catalyst as "still
+riding/reacting to" rather than as today's news. The 1D per-stock framing
+changed from "what happened today" to "what's driving it right now
+(possibly a catalyst from the past few days)". `ARTICLES_PER_WINDOW_CAP`
+still bounds prompt size.
 
 #### Ownership QA backstop
 

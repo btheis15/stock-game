@@ -616,6 +616,23 @@ enum WindowKey: String, CaseIterable {
         }
     }
 
+    // News lookback — deliberately WIDER than the price window for the short
+    // windows. A catalyst from a few days ago often still explains where the
+    // price sits today (a Thursday report a stock is still riding on Friday,
+    // or Friday news read on Monday across a weekend). Searching only the
+    // price window made the digest claim "no notable news" while the move was
+    // entirely explained by recent-but-just-outside-the-window news. The cap
+    // (ARTICLES_PER_WINDOW_CAP) still bounds the prompt size, and the fact
+    // block / prompt tell the model how old each catalyst is so it frames an
+    // older one as "still reacting to …" rather than as fresh news.
+    func newsLookback(gameAge: Int) -> Int {
+        switch self {
+        case .d1: return 5
+        case .w1: return 10
+        case .m1, .m3, .y1, .all: return effectiveLookback(gameAge: gameAge)
+        }
+    }
+
     // Effective daysRequired controls when the panel says "insufficient" vs
     // "full". For multi-day windows we only need ONE archive day to start
     // showing a digest — there's no earlier history to wait for, so the
@@ -1779,7 +1796,7 @@ let ARTICLES_PER_WINDOW_CAP: [WindowKey: Int] = [
 ]
 
 func articlesForWindow(ticker: String, window: WindowKey, gameAge: Int) -> [Article] {
-    let articles = loadArticlesInLastNDays(ticker: ticker, days: window.effectiveLookback(gameAge: gameAge))
+    let articles = loadArticlesInLastNDays(ticker: ticker, days: window.newsLookback(gameAge: gameAge))
     let cap = ARTICLES_PER_WINDOW_CAP[window] ?? 15
     // Sort by relevance score (highest first), then keep the top N. Articles
     // without a score sink to the bottom; they'll only be picked if the
@@ -1812,17 +1829,27 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     var articleText = ""
     for (i, a) in articles.enumerated() {
         let desc = String(a.description.prefix(DESC_TRUNCATE))
-        articleText += "\(i + 1). \(a.title)\n\(desc)\n\n"
+        // Tag each headline with how recent it is so the model can tell fresh
+        // news from a catalyst the stock is still reacting to days later.
+        let recency = articleRecencyPhrase(a)
+        let recencyTag = recency.isEmpty ? "" : " [\(recency)]"
+        articleText += "\(i + 1).\(recencyTag) \(a.title)\n\(desc)\n\n"
     }
     // Templated short windows (1D/1W/1M) get their live pct injected after
     // generation, so the model must name the ticker symbol and write no numbers.
     let numbersNote = TEMPLATED_HOLDING_WINDOWS.contains(window)
         ? " Mention the ticker symbol \(ticker); don't include any percentages or numbers in the prose."
         : ""
+    // 1D widened its news lookback to the last few days (see newsLookback), so
+    // a headline here may be a still-driving catalyst from earlier in the week
+    // rather than fresh news — tell the model to frame it that way.
+    let recencyNote = window == .d1
+        ? " A headline tagged \"reported yesterday\" / \"reported N days ago\" is news the stock is STILL reacting to — say it's still riding that, not that it happened today. Only a headline tagged \"reported today\" is fresh."
+        : ""
     let framing: String
     switch window {
     case .d1:
-        framing = "what happened to \(ticker) (\(name)) today and why it matters to the stock"
+        framing = "what's driving \(ticker) (\(name)) right now — the latest catalyst still moving it (which may be from the past few days if the stock is still reacting to it) and why it matters"
     case .w1:
         framing = "the week's dominant story for \(ticker) (\(name)) and what to watch heading into next week"
     case .m1:
@@ -1840,7 +1867,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     return """
     You're writing a short briefing for an investor holding \(ticker) (\(name)). The articles below are pre-filtered for investor relevance.
 
-    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler. Output only the briefing — no notes about yourself or how it was generated.\(numbersNote)
+    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler. Output only the briefing — no notes about yourself or how it was generated.\(numbersNote)\(recencyNote)
 
     Articles:
     \(articleText)
@@ -2878,7 +2905,7 @@ func portfolioArticlesForWindow(
     relevantTickers: [String],
     perTickerCap: Int = 2
 ) -> [TaggedArticle] {
-    let lookback = window.effectiveLookback(gameAge: gameAge)
+    let lookback = window.newsLookback(gameAge: gameAge)
     var seen: Set<String> = []
     var out: [TaggedArticle] = []
     for ticker in relevantTickers {
@@ -3533,7 +3560,7 @@ func formatStandingsBlock(_ standings: [UserStanding]) -> String {
 // (which can mismatch when an article mentions multiple tickers).
 // Capped at 15 so the prompt stays manageable.
 func gameNewsArticles(window: WindowKey, gameAge: Int) -> [TaggedArticle] {
-    let lookback = window.effectiveLookback(gameAge: gameAge)
+    let lookback = window.newsLookback(gameAge: gameAge)
     var seen: Set<String> = []
     var pool: [TaggedArticle] = []
     let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
@@ -3718,10 +3745,25 @@ func computeGameDigestFacts(
     )
 }
 
+// How old an article is, in calendar days (ET), for framing a catalyst as
+// fresh vs. still-driving. Returns a short phrase the prompt can lean on so an
+// older-but-still-relevant report reads as "still reacting to …" rather than
+// being passed off as today's news.
+func articleRecencyPhrase(_ a: Article) -> String {
+    guard let when = parseFetchedAtDate(a.fetchedAt) else { return "" }
+    let today = nyCalendar.startOfDay(for: Date())
+    let day = nyCalendar.startOfDay(for: when)
+    let days = nyCalendar.dateComponents([.day], from: day, to: today).day ?? 0
+    if days <= 0 { return "reported today" }
+    if days == 1 { return "reported yesterday — the move is still being driven by it" }
+    return "reported \(days) days ago — the price is still reacting to it, not to fresh news today"
+}
+
 // Render one GameAnchor into a compact fact the model turns into a sentence.
-// Carries the ticker, its holders, and the single best article (the catalyst).
-// When there's no article, we tell the model to say the stock moved on no
-// notable news — never to invent a cause, and never the word "generic".
+// Carries the ticker, its holders, and the single best article (the catalyst)
+// plus how recent that catalyst is. When there's genuinely no article in the
+// (wider) news window, we tell the model to attribute the move to ongoing
+// momentum — never to invent a cause, and never the word "generic".
 func renderFactBlock(_ anchor: GameAnchor?, role: String) -> String {
     guard let a = anchor else {
         return "\(role): none this period — skip this sentence."
@@ -3730,9 +3772,11 @@ func renderFactBlock(_ anchor: GameAnchor?, role: String) -> String {
     let catalyst: String
     if let art = a.article?.article {
         let excerpt = String(art.description.prefix(160))
-        catalyst = "Catalyst (summarize in your own words, don't quote) — \(art.title)" + (excerpt.isEmpty ? "" : ": \(excerpt)")
+        let recency = articleRecencyPhrase(art)
+        let recencyTag = recency.isEmpty ? "" : " [\(recency)]"
+        catalyst = "Catalyst (summarize in your own words, don't quote)\(recencyTag) — \(art.title)" + (excerpt.isEmpty ? "" : ": \(excerpt)")
     } else {
-        catalyst = "Catalyst — none in the news this period; say it moved on no notable news rather than inventing a reason."
+        catalyst = "Catalyst — no notable news in the last several days; attribute the move to ongoing momentum or positioning rather than inventing a specific event."
     }
     return """
     \(role): \(a.ticker), held by \(owners).
@@ -3777,6 +3821,7 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
 
     - Name stocks by ticker symbol (e.g. TSLA, AAPL) and players by first name, exactly as listed above, and only ever credit a stock's move to the players who actually hold it. Only name the tickers given in the facts — don't name other companies a catalyst article happens to mention in passing.
     - If a stock fell despite good-sounding news (or rose despite bad news), just say so — don't twist the headline to match the move.
+    - A catalyst tagged "reported yesterday" or "reported N days ago" is news the stock is STILL reacting to — frame it that way (e.g. "still riding", "continues to react to") instead of implying it broke today. Only a catalyst tagged "reported today" is fresh.
     - Don't include any percentages or numbers. Skip any line marked "skip this sentence".
     - Output only the three sentences — no notes about yourself, being an AI/model, or how this was produced.
     """
