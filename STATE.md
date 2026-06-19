@@ -226,8 +226,9 @@ Functions exported:
 | `rangeBounds(tradingDates, range)` | Start/end date strings of a range. 1D = (last-2 trading day, last trading day). |
 | `sessionBoundsForDate(intradayDateUTC)` | UTC `[start, end]` for the extended US session (7:00 AM – 6:00 PM ET) on that date (DST heuristic). |
 | `isMarketLive(intraday)` | True iff most-recent bar < 30 min old; naturally handles weekends/holidays. |
-| `getMarketSessionState(now?)` | `"premarket" \| "open" \| "afterhours" \| "closed"` (DST-aware via IANA `America/New_York`). Drives theme + badge. |
+| `getMarketSessionState(now?)` | `"premarket" \| "open" \| "afterhours" \| "closed"` (DST-aware via IANA `America/New_York`; **holiday-aware** via `lib/market-calendar.ts` — full-closure holidays report `"closed"` all day, early-close half days use the 1:00 PM ET close). Drives theme + badge. |
 | `isUsMarketOpen(now?)` | Backward-compat wrapper = `getMarketSessionState() === "open"`. |
+| `marketHolidayName(now?)` / `marketEarlyCloseName(now?)` (in `lib/market-calendar.ts`) | Computed NYSE calendar. Return the holiday name on a full-closure day / the occasion name on a scheduled 1:00 PM ET half day, else `null`. Observance-aware (Sat→Fri, Sun→Mon), Good Friday via Easter, Juneteenth, day-after-Thanksgiving / Christmas Eve / July-3 early closes. Drives the `MarketStateBadge` callout. |
 | `fmtUSD / fmtSignedUSD / fmtPct / fmtDateLong / fmtDateShort / fmtTimeOfDay` | Formatters. |
 
 `STARTING_PORTFOLIO_DOLLARS = 100_000`.
@@ -340,7 +341,12 @@ components/
   MarketStateBadge.tsx  Four-state badge driven by `getMarketSessionState()`: "● Market open"
                         (green, pulsing), "● Pre-market" / "● After hours" (indigo, pulsing),
                         or "● Market closed" (zinc). Renders "Last updated HH:MM" inline
-                        next to it (from `data.generatedAt`).
+                        next to it (from `data.generatedAt`). On a full-closure holiday or a
+                        scheduled 1:00 PM ET half day, also renders an amber callout line below
+                        ("Markets closed today for Juneteenth …" / "Half day — markets close
+                        early at 1:00 PM ET …"), driven by `marketHolidayName` /
+                        `marketEarlyCloseName`. Polls every 60s. Only shown on the 1D view
+                        (rendered alongside `isIntraday`).
   ThemeController.tsx   Client-only. Sets `<html data-theme="light">` during regular hours,
                         `data-theme="twilight"` during pre-market / after-hours, and clears the
                         attribute (dark default) overnight/weekends. Driven by

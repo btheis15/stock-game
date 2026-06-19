@@ -18,6 +18,11 @@ import {
   type UserId,
 } from "./picks";
 import { SPINOFFS } from "./events";
+import {
+  EARLY_CLOSE_HOUR_ET,
+  marketEarlyCloseName,
+  marketHolidayName,
+} from "./market-calendar";
 
 export const STARTING_PORTFOLIO_VALUE = STARTING_PORTFOLIO_DOLLARS;
 
@@ -521,9 +526,10 @@ export type MarketSessionState =
 
 /**
  * Calendar-based market session state for the current moment in ET.
- * DST-aware via the "America/New_York" IANA zone. Doesn't account for market
- * holidays (Thanksgiving, NYE closures, etc.) — would need a maintained
- * calendar; for now those will report "open" during normal hours.
+ * DST-aware via the "America/New_York" IANA zone, and holiday-aware via
+ * `lib/market-calendar.ts`: full-closure NYSE holidays report "closed" all
+ * day, and scheduled early-close ("half") days use the 1:00 PM ET close so the
+ * dead afternoon reports "afterhours"/"closed" instead of a phantom "open".
  *
  * Use this for the user-facing badge and the theme switch. Don't use it for
  * the chart's pulsing endpoint — that wants `isMarketLive` (data freshness),
@@ -543,10 +549,12 @@ export function getMarketSessionState(now: Date = new Date()): MarketSessionStat
   const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10);
   const minute = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
   if (weekday === "Sat" || weekday === "Sun") return "closed";
+  if (marketHolidayName(now)) return "closed";
   const minutes = hour * 60 + minute;
+  const closeHour = marketEarlyCloseName(now) ? EARLY_CLOSE_HOUR_ET : 16;
   if (minutes >= 7 * 60 && minutes < 9 * 60 + 30) return "premarket";
-  if (minutes >= 9 * 60 + 30 && minutes < 16 * 60) return "open";
-  if (minutes >= 16 * 60 && minutes < 18 * 60) return "afterhours";
+  if (minutes >= 9 * 60 + 30 && minutes < closeHour * 60) return "open";
+  if (minutes >= closeHour * 60 && minutes < 18 * 60) return "afterhours";
   return "closed";
 }
 
