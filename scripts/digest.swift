@@ -3784,6 +3784,54 @@ func renderFactBlock(_ anchor: GameAnchor?, role: String) -> String {
     """
 }
 
+// Appended to the prompt on a retry after the model misattributed a ticker.
+// The on-device model's recurring failure is inverting the relationship
+// ("Brian's holdings helped MRVL") and dumping a player's whole roster.
+let GAME_RETRY_NUDGE = """
+
+
+    IMPORTANT — your previous attempt broke a rule. A stock may be credited ONLY to the player(s) listed as holding it in the FACTS. The STOCK moved, and that move helped or hurt its HOLDER — never write it the other way around. Never list a player's other holdings. Name only the holder shown for each stock.
+    """
+
+func joinNames(_ parts: [String]) -> String {
+    switch parts.count {
+    case 0: return ""
+    case 1: return parts[0]
+    case 2: return "\(parts[0]) and \(parts[1])"
+    default: return parts.dropLast().joined(separator: ", ") + ", and " + (parts.last ?? "")
+    }
+}
+
+// Render a fact anchor's owners as "Kevin {{user:kevin}}" (+ joined) so the
+// deterministic fallback carries the same live-pct placeholders the templated
+// model prose would, and the fast tier renders them identically.
+func ownersPhrase(_ owners: [(name: String, portfolioPct: Double)]) -> String {
+    let parts = owners.map { o -> String in
+        if let id = PLAYER_NAME_BY_ID_EXACT[o.name] { return "\(o.name) {{user:\(id)}}" }
+        return o.name
+    }
+    return joinNames(parts)
+}
+
+// Bulletproof fallback used when the model can't produce a clean, correctly
+// attributed blurb after a retry. Built entirely in Swift from the same anchors
+// the prompt used, so it can never misattribute a ticker. Returns a templated
+// string (with {{TICKER}} / {{user:id}} placeholders, no literal numbers); the
+// caller renders it through renderGameDigestTemplate for live pcts.
+func deterministicGameTemplate(_ facts: GameDigestFacts) -> String? {
+    var sentences: [String] = []
+    if let m = facts.topMover, !m.owners.isEmpty {
+        sentences.append("\(m.ticker) {{\(m.ticker)}} led the gainers, lifting \(ownersPhrase(m.owners)).")
+    }
+    if let dr = facts.topDrag, !dr.owners.isEmpty {
+        sentences.append("\(dr.ticker) {{\(dr.ticker)}} was the biggest drag, weighing on \(ownersPhrase(dr.owners)).")
+    }
+    if let f = facts.forwardCatalyst, !f.owners.isEmpty {
+        sentences.append("\(f.ticker) {{\(f.ticker)}} is worth watching next for \(ownersPhrase(f.owners)).")
+    }
+    return sentences.isEmpty ? nil : sentences.joined(separator: " ")
+}
+
 func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int, data: PriceDataLite) -> String {
     let scope: String
     switch window {
@@ -3809,17 +3857,27 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     return """
     Write the short "what's driving the leaderboard" blurb for a \(PLAYERS.count)-player paper-stock game — each player started with $100,000 on February 5, 2026; today is day \(gameAge). The players just hold stocks; they don't write or report the news.
 
-    Who owns what:
-    \(playersBlockForPrompt())
+    Work only from the FACTS below — don't invent events, dates, or figures, and don't pull in a player's other holdings. Each fact names a stock, the catalyst behind its move, and the player(s) who hold that stock. The stock moved, and that move helped or hurt its holder — never write it the other way around (a player's holdings don't "help a stock").
 
-    Facts to work from (use only these — don't invent events, dates, or figures):
+    EXAMPLE
+    Facts:
+      Top gainer of this past week: ZZA, held by Morgan.
+        Catalyst — ZZA won a large new supply contract.
+      Biggest drag of this past week: ZZB, held by Riley.
+        Catalyst — ZZB fell after an analyst downgrade.
+      Worth watching next: ZZC, held by Morgan.
+        Catalyst — ZZC reports earnings next week.
+    Blurb:
+      ZZA's new supply contract made it the week's top gainer, lifting Morgan. An analyst downgrade made ZZB the biggest drag, hurting Riley. Watch ZZC next for Morgan, with earnings due soon.
+
+    Now write the blurb for these FACTS:
     \(moverBlock)
     \(dragBlock)
     \(aheadBlock)
 
-    Write three short, flowing sentences as one paragraph: the day's top gainer and who it helped, the biggest drag and who it hurt, and what's worth watching next. Keep it tight and natural — summarize each catalyst in your own words in a clause or two; never quote or paste the article text.
+    Write three short, flowing sentences as one paragraph: the top gainer and who it helped, the biggest drag and who it hurt, and what's worth watching next. Keep it tight and natural — summarize each catalyst in your own words in a clause or two; never quote or paste the article text.
 
-    - Name stocks by ticker symbol (e.g. TSLA, AAPL) and players by first name, exactly as listed above, and only ever credit a stock's move to the players who actually hold it. Only name the tickers given in the facts — don't name other companies a catalyst article happens to mention in passing.
+    - Name stocks by ticker symbol (e.g. TSLA, AAPL) and players by first name, exactly as written in the FACTS, and credit each stock's move only to the player(s) the fact says hold it. Don't name any other ticker or player — not a player's other holdings, and not a company a catalyst article only mentions in passing. The example names (Morgan, Riley, ZZA, ZZB, ZZC) must not appear in your blurb.
     - If a stock fell despite good-sounding news (or rose despite bad news), just say so — don't twist the headline to match the move.
     - A catalyst tagged "reported yesterday" or "reported N days ago" is news the stock is STILL reacting to — frame it that way (e.g. "still riding", "continues to react to") instead of implying it broke today. Only a catalyst tagged "reported today" is fresh.
     - Don't include any percentages or numbers. Skip any line marked "skip this sentence".
@@ -4037,33 +4095,50 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
 
             group.addTask {
                 let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
+
+                // Generate, then verify ownership. The game digest cites
+                // multiple players + tickers, and the on-device model recurs to
+                // a wrong (player, ticker) pairing ("Brian's holdings helped
+                // MRVL" when MRVL is Kevin's). detectOwnershipViolations catches
+                // it; if found, retry once with a stricter nudge. If it STILL
+                // misattributes, we don't ship it — we fall back to a
+                // deterministic Swift-built blurb from the same anchors, which
+                // can't get ownership wrong. Never ship a misattribution.
                 var digestText: String? = nil
-                do {
-                    digestText = cleanDigestProse(try await aiRespond(prompt))
-                } catch {
-                    logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
+                for attempt in 0..<2 {
+                    do {
+                        let raw = try await aiRespond(attempt == 0 ? prompt : prompt + GAME_RETRY_NUDGE)
+                        let cleaned = cleanDigestProse(raw)
+                        let violations = detectOwnershipViolations(in: cleaned)
+                        if violations.isEmpty {
+                            digestText = cleaned
+                            break
+                        }
+                        logOwnershipViolations(violations, context: "game \(w.rawValue) attempt \(attempt + 1)")
+                    } catch {
+                        logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
+                        break
+                    }
                 }
 
-                // QA: the game digest cites multiple players and tickers; flag
-                // any (player, ticker) pair where the player doesn't hold the
-                // ticker AND no legitimate owner is named in the same sentence.
-                // Logged only — the digest still ships so we don't burn an
-                // already-generated AI run; the user can refine the prompt
-                // from the violation patterns in /tmp/stock-game.log.
-                if let d = digestText {
-                    let violations = detectOwnershipViolations(in: d)
-                    logOwnershipViolations(violations, context: "game \(w.rawValue)")
-                }
-
-                // Inject placeholders for any ticker symbols and player
-                // names the model mentioned. Replaces the old "ask the
-                // model to bracket pcts" approach (which leaked example
-                // numbers from the prompt — Brian's portfolio showing
-                // "-10.23%" because that was the prompt example). Now the
-                // model writes prose with no numbers; code injects the
-                // placeholders; fast tier renders live pcts every 15 min.
+                let facts = computeGameDigestFacts(data: data, window: w, standings: standings, articles: articles)
                 var templateText: String? = nil
-                if let d = digestText, TEMPLATED_GAME_WINDOWS.contains(w) {
+                var usedFallback = false
+
+                if digestText == nil {
+                    // Model errored or couldn't keep ownership straight after a
+                    // retry — emit the deterministic blurb instead of nothing /
+                    // garbage. Carries the same {{TICKER}}/{{user:id}} placeholders
+                    // so the fast tier renders live pcts identically.
+                    if let tmpl = deterministicGameTemplate(facts) {
+                        digestText = renderGameDigestTemplate(tmpl, window: w, data: data)
+                        templateText = TEMPLATED_GAME_WINDOWS.contains(w) ? tmpl : nil
+                        usedFallback = true
+                    }
+                } else if let d = digestText, TEMPLATED_GAME_WINDOWS.contains(w) {
+                    // Model prose is clean: inject placeholders so the fast tier
+                    // can re-render live pcts every 15 min (the model writes no
+                    // numbers itself, so it can't hallucinate them).
                     if proseContainsHallucinatedPcts(d) {
                         logErr("processGameSummary \(w.rawValue): hallucinated pct in prose — \(d.prefix(200))")
                     }
@@ -4091,7 +4166,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                         score: a.relevanceScore ?? 0
                     )
                 }
-                log("  Game \(w.rawValue) → \(digestText != nil ? "✓" : "—")\(templateText != nil ? " [template]" : "") (\(articles.count) articles, \(standings.count) players)")
+                log("  Game \(w.rawValue) → \(digestText != nil ? (usedFallback ? "✓ deterministic-fallback" : "✓") : "—")\(templateText != nil ? " [template]" : "") (\(articles.count) articles, \(standings.count) players)")
                 return (w.rawValue, WindowDigest(
                     digest: digestText,
                     articleCount: articleObjs.count,
