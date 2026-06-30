@@ -985,7 +985,7 @@ let SUMMARY_ENGINE: String = (
     ProcessInfo.processInfo.environment["SUMMARY_ENGINE"]
         // GAME_SUMMARY_ENGINE was the older game-only knob; honor it for back-compat.
         ?? ProcessInfo.processInfo.environment["GAME_SUMMARY_ENGINE"]
-        ?? "pcc"
+        ?? "on-device"
 ).lowercased()
 let SUMMARY_USES_PCC = (SUMMARY_ENGINE != "on-device" && SUMMARY_ENGINE != "ondevice")
 
@@ -4717,7 +4717,7 @@ func runMain() async {
 
     let tickers = args.tickers.isEmpty ? DEFAULT_TICKERS : args.tickers
     log("Stock News Digest — \(tickers.count) ticker(s), scope=\(args.scope.rawValue)")
-    log("Engine: Apple Intelligence — \(AI_ENGINE.kind.rawValue)")
+    log("Engine: Apple Intelligence — \(AI_ENGINE.kind.rawValue); prose summary engine: \(SUMMARY_ENGINE)")
     if args.dryRun { log("DRY RUN — nothing will be written") }
 
     // Scope dictates which windows each entity regenerates. The other windows
