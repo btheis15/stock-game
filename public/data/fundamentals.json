@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-03T12:05:02.136Z",
+  "generatedAt": "2026-07-06T12:05:02.945Z",
   "tickers": {
     "ASTS": {
       "ticker": "ASTS",
@@ -565,7 +565,7 @@
       "headquarters": "San Diego, CA",
       "marketCap": 185767493632,
       "peRatio": 18.931255,
-      "forwardPE": 16.073433,
+      "forwardPE": 16.004875,
       "eps": 9.31,
       "dividendYield": 0.0209,
       "beta": 1.638,
@@ -789,7 +789,7 @@
       "headquarters": "Zug, Switzerland",
       "marketCap": 5916926464,
       "peRatio": null,
-      "forwardPE": -15.687585,
+      "forwardPE": -15.594502,
       "eps": -6.17,
       "dividendYield": null,
       "beta": 1.702,
@@ -1118,7 +1118,7 @@
       "headquarters": "Austin, TX",
       "marketCap": 1477689606144,
       "peRatio": 357.68182,
-      "forwardPE": 154.47221,
+      "forwardPE": 154.48071,
       "eps": 1.1,
       "dividendYield": null,
       "beta": 1.802,
@@ -1864,12 +1864,6 @@
       "earnings": {
         "quarterly": [
           {
-            "date": "2025-05-31",
-            "epsEstimate": 1.64453,
-            "epsActual": 1.7,
-            "surprise": 0.05546999999999991
-          },
-          {
             "date": "2025-08-31",
             "epsEstimate": 1.47912,
             "epsActual": 1.47,
@@ -1877,9 +1871,9 @@
           },
           {
             "date": "2025-11-30",
-            "epsEstimate": 1.17081,
-            "epsActual": 2.1,
-            "surprise": 0.9291900000000002
+            "epsEstimate": 1.6372,
+            "epsActual": 2.26,
+            "surprise": 0.6227999999999998
           },
           {
             "date": "2026-02-28",
@@ -3567,7 +3561,7 @@
       "headquarters": "London, United Kingdom",
       "marketCap": 134531891200,
       "peRatio": 21.17966,
-      "forwardPE": 16.255,
+      "forwardPE": 16.173119,
       "eps": 2.95,
       "dividendYield": 0.0365,
       "beta": 0.447,
@@ -4102,7 +4096,7 @@
       "headquarters": "Veldhoven, Netherlands",
       "marketCap": 681927180288,
       "peRatio": 60.24242,
-      "forwardPE": 36.010296,
+      "forwardPE": 35.78747,
       "eps": 29.37,
       "dividendYield": 0.005,
       "beta": 1.394,
