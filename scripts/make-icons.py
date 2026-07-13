@@ -47,6 +47,61 @@ def make_icon(size: int, maskable: bool = False) -> Image.Image:
     return img
 
 
+
+def make_maskable(size: int) -> Image.Image:
+    """Maskable variant: same art scaled into the ~80% safe zone so Android
+    launcher shapes (circle / squircle) never clip the chart lines. The plain
+    icons stay full-bleed for `purpose: any`."""
+    img = Image.new("RGBA", (size, size), BG + (255,))
+    art = make_icon(int(size * 0.72))
+    off = (size - art.size[0]) // 2
+    img.paste(art, (off, off), art)
+    return img
+
+
+# iOS home-screen PWA launch images. Without these, cold launch flashes a
+# plain black/white screen; with them, launch shows the app mark instantly.
+# (device_width_pt, device_height_pt, scale) — covers the iPhone models the
+# group plausibly owns (X/11 era through 16 Pro Max). Each emits
+# public/splash/splash-{W}x{H}.png plus a <link> tag in app/layout.tsx
+# (media-queried by device size + pixel ratio + orientation).
+SPLASH_DEVICES = [
+    (375, 812, 3),   # iPhone X / XS / 11 Pro / 12-13 mini
+    (390, 844, 3),   # iPhone 12 / 13 / 14
+    (393, 852, 3),   # iPhone 14 Pro / 15 / 16
+    (402, 874, 3),   # iPhone 16 Pro
+    (414, 896, 2),   # iPhone XR / 11
+    (428, 926, 3),   # iPhone 12-14 Pro Max / 14 Plus
+    (430, 932, 3),   # iPhone 14-15 Pro Max / 15-16 Plus
+    (440, 956, 3),   # iPhone 16 Pro Max
+]
+
+
+def make_splash(w_px: int, h_px: int) -> Image.Image:
+    img = Image.new("RGBA", (w_px, h_px), BG + (255,))
+    art = make_icon(int(min(w_px, h_px) * 0.32))
+    img.paste(art, ((w_px - art.size[0]) // 2, (h_px - art.size[1]) // 2), art)
+    return img
+
+
+def save_splashes():
+    splash_dir = os.path.join(OUT, "splash")
+    os.makedirs(splash_dir, exist_ok=True)
+    for w_pt, h_pt, scale in SPLASH_DEVICES:
+        w_px, h_px = w_pt * scale, h_pt * scale
+        img = make_splash(w_px, h_px)
+        path = os.path.join(splash_dir, f"splash-{w_px}x{h_px}.png")
+        img.save(path, format="PNG")
+        print(f"Wrote {path} ({w_px}x{h_px})")
+    print("\n<link> tags for app/layout.tsx:")
+    for w_pt, h_pt, scale in SPLASH_DEVICES:
+        w_px, h_px = w_pt * scale, h_pt * scale
+        print(
+            f'<link rel="apple-touch-startup-image" media="(device-width: {w_pt}px) and (device-height: {h_pt}px) '
+            f'and (-webkit-device-pixel-ratio: {scale}) and (orientation: portrait)" href="/splash/splash-{w_px}x{h_px}.png" />'
+        )
+
+
 def save(img: Image.Image, name: str):
     path = os.path.join(OUT, name)
     img.save(path, format="PNG")
@@ -58,6 +113,9 @@ def main():
     save(make_icon(512), "icon-512.png")
     save(make_icon(180), "apple-touch-icon.png")
     save(make_icon(32), "favicon.png")
+    save(make_maskable(192), "icon-192-maskable.png")
+    save(make_maskable(512), "icon-512-maskable.png")
+    save_splashes()
 
 
 if __name__ == "__main__":

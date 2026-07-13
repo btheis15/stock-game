@@ -134,6 +134,12 @@ CODE_CHECK_INTERVAL_MS = 60_000
 
 # Mon=0 ... Sun=6
 WEEKEND = {5, 6}
+# One refresh fires on each weekend day at this local hour (when "Weekdays
+# only" is on) so the app's snapshot timestamp reads "this morning" on a
+# Saturday instead of Friday-stale, and the market-closed state shows
+# today's date. Data-only commits don't trigger Vercel builds, so this
+# costs nothing.
+WEEKEND_TICK_HOUR = 8
 SATURDAY = 5
 SUNDAY = 6
 
@@ -208,6 +214,9 @@ class SchedulerApp:
         self.run_start_minutes = None
         self.run_end_minutes = None
         self.window_wraps_midnight = False
+
+        # Closed-day tick — one refresh per weekend day (see WEEKEND_TICK_HOUR).
+        self.weekend_timer = None
 
         # Daily digest (briefings) — separate timer, fires once per weekday
         # at the configured time. Runs scripts/digest-update.sh which calls
@@ -641,6 +650,11 @@ class SchedulerApp:
             digest_event = self._next_digest_event(now)
             self._schedule_digest_at(digest_event)
 
+            # One tick per closed (weekend) day so the published snapshot's
+            # generatedAt reads "this morning" when someone opens the app on
+            # a Saturday.
+            self._schedule_weekend_tick(now)
+
             self.update_next_run_label()
             self.update_next_digest_label()
             self.schedule_button.config(state=tk.DISABLED)
@@ -657,6 +671,46 @@ class SchedulerApp:
         self.refresh_timer.daemon = True
         self.refresh_timer.start()
         self.refresh_scheduled_time = run_at
+
+    def _next_weekend_tick(self, now):
+        candidate = now.replace(
+            hour=WEEKEND_TICK_HOUR, minute=0, second=0, microsecond=0
+        )
+        for _ in range(9):
+            if candidate > now and candidate.weekday() in WEEKEND:
+                return candidate
+            candidate += timedelta(days=1)
+        return None
+
+    def _schedule_weekend_tick(self, now):
+        # Only needed when the main refresh window skips weekends; with
+        # "Weekdays only" off, the regular interval already covers Sat/Sun.
+        if self.weekend_timer is not None:
+            self.weekend_timer.cancel()
+            self.weekend_timer = None
+        if not self.weekdays_only_var.get():
+            return
+        run_at = self._next_weekend_tick(now)
+        if run_at is None:
+            return
+        delay = max(0.0, (run_at - datetime.now()).total_seconds())
+        self.weekend_timer = threading.Timer(
+            delay, self._fire_weekend_tick, args=(run_at,)
+        )
+        self.weekend_timer.daemon = True
+        self.weekend_timer.start()
+        print(f"Weekend tick scheduled for {run_at}.")
+
+    def _fire_weekend_tick(self, scheduled_for):
+        if self._wait_and_start_refresh():
+            try:
+                print(f"Weekend tick: closed-day refresh (scheduled {scheduled_for}).")
+                self._run_refresh()
+            finally:
+                self._finish_refresh()
+        else:
+            print("Skipped weekend tick: prior refresh still running.")
+        self._schedule_weekend_tick(datetime.now())
 
     def _fire_refresh(self, scheduled_for):
         # Refresh tick fires on its own lock so a long digest run can't push
@@ -692,6 +746,9 @@ class SchedulerApp:
         if self.refresh_timer is not None:
             self.refresh_timer.cancel()
             self.refresh_timer = None
+        if self.weekend_timer is not None:
+            self.weekend_timer.cancel()
+            self.weekend_timer = None
         if self.digest_timer is not None:
             self.digest_timer.cancel()
             self.digest_timer = None
@@ -1734,6 +1791,7 @@ class SchedulerApp:
             now = datetime.now()
             next_run = self._next_valid_run_time(now, self.interval_minutes, now)
             self._schedule_refresh_at(next_run)
+            self._schedule_weekend_tick(now)
             self.schedule_button.config(state=tk.DISABLED)
             self.update_next_run_label()
 
@@ -1755,6 +1813,9 @@ class SchedulerApp:
         if self.refresh_timer is not None:
             self.refresh_timer.cancel()
             self.refresh_timer = None
+        if self.weekend_timer is not None:
+            self.weekend_timer.cancel()
+            self.weekend_timer = None
         if self.digest_timer is not None:
             self.digest_timer.cancel()
             self.digest_timer = None
