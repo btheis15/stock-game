@@ -19,11 +19,10 @@ async function browsableTickers(): Promise<string[]> {
   ];
 }
 
-export async function generateStaticParams() {
-  return (await browsableTickers()).map((ticker) => ({ ticker }));
-}
-
-export const dynamic = "force-static";
+// Rendered per-request like every other data page — this was the last
+// build-time consumer of prices.json. Request-time rendering is what lets
+// the runtime loaders (lib/data.ts) serve fresh data without a redeploy.
+export const dynamic = "force-dynamic";
 
 export default async function Page({
   params,

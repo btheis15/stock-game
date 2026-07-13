@@ -1,18 +1,69 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 const TRIGGER = 70;
 const MAX_PULL = 110;
 const RESISTANCE = 0.55;
-const RESUME_RELOAD_MS = 60_000;
+const RESUME_REFRESH_MS = 60_000;
+// A session hidden this long does a full reload once so a never-closed PWA
+// eventually picks up new JS bundles. Cold opens already fetch fresh HTML
+// (no-store), so this is insurance for marathon sessions only.
+const STALE_BUNDLE_RELOAD_MS = 12 * 60 * 60 * 1000;
+// Silent in-place data refresh cadence while the app is visible during
+// (extended) market hours. Matches the mini's 15-min data cadence closely
+// enough that numbers move on their own without a manual pull.
+const POLL_MS = 3 * 60_000;
+const MIN_SPINNER_MS = 400;
+
+// Rough "US market could be moving" gate for the poll: weekday, 7:00 AM –
+// 6:30 PM ET (extended session + slack). Same coarse DST heuristic as the
+// rest of the codebase (months 3–10 = EDT).
+function marketCouldBeLive(now = new Date()): boolean {
+  const month = now.getUTCMonth() + 1;
+  const offset = month >= 3 && month <= 10 ? 4 : 5;
+  const etHour = (now.getUTCHours() - offset + 24) % 24 + now.getUTCMinutes() / 60;
+  const etDay = new Date(now.getTime() - offset * 3_600_000).getUTCDay();
+  if (etDay === 0 || etDay === 6) return false;
+  return etHour >= 7 && etHour <= 18.5;
+}
 
 export function PullToRefresh() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef<number | null>(null);
   const startX = useRef<number | null>(null);
   const aborted = useRef(false);
+  const refreshStartedAt = useRef(0);
+
+  // router.refresh() re-renders the server components in place — fresh data
+  // streams into the existing client tree with range tab, scroll position,
+  // and open sheets preserved. No white flash, unlike the old
+  // window.location.reload().
+  const refreshData = (showSpinner: boolean) => {
+    if (showSpinner) {
+      setRefreshing(true);
+      refreshStartedAt.current = Date.now();
+    }
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
+  // Retract the spinner when the refresh transition settles (with a minimum
+  // display time so a fast refresh doesn't flash).
+  useEffect(() => {
+    if (!refreshing || isPending) return;
+    const elapsed = Date.now() - refreshStartedAt.current;
+    const t = setTimeout(() => {
+      setRefreshing(false);
+      setPull(0);
+    }, Math.max(0, MIN_SPINNER_MS - elapsed));
+    return () => clearTimeout(t);
+  }, [refreshing, isPending]);
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
@@ -43,11 +94,8 @@ export function PullToRefresh() {
 
     const onTouchEnd = () => {
       if (pull > TRIGGER) {
-        setRefreshing(true);
         setPull(TRIGGER);
-        setTimeout(() => {
-          window.location.reload();
-        }, 120);
+        refreshData(true);
       } else {
         setPull(0);
       }
@@ -66,23 +114,42 @@ export function PullToRefresh() {
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pull]);
 
+  // Resume-refresh: silent in-place refresh after >60s hidden — the only cue
+  // is the freshness label updating, which is the professional behavior.
+  // After a very long absence, one hard reload to pick up new bundles.
   useEffect(() => {
     let hiddenAt: number | null = null;
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
         hiddenAt = Date.now();
-      } else if (hiddenAt !== null && Date.now() - hiddenAt > RESUME_RELOAD_MS) {
-        hiddenAt = null;
-        setRefreshing(true);
+        return;
+      }
+      const hiddenFor = hiddenAt !== null ? Date.now() - hiddenAt : 0;
+      hiddenAt = null;
+      if (hiddenFor > STALE_BUNDLE_RELOAD_MS) {
         window.location.reload();
-      } else {
-        hiddenAt = null;
+      } else if (hiddenFor > RESUME_REFRESH_MS) {
+        refreshData(false);
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Gentle poll: numbers move on their own while the app sits open during
+  // market hours.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (!marketCouldBeLive()) return;
+      refreshData(false);
+    }, POLL_MS);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const visible = pull > 4 || refreshing;

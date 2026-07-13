@@ -31,7 +31,7 @@
 | Date | `date-fns` |
 | Data source | Yahoo Finance (unofficial, via `yahoo-finance2` v3) |
 | Package manager | npm; **must use `--legacy-peer-deps`** because Visx peers don't list React 19 |
-| Hosting | Vercel (static export; no API routes) |
+| Hosting | Vercel (server-rendered `force-dynamic` pages + API routes; data JSONs served at request time from origin/main via the GitHub Contents API — see §8. Data commits do NOT trigger deploys: `vercel.json` `ignoreCommand` skips builds for data-only pushes) |
 | PWA | Web manifest + iOS apple-web-app meta + custom install hint |
 
 ## 2. Players (`lib/picks.ts` — source of truth)
@@ -58,7 +58,7 @@ Per-holding $ is computed: `STARTING_PORTFOLIO_DOLLARS / user.tickers.length`. P
 
 `ALL_TICKERS` is the dedup set across all players (44 unique today: ASTS, AMZN, UBER, SERV, AAPL, QCOM, ISRG, CRSP, HON, EXOD, TSLA, NVDA, AVGO, MRVL, CRDO, PLTR, ORCL, ZS, VST, VRT, COHR, CRWV, GFS, GOOGL, NBIS, QBTS, RKLB, S, PEP, GM, TAP, VZ, UL, DKS, WMT, PFE, HD, ASML, OKLO, GLUE, VVOS, HUT, AMRZ, SMR, ZBRA). Fund-only tickers (F, STLA, TM, HMC) are NOT in `ALL_TICKERS` — they ride the price pipeline via `allFundTickers()` and are added to stock-page params via `activeFundTickers()`.
 
-**Baseline (S&P 500).** `lib/picks.ts` also exports `BASELINE = { id: "sp500", name: "S&P 500", color: "#9CA3AF", ticker: "SPY" }` — a read-only market benchmark rendered alongside the human players on the Compare leaderboard + chart. It competes head-to-head ($100k of SPY at the Feb-5 close + dividend cash, same math as a human portfolio with one holding), so if SPY's range pct lands 3rd, the leaderboard shows it 3rd. Explicitly NOT a User: it's not in `USER_LIST` / `TICKER_OWNERS` / `ALL_TICKERS`, has no `/portfolio` page, no `/stock/SPY` page, and no digest entries. SPY rides the price-fetch pipeline as a special-cased extra ticker in `fetch-prices.ts` (`tickersToFetch = [...ALL_TICKERS, ...spinoffChildren, BASELINE.ticker]`) so daily / intraday / weekly bars all land in `prices.json` next to the players, but stays absent from the digest pipeline (Swift's `DEFAULT_TICKERS` is hardcoded and intentionally excludes it). Helpers `baselinePortfolioSeries`, `intradayBaselineSeries`, `weeklyBaselineSeries` in `lib/portfolio.ts` produce the curves the Compare view consumes; all three return null/empty if SPY isn't in the snapshot yet (graceful fallback — the row + line just don't render until the next cron tick fetches it).
+**Baseline (S&P 500).** `lib/picks.ts` also exports `BASELINE = { id: "sp500", name: "S&P 500", color: "#9CA3AF", ticker: "SPY" }` — a read-only market benchmark rendered alongside the human players on the Compare leaderboard + chart. It competes head-to-head ($100k of SPY at the Feb-5 close + dividend cash, same math as a human portfolio with one holding), so if SPY's range pct lands 3rd, the leaderboard shows it 3rd. Explicitly NOT a User: it's not in `USER_LIST` / `TICKER_OWNERS` / `ALL_TICKERS`, has no `/portfolio` page, no `/stock/SPY` page, and no digest entries. SPY rides the price-fetch pipeline as a special-cased extra ticker in `fetch-prices.ts` (`tickersToFetch = [...ALL_TICKERS, ...spinoffChildren, BASELINE.ticker]`) so daily / intraday / weekly bars all land in `prices.json` next to the players, but stays absent from the digest pipeline (Swift's `DEFAULT_TICKERS` is derived at startup from `config/roster.json`'s `users[].tickers` — the baseline's SPY is intentionally excluded; the hardcoded `EMBEDDED_DEFAULT_TICKERS` list is only a fallback for a missing/unparseable roster.json, logged loudly, so the old digest-roster drift risk is gone in normal operation). Helpers `baselinePortfolioSeries`, `intradayBaselineSeries`, `weeklyBaselineSeries` in `lib/portfolio.ts` produce the curves the Compare view consumes; all three return null/empty if SPY isn't in the snapshot yet (graceful fallback — the row + line just don't render until the next cron tick fetches it).
 
 ## 3. Data layout
 
@@ -605,23 +605,41 @@ components/
                                        --yes` to the end of cron-update.sh
                                        (one-line restoration).
 
-[GitHub]   webhook fires Vercel rebuild
+[GitHub]   webhook notifies Vercel on every push — but `vercel.json`
+           `ignoreCommand` (scripts/vercel-ignore-build.sh) SKIPS the build
+           when only public/data/*, public/digests.json, config/funds.json,
+           or config/thesis.json changed since the last deployed SHA
+           (VERCEL_GIT_PREVIOUS_SHA, fetched explicitly since it falls
+           outside the shallow clone; fails open to building). Data commits
+           therefore do NOT redeploy — the app doesn't need them to.
 [CI]       .github/workflows/build.yml runs `npm run build` on PRs and
            pushes to main. Required status check for branch protection.
 
-[Vercel]   Next.js production build
-   │           reads prices.json at build time → 55 static HTML pages prerendered
+[Vercel]   serving (no rebuild needed for data)
+   │           pages are force-dynamic; lib/data.ts / lib/fundamentals-data.ts /
+   │           lib/digests-data.ts (behind /api/digests) read the latest commit
+   │           on origin/main via the GitHub Contents API (raw media type) at
+   │           request time — 60s TTL in-process cache, stale-on-error, then
+   │           filesystem-snapshot fallback (dev / build / GitHub outage).
+   │           Requires GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO on Vercel
+   │           (already set for the funds CRUD). lib/remote-json.ts is the
+   │           shared loader.
    │           Cache-Control: no-cache, no-store, max-age=0, must-revalidate (set in next.config.ts)
    ▼
 [iPhone]   PWA refreshes on next tap
    - no-store on every document + data route, so each cold open fetches fresh
      HTML (defeats iOS webclips serving a stale cached snapshot without
      revalidating). /_next/static/* JS+CSS keep immutable caching.
-   - PullToRefresh component additionally triggers reload on app foreground (>60s hidden)
-   - manual scroll-to-top + drag-down also forces reload
+   - PullToRefresh does router.refresh() in place (spinner via useTransition);
+     resume after >60s hidden refreshes silently; >12h hidden does one hard
+     reload to pick up new bundles; a 3-min poll refreshes while visible
+     during market hours. Client digests refetch via /api/digests on a 5-min
+     TTL (lib/digests.ts).
 ```
 
-End-to-end refresh latency ≈ **~50 seconds** (3s fetch + 14s build + ~30s Vercel propagate).
+End-to-end refresh latency: data is live ≈ **60–90 s** after the mini's push
+(no build in the path — push ~2 s + ≤60 s loader TTL). Code deploys still
+take the old ~50 s build path.
 
 ### Daily digest pipeline (separate from the price cron)
 
@@ -890,7 +908,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 
 ## 13. v-next backlog (reasonable next steps)
 
-- ~~Real corporate-action handling for HON spin-off when announced~~ **DONE** — HON → HONA spin-off + the bundled HON 1-for-2 reverse split are live in `lib/events.ts` (effective 2026-06-29). Optional follow-ups: add HONA to `scripts/digest.swift`'s roster so it gets per-stock AI briefings, and to `fetch-fundamentals` coverage (it's currently keyed off `ALL_TICKERS`, which excludes spin-off children).
+- ~~Real corporate-action handling for HON spin-off when announced~~ **DONE** — HON → HONA spin-off + the bundled HON 1-for-2 reverse split are live in `lib/events.ts` (effective 2026-06-29). Optional follow-ups: include spin-off children in `scripts/digest.swift`'s config-derived `DEFAULT_TICKERS` (it reads `config/roster.json` `users[].tickers`, which excludes HONA) so they get per-stock AI briefings, and to `fetch-fundamentals` coverage (it's currently keyed off `ALL_TICKERS`, which excludes spin-off children).
 - Per-stock 1D chart (currently uses single-ticker intraday but with the same axis; could add a "5D" / "1M" intraday).
 - Better DST detection (use a real library or a lookup of US DST transition dates).
 - Per-user dividend totals on the portfolio drill-down ("Dividends received: $X").
