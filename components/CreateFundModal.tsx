@@ -1,7 +1,7 @@
 "use client";
 
-// Create-Fund flow as a single full-screen sheet on mobile, modal on
-// desktop. In create mode the first screen leads with a <FundIntro>
+// Create-Fund flow as a full-height <Sheet> (full-screen on mobile, modal
+// card on desktop). In create mode the first screen leads with a <FundIntro>
 // explainer — what a fund is, how to build one, and what happens after
 // you save — so a non-technical player understands the feature before
 // touching an input. (Skipped in edit mode; an editor already knows.)
@@ -22,9 +22,16 @@
 // 44pt high, the search input doesn't trigger a zoom (font-size ≥ 16px
 // rule), and weight inputs use type="text" with inputMode="decimal"
 // rather than spinners (which iOS Safari renders inconsistently).
+//
+// The overlay shell (backdrop, z-index above the TabBar, 100dvh keyboard
+// tracking, safe-area insets, body-scroll lock, Escape/backdrop dismiss,
+// dialog a11y, slide-up motion) all comes from <Sheet full> — this file
+// only owns the wizard content + the pinned footer actions.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Fund } from "@/lib/types";
+import { fmtWeightPct } from "@/lib/portfolio";
+import { Sheet } from "@/components/Sheet";
 
 interface TickerSearchResult {
   symbol: string;
@@ -58,10 +65,6 @@ const WEIGHT_STEP = 0.001;
 const WEIGHT_TOLERANCE = 0.00005; // matches lib/funds.ts
 
 const CREATOR_STORAGE_KEY = "stockgame.fund.creator";
-
-function fmtPct(x: number, fractionDigits = 1): string {
-  return `${(x * 100).toFixed(fractionDigits)}%`;
-}
 
 function pctToFraction(s: string): number | null {
   const n = parseFloat(s);
@@ -111,7 +114,9 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
     }
   }, [open, editing]);
 
-  // Reset state when the modal closes so a re-open starts fresh.
+  // Reset state when the modal closes so a re-open starts fresh. Delayed
+  // past the Sheet's 320ms slide-down exit (--dur-slide) so the content
+  // doesn't visibly snap back to step 1 while the panel is still leaving.
   useEffect(() => {
     if (open) return;
     const id = setTimeout(() => {
@@ -120,7 +125,7 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
       setHoldings([]);
       setError(null);
       setSaving(false);
-    }, 200);
+    }, 360);
     return () => clearTimeout(id);
   }, [open]);
 
@@ -242,91 +247,24 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
     }
   }
 
-  if (!open) return null;
-
   return (
-    // Three load-bearing details on mobile:
-    //   1. z-[100] above the global TabBar (which is z-50) — without this
-    //      the bottom-nav bar renders on top of the modal footer and
-    //      eats the Save / Next button taps. Hit during first-day
-    //      testing on iPhone — the screenshot showed the modal content
-    //      bleeding behind the Compare/Stocks/Tee-Times tab strip.
-    //   2. h-[100dvh] (not 100vh) tracks iOS's dynamic viewport when the
-    //      keyboard opens, so the sheet always fills exactly the visible
-    //      area and the footer stays tappable.
-    //   3. safe-area-inset padding on header + footer so the iOS status
-    //      bar at the top and the home indicator at the bottom don't
-    //      overlap interactive content.
-    <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div
-        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
-        // Stop scroll-through on mobile.
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header
-          className="flex items-center justify-between px-5 py-4 border-b border-zinc-800"
-          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
-        >
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
-              Step {step} of 3
-            </div>
-            <h2 className="text-[17px] font-semibold text-white mt-0.5">
-              {step === 1
-                ? isEdit
-                  ? "Edit name"
-                  : "Name your fund"
-                : step === 2
-                ? "Pick holdings"
-                : "Set allocation"}
-            </h2>
-          </div>
-          <button
-            className="text-zinc-500 hover:text-zinc-300 text-[15px] px-2 py-1"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            Close
-          </button>
-        </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {step === 1 && (
-            <>
-              {!isEdit && <FundIntro />}
-              <StepName
-                name={name}
-                setName={setName}
-                creator={creator}
-                setCreator={setCreator}
-              />
-            </>
-          )}
-          {step === 2 && (
-            <StepSearch
-              holdings={holdings}
-              addHolding={addHolding}
-              removeHolding={removeHolding}
-            />
-          )}
-          {step === 3 && (
-            <StepWeights
-              holdings={holdings}
-              setHoldingWeight={setHoldingWeight}
-              removeHolding={removeHolding}
-              totalWeight={totalWeight}
-              equalSplit={equalSplit}
-            />
-          )}
-          {error && (
-            <div className="mt-4 rounded-lg bg-red-950/40 border border-red-900 text-red-300 text-[13px] px-3 py-2">
-              {error}
-            </div>
-          )}
-        </div>
-        <footer
-          className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800"
-          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
-        >
+    <Sheet
+      full
+      open={open}
+      onClose={onClose}
+      eyebrow={`Step ${step} of 3`}
+      title={
+        step === 1
+          ? isEdit
+            ? "Edit name"
+            : "Name your fund"
+          : step === 2
+          ? "Pick holdings"
+          : "Set allocation"
+      }
+      doneLabel="Close"
+      footer={
+        <footer className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800">
           {step > 1 && (
             <button
               className="text-[14px] text-zinc-400 px-3 py-2"
@@ -365,8 +303,41 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
             </button>
           )}
         </footer>
-      </div>
-    </div>
+      }
+    >
+      {step === 1 && (
+        <>
+          {!isEdit && <FundIntro />}
+          <StepName
+            name={name}
+            setName={setName}
+            creator={creator}
+            setCreator={setCreator}
+          />
+        </>
+      )}
+      {step === 2 && (
+        <StepSearch
+          holdings={holdings}
+          addHolding={addHolding}
+          removeHolding={removeHolding}
+        />
+      )}
+      {step === 3 && (
+        <StepWeights
+          holdings={holdings}
+          setHoldingWeight={setHoldingWeight}
+          removeHolding={removeHolding}
+          totalWeight={totalWeight}
+          equalSplit={equalSplit}
+        />
+      )}
+      {error && (
+        <div className="mt-4 rounded-lg bg-red-950/40 border border-red-900 text-red-300 text-[13px] px-3 py-2">
+          {error}
+        </div>
+      )}
+    </Sheet>
   );
 }
 
@@ -632,7 +603,7 @@ function StepWeights({
   // the 0.001 grid, written back via setHoldingWeight, and the draft
   // entry is cleared so the input falls back to the formatted weight.
   //
-  // Was a bug before: the input value was `fmtPct(h.weight, 1)`, so
+  // Was a bug before: the input value was `fmtWeightPct(h.weight, 1)`, so
   // every onChange round-tripped the value through clampWeight + format,
   // which collapsed "33." into "33.0" mid-type and made backspacing
   // useless. Drafts decouple the typed string from the canonical
@@ -684,7 +655,7 @@ function StepWeights({
               <input
                 type="text"
                 inputMode="decimal"
-                value={drafts[h.ticker] ?? fmtPct(h.weight, 1).replace("%", "")}
+                value={drafts[h.ticker] ?? fmtWeightPct(h.weight, 1).replace("%", "")}
                 onChange={(e) =>
                   setDrafts((d) => ({ ...d, [h.ticker]: e.target.value }))
                 }
@@ -718,7 +689,7 @@ function StepWeights({
             : "bg-emerald-950/40 border border-emerald-900 text-emerald-300")
         }
       >
-        Total: {fmtPct(totalWeight, 2)}
+        Total: {fmtWeightPct(totalWeight, 2)}
         {off && (
           <span className="text-zinc-500 ml-2">
             (off by {((totalWeight - 1) * 100).toFixed(2)}%)

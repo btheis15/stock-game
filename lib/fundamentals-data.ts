@@ -1,7 +1,6 @@
 import "server-only";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { FundamentalsData, TickerFundamentals } from "./types";
+import { createRemoteJsonLoader } from "./remote-json";
 
 // Server-only loader for `public/data/fundamentals.json`. Returns null when
 // the file doesn't exist yet (first deploy before scripts/fetch-fundamentals
@@ -114,39 +113,41 @@ const CLASSIFICATION_OVERRIDES: Record<
   },
 };
 
-let cached: FundamentalsData | null = null;
+// Applied after every load regardless of source (GitHub or filesystem).
+function applyOverrides(parsed: FundamentalsData): FundamentalsData {
+  // Patch in overrides for any ticker missing from the fetched snapshot. We
+  // never overwrite a real Yahoo entry at THIS step — these are fallbacks
+  // for tickers Yahoo can't return at all.
+  for (const [t, override] of Object.entries(FUNDAMENTALS_OVERRIDES)) {
+    if (!parsed.tickers[t]) parsed.tickers[t] = override;
+  }
+  // Now overlay any classification corrections on top of Yahoo's data.
+  // Each entry intentionally rewrites sector/industry (and optionally the
+  // description) while preserving every other field — financials, market
+  // cap, earnings, etc. — that Yahoo returned correctly.
+  for (const [t, fix] of Object.entries(CLASSIFICATION_OVERRIDES)) {
+    const existing = parsed.tickers[t];
+    if (!existing) continue;
+    parsed.tickers[t] = {
+      ...existing,
+      sector: fix.sector,
+      industry: fix.industry,
+      description: fix.description ?? existing.description,
+    };
+  }
+  return parsed;
+}
+
+// Daily data — a 10-min TTL keeps GitHub traffic negligible while still
+// picking up the morning fundamentals refresh without a deploy.
+const load = createRemoteJsonLoader<FundamentalsData>({
+  repoPath: "public/data/fundamentals.json",
+  ttlMs: 10 * 60_000,
+  transform: applyOverrides,
+});
 
 export async function loadFundamentalsData(): Promise<FundamentalsData | null> {
-  if (cached) return cached;
-  try {
-    const file = resolve(process.cwd(), "public", "data", "fundamentals.json");
-    const raw = await readFile(file, "utf8");
-    const parsed = JSON.parse(raw) as FundamentalsData;
-    // Patch in overrides for any ticker missing from the fetched snapshot. We
-    // never overwrite a real Yahoo entry at THIS step — these are fallbacks
-    // for tickers Yahoo can't return at all.
-    for (const [t, override] of Object.entries(FUNDAMENTALS_OVERRIDES)) {
-      if (!parsed.tickers[t]) parsed.tickers[t] = override;
-    }
-    // Now overlay any classification corrections on top of Yahoo's data.
-    // Each entry intentionally rewrites sector/industry (and optionally the
-    // description) while preserving every other field — financials, market
-    // cap, earnings, etc. — that Yahoo returned correctly.
-    for (const [t, fix] of Object.entries(CLASSIFICATION_OVERRIDES)) {
-      const existing = parsed.tickers[t];
-      if (!existing) continue;
-      parsed.tickers[t] = {
-        ...existing,
-        sector: fix.sector,
-        industry: fix.industry,
-        description: fix.description ?? existing.description,
-      };
-    }
-    cached = parsed;
-    return cached;
-  } catch {
-    return null;
-  }
+  return load();
 }
 
 export async function loadFundamentalsForTicker(

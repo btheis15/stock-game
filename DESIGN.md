@@ -485,14 +485,18 @@ animation finishes, the page is back to an untransformed layout.
   `animationend` (so the exit animation actually plays before teardown).
 - **Content-height detent by default** (sheet is only as tall as its
   content); a `full` prop gives full height for forms.
-- Grab handle, optional custom-header slot, `role="dialog"` +
-  `aria-modal`, body-scroll lock while open, **Escape-to-close**.
+- Grab handle, optional custom-header slot, optional **`footer` slot**
+  (a pinned action bar below the scroll area — Back/Next/Save rows for
+  form sheets), `role="dialog"` + `aria-modal`, body-scroll lock while
+  open, **Escape-to-close**.
 - **No drag-to-dismiss.** You close via backdrop tap, a Done control, or
   Escape. (Drag-to-dismiss was intentionally skipped — it's gesture-budget
   and older-device risk for little gain here.)
 
-`FilterSheet` (`components/FundsFilter.tsx`) and `WhatsNew`
-(`components/WhatsNew.tsx`) both render through `<Sheet>`. Reach for
+`FilterSheet` (`components/FundsFilter.tsx`), `WhatsNew`
+(`components/WhatsNew.tsx`), `CreateFundModal`, and `EditThesisModal`
+(the latter two as `full` sheets with `footer`) all render through
+`<Sheet>`. Reach for
 `<Sheet>` for any new filter / form / info / destructive-confirm overlay —
 not a bespoke modal.
 
@@ -930,7 +934,7 @@ component contracts that travel cleanly:
 | `<InstallHint>` | none — self-contained | iOS-only top banner, dismissible. |
 | `<PullToRefresh>` | none — self-contained | Mounts globally; handles both gesture and visibility-resume. |
 | `<Footer>` | `{ lastDate, generatedAt }` | Freshness indicator. |
-| `<Sheet>` | `{ open, onClose, title?, header?, full?, children }` | iOS bottom-sheet (§6.1). Portals to `<body>`; slide-up/down; Escape + backdrop close; no drag-to-dismiss. Use for filters / forms / info / confirms. |
+| `<Sheet>` | `{ open, onClose, title?, header?, footer?, full?, children }` | iOS bottom-sheet (§6.1). Portals to `<body>`; slide-up/down; Escape + backdrop close; no drag-to-dismiss. Use for filters / forms / info / confirms. |
 
 ---
 

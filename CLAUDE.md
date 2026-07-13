@@ -76,7 +76,15 @@ you.
        ├─ npm run fetch-prices            writes prices.json
        ├─ swift digest.swift --scope fast  re-renders game 1D/1W/1M
        │                                    templates with live pcts
-       └─ git commit + push                ─── webhook ──→ [Vercel] rebuild → CDN
+       └─ git commit + push                ─── data-only push: Vercel build
+                                                SKIPPED (vercel.json
+                                                ignoreCommand); the app reads
+                                                origin/main at request time
+                                                via the GitHub Contents API
+                                                (lib/remote-json.ts), so data
+                                                is live in ≤ ~60-90 s with no
+                                                rebuild. Code pushes still
+                                                build + deploy normally.
                                                                   ↓
                                                               [iPhone PWA]
                                                               fresh on every open
@@ -87,10 +95,16 @@ Three principles fall out of this:
 
 1. **All app state is committed to `main`.** Code, content, and the data
    snapshot all share the same git history. There is no separate database,
-   no live API, no edge config. If it's not in `main`, it doesn't exist.
-2. **`main` is the deploy trigger.** GitHub→Vercel webhook redeploys on
-   every push to `main`. The Mac mini doesn't run Vercel CLI — it just
-   pushes data commits and the webhook handles deploy.
+   no edge config. `main` IS the live API: the deployed app reads the data
+   JSONs from origin/main at request time (GitHub Contents API, 60s TTL,
+   filesystem fallback). If it's not in `main`, it doesn't exist.
+2. **`main` triggers deploys only for code.** The GitHub→Vercel webhook
+   fires on every push, but `vercel.json`'s `ignoreCommand`
+   (`scripts/vercel-ignore-build.sh`) skips the build when only
+   `public/data/*`, `public/digests.json`, `config/funds.json`, or
+   `config/thesis.json` changed since the last deployed SHA. The Mac mini
+   doesn't run Vercel CLI — it just pushes data commits, and the app picks
+   them up without a rebuild.
 3. **The Mac mini and laptop never collide, and never drift.** Every
    cron tick does `git pull --rebase --autostash origin main` before
    doing work, so laptop pushes land cleanly on the mini. Bash + Swift
@@ -602,10 +616,10 @@ compared against the detail-route regex `/^\/(stock|portfolio|fund)\//`:
 
 All three are CSS keyframes (`pageFade` / `pagePush` / `pagePop`) with
 **`animation-fill-mode: backwards`**, so NO transform lingers at rest.
-That's deliberate and load-bearing: several pages render `position: fixed`
-modals inline (CreateFundModal, EditThesisModal, …), and a lingering
-transform on the wrapper would re-root those fixed descendants and
-misplace them. Don't switch this to a framer-motion `x`/`y` wrapper for
+That's deliberate and load-bearing: ManageFundsSheet still renders a
+`position: fixed` modal inline (the other modals now portal to `<body>`
+via `<Sheet>`), and a lingering transform on the wrapper would re-root
+that fixed descendant and misplace it. Don't switch this to a framer-motion `x`/`y` wrapper for
 the same reason. **Shared-element / cross-route morph (View Transitions
 API) was intentionally skipped** for older-device compatibility — don't
 claim it exists.
@@ -627,7 +641,9 @@ Props:
   doneLabel?={string}       // top-right dismiss label (default "Done")
   full?={boolean}           // full-height (forms/wizards); default = content-height detent
   header?={ReactNode}       // custom header slot; replaces eyebrow/title/Done
->                           // (must bring its own dismiss affordance + bottom border)
+                            // (must bring its own dismiss affordance + bottom border)
+  footer?={ReactNode}       // pinned action bar below the scroll area (Back/Next/
+>                           // Save rows); brings its own top border + padding
   {children}
 </Sheet>
 ```
@@ -648,8 +664,10 @@ Behavior:
 - **No drag-to-dismiss** — close via backdrop tap / Done / Escape only.
   Don't claim a drag gesture exists.
 
-Already converted to `<Sheet>`: **FilterSheet** (`components/FundsFilter.tsx`)
-and **WhatsNew** (`components/WhatsNew.tsx`).
+Already converted to `<Sheet>`: **FilterSheet** (`components/FundsFilter.tsx`),
+**WhatsNew** (`components/WhatsNew.tsx`), **CreateFundModal** and
+**EditThesisModal** (both `full` sheets using the `footer` action-bar slot).
+Still on its own hand-rolled shell: **ManageFundsSheet**.
 
 ### Global reduced-motion guard (`app/globals.css`)
 
@@ -774,7 +792,16 @@ Run modes:
 For each ticker:
 1. Build a `FetchPlan` describing what to refetch (full or trailing).
 2. Call `yahooFinance.chart(ticker, { period1, period2, interval: "1d", events: "div" })`
-   to get daily closes + dividend events.
+   to get daily closes + dividend events. The daily call retries 2×
+   (2s/8s backoff via `withRetry`); intraday/weekly get one quick retry
+   before their silent-`[]` fallback. A ticker whose daily fetch still
+   fails is **carried forward** (previous series kept, intraday/weekly
+   dropped) instead of aborting the run; the run aborts only if >25% of
+   the roster fails. `validatePriceData()` then refuses to write a
+   snapshot that loses history, changes any `startClose`, or drops a
+   roster ticker — so a bad run leaves the last-good file untouched and
+   `cron-update.sh` (which also JSON-parses the file before staging)
+   commits nothing.
 3. Merge fresh closes into `prevSeries.closes` by date (Yahoo restates
    late-day closes occasionally; merging handles this).
 4. **Preserve `startClose`.** Set on first fetch, never overwritten.
@@ -1333,13 +1360,34 @@ imports `node:fs/promises`) is separate from `lib/fundamentals.ts`
 a "use client" component can `import { fmtMarketCap } from "@/lib/fundamentals"`
 without dragging Node modules into the browser.
 
-### §8.7. The webhook + deploy
+### §8.7. The webhook + deploy (+ why data pushes don't deploy)
 
 - GitHub→Vercel integration (one-time UI install at
   `https://github.com/apps/vercel/installations/select_target`) listens
   for pushes to `main`.
-- On push, Vercel pulls the repo, runs `npm install --legacy-peer-deps`
-  (per `.npmrc`), runs `next build`, deploys static output to its CDN.
+- **Ignored Build Step:** before building, Vercel runs `vercel.json`'s
+  `ignoreCommand` → `scripts/vercel-ignore-build.sh`. Exit 0 = skip,
+  exit 1 = build (Vercel's contract, inverted from shell intuition). The
+  script diffs `VERCEL_GIT_PREVIOUS_SHA..HEAD` (the last deployed SHA,
+  explicitly `git fetch`ed since it falls outside the shallow clone)
+  excluding `public/data`, `public/digests.json`, `config/funds.json`,
+  `config/thesis.json` — data-only pushes skip the build (shown as
+  "Canceled" in the dashboard, no failure emails). Every uncertain path
+  fails open to building. `config/roster.json` is deliberately NOT
+  excluded (statically imported by `lib/picks.ts` — roster changes must
+  rebuild).
+- **How data reaches users without a deploy:** `lib/remote-json.ts`
+  (shared by `lib/data.ts`, `lib/fundamentals-data.ts`,
+  `lib/digests-data.ts` → `/api/digests`) reads the file from origin/main
+  via the GitHub Contents API (raw media type — digests.json exceeds the
+  1 MB base64 limit) with a 60s in-process TTL, stale-on-error, and a
+  filesystem-snapshot fallback for dev / `next build` / GitHub outages.
+  All pages are `force-dynamic` (including `/stock/[ticker]` — it was the
+  last `force-static` price consumer). Uses the same `GITHUB_*` env vars
+  as the funds CRUD.
+- On a code push, Vercel pulls the repo, runs `npm install
+  --legacy-peer-deps` (per `.npmrc`), runs `next build`, deploys to its
+  CDN.
 - The Vercel project is aliased to `stock-game-gamma.vercel.app`.
 - Cache-Control headers (`next.config.ts`) set every user-facing document
   route + the data JSON snapshots to `no-cache, no-store, max-age=0,
@@ -1372,8 +1420,8 @@ cheaper.
 | Check | How | If yes, then |
 |---|---|---|
 | Footer shows recent timestamp? | Look at bottom of any page | Cron is running; the issue is on your phone (next row) |
-| Footer shows old timestamp? | Same | Cron isn't pushing — see §9.2 |
-| Vercel deployed since push? | `vercel ls --yes` from any logged-in machine | If yes, your phone has stale cache (next row) |
+| Footer shows old timestamp? | Same | Cron isn't pushing — see §9.2. If origin/main HAS fresh data commits but the site is stale, the runtime loader is falling back: check that `GITHUB_TOKEN`/`GITHUB_OWNER`/`GITHUB_REPO` are still set on Vercel and the PAT hasn't expired (lib/remote-json.ts silently falls back to the deploy snapshot) |
+| Vercel deployed since push? | `vercel ls --yes` — but remember data pushes deliberately DON'T deploy ("Canceled" in dashboard = ignoreCommand skip, which is correct) | Only code pushes need a deploy; if a code push shows Canceled, check scripts/vercel-ignore-build.sh |
 | Phone PWA cached? | Long-press home icon → Delete, reopen URL in Safari, re-add | Should clear it |
 | iMessage preview shows old card? | Apple cache, not ours | Ignore, or share with `?v=2` to bust |
 
@@ -1456,15 +1504,15 @@ cheaper.
      About-the-combined-portfolio blurb; players without one are just skipped
      there.
 
-2. scripts/digest.swift: the roster is hardcoded here too (Apple
-   Intelligence runs in Swift, no TS interop). Update three lists in lockstep:
-   - DEFAULT_TICKERS (top of file)
-   - TICKER_NAMES (display names)
-   - PLAYERS (with the new player's id, name, and tickers[])
-   Drift between lib/picks.ts and digest.swift is the #1 cause of
-   "digests look wrong after roster change" — see §10.2 for the same
-   warning re: ticker-only adds. Future work: generate digest.swift's
-   roster from picks.ts at run time.
+2. scripts/digest.swift: NO EDIT NEEDED. The script reads
+   config/roster.json at startup and derives DEFAULT_TICKERS,
+   TICKER_NAMES, and PLAYERS from it (the same file lib/picks.ts
+   imports), so the step-1 roster edit covers the digest pipeline too.
+   The old hardcoded lists survive only as EMBEDDED_* fallbacks used
+   when roster.json is missing/unparseable (the run then logs
+   "WARNING: config/roster.json unreadable — using hardcoded roster
+   fallback (drift risk!)"); refresh them opportunistically, but
+   there are no more three-lists-in-lockstep edits.
 
 3. scripts/fetch-prices.ts:
    - No code change. Run: npm run fetch-prices -- --full
@@ -1498,10 +1546,12 @@ cheaper.
      new pick mid-game with fresh capital — that's a different mechanic
      not yet supported (would need a real ledger). Confirm with user.
 
-2. scripts/digest.swift: mirror the change in DEFAULT_TICKERS,
-   TICKER_NAMES, and PLAYERS (see §10.1). Skipping this step doesn't
-   crash the digest pipeline — it produces digests for the OLD roster
-   silently, which is much worse.
+2. scripts/digest.swift: NO EDIT NEEDED. It reads config/roster.json
+   at startup (see §10.1 step 2), so the step-1 edit flows into the
+   digest pipeline on its next run. The hardcoded lists are only a
+   fallback for a missing/unparseable roster.json — the old "digests
+   silently generated for the OLD roster" drift mode is gone unless
+   the fallback WARNING appears in the log.
 
 3. npm run fetch-prices -- --full to grab the new ticker's history.
 
@@ -1651,10 +1701,10 @@ This repo has no automated unit tests. Manual verification:
    - **Motion (§6.5):** tab ↔ tab cross-fades; drilling into a
      stock/portfolio/fund slides in from the right (push) and Back
      slides in from the left (pop). No transform lingers at rest —
-     confirm inline fixed modals (CreateFundModal, EditThesisModal) are
-     still anchored after a transition. Open a `<Sheet>` (FilterSheet /
-     WhatsNew): it slides up, dismisses on backdrop tap / Done / Escape
-     by sliding back down. Tappable controls shrink slightly on press.
+     confirm the inline fixed modal (ManageFundsSheet) is still anchored
+     after a transition. Open a `<Sheet>` (FilterSheet / WhatsNew /
+     CreateFundModal / EditThesisModal): it slides up, dismisses on
+     backdrop tap / Done / Escape by sliding back down. Tappable controls shrink slightly on press.
    - **Reduced motion:** in DevTools emulate `prefers-reduced-motion:
      reduce` (Rendering panel) and re-check — transitions/animations
      should be ~instant, nothing broken or stuck off-screen.
@@ -1940,10 +1990,15 @@ laptop:
   token) are persisted on the developer's Mac. New machines need a
   one-time `gh auth login` and (optionally) `vercel login`. There are
   no API keys in the codebase.
-- **Secrets.** None. Yahoo Finance is unauthenticated. Vercel project
-  doesn't need env vars. `.env*` is gitignored.
+- **Secrets.** One set: `GITHUB_TOKEN` / `GITHUB_OWNER` / `GITHUB_REPO`
+  on the Vercel project (fine-grained PAT, Contents read+write) — powers
+  both the funds/thesis CRUD writes AND the runtime data reads
+  (lib/remote-json.ts). Nothing in the codebase; `.env*` is gitignored.
+  The Mac mini holds no API keys (gh keyring only). Yahoo Finance is
+  unauthenticated.
 - **Database.** None. The "database" is `public/data/prices.json`
-  committed to the repo. Vercel rebuilds on each push.
+  committed to the repo, served to the app at request time from
+  origin/main. Vercel rebuilds only on code pushes (see §3 / §8.7).
 - **Manual CI.** None to invoke. `build.yml` runs automatically.
 
 ---

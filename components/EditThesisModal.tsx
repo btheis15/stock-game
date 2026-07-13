@@ -17,11 +17,14 @@
 // via the GitHub Contents API → the page revalidates and the new thesis
 // renders. Editing is open (anyone can edit any player's), matching funds.
 //
-// Mobile-first like the funds modal: z-[100] above the TabBar, 100dvh +
-// safe-area insets, 16px inputs (no iOS zoom), body-scroll lock.
+// Mobile-first like the funds modal: 16px inputs (no iOS zoom). The overlay
+// shell — z-index above the TabBar, 100dvh keyboard tracking, safe-area
+// insets, body-scroll lock, Escape/backdrop dismiss, dialog a11y, slide-up
+// motion — all comes from <Sheet full>.
 
 import { useEffect, useMemo, useState } from "react";
 import { THESIS_LIMITS, type Thesis } from "@/lib/thesis-types";
+import { Sheet } from "@/components/Sheet";
 
 interface PickDraft {
   summary: string;
@@ -93,23 +96,6 @@ export function EditThesisModal({
     setExpanded(firstEmpty?.ticker ?? null);
   }, [open, existing, tickers]);
 
-  // Body-scroll lock while open (matches the funds modal — keeps iOS from
-  // scrolling the page behind a focused field).
-  useEffect(() => {
-    if (!open) return;
-    const { body } = document;
-    const prev = body.style.overflow;
-    body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
-
   const filledCount = useMemo(
     () =>
       Object.values(picks).filter((p) => p.summary.trim() || p.full.trim()).length,
@@ -154,141 +140,16 @@ export function EditThesisModal({
     }
   }
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div
-        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header
-          className="flex items-center justify-between px-5 py-4 border-b border-zinc-800"
-          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
-        >
-          <div>
-            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
-              {isNew ? "Add thesis" : "Edit thesis"}
-            </div>
-            <h2 className="text-[17px] font-semibold text-white mt-0.5">
-              {userName}&rsquo;s thesis
-            </h2>
-          </div>
-          <button
-            className="text-zinc-500 hover:text-zinc-300 text-[15px] px-2 py-1"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            Close
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
-          {isNew && <ThesisIntro accentColor={accentColor} />}
-
-          {/* --- Overall thesis --- */}
-          <section className="space-y-3">
-            <SectionLabel>The big picture</SectionLabel>
-            <Field
-              label="Theme"
-              hint="A short headline for your whole portfolio."
-              value={theme}
-              onChange={setTheme}
-              max={THESIS_LIMITS.theme}
-              placeholder="e.g. Physical AI + On-Device Intelligence"
-            />
-            <TextArea
-              label="Why this portfolio"
-              hint="Your overall reasoning. Leave a blank line between paragraphs."
-              value={overview}
-              onChange={setOverview}
-              rows={6}
-              placeholder="What's the thesis tying these picks together?"
-            />
-
-            <button
-              type="button"
-              onClick={() => setShowMeta((v) => !v)}
-              className="text-[12px] text-zinc-500 hover:text-zinc-300"
-            >
-              {showMeta ? "Hide" : "Add"} source &amp; disclaimer{" "}
-              <span className="text-zinc-600">(optional)</span>
-            </button>
-            {showMeta && (
-              <div className="space-y-3 pt-1">
-                <Field
-                  label="Source"
-                  hint="Shown as a small caption, e.g. where the research came from."
-                  value={source}
-                  onChange={setSource}
-                  max={THESIS_LIMITS.source}
-                  placeholder="e.g. Personal research memo · Feb 5, 2026"
-                />
-                <TextArea
-                  label="Disclaimer"
-                  hint="A short note shown in muted text at the foot."
-                  value={disclaimer}
-                  onChange={setDisclaimer}
-                  rows={2}
-                  max={THESIS_LIMITS.disclaimer}
-                  placeholder="e.g. Personal opinion — not financial advice."
-                />
-              </div>
-            )}
-          </section>
-
-          {/* --- Per-pick reasoning --- */}
-          <section className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <SectionLabel>Why each pick</SectionLabel>
-              <span className="text-[11px] text-zinc-500 tabular-nums">
-                {filledCount}/{tickers.length} written
-              </span>
-            </div>
-            <p className="text-[12px] text-zinc-500 leading-snug">
-              Tap a holding to add a one-line take and the deeper reasoning.
-              Every field is optional — write as many or as few as you like.
-            </p>
-            <div className="rounded-xl border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
-              {tickers.map(({ ticker, name }) => (
-                <PickEditor
-                  key={ticker}
-                  ticker={ticker}
-                  name={name}
-                  draft={picks[ticker] ?? { summary: "", full: "" }}
-                  open={expanded === ticker}
-                  accentColor={accentColor}
-                  onToggle={() =>
-                    setExpanded((cur) => (cur === ticker ? null : ticker))
-                  }
-                  onChange={(patch) => setPick(ticker, patch)}
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* --- Attribution --- */}
-          <Field
-            label="Your name"
-            optional
-            hint="Shown in the save's commit message. Remembered on this device."
-            value={editor}
-            onChange={setEditor}
-            max={40}
-            placeholder="e.g. Brian"
-          />
-
-          {error && (
-            <div className="rounded-lg bg-red-950/40 border border-red-900 text-red-300 text-[13px] px-3 py-2">
-              {error}
-            </div>
-          )}
-        </div>
-
-        <footer
-          className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800"
-          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
-        >
+    <Sheet
+      full
+      open={open}
+      onClose={onClose}
+      eyebrow={isNew ? "Add thesis" : "Edit thesis"}
+      title={`${userName}’s thesis`}
+      doneLabel="Close"
+      footer={
+        <footer className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800">
           <div className="text-[12px] text-zinc-500">
             Saves for everyone to see.
           </div>
@@ -301,8 +162,110 @@ export function EditThesisModal({
             {saving ? "Saving…" : "Save thesis"}
           </button>
         </footer>
+      }
+    >
+      <div className="space-y-5">
+        {isNew && <ThesisIntro accentColor={accentColor} />}
+
+        {/* --- Overall thesis --- */}
+        <section className="space-y-3">
+          <SectionLabel>The big picture</SectionLabel>
+          <Field
+            label="Theme"
+            hint="A short headline for your whole portfolio."
+            value={theme}
+            onChange={setTheme}
+            max={THESIS_LIMITS.theme}
+            placeholder="e.g. Physical AI + On-Device Intelligence"
+          />
+          <TextArea
+            label="Why this portfolio"
+            hint="Your overall reasoning. Leave a blank line between paragraphs."
+            value={overview}
+            onChange={setOverview}
+            rows={6}
+            placeholder="What's the thesis tying these picks together?"
+          />
+
+          <button
+            type="button"
+            onClick={() => setShowMeta((v) => !v)}
+            className="text-[12px] text-zinc-500 hover:text-zinc-300"
+          >
+            {showMeta ? "Hide" : "Add"} source &amp; disclaimer{" "}
+            <span className="text-zinc-600">(optional)</span>
+          </button>
+          {showMeta && (
+            <div className="space-y-3 pt-1">
+              <Field
+                label="Source"
+                hint="Shown as a small caption, e.g. where the research came from."
+                value={source}
+                onChange={setSource}
+                max={THESIS_LIMITS.source}
+                placeholder="e.g. Personal research memo · Feb 5, 2026"
+              />
+              <TextArea
+                label="Disclaimer"
+                hint="A short note shown in muted text at the foot."
+                value={disclaimer}
+                onChange={setDisclaimer}
+                rows={2}
+                max={THESIS_LIMITS.disclaimer}
+                placeholder="e.g. Personal opinion — not financial advice."
+              />
+            </div>
+          )}
+        </section>
+
+        {/* --- Per-pick reasoning --- */}
+        <section className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <SectionLabel>Why each pick</SectionLabel>
+            <span className="text-[11px] text-zinc-500 tabular-nums">
+              {filledCount}/{tickers.length} written
+            </span>
+          </div>
+          <p className="text-[12px] text-zinc-500 leading-snug">
+            Tap a holding to add a one-line take and the deeper reasoning.
+            Every field is optional — write as many or as few as you like.
+          </p>
+          <div className="rounded-xl border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+            {tickers.map(({ ticker, name }) => (
+              <PickEditor
+                key={ticker}
+                ticker={ticker}
+                name={name}
+                draft={picks[ticker] ?? { summary: "", full: "" }}
+                open={expanded === ticker}
+                accentColor={accentColor}
+                onToggle={() =>
+                  setExpanded((cur) => (cur === ticker ? null : ticker))
+                }
+                onChange={(patch) => setPick(ticker, patch)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* --- Attribution --- */}
+        <Field
+          label="Your name"
+          optional
+          hint="Shown in the save's commit message. Remembered on this device."
+          value={editor}
+          onChange={setEditor}
+          max={40}
+          placeholder="e.g. Brian"
+        />
+
+        {error && (
+          <div className="rounded-lg bg-red-950/40 border border-red-900 text-red-300 text-[13px] px-3 py-2">
+            {error}
+          </div>
+        )}
       </div>
-    </div>
+    </Sheet>
   );
 }
 

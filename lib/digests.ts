@@ -69,41 +69,82 @@ export function rangeToDigestWindow(range: Range): DigestWindow {
   return range === "1YR" ? "1Y" : range;
 }
 
-// Module-level cache so a session only fetches digests.json once even when
-// the user navigates between stock pages.
-const cache: { data: DigestsJson | null; loaded: boolean; promise: Promise<DigestsJson | null> | null } = {
+// Module-level cache so a session only fetches the digests once per TTL even
+// when the user navigates between stock pages. Fetched from /api/digests
+// (which serves the latest commit on origin/main) — NOT the static
+// /digests.json, which is frozen per-deploy now that data commits don't
+// trigger builds. The TTL refetch keeps a long-lived session's digest
+// numbers moving; while a refetch is in flight the previous data keeps
+// rendering, so only the first-ever load shows the skeleton.
+const DIGESTS_TTL_MS = 5 * 60 * 1000;
+const cache: {
+  data: DigestsJson | null;
+  loaded: boolean;
+  fetchedAt: number;
+  promise: Promise<DigestsJson | null> | null;
+} = {
   data: null,
   loaded: false,
+  fetchedAt: 0,
   promise: null,
 };
+
+function fetchDigests(): Promise<DigestsJson | null> {
+  if (!cache.promise) {
+    cache.promise = fetch("/api/digests", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<DigestsJson>) : null))
+      .catch(() => null)
+      .then((d) => {
+        // A failed refetch keeps the previous data (stale beats blank).
+        if (d) cache.data = d;
+        cache.loaded = true;
+        cache.fetchedAt = Date.now();
+        cache.promise = null;
+        return cache.data;
+      });
+  }
+  return cache.promise;
+}
 
 export function useDigests() {
   const [data, setData] = useState<DigestsJson | null>(cache.data);
   const [loading, setLoading] = useState<boolean>(!cache.loaded);
 
   useEffect(() => {
-    if (cache.loaded) {
+    const fresh = cache.loaded && Date.now() - cache.fetchedAt < DIGESTS_TTL_MS;
+    if (fresh) {
       setLoading(false);
       return;
     }
-    if (!cache.promise) {
-      cache.promise = fetch("/digests.json", { cache: "no-store" })
-        .then((r) => (r.ok ? (r.json() as Promise<DigestsJson>) : null))
-        .catch(() => null)
-        .then((d) => {
-          cache.data = d;
-          cache.loaded = true;
-          return d;
-        });
-    }
     let cancelled = false;
-    cache.promise.then((d) => {
+    fetchDigests().then((d) => {
       if (cancelled) return;
       setData(d);
       setLoading(false);
     });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Long-lived sessions: refetch when the TTL lapses while the panel stays
+  // mounted (poll check) or when the app returns to the foreground stale.
+  // The previous data keeps rendering during the refetch — no skeleton.
+  useEffect(() => {
+    let cancelled = false;
+    const refreshIfStale = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - cache.fetchedAt < DIGESTS_TTL_MS) return;
+      fetchDigests().then((d) => {
+        if (!cancelled && d) setData(d);
+      });
+    };
+    const id = setInterval(refreshIfStale, 60_000);
+    document.addEventListener("visibilitychange", refreshIfStale);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", refreshIfStale);
     };
   }, []);
 

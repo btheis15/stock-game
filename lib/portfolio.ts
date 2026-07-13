@@ -620,6 +620,60 @@ export function fmtTimeOfDay(iso: string): string {
 }
 
 /**
+ * Absolute timestamp pinned to Eastern Time with an explicit "ET" label —
+ * e.g. "Jul 13, 9:59 AM ET". Used as the fallback for `fmtRelativeTime` and
+ * as the hydration-safe first paint of `<RelativeTime>` (an absolute string
+ * renders identically on server and client; a relative one doesn't).
+ */
+export function fmtDateTimeET(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const s = d.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${s} ET`;
+}
+
+/**
+ * Relative freshness label: "just now" (<60s), "N min ago", "N hr ago"
+ * (<6h), then falls back to the absolute ET timestamp ("Jul 13, 9:59 AM ET")
+ * — past 6 hours a wall-clock time reads better than "14 hr ago".
+ */
+export function fmtRelativeTime(iso: string, now: number = Date.now()): string {
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return "";
+  const sec = Math.max(0, (now - t) / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 6) return `${hr} hr ago`;
+  return fmtDateTimeET(iso);
+}
+
+/**
+ * Unsigned weight percentage from a 0–1 fraction — "12.5%". The signed
+ * `fmtPct` is for gains/losses; fund weights are compositions, so a plus
+ * sign would misread as a return.
+ */
+export function fmtWeightPct(fraction: number, digits = 1): string {
+  return `${(fraction * 100).toFixed(digits)}%`;
+}
+
+/**
+ * Share counts: up to 4 decimals, trailing zeros trimmed — "12.5",
+ * "0.0431", "100". Fractional shares need the precision; whole-share
+ * counts shouldn't drag ".0000" around.
+ */
+export function fmtShares(n: number): string {
+  return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+}
+
+/**
  * Returns the extended US trading session bounds (7:00 AM – 6:00 PM ET) for
  * the given ET date, as a [start, end] tuple in UTC. The wider window covers
  * pre-market (7:00 – 9:30 AM ET) and after-hours (4:00 – 6:00 PM ET) so the

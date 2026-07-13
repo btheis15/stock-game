@@ -32,6 +32,40 @@ const FULL = process.argv.includes("--full");
 const REFETCH_TRAILING_DAYS = 5;
 const OUT_FILE = resolve(process.cwd(), "public", "data", "prices.json");
 
+// Yahoo hiccups are usually transient (rate limits, 5xx, DNS). Retry with a
+// short backoff before falling back to carry-forward, so one flaky request
+// doesn't degrade the published snapshot.
+const RETRY_DELAYS_MS = [2_000, 8_000];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  delays: number[] = RETRY_DELAYS_MS
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < delays.length) {
+        process.stdout.write(`retry ${attempt + 1} (${label})... `);
+        await sleep(delays[attempt]);
+      }
+    }
+  }
+  throw lastErr;
+}
+
+// Intraday/weekly bars are cosmetic relative to daily closes and already fail
+// soft to []; give them a single quick retry so a whole-roster outage doesn't
+// stretch the run by minutes.
+const SOFT_RETRY_DELAYS_MS = [2_000];
+
 function fmtDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -68,12 +102,14 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
   const period2 = new Date();
   period2.setUTCDate(period2.getUTCDate() + 1);
 
-  const result = await yahooFinance.chart(plan.ticker, {
-    period1: plan.period1,
-    period2,
-    interval: "1d",
-    events: "div",
-  });
+  const result = await withRetry(`${plan.ticker} daily`, () =>
+    yahooFinance.chart(plan.ticker, {
+      period1: plan.period1,
+      period2,
+      interval: "1d",
+      events: "div",
+    })
+  );
 
   // Reverse-split normalization: once a split is effective Yahoo retroactively
   // re-scales the WHOLE series, so divide every fetched value back into the
@@ -156,12 +192,17 @@ async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
   // pre-market (4 AM–9:30 AM ET) and after-hours (4 PM–8 PM ET) bars too;
   // we trim to the visible 7 AM–6 PM ET window in the caller.
   try {
-    const result = await yahooFinance.chart(ticker, {
-      period1: new Date(Date.now() - 26 * 60 * 60 * 1000),
-      period2: new Date(Date.now() + 60 * 1000),
-      interval: INTRADAY_INTERVAL,
-      includePrePost: true,
-    });
+    const result = await withRetry(
+      `${ticker} intraday`,
+      () =>
+        yahooFinance.chart(ticker, {
+          period1: new Date(Date.now() - 26 * 60 * 60 * 1000),
+          period2: new Date(Date.now() + 60 * 1000),
+          interval: INTRADAY_INTERVAL,
+          includePrePost: true,
+        }),
+      SOFT_RETRY_DELAYS_MS
+    );
     const divisor = priceUnitDivisor(ticker);
     const quotes = result.quotes ?? [];
     return quotes
@@ -182,11 +223,16 @@ async function fetchWeeklyHourly(ticker: string): Promise<IntradayBar[]> {
   try {
     const period1 = new Date(Date.now() - WEEKLY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
     const period2 = new Date(Date.now() + 60 * 1000);
-    const result = await yahooFinance.chart(ticker, {
-      period1,
-      period2,
-      interval: WEEKLY_INTERVAL,
-    });
+    const result = await withRetry(
+      `${ticker} weekly`,
+      () =>
+        yahooFinance.chart(ticker, {
+          period1,
+          period2,
+          interval: WEEKLY_INTERVAL,
+        }),
+      SOFT_RETRY_DELAYS_MS
+    );
     const divisor = priceUnitDivisor(ticker);
     const quotes = result.quotes ?? [];
     return quotes
@@ -251,6 +297,48 @@ function extendedSessionBoundsET(dateStr: string): [Date, Date] {
   return [start, end];
 }
 
+// Refuse to publish a snapshot that would break share math or lose history.
+// Throwing here leaves the previous prices.json untouched, so cron commits
+// nothing and the last-good data keeps serving everywhere.
+function validatePriceData(next: PriceData, existing: PriceData | null): void {
+  const problems: string[] = [];
+
+  for (const t of [...ALL_TICKERS, BASELINE.ticker]) {
+    const s = next.tickers[t];
+    if (!s) {
+      if (!isSpinoffChild(t)) problems.push(`${t}: missing from snapshot`);
+      continue;
+    }
+    if (s.closes.length === 0) problems.push(`${t}: zero closes`);
+    if (!Number.isFinite(s.startClose) || s.startClose <= 0)
+      problems.push(`${t}: bad startClose ${s.startClose}`);
+  }
+
+  if (existing) {
+    for (const [t, prev] of Object.entries(existing.tickers)) {
+      const s = next.tickers[t];
+      if (!s) continue; // roster removals are legitimate
+      if (s.startClose !== prev.startClose)
+        problems.push(`${t}: startClose changed ${prev.startClose} → ${s.startClose} (share math depends on it)`);
+      if (s.closes.length < prev.closes.length)
+        problems.push(`${t}: closes shrank ${prev.closes.length} → ${s.closes.length}`);
+      const prevLast = prev.closes[prev.closes.length - 1]?.date ?? "";
+      const nextLast = s.closes[s.closes.length - 1]?.date ?? "";
+      if (nextLast < prevLast) problems.push(`${t}: last close regressed ${prevLast} → ${nextLast}`);
+    }
+  }
+
+  try {
+    JSON.parse(JSON.stringify(next));
+  } catch {
+    problems.push("snapshot does not survive a JSON round-trip");
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`validation failed, refusing to write:\n  ${problems.join("\n  ")}`);
+  }
+}
+
 async function main() {
   const existing = loadExisting();
   const mode = existing ? "incremental" : FULL ? "full (forced)" : "full (no prior data)";
@@ -282,6 +370,7 @@ async function main() {
   );
 
   const out: Record<string, TickerSeries> = {};
+  let carriedForward = 0;
   for (const ticker of tickersToFetch) {
     process.stdout.write(`  ${ticker}... `);
     const anchor = isSpinoffChild(ticker) ? spinoffEffectiveDate(ticker) : START_DATE;
@@ -302,8 +391,30 @@ async function main() {
         console.log(`  (spin-off child not trading yet — skipping)`);
         continue;
       }
-      throw err;
+      // Stale-but-complete beats aborting: keep the previous series so one
+      // flaky ticker (post-retry) never blocks the whole refresh. The next
+      // tick's trailing-5-day refetch heals the gap. Intraday is dropped —
+      // the always-overwrite rule below would do it anyway, and yesterday's
+      // bars must never survive into today's chart.
+      if (plan.prevSeries) {
+        out[ticker] = { ...plan.prevSeries, intraday: undefined, weekly: undefined };
+        carriedForward++;
+        console.log(`  (CARRIED-FORWARD: kept previous series through ${plan.prevSeries.closes[plan.prevSeries.closes.length - 1]?.date})`);
+        continue;
+      }
+      console.log(`  (no previous data to carry forward — skipping ${ticker})`);
     }
+  }
+
+  // A mostly-failed run signals a Yahoo outage; publishing a snapshot where a
+  // quarter of the roster is frozen does more harm than keeping the last-good
+  // file. Abort without writing — cron sees no change, nothing is committed.
+  const failureBudget = Math.ceil(tickersToFetch.length * 0.25);
+  const missing = tickersToFetch.filter((t) => !out[t] && !isSpinoffChild(t)).length;
+  if (carriedForward + missing > failureBudget) {
+    throw new Error(
+      `${carriedForward + missing}/${tickersToFetch.length} tickers failed (budget ${failureBudget}) — aborting without writing`
+    );
   }
 
   // Fetch today's intraday 15-min bars (best-effort; failures are silent so
@@ -373,6 +484,8 @@ async function main() {
     tickers: out,
     tradingDates,
   };
+
+  validatePriceData(data, existing);
 
   const outDir = resolve(process.cwd(), "public", "data");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });

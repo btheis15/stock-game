@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getMarketSessionState, type MarketSessionState } from "@/lib/portfolio";
 import { marketEarlyCloseName, marketHolidayName } from "@/lib/market-calendar";
+import { RelativeTime } from "@/components/RelativeTime";
 
 interface StateStyle {
   label: string;
@@ -32,6 +33,8 @@ interface MarketSchedule {
   holiday: string | null;
   /** Scheduled 1:00 PM ET early-close occasion, or null. */
   earlyClose: string | null;
+  /** "Markets are closed today — Saturday, July 12…" on weekends, else null. */
+  weekend: string | null;
 }
 
 function readSchedule(): MarketSchedule {
@@ -39,6 +42,7 @@ function readSchedule(): MarketSchedule {
     state: getMarketSessionState(),
     holiday: marketHolidayName(),
     earlyClose: marketEarlyCloseName(),
+    weekend: weekendLine(),
   };
 }
 
@@ -58,6 +62,24 @@ function noticeFor(schedule: MarketSchedule): string | null {
   return null;
 }
 
+/**
+ * Weekend line: opening the app on a Saturday should say plainly that
+ * markets are closed TODAY (with today's date) and when they're back, so a
+ * frozen-since-Friday chart is self-explanatory. Weekdays return null — the
+ * session dot + holiday notice cover those.
+ */
+function weekendLine(): string | null {
+  const now = new Date();
+  const day = now.getDay();
+  if (day !== 0 && day !== 6) return null;
+  const dateLabel = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  return `Markets are closed today — ${dateLabel}. Prices resume Monday morning.`;
+}
+
 export function MarketStateBadge({
   generatedAt,
 }: {
@@ -75,12 +97,6 @@ export function MarketStateBadge({
 
   const style = STATE_STYLES[schedule.state];
   const notice = noticeFor(schedule);
-  const updatedStr = generatedAt
-    ? new Date(generatedAt).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
   return (
     <div className="px-4 -mt-1 mb-1">
       <div className="flex items-center gap-2">
@@ -89,6 +105,7 @@ export function MarketStateBadge({
           style={{ color: style.color }}
         >
           <span
+            aria-hidden
             className="w-1.5 h-1.5 rounded-full"
             style={{
               backgroundColor: style.color,
@@ -99,10 +116,12 @@ export function MarketStateBadge({
           />
           {style.label}
         </span>
-        {updatedStr && (
-          <span className="text-[10px] font-medium tracking-wide text-zinc-600">
-            Last updated {updatedStr}
-          </span>
+        {generatedAt && (
+          <RelativeTime
+            iso={generatedAt}
+            prefix="Updated"
+            className="text-[10px] font-medium tracking-wide text-zinc-600"
+          />
         )}
       </div>
       {notice && (
@@ -114,6 +133,11 @@ export function MarketStateBadge({
             ●
           </span>
           <span>{notice}</span>
+        </div>
+      )}
+      {!notice && schedule.weekend && (
+        <div className="mt-1.5 text-[11px] font-medium leading-snug text-zinc-500">
+          {schedule.weekend}
         </div>
       )}
     </div>

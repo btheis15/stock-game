@@ -75,6 +75,25 @@ export async function getGithubFile(path: string): Promise<GithubFileGetResult |
   return { content: decoded, sha: body.sha };
 }
 
+/** Read a file from origin/main via the raw media type. Unlike
+ *  getGithubFile, this works for files over the Contents API's 1 MB
+ *  base64-JSON limit (digests.json is ~1.2 MB and prices.json will grow
+ *  past it over the 5-year game) — raw responses are good to 100 MB.
+ *  Returns null when the file doesn't exist. */
+export async function getGithubFileRaw(path: string): Promise<string | null> {
+  const { owner, repo } = repoPath();
+  const url = `${GITHUB_API}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=main`;
+  const res = await fetch(url, {
+    headers: { ...authHeaders(), Accept: "application/vnd.github.raw+json" },
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`GitHub raw GET ${path} failed: ${res.status} ${await res.text()}`);
+  }
+  return await res.text();
+}
+
 /** Apply an updater function to a JSON file on origin/main, committing the
  *  result as a single commit on main. Retries the GET+PUT cycle up to 3
  *  times if the SHA changes between read and write (two simultaneous saves

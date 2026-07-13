@@ -102,24 +102,36 @@ let EMBEDDED_TICKER_NAMES: [String: String] = [
     "HMC": "Honda",
 ]
 
-// Resolve config/roster.json relative to the swift script's location.
-// digest.swift lives in <REPO>/scripts/; roster.json lives in <REPO>/config/.
+// Resolve config/roster.json relative to the swift script's location
+// (digest.swift lives in <REPO>/scripts/; roster.json in <REPO>/config/).
+// If that path doesn't exist (odd argv[0] under some swift invocations),
+// fall back to the working directory — cron-update.sh / digest-update.sh
+// both cd to the repo root before running the script.
 let ROSTER_JSON_URL: URL = {
     let scriptPath = URL(fileURLWithPath: CommandLine.arguments.first ?? #filePath)
-    let scriptsDir = scriptPath.deletingLastPathComponent()
-    let repoDir = scriptsDir.deletingLastPathComponent()
-    return repoDir.appendingPathComponent("config/roster.json")
+    let scriptRelative = scriptPath
+        .deletingLastPathComponent()        // <REPO>/scripts
+        .deletingLastPathComponent()        // <REPO>
+        .appendingPathComponent("config/roster.json")
+    if FileManager.default.fileExists(atPath: scriptRelative.path) {
+        return scriptRelative
+    }
+    return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("config/roster.json")
 }()
 
 func loadRoster() -> RawRoster? {
     guard let data = try? Data(contentsOf: ROSTER_JSON_URL) else {
-        fputs("⚠ roster.json missing at \(ROSTER_JSON_URL.path) — using embedded defaults\n", stderr)
+        fputs("WARNING: config/roster.json unreadable (missing at \(ROSTER_JSON_URL.path)) — using hardcoded roster fallback (drift risk!)\n", stderr)
         return nil
     }
     do {
-        return try JSONDecoder().decode(RawRoster.self, from: data)
+        let r = try JSONDecoder().decode(RawRoster.self, from: data)
+        let tickerCount = Set(r.users.flatMap { $0.tickers }).count
+        fputs("roster: loaded \(r.users.count) players / \(tickerCount) tickers from \(ROSTER_JSON_URL.path)\n", stderr)
+        return r
     } catch {
-        fputs("⚠ roster.json failed to parse (\(error.localizedDescription)) — using embedded defaults\n", stderr)
+        fputs("WARNING: config/roster.json unreadable (parse failed: \(error.localizedDescription)) — using hardcoded roster fallback (drift risk!)\n", stderr)
         return nil
     }
 }
@@ -1824,6 +1836,13 @@ func dataMaturity(daysOfData: Int, daysRequired: Int) -> String {
 
 // MARK: - Digest generation
 
+// One-sentence style rule appended to every shipped-prose prompt (per-stock
+// briefing, portfolio, fund, game). The model occasionally opens with a
+// Markdown title ("**AAPL [+2.11%] Briefing**") or bolds tickers;
+// cleanDigestProse strips whatever slips through, but telling the model up
+// front keeps the prose clean at the source.
+let PROSE_STYLE_NOTE = "Write plain prose only — no Markdown, no headings, no bold, no title line."
+
 func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], gameAge: Int) -> String {
     let name = TICKER_NAMES[ticker] ?? ticker
     var articleText = ""
@@ -1867,7 +1886,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     return """
     You're writing a short briefing for an investor holding \(ticker) (\(name)). The articles below are pre-filtered for investor relevance.
 
-    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler. Output only the briefing — no notes about yourself or how it was generated.\(numbersNote)\(recencyNote)
+    In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler. Output only the briefing — no notes about yourself or how it was generated. \(PROSE_STYLE_NOTE)\(numbersNote)\(recencyNote)
 
     Articles:
     \(articleText)
@@ -2352,7 +2371,7 @@ func buildSummaryBackedWindowPrompt(
         Daily summaries (past 7 days, oldest first):
         \(renderDailies(dailies))
 
-        In three sentences, synthesize the week's story — the most important development, what it implies for the company, and a catalyst or risk ahead. Plain prose, one paragraph.\(numbersNote)
+        In three sentences, synthesize the week's story — the most important development, what it implies for the company, and a catalyst or risk ahead. Plain prose, one paragraph. \(PROSE_STYLE_NOTE)\(numbersNote)
         """
     case .m1:
         let scope = gameAge < 30
@@ -2366,7 +2385,7 @@ func buildSummaryBackedWindowPrompt(
         \(briefBlock)Weekly summaries (oldest first):
         \(weeklyBlock)\(dailyBlock)
 
-        In three sentences, cover the period's defining theme, the biggest catalyst or risk that emerged, and where the stock stands now — citing actual events from the summaries. Plain prose, one paragraph.\(numbersNote)
+        In three sentences, cover the period's defining theme, the biggest catalyst or risk that emerged, and where the stock stands now — citing actual events from the summaries. Plain prose, one paragraph. \(PROSE_STYLE_NOTE)\(numbersNote)
         """
     case .m3:
         let scope = gameAge < 90
@@ -2379,7 +2398,7 @@ func buildSummaryBackedWindowPrompt(
         \(briefBlock)Weekly summaries (oldest first):
         \(weeklyBlock)
 
-        In three sentences, cover the period's defining theme or catalyst, the major risks or opportunities that emerged, and how the investment thesis has evolved — citing actual events from the summaries. Plain prose, one paragraph.
+        In three sentences, cover the period's defining theme or catalyst, the major risks or opportunities that emerged, and how the investment thesis has evolved — citing actual events from the summaries. Plain prose, one paragraph. \(PROSE_STYLE_NOTE)
         """
     case .y1:
         let isYoung = gameAge < 365
@@ -2393,7 +2412,7 @@ func buildSummaryBackedWindowPrompt(
         \(briefBlock)Monthly summaries (oldest first):
         \(monthlyBlock)
 
-        In three sentences, cover the period's most important storyline and its market impact, how the company's competitive position or trajectory changed, and the long-term outlook. Plain prose, one paragraph.
+        In three sentences, cover the period's most important storyline and its market impact, how the company's competitive position or trajectory changed, and the long-term outlook. Plain prose, one paragraph. \(PROSE_STYLE_NOTE)
         """
     case .all:
         let monthlyBlock = monthlies.isEmpty ? "(none yet)" : renderMonthlies(monthlies)
@@ -2403,7 +2422,7 @@ func buildSummaryBackedWindowPrompt(
         \(briefBlock)Monthly summaries (oldest first):
         \(monthlyBlock)
 
-        In three sentences, cover the defining arc since February 5, 2026 (biggest catalysts, pivots, regime changes), how the original thesis has held up or been challenged, and the outlook from here. Plain prose, one paragraph.
+        In three sentences, cover the defining arc since February 5, 2026 (biggest catalysts, pivots, regime changes), how the original thesis has held up or been challenged, and the outlook from here. Plain prose, one paragraph. \(PROSE_STYLE_NOTE)
         """
     case .d1:
         // 1D continues to use raw articles directly — small input, the user
@@ -2493,6 +2512,22 @@ func cleanDigestProse(_ raw: String) -> String {
     for p in prefixes where s.hasPrefix(p) {
         s = String(s.dropFirst(p.count)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    // Strip a self-titled header line the model sometimes opens with despite
+    // instructions — e.g. "**AAPL [+2.11%] Briefing**" or a bare "AAPL Briefing"
+    // first line (43 shipped holdings digests carried literal bold headers).
+    // Matches an optionally #-prefixed / **bolded** / __bolded__ first line
+    // ending in "Briefing" followed by a newline, and drops the whole line.
+    s = s.replacingOccurrences(
+        of: #"(?i)^(?:#{1,6}\s*)?(?:\*\*|__)?[^\n]{0,80}?Briefing(?:\*\*|__)?:?[ \t]*\n+"#,
+        with: "",
+        options: .regularExpression
+    ).trimmingCharacters(in: .whitespacesAndNewlines)
+    // Strip leading #-style Markdown heading markers at line starts.
+    s = s.replacingOccurrences(
+        of: #"(?m)^\s*#{1,6}\s+"#,
+        with: "",
+        options: .regularExpression
+    )
     // Strip numbered-list markers ("1.", "(1)") + bullets ("- ", "* ") at line starts,
     // then collapse paragraph breaks to single spaces — the model occasionally formats
     // 3 sentences as a numbered list despite the prompt asking for prose.
@@ -2511,6 +2546,19 @@ func cleanDigestProse(_ raw: String) -> String {
     s = s.replacingOccurrences(
         of: #" {2,}"#,
         with: " ",
+        options: .regularExpression
+    )
+    // Strip paired Markdown emphasis markers (**bold** / __bold__), keeping
+    // the inner text. Done on the single-lined string so pairs that spanned a
+    // soft line break still match.
+    s = s.replacingOccurrences(
+        of: #"\*\*(.+?)\*\*"#,
+        with: "$1",
+        options: .regularExpression
+    )
+    s = s.replacingOccurrences(
+        of: #"__(.+?)__"#,
+        with: "$1",
         options: .regularExpression
     )
     // Backstop for the larger PCC model: it occasionally breaks character and
@@ -2965,6 +3013,7 @@ func buildPortfolioPrompt(
 
     - Use ticker symbols (e.g. WMT, TSLA), only ones \(player.name) holds, and mention \(player.name) by name at least once.
     - Don't include any percentages or numbers in the prose.
+    - \(PROSE_STYLE_NOTE)
     - Output only the briefing itself — no notes about yourself, being an AI/model, or how it was generated.
     """
 }
@@ -3253,7 +3302,7 @@ func buildFundDigestPrompt(
     Top movers for \(scope):
     \(formatFundStandingsBlock(movers))
 
-    Two short sentences in your own words (don't quote the articles): the dominant driver (a specific holding's move or news), then a secondary contributor or drag. Refer to each cited holding by its ticker symbol (e.g. AAPL, VTI), and don't include any percentages or numbers. Output only the summary — no notes about yourself or how it was generated.
+    Two short sentences in your own words (don't quote the articles): the dominant driver (a specific holding's move or news), then a secondary contributor or drag. Refer to each cited holding by its ticker symbol (e.g. AAPL, VTI), and don't include any percentages or numbers. Output only the summary — no notes about yourself or how it was generated. \(PROSE_STYLE_NOTE)
     """
 }
 
@@ -3832,7 +3881,7 @@ func deterministicGameTemplate(_ facts: GameDigestFacts) -> String? {
     return sentences.isEmpty ? nil : sentences.joined(separator: " ")
 }
 
-func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int, data: PriceDataLite) -> String {
+func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articles: [TaggedArticle], gameAge: Int, data: PriceDataLite, previousDayBlurb: String? = nil) -> String {
     let scope: String
     switch window {
     case .d1:  scope = "today"
@@ -3853,6 +3902,20 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     let moverBlock = renderFactBlock(facts.topMover, role: "Top gainer of \(scope)")
     let dragBlock  = renderFactBlock(facts.topDrag,  role: "Biggest drag of \(scope)")
     let aheadBlock = renderFactBlock(facts.forwardCatalyst, role: "Worth watching next")
+
+    // Day-over-day continuity (1D only): yesterday's blurb, so today's story
+    // can pick up a running thread instead of reading like day one. Only
+    // context — the model must not restate it. Live pcts were stripped by the
+    // caller so stale numbers can't leak into the model's input.
+    let continuityBlock: String = {
+        guard window == .d1, let prev = previousDayBlurb, !prev.isEmpty else { return "" }
+        return """
+
+
+        Yesterday's briefing, for continuity (do not repeat it; reference it only when today's story continues it, e.g. "extended yesterday's slide"):
+        \(prev)
+        """
+    }()
 
     return """
     Write the short "what's driving the leaderboard" blurb for a \(PLAYERS.count)-player paper-stock game — each player started with $100,000 on February 5, 2026; today is day \(gameAge). The players just hold stocks; they don't write or report the news.
@@ -3881,7 +3944,9 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     - If a stock fell despite good-sounding news (or rose despite bad news), just say so — don't twist the headline to match the move.
     - A catalyst tagged "reported yesterday" or "reported N days ago" is news the stock is STILL reacting to — frame it that way (e.g. "still riding", "continues to react to") instead of implying it broke today. Only a catalyst tagged "reported today" is fresh.
     - Don't include any percentages or numbers. Skip any line marked "skip this sentence".
-    - Output only the three sentences — no notes about yourself, being an AI/model, or how this was produced.
+    - A live percentage is inserted next to each ticker and player name after you write, and it's re-substituted all day — by afternoon it can flip sign. So describe the top gainer and the biggest drag with direction-neutral phrasing ("set the pace", "weighed most on the standings") rather than "gained", "led the gains", or "fell".
+    - \(PROSE_STYLE_NOTE)
+    - Output only the three sentences — no notes about yourself, being an AI/model, or how this was produced.\(continuityBlock)
     """
 }
 
@@ -4009,11 +4074,37 @@ func extractGameDigestTemplate(_ prose: String) -> String {
 // Substitute placeholders in a templated game digest with live pcts read from
 // prices.json. `window` controls which range each placeholder represents
 // (the game digest's window is the implicit lookback).
-func renderGameDigestTemplate(_ template: String, window: WindowKey, data: PriceDataLite) -> String {
+//
+// `signGuardContext` (game windows only): when non-nil, run the
+// sign-contradiction check below and use the string as the log label.
+func renderGameDigestTemplate(_ template: String, window: WindowKey, data: PriceDataLite, signGuardContext: String? = nil) -> String {
     guard let regex = try? NSRegularExpression(pattern: TEMPLATE_PLACEHOLDER_PATTERN) else { return template }
     let ns = template as NSString
     let matches = regex.matches(in: template, range: NSRange(location: 0, length: ns.length))
     var result = template
+
+    // Sign-contradiction guard: the morning game narrative frames its first
+    // ticker as the top mover and its second as the biggest drag, but the live
+    // pcts substituted here can flip sign during the day — the shipped bug was
+    // "helped COHR [-3.88%] lead today's gains" (narrative frozen, number
+    // flipped). Anchor identity isn't stored on the template, so sentence
+    // position is the honest heuristic: warn when the first ticker placeholder
+    // substitutes negative or the second (drag-position) substitutes positive.
+    // Log-only — never block or rewrite the prose.
+    if let context = signGuardContext {
+        let tickerTokens: [String] = matches.compactMap { m in
+            let token = ns.substring(with: m.range(at: 1))
+            return token.hasPrefix("user:") ? nil : token
+        }
+        if let mover = tickerTokens.first,
+           let pct = liveTickerPct(ticker: mover, window: window, data: data), pct < 0 {
+            logErr("fast tier: sign contradiction — \(context) topMover \(mover) now \(String(format: "%+.2f%%", pct * 100)) (narrative from morning)")
+        }
+        if tickerTokens.count >= 2,
+           let pct = liveTickerPct(ticker: tickerTokens[1], window: window, data: data), pct > 0 {
+            logErr("fast tier: sign contradiction — \(context) topDrag \(tickerTokens[1]) now \(String(format: "%+.2f%%", pct * 100)) (narrative from morning)")
+        }
+    }
     for m in matches.reversed() {
         let tokenRange = m.range(at: 1)
         let token = ns.substring(with: tokenRange)
@@ -4054,10 +4145,25 @@ struct GameOutcome {
 // prose summary now — PCC via fm serve, on-device fallback (see the prose-engine
 // section near aiRespond). processGameSummary only runs on the daily / game
 // scopes (the 15-min fast tier does no AI), so this stays ~once a day.
-func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] = WindowKey.allCases) async -> GameOutcome {
+func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] = WindowKey.allCases, previousDayBlurb: String? = nil) async -> GameOutcome {
     log("• Game-wide summary: start (\(windows.map { $0.rawValue }.joined(separator: ", ")))")
     var perWindow: [String: WindowDigest] = [:]
     let nowISO = isoFormatter.string(from: Date())
+
+    // Day-over-day continuity context for the 1D prompt: yesterday's rendered
+    // 1D blurb with its bracketed live pcts stripped, so stale numbers can't
+    // leak into the model's input. nil when there's no prior digest (first
+    // run) — the prompt then omits the block entirely.
+    let yesterday1D: String? = previousDayBlurb.flatMap { blurb in
+        let stripped = blurb
+            .replacingOccurrences(
+                of: #"\s*\[[+-]?\d+(?:\.\d+)?%\]"#,
+                with: "",
+                options: .regularExpression
+            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stripped.isEmpty ? nil : stripped
+    }
 
     // Use the max archive depth across any ticker as the "days of data" since
     // the game-wide rollup spans every ticker.
@@ -4094,7 +4200,7 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
             }
 
             group.addTask {
-                let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
+                let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data, previousDayBlurb: w == .d1 ? yesterday1D : nil)
 
                 // Generate, then verify ownership. The game digest cites
                 // multiple players + tickers, and the on-device model recurs to
@@ -4336,7 +4442,7 @@ func runFastTier(args: Args) async {
     for w in TEMPLATED_GAME_WINDOWS {
         let key = w.rawValue
         guard var wd = gameBlock[key], let template = wd.digestTemplate else { continue }
-        wd.digest = renderGameDigestTemplate(template, window: w, data: priceData)
+        wd.digest = renderGameDigestTemplate(template, window: w, data: priceData, signGuardContext: "game \(key)")
         wd.generatedAt = nowISO
         gameBlock[key] = wd
         gameRendered += 1
@@ -4830,7 +4936,12 @@ func runMain() async {
     var game: GameOutcome? = nil
     if !gameWindows.isEmpty, runAllTickers, let pd = priceData {
         let gameAge = gameAgeInDays()
-        game = await processGameSummary(data: pd, gameAge: gameAge, windows: gameWindows)
+        // Capture the previous 1D game blurb (as it stands on disk, i.e.
+        // yesterday's narrative) before regenerating, so the fresh 1D prompt
+        // can reference it for day-over-day continuity. 1D only — the other
+        // windows already span multiple days.
+        let previous1D = loadExistingDigests(at: args.outputPath)?.game?[WindowKey.d1.rawValue]?.digest
+        game = await processGameSummary(data: pd, gameAge: gameAge, windows: gameWindows, previousDayBlurb: previous1D)
     } else if gameWindows.isEmpty {
         log("Skipping game-wide summary for scope=\(args.scope.rawValue).")
     } else if !runAllTickers {
@@ -4900,7 +5011,7 @@ func runMain() async {
         for w in TEMPLATED_GAME_WINDOWS {
             let key = w.rawValue
             guard var wd = gameBlock[key], let tmpl = wd.digestTemplate else { continue }
-            wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd)
+            wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd, signGuardContext: "game \(key) (post-run render)")
             wd.generatedAt = nowISO
             gameBlock[key] = wd
         }

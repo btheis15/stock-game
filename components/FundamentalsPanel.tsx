@@ -761,7 +761,7 @@ function EarningsChart({
               fontSize={10}
               fill="#71717a"
             >
-              {v < 0 ? `-$${Math.abs(v).toFixed(2)}` : `$${v.toFixed(2)}`}
+              {v < 0 ? `−$${Math.abs(v).toFixed(2)}` : `$${v.toFixed(2)}`}
             </text>
           </g>
         ))}

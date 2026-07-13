@@ -132,6 +132,15 @@ if ! swift "$SCRIPT_DIR/digest.swift" --output "$REPO_DIR/public/digests.json" -
   log "fast tier exited non-zero; continuing with the price push"
 fi
 
+# 2b) Refuse to commit an unparseable snapshot. fetch-prices validates before
+# writing, but this cheap gate also covers a partially-written file from any
+# other writer (crash mid-write, disk full). Failing here keeps the last-good
+# committed data serving.
+if ! node -e "JSON.parse(require('fs').readFileSync('public/data/prices.json','utf8'))" 2>/dev/null; then
+  log "prices.json is unparseable — refusing to commit; keeping last-good data"
+  exit 1
+fi
+
 # 3) Commit prices + (potentially rendered) digests if anything changed. We
 # stage the two paths explicitly so unrelated WIP never gets auto-committed.
 status_lines="$(git status --porcelain public/data/prices.json public/digests.json)"

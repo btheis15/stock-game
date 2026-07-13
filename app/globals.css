@@ -32,6 +32,15 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Keyboard focus was previously invisible (tap-highlight is suppressed
+   above). :focus-visible never fires on touch, so this only shows for
+   keyboard/switch users. --foreground flips per theme automatically. */
+:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -53,6 +62,17 @@ html {
 @keyframes livePulseFill {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
+}
+
+/* Loading-skeleton pulse (DigestPanel while digests.json is in flight). The
+   global reduced-motion guard freezes it to a static bar automatically. */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.skeleton {
+  animation: skeletonPulse 1.4s var(--ease-out-ios) infinite;
 }
 
 /* Route transitions — driven by app/template.tsx, which sets one of these
