@@ -774,7 +774,16 @@ Run modes:
 For each ticker:
 1. Build a `FetchPlan` describing what to refetch (full or trailing).
 2. Call `yahooFinance.chart(ticker, { period1, period2, interval: "1d", events: "div" })`
-   to get daily closes + dividend events.
+   to get daily closes + dividend events. The daily call retries 2×
+   (2s/8s backoff via `withRetry`); intraday/weekly get one quick retry
+   before their silent-`[]` fallback. A ticker whose daily fetch still
+   fails is **carried forward** (previous series kept, intraday/weekly
+   dropped) instead of aborting the run; the run aborts only if >25% of
+   the roster fails. `validatePriceData()` then refuses to write a
+   snapshot that loses history, changes any `startClose`, or drops a
+   roster ticker — so a bad run leaves the last-good file untouched and
+   `cron-update.sh` (which also JSON-parses the file before staging)
+   commits nothing.
 3. Merge fresh closes into `prevSeries.closes` by date (Yahoo restates
    late-day closes occasionally; merging handles this).
 4. **Preserve `startClose`.** Set on first fetch, never overwritten.

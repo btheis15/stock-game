@@ -581,6 +581,15 @@ components/
    │     - --full: re-fetches everything from START_DATE
    │     - also pulls today's 15-min intraday bars + past 8 days of 1h
    │       hourly bars (for the 1W view) + dividend events
+   │     - resilience: daily fetch retries 2× (2s/8s backoff); a ticker that
+   │       still fails is CARRIED-FORWARD (previous series kept, intraday/
+   │       weekly dropped) instead of aborting; the run aborts only if >25%
+   │       of the roster fails (Yahoo-outage signal). validatePriceData()
+   │       refuses to write a snapshot that loses history, changes any
+   │       startClose, or drops a roster ticker — a bad run leaves the
+   │       last-good file untouched, so cron commits nothing.
+   ├─ JSON-parse gate on prices.json  → refuses to stage a partially-written
+   │                                     file (crash mid-write, disk full)
    ├─ if public/data/prices.json changed:
    │     git add public/data/prices.json   (stages ONLY the data file —
    │                                         unrelated WIP never auto-commits)
