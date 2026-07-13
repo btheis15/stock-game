@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getMarketSessionState, type MarketSessionState } from "@/lib/portfolio";
 import { marketEarlyCloseName, marketHolidayName } from "@/lib/market-calendar";
+import { RelativeTime } from "@/components/RelativeTime";
 
 interface StateStyle {
   label: string;
@@ -75,12 +76,6 @@ export function MarketStateBadge({
 
   const style = STATE_STYLES[schedule.state];
   const notice = noticeFor(schedule);
-  const updatedStr = generatedAt
-    ? new Date(generatedAt).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
   return (
     <div className="px-4 -mt-1 mb-1">
       <div className="flex items-center gap-2">
@@ -99,10 +94,12 @@ export function MarketStateBadge({
           />
           {style.label}
         </span>
-        {updatedStr && (
-          <span className="text-[10px] font-medium tracking-wide text-zinc-600">
-            Last updated {updatedStr}
-          </span>
+        {generatedAt && (
+          <RelativeTime
+            iso={generatedAt}
+            prefix="Updated"
+            className="text-[10px] font-medium tracking-wide text-zinc-600"
+          />
         )}
       </div>
       {notice && (

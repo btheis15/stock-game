@@ -25,6 +25,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Fund } from "@/lib/types";
+import { fmtWeightPct } from "@/lib/portfolio";
 
 interface TickerSearchResult {
   symbol: string;
@@ -58,10 +59,6 @@ const WEIGHT_STEP = 0.001;
 const WEIGHT_TOLERANCE = 0.00005; // matches lib/funds.ts
 
 const CREATOR_STORAGE_KEY = "stockgame.fund.creator";
-
-function fmtPct(x: number, fractionDigits = 1): string {
-  return `${(x * 100).toFixed(fractionDigits)}%`;
-}
 
 function pctToFraction(s: string): number | null {
   const n = parseFloat(s);
@@ -632,7 +629,7 @@ function StepWeights({
   // the 0.001 grid, written back via setHoldingWeight, and the draft
   // entry is cleared so the input falls back to the formatted weight.
   //
-  // Was a bug before: the input value was `fmtPct(h.weight, 1)`, so
+  // Was a bug before: the input value was `fmtWeightPct(h.weight, 1)`, so
   // every onChange round-tripped the value through clampWeight + format,
   // which collapsed "33." into "33.0" mid-type and made backspacing
   // useless. Drafts decouple the typed string from the canonical
@@ -684,7 +681,7 @@ function StepWeights({
               <input
                 type="text"
                 inputMode="decimal"
-                value={drafts[h.ticker] ?? fmtPct(h.weight, 1).replace("%", "")}
+                value={drafts[h.ticker] ?? fmtWeightPct(h.weight, 1).replace("%", "")}
                 onChange={(e) =>
                   setDrafts((d) => ({ ...d, [h.ticker]: e.target.value }))
                 }
@@ -718,7 +715,7 @@ function StepWeights({
             : "bg-emerald-950/40 border border-emerald-900 text-emerald-300")
         }
       >
-        Total: {fmtPct(totalWeight, 2)}
+        Total: {fmtWeightPct(totalWeight, 2)}
         {off && (
           <span className="text-zinc-500 ml-2">
             (off by {((totalWeight - 1) * 100).toFixed(2)}%)

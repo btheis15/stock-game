@@ -13,16 +13,13 @@
 
 import { useMemo, useState } from "react";
 import type { Fund } from "@/lib/types";
+import { fmtWeightPct } from "@/lib/portfolio";
 
 const FUND_RESTORE_WINDOW_DAYS = 7;
 
 function daysSince(iso: string): number {
   const ms = Date.now() - new Date(iso).getTime();
   return ms / (1000 * 60 * 60 * 24);
-}
-
-function fmtPct(x: number): string {
-  return `${(x * 100).toFixed(1)}%`;
 }
 
 interface Props {
@@ -201,7 +198,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
                         key={h.ticker}
                         className="text-[11px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full tabular-nums"
                       >
-                        {h.ticker} {fmtPct(h.weight)}
+                        {h.ticker} {fmtWeightPct(h.weight)}
                       </span>
                     ))}
                   </div>

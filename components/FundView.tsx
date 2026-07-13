@@ -26,6 +26,7 @@ import {
   filterRange,
   fmtDateLong,
   fmtPct,
+  fmtShares,
   fmtSignedUSD,
   fmtTimeOfDay,
   fmtUSD,
@@ -274,7 +275,7 @@ export function FundView({
                       {h.name}
                     </div>
                     <div className="text-[11px] text-zinc-500 tabular-nums">
-                      {fmtPct(weightPct)} • {h.shares.toFixed(2)} shares •{" "}
+                      {fmtPct(weightPct)} • {fmtShares(h.shares)} shares •{" "}
                       {fmtUSD(h.currentClose, 2)}
                     </div>
                   </div>

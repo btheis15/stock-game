@@ -10,6 +10,7 @@ import {
   fmtDateLong,
   fmtDateShort,
   fmtPct,
+  fmtShares,
   fmtTimeOfDay,
   fmtUSD,
   intradayTickerSeries,
@@ -202,7 +203,7 @@ function PositionCard({
         </span>
       </div>
       <div className="divide-y divide-zinc-800">
-        <Row label="Shares" value={shares.toFixed(4)} />
+        <Row label="Shares" value={fmtShares(shares)} />
         <Row label="Cost basis" value={fmtUSD(costBasis)} />
         <Row label="Bought at" value={fmtUSD(series.startClose, 2)} />
         <Row label="Last close" value={fmtUSD(series.closes[series.closes.length - 1].close, 2)} />

@@ -55,6 +55,17 @@ html {
   50% { opacity: 0.55; }
 }
 
+/* Loading-skeleton pulse (DigestPanel while digests.json is in flight). The
+   global reduced-motion guard freezes it to a static bar automatically. */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.skeleton {
+  animation: skeletonPulse 1.4s var(--ease-out-ios) infinite;
+}
+
 /* Route transitions — driven by app/template.tsx, which sets one of these
    classes per navigation. animation-fill-mode is `backwards`, so once the
    entrance finishes the element reverts to NO transform; that keeps inline

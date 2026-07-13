@@ -1,4 +1,5 @@
 import { fmtDateLong } from "@/lib/portfolio";
+import { RelativeTime } from "@/components/RelativeTime";
 
 export function Footer({
   lastDate,
@@ -7,18 +8,15 @@ export function Footer({
   lastDate: string;
   generatedAt: string;
 }) {
-  const generated = new Date(generatedAt);
-  const generatedStr = generated.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
   return (
     <div className="px-4 py-6 text-center text-[11px] text-zinc-600 leading-relaxed">
       Data through {fmtDateLong(lastDate)}
       <br />
-      <span className="text-zinc-700">Snapshot generated {generatedStr}</span>
+      <RelativeTime
+        iso={generatedAt}
+        prefix="Snapshot"
+        className="text-zinc-700"
+      />
     </div>
   );
 }
