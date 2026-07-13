@@ -727,6 +727,30 @@ End-to-end runtime: ~12 minutes for 45 tickers from cold archive (scaled from ea
 
 ### AI engine selection (PCC vs on-device) — macOS 27
 
+> **⚠ INTERIM (2026-07-13): on-device DISABLED — `DIGEST_ONDEVICE=off`.**
+> macOS 27 Beta 3 (installed 2026-07-07) regressed on-device FoundationModels:
+> any on-device generation (`LanguageModelSession` / `SystemLanguageModel`)
+> SIGTRAPs on an uncatchable `_assertionFailure` inside the framework, killing
+> every daily briefing run since 7/08 (identical crash stacks in fm-service and
+> the interpreted digest.swift). PCC via the Terminal-hosted `fm serve` still
+> works, so: `digest-update.sh` exports `DIGEST_ONDEVICE=off` by default and
+> preflights `fm serve` (curl `$FM_SERVE_BASE/v1/models`; if down, launches
+> `fm serve --port 8799` in Terminal via osascript and polls up to 60s; if
+> still down it logs loudly and continues — the swift side then throws per
+> call and skips that prose instead of crashing). Under `off`, digest.swift
+> never constructs/probes ANY in-process model: `AIEngine.resolve()` returns a
+> `pccServeOnly` state (log line: `on-device disabled (DIGEST_ONDEVICE=off) —
+> PCC via fm serve only`), `aiRespond` is PCC-serve-only and THROWS on failure
+> (no on-device fallback), `aiRespondStructured` throws immediately, the
+> `--check` probes and the startup `SystemLanguageModel.default.availability`
+> guard are skipped, and **the relevance scorer temporarily runs on PCC** via
+> its text+`parseScoreJSON` path (`preferPCCServe: true`) — higher PCC quota
+> usage, and MLR moderation shares the same `fm serve`; a failed scoring call
+> fails open (article kept, unscored). `DIGEST_ONDEVICE=auto` (in-code
+> default) = exact pre-Beta3 behavior described below. **Revert once an Apple
+> beta fixes on-device generation:** remove the export + preflight block in
+> `digest-update.sh` and this note.
+
 `digest.swift` runs entirely on Apple Intelligence. macOS 27's FoundationModels
 exposes two models, both reached over Apple's privacy-preserving path (neither
 is a third-party cloud, so the "Apple Intelligence is the only engine"

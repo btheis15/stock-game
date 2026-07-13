@@ -119,9 +119,45 @@ if [ "$DIGEST_SCOPE" = "daily" ] && { [ -z "$DIGEST_CHUNK" ] || [[ "$DIGEST_CHUN
   fi
 fi
 
+# --- TEMPORARY (added 2026-07-13): macOS 27 Beta 3 on-device regression ---
+# macOS 27 Beta 3 (installed 2026-07-07) broke Apple's on-device
+# FoundationModels: ANY on-device generation (LanguageModelSession /
+# SystemLanguageModel) dies with an uncatchable _assertionFailure SIGTRAP
+# inside the framework — the daily briefing crashed every run since 7/08.
+# PCC via the Terminal-hosted `fm serve` still works, so DIGEST_ONDEVICE=off
+# tells digest.swift to never construct/probe the on-device model and route
+# ALL generation (including the relevance scorer) through PCC over fm serve.
+# Flip back to "auto" / delete this whole block once an Apple beta fixes
+# on-device generation.
+export DIGEST_ONDEVICE="${DIGEST_ONDEVICE:-off}"
+
+# Preflight: with on-device disabled, fm serve is the ONLY engine — make sure
+# it's up before invoking swift. If it isn't, launch it in a real Terminal
+# window (PCC needs a foreground GUI host process; this osascript pattern is
+# tested and works from the scheduler's GUI session) and poll up to 60s.
+export FM_SERVE_URL="${FM_SERVE_URL:-http://127.0.0.1:8799/v1/chat/completions}"
+FM_SERVE_BASE="${FM_SERVE_URL%/v1/*}"
+fm_serve_up() { curl -s -m 2 "$FM_SERVE_BASE/v1/models" >/dev/null 2>&1; }
+fm_waited=0
+if ! fm_serve_up; then
+  log "fm serve not responding at $FM_SERVE_BASE — launching it in Terminal"
+  osascript -e 'tell application "Terminal" to do script "fm serve --port 8799"' >/dev/null 2>&1 || true
+  until fm_serve_up || [ "$fm_waited" -ge 60 ]; do
+    sleep 2
+    fm_waited=$((fm_waited + 2))
+  done
+fi
+if fm_serve_up; then
+  log "fm serve is up at $FM_SERVE_BASE (DIGEST_ONDEVICE=$DIGEST_ONDEVICE)"
+else
+  log "WARNING: fm serve STILL unreachable at $FM_SERVE_BASE after ${fm_waited}s — continuing anyway; with DIGEST_ONDEVICE=off every AI call will fail per-call and that prose is skipped (no crash, no on-device fallback)"
+fi
+# --- end temporary Beta 3 block --------------------------------------------
+
 # Apple Intelligence availability is checked inside digest.swift — if
 # unavailable, the script exits 0 silently and yesterday's digests.json keeps
-# serving. So we don't need a guard here.
+# serving. So we don't need a guard here. (Under DIGEST_ONDEVICE=off that
+# check is skipped entirely — see the Beta 3 block above.)
 swift_args=(
   "$SCRIPT_DIR/digest.swift"
   "--output" "$REPO_DIR/public/digests.json"

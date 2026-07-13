@@ -948,6 +948,27 @@ The digest pipeline is the second of the two writers to `main` and produces
 owning a disjoint slice of `digests.json`. Whatever a scope doesn't touch is
 preserved on the next merge.
 
+> **⚠ INTERIM (2026-07-13): on-device is DISABLED — `DIGEST_ONDEVICE=off`.**
+> macOS 27 **Beta 3** (installed 2026-07-07) broke on-device FoundationModels:
+> ANY on-device generation (`LanguageModelSession` / `SystemLanguageModel`)
+> dies with an uncatchable `_assertionFailure` SIGTRAP inside the framework —
+> the daily briefing crashed every run from 7/08 until this interim mode
+> landed. `digest-update.sh` now exports `DIGEST_ONDEVICE=off` by default and
+> preflights `fm serve` before invoking swift (curl `/v1/models`; if down,
+> launch `fm serve --port 8799` in Terminal via osascript and poll up to 60s).
+> Under `off`, digest.swift never constructs or probes ANY in-process model:
+> `AIEngine.resolve()` short-circuits to a PCC-serve-only state, `aiRespond`
+> goes to PCC over `fm serve` and **throws on failure (no on-device
+> fallback — callers catch and skip that prose)**, the structured on-device
+> scorer path is skipped, and **the relevance scorer temporarily runs on PCC**
+> via the text+`parseScoreJSON` path (higher PCC quota usage — note MLR
+> moderation shares the same `fm serve`; a failed scoring call fails open,
+> keeping the article unscored). `DIGEST_ONDEVICE=auto` (the in-code default)
+> is byte-identical pre-Beta3 behavior. **Revert when an Apple beta fixes
+> on-device generation:** remove the `DIGEST_ONDEVICE` export + fm-serve
+> preflight block from `digest-update.sh` (or set `auto`) and this note.
+> Everything in the paragraphs below describes the normal `auto` mode.
+>
 > **AI engine (macOS 27 — PCC for ALL prose).** [UPDATE 2026-06-18: **every
 > prose summary now runs on PCC** via the Terminal-hosted `fm serve`, not just
 > the game digest. The central helper `aiRespond(_:reasoning:preferPCCServe:)`
