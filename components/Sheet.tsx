@@ -39,6 +39,7 @@ export function Sheet({
   doneLabel = "Done",
   full = false,
   header,
+  footer,
   children,
 }: {
   open: boolean;
@@ -54,6 +55,10 @@ export function Sheet({
   /** Custom header node. Overrides the default eyebrow/title/Done header
    *  (it must include its own dismiss affordance + bottom border). */
   header?: ReactNode;
+  /** Pinned action bar rendered below the scroll area (Back/Next/Save rows
+   *  for form sheets). It should bring its own top border + padding; the
+   *  panel already handles the bottom safe-area inset. */
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -85,7 +90,11 @@ export function Sheet({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    panelRef.current?.focus();
+    // Focus the panel for keyboard users — but only if focus isn't already
+    // inside it. Form sheets autoFocus their first input on mount, and that
+    // focus must survive (this effect runs after the child's autoFocus).
+    const panel = panelRef.current;
+    if (panel && !panel.contains(document.activeElement)) panel.focus();
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
@@ -125,7 +134,13 @@ export function Sheet({
           (full ? "h-[100dvh] sm:h-auto sm:max-h-[90dvh]" : "max-h-[90dvh]") +
           (closing ? " is-closing" : "")
         }
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{
+          paddingBottom: "env(safe-area-inset-bottom)",
+          // A full sheet spans 100dvh on mobile, so its top edge sits under
+          // the iOS status bar / notch — pad it out of the way. Zero in
+          // regular browsers and for the bottom-anchored partial detent.
+          ...(full ? { paddingTop: "env(safe-area-inset-top)" } : null),
+        }}
         onClick={(e) => e.stopPropagation()}
         onAnimationEnd={handleAnimationEnd}
       >
@@ -164,6 +179,8 @@ export function Sheet({
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-3">
           {children}
         </div>
+
+        {footer && <div className="shrink-0">{footer}</div>}
       </div>
     </div>,
     document.body

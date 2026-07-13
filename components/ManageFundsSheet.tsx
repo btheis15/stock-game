@@ -95,9 +95,10 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
 
   const list = tab === "active" ? active : archived;
   return (
-    // z-[100] sits above the global TabBar (z-50); safe-area paddings on
-    // the header keep the iOS status bar off the title row. See
-    // CreateFundModal for the full rationale on these three details.
+    // z-[100] sits above the global TabBar (z-50); h-[100dvh] tracks the
+    // iOS keyboard viewport; safe-area paddings keep the status bar off the
+    // title row. Last hand-rolled shell — CreateFundModal / EditThesisModal
+    // moved to <Sheet full>, which owns the same three details for them.
     <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
         className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"

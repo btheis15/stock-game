@@ -616,10 +616,10 @@ compared against the detail-route regex `/^\/(stock|portfolio|fund)\//`:
 
 All three are CSS keyframes (`pageFade` / `pagePush` / `pagePop`) with
 **`animation-fill-mode: backwards`**, so NO transform lingers at rest.
-That's deliberate and load-bearing: several pages render `position: fixed`
-modals inline (CreateFundModal, EditThesisModal, …), and a lingering
-transform on the wrapper would re-root those fixed descendants and
-misplace them. Don't switch this to a framer-motion `x`/`y` wrapper for
+That's deliberate and load-bearing: ManageFundsSheet still renders a
+`position: fixed` modal inline (the other modals now portal to `<body>`
+via `<Sheet>`), and a lingering transform on the wrapper would re-root
+that fixed descendant and misplace it. Don't switch this to a framer-motion `x`/`y` wrapper for
 the same reason. **Shared-element / cross-route morph (View Transitions
 API) was intentionally skipped** for older-device compatibility — don't
 claim it exists.
@@ -641,7 +641,9 @@ Props:
   doneLabel?={string}       // top-right dismiss label (default "Done")
   full?={boolean}           // full-height (forms/wizards); default = content-height detent
   header?={ReactNode}       // custom header slot; replaces eyebrow/title/Done
->                           // (must bring its own dismiss affordance + bottom border)
+                            // (must bring its own dismiss affordance + bottom border)
+  footer?={ReactNode}       // pinned action bar below the scroll area (Back/Next/
+>                           // Save rows); brings its own top border + padding
   {children}
 </Sheet>
 ```
@@ -662,8 +664,10 @@ Behavior:
 - **No drag-to-dismiss** — close via backdrop tap / Done / Escape only.
   Don't claim a drag gesture exists.
 
-Already converted to `<Sheet>`: **FilterSheet** (`components/FundsFilter.tsx`)
-and **WhatsNew** (`components/WhatsNew.tsx`).
+Already converted to `<Sheet>`: **FilterSheet** (`components/FundsFilter.tsx`),
+**WhatsNew** (`components/WhatsNew.tsx`), **CreateFundModal** and
+**EditThesisModal** (both `full` sheets using the `footer` action-bar slot).
+Still on its own hand-rolled shell: **ManageFundsSheet**.
 
 ### Global reduced-motion guard (`app/globals.css`)
 
@@ -1697,10 +1701,10 @@ This repo has no automated unit tests. Manual verification:
    - **Motion (§6.5):** tab ↔ tab cross-fades; drilling into a
      stock/portfolio/fund slides in from the right (push) and Back
      slides in from the left (pop). No transform lingers at rest —
-     confirm inline fixed modals (CreateFundModal, EditThesisModal) are
-     still anchored after a transition. Open a `<Sheet>` (FilterSheet /
-     WhatsNew): it slides up, dismisses on backdrop tap / Done / Escape
-     by sliding back down. Tappable controls shrink slightly on press.
+     confirm the inline fixed modal (ManageFundsSheet) is still anchored
+     after a transition. Open a `<Sheet>` (FilterSheet / WhatsNew /
+     CreateFundModal / EditThesisModal): it slides up, dismisses on
+     backdrop tap / Done / Escape by sliding back down. Tappable controls shrink slightly on press.
    - **Reduced motion:** in DevTools emulate `prefers-reduced-motion:
      reduce` (Rendering panel) and re-check — transitions/animations
      should be ~instant, nothing broken or stuck off-screen.

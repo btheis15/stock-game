@@ -12,8 +12,9 @@
 //
 // Why CSS keyframes instead of a framer-motion wrapper: a framer wrapper that
 // animates `x`/`y` leaves a `transform: translate(0)` on the element at rest,
-// which re-roots any `position: fixed` descendant — and several pages render
-// fixed modals inline (CreateFundModal, EditThesisModal, ...). A CSS keyframe
+// which re-roots any `position: fixed` descendant — ManageFundsSheet still
+// renders a fixed modal inline (the other modals now portal to <body> via
+// <Sheet>, which makes them immune regardless). A CSS keyframe
 // with `animation-fill-mode: backwards` leaves NO transform once it finishes,
 // so those modals stay anchored to the viewport. It's also cheaper per the
 // app's 16ms gesture budget (DESIGN.md §14). prefers-reduced-motion is honored
