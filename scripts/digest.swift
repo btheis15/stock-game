@@ -842,8 +842,29 @@ enum DigestReasoning {
     case deep          // multi-summary synthesis, leaderboard reasoning
 }
 
+// TEMPORARY KILL SWITCH (added 2026-07-13): macOS 27 Beta 3 (installed
+// 2026-07-07) broke on-device FoundationModels — ANY on-device generation
+// (LanguageModelSession / SystemLanguageModel) dies with an uncatchable
+// `_assertionFailure` SIGTRAP inside the framework, crashing every daily
+// briefing since 7/08. PCC via the Terminal-hosted `fm serve` still works.
+// DIGEST_ONDEVICE=off makes this script NEVER construct or probe the
+// on-device model (or the in-process PCC model): every generation —
+// including the relevance scorer — routes through PCC over `fm serve`, and
+// a failed PCC call THROWS instead of falling back on-device (callers
+// try/catch and skip gracefully). Default "auto" = exact pre-Beta3
+// behavior. digest-update.sh exports off by default for now; flip back to
+// auto / delete once an Apple beta fixes on-device generation.
+let ONDEVICE_DISABLED: Bool =
+    (ProcessInfo.processInfo.environment["DIGEST_ONDEVICE"] ?? "auto").lowercased() == "off"
+
 final class AIEngine: @unchecked Sendable {
-    enum Kind: String { case privateCloudCompute = "Private Cloud Compute", onDevice = "on-device" }
+    enum Kind: String {
+        case privateCloudCompute = "Private Cloud Compute"
+        case onDevice = "on-device"
+        // DIGEST_ONDEVICE=off: neither in-process model is ever constructed;
+        // every generation goes to PCC over `fm serve` (see ONDEVICE_DISABLED).
+        case pccServeOnly = "PCC via fm serve (on-device disabled)"
+    }
     let kind: Kind
     private let pcc: PrivateCloudComputeLanguageModel?
 
@@ -853,6 +874,7 @@ final class AIEngine: @unchecked Sendable {
     }
 
     static let onDevice = AIEngine(kind: .onDevice, pcc: nil)
+    static let pccServeOnly = AIEngine(kind: .pccServeOnly, pcc: nil)
 
     // PCC can report `.available` yet fail EVERY generation when the host
     // process lacks the PCC entitlement — a bare `swift digest.swift` CLI run
@@ -865,6 +887,13 @@ final class AIEngine: @unchecked Sendable {
     // PCC and skips the probe (use once the pipeline runs from a signed,
     // entitled context where PCC generation is permitted).
     static func resolve() async -> AIEngine {
+        // Beta 3 SIGTRAP kill switch: never touch SystemLanguageModel or the
+        // in-process PCC model (even its availability/probe) — resolve straight
+        // to the fm-serve-only state. See ONDEVICE_DISABLED above.
+        if ONDEVICE_DISABLED {
+            log("on-device disabled (DIGEST_ONDEVICE=off) — PCC via fm serve only")
+            return .pccServeOnly
+        }
         let env = (ProcessInfo.processInfo.environment["DIGEST_ENGINE"] ?? "auto").lowercased()
         if env == "on-device" || env == "ondevice" { return .onDevice }
 
@@ -887,6 +916,10 @@ final class AIEngine: @unchecked Sendable {
 
     // Fresh session per call site — the pipeline intentionally never reuses a
     // session, so per-article / per-window prompts can't bleed context.
+    // NEVER reached when ONDEVICE_DISABLED (kind == .pccServeOnly): both
+    // generation helpers (aiRespondUngated / aiRespondStructured) gate before
+    // touching the in-process models, because constructing + generating on
+    // LanguageModelSession SIGTRAPs on macOS 27 Beta 3.
     func newSession() -> LanguageModelSession {
         if let pcc { return LanguageModelSession(model: pcc) }
         return LanguageModelSession()       // SystemLanguageModel.default (on-device)
@@ -906,8 +939,9 @@ final class AIEngine: @unchecked Sendable {
 // Set once by main() before any fan-out (via AIEngine.resolve()); read-only
 // thereafter, so the concurrent per-window task groups can read it without
 // synchronization. Defaults to on-device so any code path that runs before
-// resolution still works.
-nonisolated(unsafe) var AI_ENGINE: AIEngine = .onDevice
+// resolution still works — except under DIGEST_ONDEVICE=off, where even the
+// pre-resolution default must never point at the on-device model.
+nonisolated(unsafe) var AI_ENGINE: AIEngine = ONDEVICE_DISABLED ? .pccServeOnly : .onDevice
 
 // Bounds the number of Apple Intelligence requests in flight at once.
 //
@@ -1067,6 +1101,22 @@ func aiRespond(_ prompt: String, reasoning: DigestReasoning = .deep, preferPCCSe
 }
 
 func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning, preferPCCServe: Bool = true) async throws -> String {
+    // DIGEST_ONDEVICE=off (Beta 3 SIGTRAP kill switch): PCC over fm serve is
+    // the ONLY engine — preferPCCServe / SUMMARY_ENGINE are ignored, and a
+    // failed PCC call THROWS instead of falling back on-device. Callers already
+    // try/catch and skip that one prose piece gracefully.
+    if ONDEVICE_DISABLED {
+        await PCCGate.shared.acquire()
+        do {
+            let out = try await pccServeRespond(prompt, temperature: temperatureFor(reasoning))
+            await PCCGate.shared.release()
+            return out
+        } catch {
+            await PCCGate.shared.release()
+            if BACKFILL_STRICT_PCC { await PCCFailureTracker.shared.record() }
+            throw error
+        }
+    }
     // Primary path: PCC via fm serve (the better model), gated by PCCGate. One
     // failed attempt hands the slot back, logs, and degrades this single call to
     // on-device rather than failing the run.
@@ -1119,6 +1169,14 @@ func aiRespondUngated(_ prompt: String, reasoning: DigestReasoning, preferPCCSer
 // GenerationSchema so callers get typed fields back instead of parsing
 // free-text JSON. Caller reads properties via `.value(_:forProperty:)`.
 func aiRespondStructured(_ prompt: String, schema: GenerationSchema, reasoning: DigestReasoning = .standard) async throws -> GeneratedContent {
+    // Structured output only exists in-process (no JSON-schema response_format
+    // over fm serve) — so with the on-device model disabled it must never run.
+    // scoreArticleAI skips this path when ONDEVICE_DISABLED; this guard is the
+    // backstop for any future caller.
+    if ONDEVICE_DISABLED {
+        throw NSError(domain: "digest", code: 3, userInfo: [
+            NSLocalizedDescriptionKey: "structured in-process generation disabled (DIGEST_ONDEVICE=off)"])
+    }
     await AIGate.shared.acquire()
     do {
         let out = try await aiRespondStructuredUngated(prompt, schema: schema, reasoning: reasoning)
@@ -1228,8 +1286,11 @@ func scoreArticleAI(_ article: Article, ticker: String) async -> AIScore? {
     Article description: \(desc)
     """
 
-    // Preferred: schema-constrained structured output — no free-text JSON to parse.
-    if let schema = RELEVANCE_SCHEMA {
+    // Preferred: schema-constrained structured output — no free-text JSON to
+    // parse. Skipped entirely under DIGEST_ONDEVICE=off: structured output is
+    // in-process/on-device only, and constructing the on-device model SIGTRAPs
+    // on macOS 27 Beta 3 (this was the daily run's actual crash site).
+    if !ONDEVICE_DISABLED, let schema = RELEVANCE_SCHEMA {
         do {
             let gc = try await aiRespondStructured(criteria, schema: schema, reasoning: .standard)
             let score = try gc.value(Int.self, forProperty: "score")
@@ -1246,9 +1307,16 @@ func scoreArticleAI(_ article: Article, ticker: String) async -> AIScore? {
     // Fallback: ask for JSON in the prompt and parse it (pre-structured behavior).
     // preferPCCServe:false keeps scoring on-device — it's a high-volume,
     // deterministic per-article filter, not a summary, so it doesn't go to PCC.
+    // EXCEPT under DIGEST_ONDEVICE=off (Beta 3 regression): then this text path
+    // IS the scorer and it runs on PCC via fm serve (preferPCCServe:true — the
+    // only engine left). A PCC failure returns nil, which the sole caller
+    // (processTicker's stage-2 loop) fails OPEN on: the article is kept,
+    // marked unscored, and the pipeline keeps flowing. Returning a neutral
+    // score instead would be worse — 5 is below RELEVANCE_THRESHOLD (6), so a
+    // fabricated "5" would silently REJECT every article whenever PCC is down.
     let textPrompt = criteria + "\n\nReply with JSON only, no other text:\n{\"score\": <integer 1-10>, \"reason\": \"<one sentence explaining why>\"}"
     do {
-        let content = try await aiRespond(textPrompt, reasoning: .standard, preferPCCServe: false)
+        let content = try await aiRespond(textPrompt, reasoning: .standard, preferPCCServe: ONDEVICE_DISABLED)
         return parseScoreJSON(content)
     } catch {
         logErr("scoreArticleAI threw for \(ticker): \(error.localizedDescription)")
@@ -4757,6 +4825,14 @@ func runMain() async {
     }
 
     if args.check {
+        // Beta 3 kill switch: even the availability probes construct/touch the
+        // in-process models, so skip them all when on-device is disabled.
+        if ONDEVICE_DISABLED {
+            print("⚠️  DIGEST_ONDEVICE=off — on-device model disabled (macOS 27 Beta 3 SIGTRAP regression)")
+            print("→ Selected engine: \(AIEngine.Kind.pccServeOnly.rawValue)")
+            print("   All generation goes to PCC over fm serve at \(FM_SERVE_URL); unset DIGEST_ONDEVICE (or set =auto) once a fixed beta lands.")
+            return
+        }
         let model = SystemLanguageModel.default
         switch model.availability {
         case .available:
@@ -4805,7 +4881,11 @@ func runMain() async {
     // fingerprint matches the cached one (the common case).
     handleRosterChange(at: args.outputPath)
 
-    if case .unavailable(let reason) = SystemLanguageModel.default.availability {
+    // Skipped under DIGEST_ONDEVICE=off — touching SystemLanguageModel at all
+    // is what we're avoiding (Beta 3 SIGTRAP), and the run doesn't need the
+    // on-device model anyway: everything goes to PCC over fm serve.
+    if !ONDEVICE_DISABLED,
+       case .unavailable(let reason) = SystemLanguageModel.default.availability {
         logErr("Apple Intelligence unavailable (\(reason)) — skipping digest run. Previous digests.json keeps serving.")
         exit(0)        // soft skip
     }
@@ -4823,7 +4903,7 @@ func runMain() async {
 
     let tickers = args.tickers.isEmpty ? DEFAULT_TICKERS : args.tickers
     log("Stock News Digest — \(tickers.count) ticker(s), scope=\(args.scope.rawValue)")
-    log("Engine: Apple Intelligence — \(AI_ENGINE.kind.rawValue); prose summary engine: \(SUMMARY_ENGINE)")
+    log("Engine: Apple Intelligence — \(AI_ENGINE.kind.rawValue); prose summary engine: \(ONDEVICE_DISABLED ? "pcc via fm serve (forced by DIGEST_ONDEVICE=off)" : SUMMARY_ENGINE)")
     if args.dryRun { log("DRY RUN — nothing will be written") }
 
     // Scope dictates which windows each entity regenerates. The other windows
