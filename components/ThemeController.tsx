@@ -14,6 +14,26 @@ import { getMarketSessionState } from "@/lib/portfolio";
  * Re-evaluates every 60 seconds so the page flips at session boundaries
  * without a refresh.
  */
+// Keep in sync with the --background values in globals.css so the iOS
+// status bar / browser chrome matches the active theme instead of staying
+// black in light mode.
+const THEME_COLORS: Record<string, string> = {
+  light: "#fafafa",
+  twilight: "#0b1024",
+  dark: "#000000",
+};
+
+function syncThemeColorMeta(theme: string) {
+  const color = THEME_COLORS[theme] ?? THEME_COLORS.dark;
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.appendChild(meta);
+  }
+  meta.content = color;
+}
+
 export function ThemeController() {
   useEffect(() => {
     function apply() {
@@ -23,6 +43,7 @@ export function ThemeController() {
       else if (state === "premarket" || state === "afterhours")
         root.dataset.theme = "twilight";
       else delete root.dataset.theme;
+      syncThemeColorMeta(root.dataset.theme ?? "dark");
     }
     apply();
     const id = window.setInterval(apply, 60_000);

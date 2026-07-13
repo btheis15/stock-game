@@ -33,6 +33,8 @@ interface MarketSchedule {
   holiday: string | null;
   /** Scheduled 1:00 PM ET early-close occasion, or null. */
   earlyClose: string | null;
+  /** "Markets are closed today — Saturday, July 12…" on weekends, else null. */
+  weekend: string | null;
 }
 
 function readSchedule(): MarketSchedule {
@@ -40,6 +42,7 @@ function readSchedule(): MarketSchedule {
     state: getMarketSessionState(),
     holiday: marketHolidayName(),
     earlyClose: marketEarlyCloseName(),
+    weekend: weekendLine(),
   };
 }
 
@@ -57,6 +60,24 @@ function noticeFor(schedule: MarketSchedule): string | null {
       : `Markets closed early today at 1:00 PM ET for ${schedule.earlyClose}.`;
   }
   return null;
+}
+
+/**
+ * Weekend line: opening the app on a Saturday should say plainly that
+ * markets are closed TODAY (with today's date) and when they're back, so a
+ * frozen-since-Friday chart is self-explanatory. Weekdays return null — the
+ * session dot + holiday notice cover those.
+ */
+function weekendLine(): string | null {
+  const now = new Date();
+  const day = now.getDay();
+  if (day !== 0 && day !== 6) return null;
+  const dateLabel = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  return `Markets are closed today — ${dateLabel}. Prices resume Monday morning.`;
 }
 
 export function MarketStateBadge({
@@ -84,6 +105,7 @@ export function MarketStateBadge({
           style={{ color: style.color }}
         >
           <span
+            aria-hidden
             className="w-1.5 h-1.5 rounded-full"
             style={{
               backgroundColor: style.color,
@@ -111,6 +133,11 @@ export function MarketStateBadge({
             ●
           </span>
           <span>{notice}</span>
+        </div>
+      )}
+      {!notice && schedule.weekend && (
+        <div className="mt-1.5 text-[11px] font-medium leading-snug text-zinc-500">
+          {schedule.weekend}
         </div>
       )}
     </div>

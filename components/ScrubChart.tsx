@@ -240,6 +240,8 @@ function ScrubChartInner({
       ref={containerRef}
       width={width}
       height={height}
+      role="img"
+      aria-label={`Price chart, ${series.length} ${series.length === 1 ? "line" : "lines"}, ${dates.length} points`}
       style={{ touchAction: "none", overflow: "visible" }}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);

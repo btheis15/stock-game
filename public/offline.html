@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stock Game — Offline</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-align: center;
+  }
+  .kicker {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #71717a;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+  p { font-size: 14px; color: #71717a; margin: 0 0 24px; }
+  button {
+    appearance: none;
+    border: 0;
+    border-radius: 9999px;
+    background: #fff;
+    color: #000;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 22px;
+  }
+  button:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+  <div>
+    <div class="kicker">Stock Game</div>
+    <h1>You&rsquo;re offline</h1>
+    <p>The leaderboard needs a connection. Try again when you&rsquo;re back in range.</p>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+</body>
+</html>
