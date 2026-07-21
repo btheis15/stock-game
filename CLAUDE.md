@@ -757,6 +757,64 @@ check-theme`).
 
 ---
 
+## §6.6. On-device speed: Router Cache prefetch + persisted digest cache (added 2026-07-21)
+
+Two navigation-speed fixes, both deliberately narrower than a full caching
+layer — see §8.7 for why this app is otherwise allergic to caching (the
+iOS-webclip-serves-a-week-old-bundle incident). Neither of these caches
+documents or bundles; both are pure client-side, self-invalidating, and
+each has a bounded blast radius if it's ever wrong.
+
+**Row-level `<Link prefetch>` (Router Cache, in-memory, per tab).**
+`/portfolio/[user]`, `/stock/[ticker]`, and `/fund/[id]` are all
+`force-dynamic` (§8.7) with no static shell to prefetch, so Next's *default*
+Link prefetch (viewport-triggered, but shell-only for dynamic routes) was
+fetching nothing ahead of a tap — the full RSC round trip only started on
+click, which is the "why does the first tap feel like it did nothing"
+lag. The four highest-traffic drill-in Links now pass `prefetch` (`true`,
+not the default `null`) so Next prefetches the **full dynamic page** — data
+included — into its Router Cache as soon as the link scrolls into view
+(still IntersectionObserver-gated, so a 45-row `/stocks` list doesn't fire
+45 requests at once — only visible rows prefetch):
+- `CompareView`'s leaderboard `UserRow` Link (→ `/portfolio/[user]`)
+- `StocksListView`'s per-row Link (→ `/stock/[ticker]`)
+- `PortfolioView`'s holdings-row Link (→ `/stock/[ticker]`)
+- `FundView`'s holdings-row Link (→ `/stock/[ticker]`)
+
+This is genuinely "on-device caching" in the sense the user asked for, but
+it's Next's own mechanism: memory-only (gone on tab close/reload), scoped
+per dynamic route, and doesn't touch `next.config.ts`'s `no-store` document
+headers at all — no risk of resurrecting the stale-webclip bug. Secondary
+links (inline ticker mentions in `SpinoffNote`, `PortfolioThesis`,
+`BreakdownDonut`, `InsightsCard`) were deliberately left on the default —
+lower traffic, not worth the extra background fetches.
+
+**`useDigests()` persisted to localStorage (`lib/digests.ts`).** The
+existing module-level in-memory cache (5-min TTL, shared across every
+`DigestPanel` on the page) already meant a session only fetched
+`/api/digests` once per TTL window even across navigations — but it died
+with the tab, so a cold PWA relaunch always showed the digest skeleton for
+one round trip. `loadFromStorage()` / `saveToStorage()` mirror that same
+cache object into `localStorage` (`stockgame.digests.cache.v2`) — pure JSON
+prose + numbers, a few KB, nothing that can go stale in a way that breaks
+the app (worst case: slightly old commentary for one refetch cycle, same
+"stale beats blank" tradeoff the in-memory cache already made). **Read
+strictly post-mount, inside `useDigests()`'s effect** — never at module
+scope or in a `useState` initializer — because reading `window.localStorage`
+during the render that produces the server's HTML would make the client's
+first render disagree with it and trip a hydration mismatch; this follows
+the exact same rule `lib/color.ts`'s `useP3()` already established (start
+server-safe, flip after mount). The TTL/refetch logic downstream is
+unchanged — this only changes what's in the cache the very first time a
+page in a new session reads it.
+
+If you add a new persisted client cache anywhere in this app, follow both
+rules: **data only** (never a document, a bundle reference, or anything an
+old build's hash could dangle from) and **hydrate post-mount**, not during
+render.
+
+---
+
 ## §7. The 1D special case (most subtle logic in the app)
 
 1D differs from every other range in 5 ways simultaneously. If a bug

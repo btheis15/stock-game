@@ -276,6 +276,7 @@ export function FundView({
               >
                 <Link
                   href={`/stock/${h.ticker}`}
+                  prefetch
                   className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
                 >
                   <div className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3">

@@ -69,6 +69,7 @@ export function StocksListView({ series }: Props) {
             <AnimatedRow key={r.ticker}>
             <Link
               href={`/stock/${r.ticker}`}
+              prefetch
               className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
             >
               <OwnerSwatch owners={r.owners} />

@@ -100,6 +100,52 @@ const cache: {
   promise: null,
 };
 
+// On-device persistence (localStorage) — this is the module cache above,
+// just surviving a cold app launch / page reload instead of dying with the
+// tab. Deliberately data-only (never HTML/bundles — see the no-store
+// rationale in CLAUDE.md §8.7 for why this app is otherwise allergic to
+// caching): a stale digest is just old prose, never a broken app. Read from
+// useDigests()'s effect (post-mount only, same rule as useP3() — reading it
+// during render would make the client's first render disagree with the
+// server-rendered HTML and trip a hydration mismatch), so a reopened PWA
+// shows last session's briefing an effect-tick after mount instead of
+// waiting on the network, while the normal TTL logic still refetches fresh.
+const DIGESTS_STORAGE_KEY = "stockgame.digests.cache.v2";
+
+function loadFromStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(DIGESTS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as { data: DigestsJson; fetchedAt: number };
+    if (!parsed?.data || typeof parsed.fetchedAt !== "number") return;
+    cache.data = parsed.data;
+    cache.fetchedAt = parsed.fetchedAt;
+    cache.loaded = true;
+  } catch {
+    // Corrupt/unavailable storage (private browsing, quota) — fall through
+    // to the normal network fetch as if nothing was cached.
+  }
+}
+
+function saveToStorage() {
+  if (typeof window === "undefined" || !cache.data) return;
+  try {
+    window.localStorage.setItem(
+      DIGESTS_STORAGE_KEY,
+      JSON.stringify({ data: cache.data, fetchedAt: cache.fetchedAt })
+    );
+  } catch {
+    // Quota exceeded or storage disabled — the in-memory cache still works
+    // for the rest of this session, it just won't survive a reload.
+  }
+}
+
+// Guards loadFromStorage() to run exactly once per page load, the first
+// time any useDigests() consumer's effect fires (there are several — Compare,
+// portfolio, stock, fund panels can all mount at once).
+let storageChecked = false;
+
 function fetchDigests(): Promise<DigestsJson | null> {
   if (!cache.promise) {
     cache.promise = fetch("/api/digests", { cache: "no-store" })
@@ -111,6 +157,7 @@ function fetchDigests(): Promise<DigestsJson | null> {
         cache.loaded = true;
         cache.fetchedAt = Date.now();
         cache.promise = null;
+        saveToStorage();
         return cache.data;
       });
   }
@@ -122,11 +169,22 @@ export function useDigests() {
   const [loading, setLoading] = useState<boolean>(!cache.loaded);
 
   useEffect(() => {
-    const fresh = cache.loaded && Date.now() - cache.fetchedAt < DIGESTS_TTL_MS;
-    if (fresh) {
-      setLoading(false);
-      return;
+    // Hydrate the shared cache from localStorage post-mount (never during
+    // render — same hydration-safety rule as useP3()). Runs once per page
+    // load across every useDigests() consumer.
+    if (!storageChecked) {
+      storageChecked = true;
+      loadFromStorage();
     }
+    // Stale beats blank: surface whatever's in the cache (disk or memory)
+    // immediately, even if it's past its TTL, instead of holding the
+    // skeleton up while a network round trip completes.
+    if (cache.data) {
+      setData(cache.data);
+      setLoading(false);
+    }
+    const fresh = cache.loaded && Date.now() - cache.fetchedAt < DIGESTS_TTL_MS;
+    if (fresh) return;
     let cancelled = false;
     fetchDigests().then((d) => {
       if (cancelled) return;

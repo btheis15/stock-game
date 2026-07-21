@@ -764,6 +764,7 @@ function UserRow({
   return (
     <Link
       href={href}
+      prefetch
       className="press block px-3 py-3 active:bg-card-40"
       style={leaderStyle}
     >
