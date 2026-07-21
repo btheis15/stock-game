@@ -293,6 +293,17 @@ html {
   animation: tabPop calc(var(--dur-press) * 2) var(--ease-out-ios);
 }
 
+/* Confetti fall — lead-change celebration particles (Celebration.tsx sets
+   per-particle delay/duration inline). Frozen by the reduced-motion guard. */
+@keyframes confettiFall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(540deg); opacity: 0.7; }
+}
+
+.confetti-piece {
+  animation: confettiFall 2.4s cubic-bezier(0.3, 0, 0.8, 1) both;
+}
+
 /* Press feedback — a subtle iOS tap-shrink. Applies to native interactive
    elements (a, button), which receive :active during touch on iOS. Uses
    transition longhands (not the shorthand) and keeps color/background in the

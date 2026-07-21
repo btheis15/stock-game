@@ -21,12 +21,14 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
-import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
+import { BASELINE, USERS, USER_LIST, type UserId } from "@/lib/picks";
 import { accentFor, useP3 } from "@/lib/color";
 import { AnimatedRow } from "./AnimatedList";
 import { Sparkline } from "./Sparkline";
 import { GolfCountdown } from "./GolfCountdown";
 import { LeadTape } from "./LeadTape";
+import { Celebration } from "./Celebration";
+import { HeadToHead } from "./HeadToHead";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
@@ -115,6 +117,7 @@ export function CompareView({
   const [manageOpen, setManageOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [editing, setEditing] = useState<Fund | null>(null);
+  const [h2hOpen, setH2hOpen] = useState(false);
   const { isOn, setOn } = useFundsFilter();
 
   // Active funds = not soft-deleted. The Manage sheet shows archived too,
@@ -331,6 +334,25 @@ export function CompareView({
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
+  // ALL-time lead change — the ONLY celebrated event (never the shorter
+  // windows). Compares the total-portfolio leader at the previous session's
+  // close against the live leader now; a flip means someone just took the
+  // overall game lead today. Players only — funds/baseline aren't in the bet.
+  const allTimeLeadChange = useMemo<UserId | null>(() => {
+    let prevLeader: UserId | null = null;
+    let curLeader: UserId | null = null;
+    let prevBest = -Infinity;
+    let curBest = -Infinity;
+    for (const u of USER_LIST) {
+      const prev = intraday[u.id].previousClose;
+      const pts = intraday[u.id].points;
+      const cur = pts[pts.length - 1]?.value ?? prev;
+      if (prev > prevBest) { prevBest = prev; prevLeader = u.id; }
+      if (cur > curBest) { curBest = cur; curLeader = u.id; }
+    }
+    return prevLeader && curLeader && prevLeader !== curLeader ? curLeader : null;
+  }, [intraday]);
+
   // Normalize all lines to % change from the range's baseline so the chart
   // visually matches the leaderboard ranking (highest line = 1st place).
   // Without this, lines would plot raw $ at different starting points and a
@@ -504,6 +526,14 @@ export function CompareView({
         range={range}
       />
 
+      {allTimeLeadChange && (
+        <Celebration
+          leaderName={USERS[allTimeLeadChange].name}
+          color={accentFor(USERS[allTimeLeadChange], p3)}
+          storageKey={`stockgame.leadchange.${intradayDate}.${allTimeLeadChange}`}
+        />
+      )}
+
       <div className="px-4 mt-2">
         <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {stats.map((s, i) => {
@@ -538,6 +568,16 @@ export function CompareView({
         </div>
       </div>
 
+      <div className="px-4 mt-2">
+        <button
+          onClick={() => setH2hOpen(true)}
+          className="press w-full rounded-2xl bg-card border border-hairline px-4 py-2.5 flex items-center justify-between"
+        >
+          <span className="text-[13px] font-semibold text-ink-2">⚔️ Head to head</span>
+          <span className="text-[11px] text-ink-faint">Compare any two players</span>
+        </button>
+      </div>
+
       <InsightsCard analysis={analyses[range]} />
 
       <LeadTape series={series} />
@@ -558,6 +598,12 @@ export function CompareView({
         <GolfCountdown />
       </div>
 
+      <HeadToHead
+        open={h2hOpen}
+        onClose={() => setH2hOpen(false)}
+        series={series}
+        analyses={analyses}
+      />
       <FilterSheet
         open={filterOpen}
         chips={filterChips}
