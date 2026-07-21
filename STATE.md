@@ -513,7 +513,9 @@ components/
                           in the header for partial-maturity windows
                       Reads via `useDigests()` hook in `lib/digests.ts` — module-level cache
                       so /digests.json is fetched once per session even across stock-page
-                      navigations.
+                      navigations, now also persisted to localStorage (`stockgame.digests.
+                      cache.v2`) so a reopened PWA shows last session's briefing instantly
+                      (post-mount, hydration-safe) instead of a skeleton while it refetches.
                       Component is data-pure: takes `digest: WindowDigest | null` as a prop
                       directly, plus `loading` + `range`. StockView (via `getDigest`),
                       PortfolioView (via `getPortfolioDigest`), and CompareView (via
@@ -1017,7 +1019,8 @@ lib/                           Pure logic, no React
   fundamentals-data.ts         Server-only loader for public/data/fundamentals.json.
   data.ts                      Server-side loader of public/data/prices.json.
   digests.ts                   Digest types + `useDigests()` client hook (module-level
-                               cache → /digests.json fetched once per session).
+                               cache → /digests.json fetched once per session, persisted to
+                               localStorage so a reopened PWA hydrates instantly).
 
 scripts/
   fetch-prices.ts              Yahoo Finance fetcher. Incremental + today's 15-min intraday + past-week 1h hourly + dividends + spin-off children.
