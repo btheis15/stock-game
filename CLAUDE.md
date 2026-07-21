@@ -1028,12 +1028,68 @@ preserved on the next merge.
 > order is preserved. Detail in STATE.md → "In-process AI concurrency".
 
 **`--scope fast`** — runs from `cron-update.sh` step 6, after every 15-min
-price refresh. No RSS, no Apple Intelligence calls. Reads the existing
-`digests.json`, opens each game window in `TEMPLATED_GAME_WINDOWS` (1D / 1W
-/ 1M), substitutes live pcts into the stored `digestTemplate`, writes the
-result back to `digest`. Sub-second. Failures here log a warning but never
-block the price commit (`cron-update.sh` swallows non-zero exit and
-continues).
+price refresh. No RSS. Reads the existing `digests.json`, opens each game
+window in `TEMPLATED_GAME_WINDOWS` (1D / 1W / 1M), substitutes live pcts into
+the stored `digestTemplate`, writes the result back to `digest`. Sub-second.
+Failures here log a warning but never block the price commit
+(`cron-update.sh` swallows non-zero exit and continues).
+
+**The fast tier's sign guard ACTS (added 2026-07-21).** The old guard only
+logged when a morning narrative's anchors flipped sign intraday (the shipped
+"EXOD [+22.84%] weighed most … hurting Brian [+2.93%]" bug — narrative frozen
+at ~11 AM, brackets re-substituted all day). `renderGameWindowsWithGuard`
+(shared by the fast tier and the post-daily-run render) now:
+
+1. **Detects** via stored anchor identity — `WindowDigest.anchorMover` /
+   `anchorDrag` (position-heuristic fallback for pre-upgrade snapshots) —
+   tripping when the mover goes below −T or the drag above +T
+   (`DIGEST_SIGN_FLIP_PCT`, percent, default 0.5) — plus
+   `directionalAgreementIssues`, which scans the final rendered prose for a
+   directional verb ("hurting", "lifting", "fell") whose nearest same-sentence
+   `[±X%]` bracket disagrees in sign.
+2. **Regenerates** that one window's narrative on PCC — strict
+   `pccServeRespond` only (NEVER `aiRespond`: its on-device fallback SIGTRAPs
+   under macOS 27 Beta 3 and must be unreachable from the fast tier), gated on
+   a 2s `fm serve` probe, bounded by `DIGEST_REGEN_MAX` (default 2) per window
+   per day, counts persisted in `~/StockDigests/.game-regen-state.json`.
+3. **Rebuilds deterministically** when regen is unavailable/capped/failed:
+   recomputes `computeGameDigestFacts` from live prices and emits the
+   direction-neutral `deterministicGameTemplate`. Zero AI.
+
+Every failure path degrades to the plain re-render (pre-guard behavior). Log
+markers in `/tmp/stock-game.log`: `sign-guard TRIPPED / ACTED / SUPPRESSED
+(cap)`. Generation-time QA also runs the direction check (retry with
+`DIRECTION_RETRY_NUDGE`, then deterministic fallback), and the game prompt +
+`deterministicGameTemplate` are now direction-neutral AND holder-neutral: the
+prose refers to players only as holders ("held by Brian", "a Rick position"),
+never "lifting/hurting <player>" — a single stock's move doesn't imply the
+holder's whole portfolio direction (`{{user:id}}` brackets are
+portfolio-level).
+
+**Freshness split (added 2026-07-21).** `WindowDigest.narrativeGeneratedAt`
+records when the STORY was authored; `generatedAt` keeps meaning "numbers as
+of" and is still bumped on every 15-min render. `DigestPanel` shows the story
+age on the collapsed card and, when the two diverge >20 min, "Story from …" +
+"Numbers updated …" in the expanded meta. Game windows also persist
+`anchorMover`/`anchorDrag`. All three fields are optional in Swift and TS —
+old/new digest.swift and digests.json interleave safely.
+
+**Spin-off awareness (added 2026-07-21).** Corporate-action data moved to
+`config/events.json`, read by BOTH `lib/events.ts` (re-exports `SPINOFFS` /
+`REVERSE_SPLITS`; all TS call sites unchanged) and digest.swift (`loadEvents()`
+beside `loadRoster()`, embedded fallback). digest.swift now mirrors
+`portfolioSeries`: spin-off children contribute to holders' portfolio pcts
+(`computeUserMovers`) and are first-class narratable tickers (derived
+ownership in `TICKER_OWNERS`, `KNOWN_TICKERS`, ownership QA) — BUT only for
+windows whose app-side chart includes them (`windowIncludesSpinoffChildren`:
+1M+ yes, 1D/1W no, because `intradayPortfolioSeries` /
+`weeklyPortfolioSeries` don't add children yet — keep Swift and the UI in
+lockstep if that changes). Game-anchor selection uses the ECONOMIC pct across
+a spanning window (parent close + ratio × child close) so a distribution
+can't be crowned "biggest drag" (HON −49% ≠ a loss), with an explanatory fact
+note if a spanning parent is still picked; per-stock prompts get a one-line
+spin-off context (`spinoffPromptNote`). Rendered `liveTickerPct` brackets stay
+raw (they must match the chart; `SpinoffNote.tsx` captions the UI).
 
 **`--scope daily`** — runs from `digest-update.sh` Mon–Fri. Full RSS fetch
 + Stage-1 keyword filter + Stage-2 Apple Intelligence relevance scoring,
@@ -1608,8 +1664,12 @@ The **HON → HONA** spin-off (effective 2026-06-29, ratio 0.5) bundled with a
 spin-off is mostly a config edit:
 
 ```
-1. lib/events.ts:
-   a. push to SPINOFFS:
+1. config/events.json (NOT lib/events.ts — the arrays moved there on
+   2026-07-21 so scripts/digest.swift reads the same file via loadEvents();
+   lib/events.ts just imports and re-exports it. events.json is statically
+   imported, so it must NOT be added to scripts/vercel-ignore-build.sh —
+   changes must rebuild, same rule as roster.json):
+   a. push to "spinoffs":
       {
         parentTicker: "HON",
         childTicker: "NEWCO",

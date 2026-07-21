@@ -193,6 +193,68 @@ let PLAYERS: [PlayerRoster] = {
     }
 }()
 
+// --- Corporate-action events (config/events.json) ----------------------------
+// Same file lib/events.ts imports, so the Swift pipeline's portfolio math and
+// spin-off framing can't drift from the app's. Mirrors the loadRoster pattern:
+// JSON first, embedded fallback with a loud warning. Without this the digest
+// narrated HON's spin-off drop as a real ~-49% loss (the value moved to HONA)
+// and Swift-side portfolio pcts under-counted holders' totals vs the app.
+
+struct SpinoffEventSW: Codable {
+    let parentTicker: String
+    let childTicker: String
+    let childName: String
+    let effectiveDate: String       // child's first regular-way trading day
+    let sharesPerParentShare: Double
+}
+
+struct RawEventsFile: Codable {
+    let spinoffs: [SpinoffEventSW]
+}
+
+let EMBEDDED_SPINOFFS: [SpinoffEventSW] = [
+    SpinoffEventSW(parentTicker: "HON", childTicker: "HONA",
+                   childName: "Honeywell Aerospace",
+                   effectiveDate: "2026-06-29", sharesPerParentShare: 0.5),
+]
+
+let EVENTS_JSON_URL: URL = {
+    let scriptPath = URL(fileURLWithPath: CommandLine.arguments.first ?? #filePath)
+    let scriptRelative = scriptPath
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("config/events.json")
+    if FileManager.default.fileExists(atPath: scriptRelative.path) {
+        return scriptRelative
+    }
+    return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("config/events.json")
+}()
+
+func loadEvents() -> [SpinoffEventSW] {
+    guard let data = try? Data(contentsOf: EVENTS_JSON_URL),
+          let parsed = try? JSONDecoder().decode(RawEventsFile.self, from: data) else {
+        fputs("WARNING: config/events.json unreadable — using embedded spin-off fallback (drift risk!)\n", stderr)
+        return EMBEDDED_SPINOFFS
+    }
+    return parsed.spinoffs
+}
+
+let SPINOFFS_SW: [SpinoffEventSW] = loadEvents()
+
+// Spin-off children are first-class narratable tickers (ownership derived from
+// the parent, same rule as lib/picks.ts), but they are NOT in DEFAULT_TICKERS —
+// no RSS fetch / article archive of their own.
+let SPINOFF_CHILD_TICKERS: [String] = SPINOFFS_SW.map { $0.childTicker }
+
+func spinoffsForParentSW(_ parent: String) -> [SpinoffEventSW] {
+    SPINOFFS_SW.filter { $0.parentTicker == parent }
+}
+
+func spinoffForChildSW(_ child: String) -> SpinoffEventSW? {
+    SPINOFFS_SW.first { $0.childTicker == child }
+}
+
 // --- User-created funds (config/funds.json) ---------------------------------
 // Read at startup; loaded array stays in memory for the duration of the
 // process. Empty array when the file is missing or all funds are archived.
@@ -244,11 +306,18 @@ let ACTIVE_FUNDS: [RawFund] = loadFundsFromDisk().filter { $0.deletedAt == nil }
 // Inverse of PLAYERS: which player ids own each ticker. Used to tag articles
 // with their owner so the LLM sees ownership inline (e.g. "[NVDA/kevin,rick]").
 // Owners preserve PLAYERS iteration order so the tag is deterministic.
+// Spin-off children inherit the parent's owners (mirrors lib/picks.ts) so
+// ownership QA and prompt tables treat e.g. HONA as Brian's holding.
 let TICKER_OWNERS: [String: [String]] = {
     var m: [String: [String]] = [:]
     for p in PLAYERS {
         for t in p.tickers {
             m[t, default: []].append(p.id)
+        }
+    }
+    for so in SPINOFFS_SW {
+        if let parentOwners = m[so.parentTicker], m[so.childTicker] == nil {
+            m[so.childTicker] = parentOwners
         }
     }
     return m
@@ -561,6 +630,18 @@ struct WindowDigest: Codable {
     // and overwrites `digest`. `digest` is always the rendered (display-ready)
     // form; `digestTemplate` is the source.
     var digestTemplate: String? = nil
+    // When the NARRATIVE was authored (AI generation or deterministic rebuild),
+    // as opposed to `generatedAt` which the fast tier bumps on every pct
+    // re-render. `generatedAt` = "numbers as of"; this = "story as of". The
+    // frontend shows both when they diverge. Optional so old snapshots decode.
+    var narrativeGeneratedAt: String? = nil
+    // Anchor identity for game windows: which ticker the narrative frames as
+    // the top mover / biggest drag. The fast tier's sign guard compares these
+    // against live pcts to detect a narrative whose "drag" has rallied (or
+    // mover has fallen) and trigger a bounded regeneration. nil on
+    // non-game windows and pre-upgrade snapshots.
+    var anchorMover: String? = nil
+    var anchorDrag: String? = nil
 }
 
 struct OutputJSON: Codable {
@@ -1911,6 +1992,42 @@ func dataMaturity(daysOfData: Int, daysRequired: Int) -> String {
 // front keeps the prose clean at the source.
 let PROSE_STYLE_NOTE = "Write plain prose only — no Markdown, no headings, no bold, no title line."
 
+// One-line spin-off context for the per-stock prompts (the Swift-side
+// equivalent of lib/events.ts spinoffNoteFor): when the window's span covers
+// the distribution date, tell the model the parent's chart move is a corporate
+// action, not a loss. These builders don't carry price data, so the span is
+// approximated in calendar days (slightly generous on 1D over weekends —
+// over-including the note is harmless factual context).
+func spinoffPromptNote(ticker: String, window: WindowKey) -> String {
+    let spanDays: Int
+    switch window {
+    case .d1:  spanDays = 4
+    case .w1:  spanDays = 9
+    case .m1:  spanDays = 32
+    case .m3:  spanDays = 93
+    case .y1:  spanDays = 367
+    case .all: spanDays = Int.max
+    }
+    func daysSince(_ iso: String) -> Int? {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "America/New_York")
+        guard let d = f.date(from: iso) else { return nil }
+        return nyCalendar.dateComponents([.day], from: nyCalendar.startOfDay(for: d), to: nyCalendar.startOfDay(for: Date())).day
+    }
+    func inWindow(_ iso: String) -> Bool {
+        guard let days = daysSince(iso), days >= 0 else { return false }
+        return spanDays == Int.max || days <= spanDays
+    }
+    for so in spinoffsForParentSW(ticker) where inWindow(so.effectiveDate) {
+        return "\nImportant context: \(ticker) distributed its \(so.childName) business as a separate stock (\(so.childTicker)) on \(so.effectiveDate) — a spin-off. \(ticker)'s sharp chart drop around that date is value moving to \(so.childTicker), NOT a loss or sell-off; if you mention the move, say it reflects the spin-off.\n"
+    }
+    if let so = spinoffForChildSW(ticker), inWindow(so.effectiveDate) {
+        return "\nImportant context: \(ticker) (\(so.childName)) began trading on \(so.effectiveDate) as a spin-off distributed by \(so.parentTicker); holders received the shares rather than buying in.\n"
+    }
+    return ""
+}
+
 func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], gameAge: Int) -> String {
     let name = TICKER_NAMES[ticker] ?? ticker
     var articleText = ""
@@ -1953,7 +2070,7 @@ func buildDigestPrompt(ticker: String, window: WindowKey, articles: [Article], g
     }
     return """
     You're writing a short briefing for an investor holding \(ticker) (\(name)). The articles below are pre-filtered for investor relevance.
-
+    \(spinoffPromptNote(ticker: ticker, window: window))
     In two or three short sentences of plain prose, in your own words (don't quote or paste the article text), cover \(framing). Be concrete — cite the actual events, skip filler. Output only the briefing — no notes about yourself or how it was generated. \(PROSE_STYLE_NOTE)\(numbersNote)\(recencyNote)
 
     Articles:
@@ -2411,10 +2528,14 @@ func buildSummaryBackedWindowPrompt(
     // window (already very recent) and when no brief exists yet (e.g., new
     // ticker without a monthly chain).
     let briefBlock: String = {
-        guard window != .w1 else { return "" }
-        let asOf = yearMonthKey(Date())
-        guard let brief = latestCompanyBrief(ticker, asOf: asOf) else { return "" }
-        return "Company context (as of \(brief.yearMonth)):\n\(brief.brief)\n\n"
+        let spinNote = spinoffPromptNote(ticker: ticker, window: window)
+        let brief: String = {
+            guard window != .w1 else { return "" }
+            let asOf = yearMonthKey(Date())
+            guard let b = latestCompanyBrief(ticker, asOf: asOf) else { return "" }
+            return "Company context (as of \(b.yearMonth)):\n\(b.brief)\n\n"
+        }()
+        return spinNote.isEmpty ? brief : spinNote + "\n" + brief
     }()
 
     // Render the available material as a labeled block. The model's input
@@ -2435,7 +2556,7 @@ func buildSummaryBackedWindowPrompt(
         guard !dailies.isEmpty else { return nil }
         return """
         You're writing a 1-week briefing for an investor in \(ticker) (\(name)). The daily summaries below are already filtered to material business news.
-
+        \(briefBlock)
         Daily summaries (past 7 days, oldest first):
         \(renderDailies(dailies))
 
@@ -2677,7 +2798,7 @@ struct OwnershipViolation {
 }
 
 func detectOwnershipViolations(in prose: String) -> [OwnershipViolation] {
-    let knownTickers = Set(DEFAULT_TICKERS)
+    let knownTickers = Set(DEFAULT_TICKERS + SPINOFF_CHILD_TICKERS)
     // (Earlier draft also built a name→tickers forward map here; turned out
     // we only need the reverse direction via TICKER_OWNERS inside the loop,
     // so the forward map was removed.)
@@ -2968,7 +3089,8 @@ func processTicker(_ ticker: String, args: Args, windows: [WindowKey] = WindowKe
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
                     sources: Array(sources),
-                    digestTemplate: templateText
+                    digestTemplate: templateText,
+                    narrativeGeneratedAt: digestText != nil ? nowISO : nil
                 ))
             }
         }
@@ -3066,6 +3188,14 @@ func buildPortfolioPrompt(
     case .y1: scope = gameAge < 365 ? "since the game's start on February 5, 2026 (\(gameAge) days ago)" : "the past 12 months"
     case .all: scope = "since the game's start on February 5, 2026 (\(gameAge) days ago)"
     }
+    // Templated windows get live pcts re-substituted next to each entity all
+    // day — by afternoon any of them can flip sign, so frozen directional
+    // verbs ("surged", "sank") can end up contradicting the number printed
+    // beside them. Non-templated windows keep their literal prose, so the
+    // constraint isn't imposed there.
+    let liveNote = TEMPLATED_PORTFOLIO_WINDOWS.contains(window)
+        ? "\n- A live percentage is inserted next to each ticker symbol and next to \(player.name)'s name after you write, and it's re-substituted all day — it can flip sign by afternoon. Describe specific stocks with direction-neutral phrasing (\"led the moves\", \"swung hardest\", \"was the standout\") rather than \"gained\", \"surged\", or \"fell\"."
+        : ""
     return """
     Write a short portfolio briefing for \(player.name), a player in a paper-stock game who HOLDS the portfolio below. \(player.name) is the reader, not a reporter — the news comes from outside sources, so never attribute it to \(player.name) or any other player.
 
@@ -3080,7 +3210,7 @@ func buildPortfolioPrompt(
     In three short, flowing sentences (one paragraph), explain the news behind the numbers in your own words — don't quote or paste the article text: the event driving the top contributor, the event behind the biggest drag, and one concrete thing to watch next. Open with the actual catalyst (an earnings beat, an analyst move, an FDA decision, a launch, a guidance change), not a restatement of the standings.
 
     - Use ticker symbols (e.g. WMT, TSLA), only ones \(player.name) holds, and mention \(player.name) by name at least once.
-    - Don't include any percentages or numbers in the prose.
+    - Don't include any percentages or numbers in the prose.\(liveNote)
     - \(PROSE_STYLE_NOTE)
     - Output only the briefing itself — no notes about yourself, being an AI/model, or how it was generated.
     """
@@ -3251,7 +3381,8 @@ func processPortfolio(_ player: PlayerRoster, data: PriceDataLite, gameAge: Int,
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
                     sources: Array(sources),
-                    digestTemplate: templateText
+                    digestTemplate: templateText,
+                    narrativeGeneratedAt: digestText != nil ? nowISO : nil
                 ))
             }
         }
@@ -3452,7 +3583,8 @@ func processFund(
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
                     sources: nil,
-                    digestTemplate: templateText
+                    digestTemplate: templateText,
+                    narrativeGeneratedAt: digestText != nil ? nowISO : nil
                 ))
             }
         }
@@ -3579,21 +3711,75 @@ struct UserStanding {
     let bottomMovers: [TickerMove]   // sorted asc by pct
 }
 
+// First trading date of a window — mirrors what rangeCloses uses as its start.
+// Needed to decide whether a spin-off child existed at window start (own
+// position) or appeared mid-window (fold into the parent's economic move).
+func windowStartDateFor(data: PriceDataLite, window: WindowKey) -> String {
+    if window == .d1 {
+        let intradayDate = data.intradayDate ?? data.tradingDates.last ?? ""
+        return data.tradingDates.last(where: { $0 < intradayDate }) ?? data.tradingDates.last ?? ""
+    }
+    return rangeBounds(tradingDates: data.tradingDates, window: window).startDate
+}
+
+// Whether this window's PORTFOLIO math includes spin-off child positions.
+// Must track what the app actually displays per range: the daily-close path
+// (portfolioSeries, 1M+) includes children; the 1D intraday and 1W hourly
+// paths (intradayPortfolioSeries / weeklyPortfolioSeries) do NOT yet — so
+// short windows exclude them here too, or the digest's rendered {{user:id}}
+// pcts would disagree with the leaderboard the reader is looking at.
+func windowIncludesSpinoffChildren(_ window: WindowKey) -> Bool {
+    switch window {
+    case .d1, .w1: return false
+    default:       return true
+    }
+}
+
 // Per-user mover computation. Called per (player, window) — once by the
 // portfolio rollup (sorts by $ to find true drivers) and once by the
 // game-wide standings (sorts by %).
+//
+// Spin-off handling mirrors portfolioSeries in lib/portfolio.ts: holders of
+// the parent get the child position from its effectiveDate forward, additive
+// (a distribution, not a loss). Two window shapes:
+//   - window starts ON/AFTER the effective date → the child is a normal
+//     position with its own mover line and start/end contribution;
+//   - window SPANS the effective date → parent + child are one economic unit
+//     (the parent's chart "drop" is value that moved to the child), so the
+//     child's end value folds into the parent's move and no separate child
+//     line is emitted. Without this, HON's spin-off week read as a ~-49%
+//     portfolio drag that never happened.
 func computeUserMovers(player: PlayerRoster, data: PriceDataLite, window: WindowKey) -> UserMovers {
     var movers: [TickerMove] = []
     var startTotal: Double = 0
     var endTotal: Double = 0
+    let windowStart = windowStartDateFor(data: data, window: window)
+    let windowEnd = data.tradingDates.last ?? ""
+    let includeChildren = windowIncludesSpinoffChildren(window)
     for t in player.tickers {
         guard let s = data.tickers[t] else { continue }
         let shares = sharesFor(player, s)
         let r = rangeCloses(series: s, data: data, window: window)
-        let pct = r.start == 0 ? 0 : (r.end - r.start) / r.start
-        movers.append(TickerMove(ticker: t, pct: pct, dollars: shares * (r.end - r.start), endClose: r.end))
-        startTotal += shares * r.start
-        endTotal += shares * r.end
+        let startVal = shares * r.start
+        var endVal = shares * r.end
+        for so in spinoffsForParentSW(t) where includeChildren && so.effectiveDate <= windowEnd {
+            guard let child = data.tickers[so.childTicker], !child.closes.isEmpty else { continue }
+            let childShares = shares * so.sharesPerParentShare
+            let cr = rangeCloses(series: child, data: data, window: window)
+            if so.effectiveDate <= windowStart {
+                let childPct = cr.start == 0 ? 0 : (cr.end - cr.start) / cr.start
+                movers.append(TickerMove(ticker: so.childTicker, pct: childPct,
+                                         dollars: childShares * (cr.end - cr.start), endClose: cr.end))
+                startTotal += childShares * cr.start
+                endTotal += childShares * cr.end
+            } else {
+                endVal += childShares * cr.end
+            }
+        }
+        let pct = startVal == 0 ? 0 : (endVal - startVal) / startVal
+        movers.append(TickerMove(ticker: t, pct: pct, dollars: endVal - startVal, endClose: r.end))
+        startTotal += startVal
+        endTotal += endVal
     }
     let portfolioPct = startTotal == 0 ? 0 : (endTotal - startTotal) / startTotal
     return UserMovers(player: player, pct: portfolioPct, movers: movers)
@@ -3709,7 +3895,7 @@ func playersBlockForPrompt() -> String {
 // on memory of the PLAYERS table earlier in the prompt.
 func ownershipTableForPrompt() -> String {
     var lines: [String] = []
-    let tickers = DEFAULT_TICKERS
+    let tickers = DEFAULT_TICKERS + SPINOFF_CHILD_TICKERS
     for t in tickers {
         let names: [String] = (TICKER_OWNERS[t] ?? []).compactMap { id in
             PLAYERS.first(where: { $0.id == id })?.name
@@ -3742,6 +3928,9 @@ struct GameAnchor {
     let tickerPct: Double                          // window pct, e.g. 0.052
     let owners: [(name: String, portfolioPct: Double)]   // every player who holds it
     let article: TaggedArticle?                    // best-relevance article for ticker
+    // Extra context rendered into the fact block (currently only spin-off
+    // framing, so a corporate-action price move isn't narrated as a loss).
+    let note: String?
 }
 
 struct GameDigestFacts {
@@ -3770,13 +3959,37 @@ func computeGameDigestFacts(
     articles: [TaggedArticle]
 ) -> GameDigestFacts {
     // Per-ticker window pct, computed directly from prices.json so the
-    // numbers in the prompt are exactly what the chart shows.
+    // numbers in the prompt are exactly what the chart shows — EXCEPT across a
+    // spin-off: for a window that spans the distribution, the parent's pct is
+    // the ECONOMIC move (parent close + ratio × child close vs. parent start),
+    // so anchor selection can't crown a corporate action "biggest drag" (HON's
+    // chart shows ~-49% on the HONA date; the holder lost ~nothing). The live
+    // bracket rendered next to the ticker stays the raw chart pct, so if a
+    // spanning parent IS selected, its fact carries an explanatory note.
     let allTickers = Array(Set(PLAYERS.flatMap { $0.tickers }))
+    let windowStart = windowStartDateFor(data: data, window: window)
+    let windowEnd = data.tradingDates.last ?? ""
     var tickerPctMap: [String: Double] = [:]
+    var spinoffNoteByTicker: [String: String] = [:]
     for t in allTickers {
         guard let s = data.tickers[t] else { continue }
         let r = rangeCloses(series: s, data: data, window: window)
-        if r.start != 0 { tickerPctMap[t] = (r.end - r.start) / r.start }
+        guard r.start != 0 else { continue }
+        var end = r.end
+        for so in spinoffsForParentSW(t) where so.effectiveDate > windowStart && so.effectiveDate <= windowEnd {
+            guard let child = data.tickers[so.childTicker], !child.closes.isEmpty else { continue }
+            end += so.sharesPerParentShare * rangeCloses(series: child, data: data, window: window).end
+            spinoffNoteByTicker[t] = "Note — much of \(t)'s chart move this period is the \(so.childTicker) spin-off distribution (\(so.effectiveDate)): value moved to \(so.childTicker), it is NOT a real gain or loss. If you mention \(t)'s move, say it reflects the spin-off."
+        }
+        tickerPctMap[t] = (end - r.start) / r.start
+    }
+    // Spin-off children that were already positions at window start are
+    // ordinary tickers in the anchor universe (owners derived from the parent).
+    for so in SPINOFFS_SW where so.effectiveDate <= windowStart {
+        guard tickerPctMap[so.childTicker] == nil,
+              let child = data.tickers[so.childTicker], !child.closes.isEmpty else { continue }
+        let cr = rangeCloses(series: child, data: data, window: window)
+        if cr.start != 0 { tickerPctMap[so.childTicker] = (cr.end - cr.start) / cr.start }
     }
     let sortedByPct = tickerPctMap.sorted { $0.value > $1.value }
 
@@ -3809,7 +4022,8 @@ func computeGameDigestFacts(
             ticker: ticker,
             tickerPct: pct,
             owners: owners,
-            article: override ?? bestArticle(for: ticker)
+            article: override ?? bestArticle(for: ticker),
+            note: spinoffNoteByTicker[ticker]
         )
     }
 
@@ -3895,9 +4109,10 @@ func renderFactBlock(_ anchor: GameAnchor?, role: String) -> String {
     } else {
         catalyst = "Catalyst — no notable news in the last several days; attribute the move to ongoing momentum or positioning rather than inventing a specific event."
     }
+    let noteLine = a.note.map { "\n  \($0)" } ?? ""
     return """
     \(role): \(a.ticker), held by \(owners).
-      \(catalyst)
+      \(catalyst)\(noteLine)
     """
 }
 
@@ -3907,7 +4122,16 @@ func renderFactBlock(_ anchor: GameAnchor?, role: String) -> String {
 let GAME_RETRY_NUDGE = """
 
 
-    IMPORTANT — your previous attempt broke a rule. A stock may be credited ONLY to the player(s) listed as holding it in the FACTS. The STOCK moved, and that move helped or hurt its HOLDER — never write it the other way around. Never list a player's other holdings. Name only the holder shown for each stock.
+    IMPORTANT — your previous attempt broke a rule. A stock may be credited ONLY to the player(s) listed as holding it in the FACTS, and players are referred to ONLY as holders ("held by Brian", "a Rick position") — never as helped or hurt by the stock. Never list a player's other holdings. Name only the holder shown for each stock.
+    """
+
+// Appended on a retry after the rendered prose used directional verbs that
+// contradict the live percentages (e.g. "hurting Brian" while Brian's live
+// portfolio pct is positive). Reinforces the direction-neutral rule.
+let DIRECTION_RETRY_NUDGE = """
+
+
+    IMPORTANT — your previous attempt used directional words ("lifting", "hurting", "gained", "fell", "weighed on") that can contradict the live percentages substituted next to each name all day. Use ONLY direction-neutral phrasing: "set the pace", "made the biggest move", "swung hardest the other way", and refer to players only as holders ("held by Brian", "a Rick position").
     """
 
 func joinNames(_ parts: [String]) -> String {
@@ -3935,13 +4159,27 @@ func ownersPhrase(_ owners: [(name: String, portfolioPct: Double)]) -> String {
 // the prompt used, so it can never misattribute a ticker. Returns a templated
 // string (with {{TICKER}} / {{user:id}} placeholders, no literal numbers); the
 // caller renders it through renderGameDigestTemplate for live pcts.
-func deterministicGameTemplate(_ facts: GameDigestFacts) -> String? {
+//
+// Deliberately direction-neutral: every word here survives all day next to
+// live re-substituted pcts that can flip sign, so no frozen word may assert a
+// direction ("led the gainers") or a portfolio impact ("weighing on Rick") —
+// the brackets carry the signs. The same rule the AI prompt imposes.
+func deterministicGameTemplate(_ facts: GameDigestFacts, window: WindowKey) -> String? {
+    let period: String
+    switch window {
+    case .d1:  period = "the day's"
+    case .w1:  period = "the week's"
+    case .m1:  period = "the month's"
+    case .m3:  period = "the quarter's"
+    case .y1:  period = "the year's"
+    case .all: period = "the game's"
+    }
     var sentences: [String] = []
     if let m = facts.topMover, !m.owners.isEmpty {
-        sentences.append("\(m.ticker) {{\(m.ticker)}} led the gainers, lifting \(ownersPhrase(m.owners)).")
+        sentences.append("\(m.ticker) {{\(m.ticker)}} made \(period) biggest move — it's held by \(ownersPhrase(m.owners)).")
     }
     if let dr = facts.topDrag, !dr.owners.isEmpty {
-        sentences.append("\(dr.ticker) {{\(dr.ticker)}} was the biggest drag, weighing on \(ownersPhrase(dr.owners)).")
+        sentences.append("\(dr.ticker) {{\(dr.ticker)}} swung hardest the other way, a position of \(ownersPhrase(dr.owners)).")
     }
     if let f = facts.forwardCatalyst, !f.owners.isEmpty {
         sentences.append("\(f.ticker) {{\(f.ticker)}} is worth watching next for \(ownersPhrase(f.owners)).")
@@ -3988,7 +4226,7 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
     return """
     Write the short "what's driving the leaderboard" blurb for a \(PLAYERS.count)-player paper-stock game — each player started with $100,000 on February 5, 2026; today is day \(gameAge). The players just hold stocks; they don't write or report the news.
 
-    Work only from the FACTS below — don't invent events, dates, or figures, and don't pull in a player's other holdings. Each fact names a stock, the catalyst behind its move, and the player(s) who hold that stock. The stock moved, and that move helped or hurt its holder — never write it the other way around (a player's holdings don't "help a stock").
+    Work only from the FACTS below — don't invent events, dates, or figures, and don't pull in a player's other holdings. Each fact names a stock, the catalyst behind its move, and the player(s) who hold that stock. The stock is the actor and the player is just its holder — never write it the other way around (a player's holdings don't "help a stock").
 
     EXAMPLE
     Facts:
@@ -3999,20 +4237,21 @@ func buildGameSummaryPrompt(window: WindowKey, standings: [UserStanding], articl
       Worth watching next: ZZC, held by Morgan.
         Catalyst — ZZC reports earnings next week.
     Blurb:
-      ZZA's new supply contract made it the week's top gainer, lifting Morgan. An analyst downgrade made ZZB the biggest drag, hurting Riley. Watch ZZC next for Morgan, with earnings due soon.
+      ZZA's new supply contract made it the week's standout move — it's a Morgan position. ZZB swung hardest the other way on an analyst downgrade; Riley holds it. Watch ZZC next for Morgan, with earnings due soon.
 
     Now write the blurb for these FACTS:
     \(moverBlock)
     \(dragBlock)
     \(aheadBlock)
 
-    Write three short, flowing sentences as one paragraph: the top gainer and who it helped, the biggest drag and who it hurt, and what's worth watching next. Keep it tight and natural — summarize each catalyst in your own words in a clause or two; never quote or paste the article text.
+    Write three short, flowing sentences as one paragraph: the top gainer and who holds it, the biggest drag and who holds it, and what's worth watching next. Keep it tight and natural — summarize each catalyst in your own words in a clause or two; never quote or paste the article text.
 
     - Name stocks by ticker symbol (e.g. TSLA, AAPL) and players by first name, exactly as written in the FACTS, and credit each stock's move only to the player(s) the fact says hold it. Don't name any other ticker or player — not a player's other holdings, and not a company a catalyst article only mentions in passing. The example names (Morgan, Riley, ZZA, ZZB, ZZC) must not appear in your blurb.
     - If a stock fell despite good-sounding news (or rose despite bad news), just say so — don't twist the headline to match the move.
     - A catalyst tagged "reported yesterday" or "reported N days ago" is news the stock is STILL reacting to — frame it that way (e.g. "still riding", "continues to react to") instead of implying it broke today. Only a catalyst tagged "reported today" is fresh.
     - Don't include any percentages or numbers. Skip any line marked "skip this sentence".
-    - A live percentage is inserted next to each ticker and player name after you write, and it's re-substituted all day — by afternoon it can flip sign. So describe the top gainer and the biggest drag with direction-neutral phrasing ("set the pace", "weighed most on the standings") rather than "gained", "led the gains", or "fell".
+    - A live percentage is inserted next to each ticker and player name after you write, and it's re-substituted all day — by afternoon any of them can flip sign. So use direction-neutral phrasing everywhere: describe the gainer and the drag as "set the pace" / "swung hardest the other way" / "made the biggest move" rather than "gained", "led the gains", or "fell".
+    - Never say a stock's move helped or hurt a player's overall portfolio — the live percentage printed next to a player's name is their whole-portfolio number and can disagree with any single stock (a player can be up on the day while holding the day's worst stock). Refer to players only as holders: "held by Brian", "a Rick position", "Kevin holds it" — never "lifting Brian", "hurting Riley", "boosting Kevin", "dragging on Lee", or "costing Gene".
     - \(PROSE_STYLE_NOTE)
     - Output only the three sentences — no notes about yourself, being an AI/model, or how this was produced.\(continuityBlock)
     """
@@ -4037,7 +4276,9 @@ let PLAYER_NAME_TO_ID: [String: String] = {
     return m
 }()
 
-let KNOWN_TICKERS: Set<String> = Set(DEFAULT_TICKERS)
+// Includes spin-off children so their mentions get live-pct placeholders and
+// pass the ownership check (owners derived from the parent in TICKER_OWNERS).
+let KNOWN_TICKERS: Set<String> = Set(DEFAULT_TICKERS + SPINOFF_CHILD_TICKERS)
 
 // Exact-case name → user id (e.g. "Kevin" → "kevin"). Used by the placeholder
 // injector to find the player's name as-written in the AI prose.
@@ -4151,14 +4392,12 @@ func renderGameDigestTemplate(_ template: String, window: WindowKey, data: Price
     let matches = regex.matches(in: template, range: NSRange(location: 0, length: ns.length))
     var result = template
 
-    // Sign-contradiction guard: the morning game narrative frames its first
-    // ticker as the top mover and its second as the biggest drag, but the live
-    // pcts substituted here can flip sign during the day — the shipped bug was
-    // "helped COHR [-3.88%] lead today's gains" (narrative frozen, number
-    // flipped). Anchor identity isn't stored on the template, so sentence
-    // position is the honest heuristic: warn when the first ticker placeholder
-    // substitutes negative or the second (drag-position) substitutes positive.
-    // Log-only — never block or rewrite the prose.
+    // Sign-contradiction LOGGING (position heuristic): warn when the first
+    // ticker placeholder substitutes negative or the second (drag-position)
+    // substitutes positive. This inline check stays log-only; the guard that
+    // ACTS on contradictions is renderGameWindowsWithGuard, which compares the
+    // stored anchorMover/anchorDrag identity against live pcts and triggers a
+    // bounded regen or a deterministic rebuild.
     if let context = signGuardContext {
         let tickerTokens: [String] = matches.compactMap { m in
             let token = ns.substring(with: m.range(at: 1))
@@ -4203,6 +4442,324 @@ func liveTickerPct(ticker: String, window: WindowKey, data: PriceDataLite) -> Do
 func liveUserPct(userId: String, window: WindowKey, data: PriceDataLite) -> Double? {
     guard let player = PLAYERS.first(where: { $0.id == userId }) else { return nil }
     return computeUserMovers(player: player, data: data, window: window).pct
+}
+
+// MARK: - Sign guard (acting)
+//
+// The game narrative is authored once (morning run) while its bracketed pcts
+// are re-substituted every 15 minutes — so a ticker crowned "biggest drag" at
+// 11 AM can be +22% by 2 PM with the words "weighed most … hurting Brian"
+// still frozen around the fresh number (the shipped EXOD bug). The old guard
+// only logged the contradiction. This section makes it ACT:
+//   1. detect — stored anchor identity (anchorMover/anchorDrag) vs live pcts,
+//      plus a directional-verb ↔ bracket-sign agreement scan of the final
+//      rendered prose;
+//   2. regenerate — one strict-PCC narrative regen for that window, bounded
+//      per day (DIGEST_REGEN_MAX, default 2/window) so the fast tier can't
+//      burn quota, and only when fm serve answers a quick probe;
+//   3. rebuild — when regen is unavailable/capped/failed, recompute the
+//      anchors from live prices and emit the direction-neutral deterministic
+//      template. Zero AI; always available.
+// Every failure path degrades to the plain re-render (pre-guard behavior).
+
+// Material-flip threshold, as a fraction (env value is in percent).
+// DIGEST_SIGN_FLIP_PCT=0.01 makes the guard hair-trigger for testing.
+let SIGN_FLIP_THRESHOLD: Double = {
+    if let s = ProcessInfo.processInfo.environment["DIGEST_SIGN_FLIP_PCT"], let v = Double(s) {
+        return v / 100.0
+    }
+    return 0.005
+}()
+
+let REGEN_MAX: Int = Int(ProcessInfo.processInfo.environment["DIGEST_REGEN_MAX"] ?? "") ?? 2
+let REGEN_STATE_FILE = ARCHIVE_DIR.appendingPathComponent(".game-regen-state.json")
+
+struct GameRegenState: Codable {
+    var date: String                // "yyyy-MM-dd" (ET) — counts reset daily
+    var counts: [String: Int]       // window key → regens performed today
+}
+
+func loadRegenState(today: String) -> GameRegenState {
+    if let d = try? Data(contentsOf: REGEN_STATE_FILE),
+       let s = try? JSONDecoder().decode(GameRegenState.self, from: d),
+       s.date == today {
+        return s
+    }
+    return GameRegenState(date: today, counts: [:])
+}
+
+func saveRegenState(_ s: GameRegenState) {
+    if let d = try? JSONEncoder().encode(s) { try? d.write(to: REGEN_STATE_FILE) }
+}
+
+// Window pct the sign guard compares against: raw chart pct, except across a
+// spin-off where the economic (parent + ratio × child) move is what anchor
+// selection used — comparing the raw pct there would re-flag the corporate
+// action forever.
+func guardTickerPct(ticker: String, window: WindowKey, data: PriceDataLite) -> Double? {
+    guard let s = data.tickers[ticker] else { return nil }
+    let r = rangeCloses(series: s, data: data, window: window)
+    guard r.start != 0 else { return nil }
+    var end = r.end
+    let windowStart = windowStartDateFor(data: data, window: window)
+    let windowEnd = data.tradingDates.last ?? ""
+    for so in spinoffsForParentSW(ticker) where so.effectiveDate > windowStart && so.effectiveDate <= windowEnd {
+        guard let child = data.tickers[so.childTicker], !child.closes.isEmpty else { continue }
+        end += so.sharesPerParentShare * rangeCloses(series: child, data: data, window: window).end
+    }
+    return (end - r.start) / r.start
+}
+
+struct SignContradiction {
+    let slot: String        // "mover" | "drag"
+    let ticker: String
+    let livePct: Double
+}
+
+// Ticker tokens of a template in prose order — the pre-anchor-field fallback
+// for identifying which ticker the narrative frames as mover (first) and drag
+// (second). Digests written after this upgrade carry explicit anchors instead.
+func templateTickerTokens(_ template: String) -> [String] {
+    guard let regex = try? NSRegularExpression(pattern: TEMPLATE_PLACEHOLDER_PATTERN) else { return [] }
+    let ns = template as NSString
+    return regex.matches(in: template, range: NSRange(location: 0, length: ns.length)).compactMap { m in
+        let token = ns.substring(with: m.range(at: 1))
+        return token.hasPrefix("user:") ? nil : token
+    }
+}
+
+func gameSignContradictions(_ wd: WindowDigest, template: String, window: WindowKey, data: PriceDataLite) -> [SignContradiction] {
+    let tokens = templateTickerTokens(template)
+    let moverTicker = wd.anchorMover ?? tokens.first
+    let dragTicker = wd.anchorDrag ?? (tokens.count >= 2 ? tokens[1] : nil)
+    var out: [SignContradiction] = []
+    if let m = moverTicker, let pct = guardTickerPct(ticker: m, window: window, data: data),
+       pct < -SIGN_FLIP_THRESHOLD {
+        out.append(SignContradiction(slot: "mover", ticker: m, livePct: pct))
+    }
+    if let d = dragTicker, d != moverTicker,
+       let pct = guardTickerPct(ticker: d, window: window, data: data),
+       pct > SIGN_FLIP_THRESHOLD {
+        out.append(SignContradiction(slot: "drag", ticker: d, livePct: pct))
+    }
+    return out
+}
+
+// High-precision directional lexicon. Deliberately excludes phrasing the
+// prompts *ask* for ("set the pace", "swung hardest the other way", "biggest
+// move") — only words that assert a direction and would read as wrong next to
+// an opposite-signed bracket.
+let DIRECTIONAL_POSITIVE_WORDS: [String] = [
+    "lifting", "lifted", "lifts", "boosting", "boosted", "rallied", "rallying",
+    "surged", "surging", "soared", "soaring", "jumped", "jumping", "climbed",
+    "climbing", "gained", "gaining", "popped", "helping", "helped", "rose",
+]
+let DIRECTIONAL_NEGATIVE_WORDS: [String] = [
+    "hurting", "hurt", "dragging", "dragged", "drag", "weighing", "weighed",
+    "fell", "falling", "dropped", "dropping", "slid", "sliding", "sank",
+    "sinking", "slumped", "tumbled", "declined", "declining", "losing", "lost",
+    "costing",
+]
+
+// Scan FINAL RENDERED prose for a directional word whose nearest [±X.XX%]
+// bracket in the same sentence disagrees in sign (beyond the flip threshold,
+// so a +0.03% bracket doesn't flag "hurting"). Returns human-readable issue
+// strings; empty = prose and numbers agree.
+func directionalAgreementIssues(prose: String) -> [String] {
+    guard let bracketRegex = try? NSRegularExpression(pattern: #"\[([+-])(\d+(?:\.\d+)?)%\]"#) else { return [] }
+    // Split on sentence enders followed by whitespace/EOL — NOT on every "."
+    // like detectOwnershipViolations does: rendered prose is full of decimal
+    // brackets ("[+18.10%]") that a bare "." split would chop in half,
+    // destroying every bracket before the scan.
+    let sentences: [String] = {
+        let ns = prose as NSString
+        guard let splitter = try? NSRegularExpression(pattern: #"(?<=[.!?])\s+"#) else { return [prose] }
+        let marked = splitter.stringByReplacingMatches(
+            in: prose, range: NSRange(location: 0, length: ns.length), withTemplate: "\u{1}")
+        return marked.components(separatedBy: "\u{1}")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }()
+    var issues: [String] = []
+    for sentence in sentences {
+        let ns = sentence as NSString
+        let brackets: [(loc: Int, positive: Bool, magnitude: Double)] =
+            bracketRegex.matches(in: sentence, range: NSRange(location: 0, length: ns.length)).map { m in
+                let sign = ns.substring(with: m.range(at: 1))
+                let mag = Double(ns.substring(with: m.range(at: 2))) ?? 0
+                return (m.range.location, sign == "+", mag / 100.0)
+            }
+        guard !brackets.isEmpty else { continue }
+        func scan(_ words: [String], positive: Bool) {
+            for word in words {
+                let pattern = #"\b"# + NSRegularExpression.escapedPattern(for: word) + #"\b"#
+                guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+                for m in regex.matches(in: sentence, range: NSRange(location: 0, length: ns.length)) {
+                    guard let nearest = brackets.min(by: { abs($0.loc - m.range.location) < abs($1.loc - m.range.location) }) else { continue }
+                    if nearest.positive != positive && nearest.magnitude >= SIGN_FLIP_THRESHOLD {
+                        issues.append("\"\(word)\" next to a \(nearest.positive ? "positive" : "negative") bracket in: \(sentence)")
+                    }
+                }
+            }
+        }
+        scan(DIRECTIONAL_POSITIVE_WORDS, positive: true)
+        scan(DIRECTIONAL_NEGATIVE_WORDS, positive: false)
+    }
+    return issues
+}
+
+// Quick liveness probe of the local fm serve before the fast tier spends a
+// regen. 2s timeout — the fast tier runs every 15 min and must stay fast.
+func fmServeIsUp(timeout: TimeInterval = 2) async -> Bool {
+    guard var comps = URLComponents(string: FM_SERVE_URL) else { return false }
+    comps.path = "/v1/models"
+    comps.query = nil
+    guard let url = comps.url else { return false }
+    var req = URLRequest(url: url)
+    req.timeoutInterval = timeout
+    guard let (_, resp) = try? await URLSession.shared.data(for: req) else { return false }
+    return (resp as? HTTPURLResponse)?.statusCode == 200
+}
+
+// Mid-day narrative regeneration for ONE game window after the guard tripped.
+// STRICT PCC: calls pccServeRespond directly — never aiRespond, whose
+// on-device fallback SIGTRAPs under macOS 27 Beta 3 and must never be
+// reachable from the 15-min fast tier. Inputs are live prices + the local
+// article archive (no RSS, no network beyond the local fm serve). Returns nil
+// on any failure; the caller falls back to the deterministic rebuild.
+func regenerateGameWindow(_ w: WindowKey, data: PriceDataLite, existing: WindowDigest) async -> WindowDigest? {
+    let gameAge = gameAgeInDays()
+    let standings = computeStandings(data: data, window: w)
+    guard !standings.isEmpty else { return nil }
+    let articles = gameNewsArticles(window: w, gameAge: gameAge)
+    let facts = computeGameDigestFacts(data: data, window: w, standings: standings, articles: articles)
+    let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data)
+
+    var digestText: String? = nil
+    var retryNudge = ""
+    for attempt in 0..<2 {
+        do {
+            let raw = try await pccServeRespond(prompt + retryNudge, temperature: temperatureFor(.deep))
+            let cleaned = cleanDigestProse(raw)
+            let violations = detectOwnershipViolations(in: cleaned)
+            if !violations.isEmpty {
+                logOwnershipViolations(violations, context: "game \(w.rawValue) regen attempt \(attempt + 1)")
+                retryNudge = GAME_RETRY_NUDGE
+                continue
+            }
+            let previewTemplate = injectDigestPlaceholders(cleaned, tickers: KNOWN_TICKERS, userByName: PLAYER_NAME_BY_ID_EXACT)
+            let issues = directionalAgreementIssues(prose: renderGameDigestTemplate(previewTemplate, window: w, data: data))
+            if !issues.isEmpty {
+                for i in issues { logErr("DIRECTION game \(w.rawValue) regen attempt \(attempt + 1): \(i)") }
+                retryNudge = DIRECTION_RETRY_NUDGE
+                continue
+            }
+            digestText = cleaned
+            break
+        } catch {
+            logErr("regenerateGameWindow \(w.rawValue): \(error.localizedDescription)")
+            return nil
+        }
+    }
+    guard let d = digestText else { return nil }
+
+    let template = injectDigestPlaceholders(d, tickers: KNOWN_TICKERS, userByName: PLAYER_NAME_BY_ID_EXACT)
+    let nowISO = isoFormatter.string(from: Date())
+    var wd = existing
+    wd.digest = template.contains("{{") ? renderGameDigestTemplate(template, window: w, data: data) : d
+    wd.digestTemplate = template.contains("{{") ? template : existing.digestTemplate
+    wd.generatedAt = nowISO
+    wd.narrativeGeneratedAt = nowISO
+    wd.anchorMover = facts.topMover?.ticker
+    wd.anchorDrag = facts.topDrag?.ticker
+    wd.aiEngine = "AppleIntelligence"
+    return wd
+}
+
+// Zero-AI fallback: recompute the anchors from live prices and emit the
+// direction-neutral deterministic template. Honest (anchors are current at
+// write time), quota-free, and available when fm serve is down or the daily
+// regen cap is spent.
+func rebuildGameWindowDeterministic(_ w: WindowKey, data: PriceDataLite, existing: WindowDigest) -> WindowDigest? {
+    let gameAge = gameAgeInDays()
+    let standings = computeStandings(data: data, window: w)
+    guard !standings.isEmpty else { return nil }
+    let articles = gameNewsArticles(window: w, gameAge: gameAge)
+    let facts = computeGameDigestFacts(data: data, window: w, standings: standings, articles: articles)
+    guard let tmpl = deterministicGameTemplate(facts, window: w) else { return nil }
+    let nowISO = isoFormatter.string(from: Date())
+    var wd = existing
+    wd.digest = renderGameDigestTemplate(tmpl, window: w, data: data)
+    wd.digestTemplate = tmpl
+    wd.generatedAt = nowISO
+    wd.narrativeGeneratedAt = nowISO
+    wd.anchorMover = facts.topMover?.ticker
+    wd.anchorDrag = facts.topDrag?.ticker
+    return wd
+}
+
+// Shared by the fast tier and the post-daily-run render: re-render every
+// templated game window with live pcts, then let the sign guard act on any
+// window whose anchors materially flipped sign or whose rendered directional
+// words contradict the live brackets. Never throws; any failure leaves the
+// plain re-render in place (exactly the pre-guard behavior).
+func renderGameWindowsWithGuard(
+    _ gameBlock: [String: WindowDigest],
+    data: PriceDataLite,
+    nowISO: String,
+    context: String
+) async -> [String: WindowDigest] {
+    var block = gameBlock
+    let today = dayFormatter.string(from: Date())
+    var regenState = loadRegenState(today: today)
+    var regenStateDirty = false
+    var fmServeUp: Bool? = nil      // probed at most once per run
+
+    for w in TEMPLATED_GAME_WINDOWS {
+        let key = w.rawValue
+        guard var wd = block[key], let template = wd.digestTemplate else { continue }
+        wd.digest = renderGameDigestTemplate(template, window: w, data: data, signGuardContext: "game \(key) (\(context))")
+        wd.generatedAt = nowISO
+
+        let contradictions = gameSignContradictions(wd, template: template, window: w, data: data)
+        let directionIssues = wd.digest.map { directionalAgreementIssues(prose: $0) } ?? []
+        if !contradictions.isEmpty || !directionIssues.isEmpty {
+            for c in contradictions {
+                logErr("sign-guard TRIPPED (\(context)): game \(key) \(c.slot) \(c.ticker) now \(String(format: "%+.2f%%", c.livePct * 100))")
+            }
+            for i in directionIssues {
+                logErr("sign-guard TRIPPED (\(context)): game \(key) direction — \(i)")
+            }
+
+            var replaced: WindowDigest? = nil
+            let count = regenState.counts[key] ?? 0
+            if count < REGEN_MAX {
+                if fmServeUp == nil { fmServeUp = await fmServeIsUp() }
+                if fmServeUp == true {
+                    replaced = await regenerateGameWindow(w, data: data, existing: wd)
+                    if replaced != nil {
+                        regenState.counts[key] = count + 1
+                        regenStateDirty = true
+                        log("sign-guard ACTED (\(context)): game \(key) narrative regenerated on PCC (\(count + 1)/\(REGEN_MAX) today)")
+                    }
+                } else {
+                    logErr("sign-guard: fm serve down — skipping regen for game \(key), using deterministic rebuild")
+                }
+            } else {
+                logErr("sign-guard SUPPRESSED (cap): game \(key) hit the \(REGEN_MAX)/day regen cap — using deterministic rebuild")
+            }
+            if replaced == nil {
+                replaced = rebuildGameWindowDeterministic(w, data: data, existing: wd)
+                if replaced != nil {
+                    log("sign-guard ACTED (\(context)): game \(key) rebuilt deterministically from live anchors")
+                }
+            }
+            if let r = replaced { wd = r }
+        }
+        block[key] = wd
+    }
+    if regenStateDirty { saveRegenState(regenState) }
+    return block
 }
 
 struct GameOutcome {
@@ -4270,25 +4827,40 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
             group.addTask {
                 let prompt = buildGameSummaryPrompt(window: w, standings: standings, articles: articles, gameAge: gameAge, data: data, previousDayBlurb: w == .d1 ? yesterday1D : nil)
 
-                // Generate, then verify ownership. The game digest cites
-                // multiple players + tickers, and the on-device model recurs to
-                // a wrong (player, ticker) pairing ("Brian's holdings helped
-                // MRVL" when MRVL is Kevin's). detectOwnershipViolations catches
-                // it; if found, retry once with a stricter nudge. If it STILL
-                // misattributes, we don't ship it — we fall back to a
-                // deterministic Swift-built blurb from the same anchors, which
-                // can't get ownership wrong. Never ship a misattribution.
+                // Generate, then verify ownership AND directional agreement.
+                // Ownership: the game digest cites multiple players + tickers,
+                // and the model recurs to wrong (player, ticker) pairings —
+                // retry once with a stricter nudge. Direction: render a live
+                // preview and reject prose whose directional verbs ("lifting",
+                // "hurting", "fell") contradict the bracket signs they'd ship
+                // next to — the brackets re-substitute all day, so only
+                // direction-neutral wording survives an afternoon sign flip.
+                // If a retry still fails either check, fall back to the
+                // deterministic Swift-built blurb, which can't get ownership
+                // or direction wrong.
                 var digestText: String? = nil
+                var retryNudge = ""
                 for attempt in 0..<2 {
                     do {
-                        let raw = try await aiRespond(attempt == 0 ? prompt : prompt + GAME_RETRY_NUDGE)
+                        let raw = try await aiRespond(prompt + retryNudge)
                         let cleaned = cleanDigestProse(raw)
                         let violations = detectOwnershipViolations(in: cleaned)
-                        if violations.isEmpty {
-                            digestText = cleaned
-                            break
+                        if !violations.isEmpty {
+                            logOwnershipViolations(violations, context: "game \(w.rawValue) attempt \(attempt + 1)")
+                            retryNudge = GAME_RETRY_NUDGE
+                            continue
                         }
-                        logOwnershipViolations(violations, context: "game \(w.rawValue) attempt \(attempt + 1)")
+                        if TEMPLATED_GAME_WINDOWS.contains(w) {
+                            let previewTemplate = injectDigestPlaceholders(cleaned, tickers: KNOWN_TICKERS, userByName: PLAYER_NAME_BY_ID_EXACT)
+                            let issues = directionalAgreementIssues(prose: renderGameDigestTemplate(previewTemplate, window: w, data: data))
+                            if !issues.isEmpty {
+                                for i in issues { logErr("DIRECTION game \(w.rawValue) attempt \(attempt + 1): \(i)") }
+                                retryNudge = DIRECTION_RETRY_NUDGE
+                                continue
+                            }
+                        }
+                        digestText = cleaned
+                        break
                     } catch {
                         logErr("processGameSummary error \(w.rawValue): \(error.localizedDescription)")
                         break
@@ -4300,11 +4872,11 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                 var usedFallback = false
 
                 if digestText == nil {
-                    // Model errored or couldn't keep ownership straight after a
-                    // retry — emit the deterministic blurb instead of nothing /
-                    // garbage. Carries the same {{TICKER}}/{{user:id}} placeholders
+                    // Model errored or couldn't pass QA after a retry — emit
+                    // the deterministic blurb instead of nothing / garbage.
+                    // Carries the same {{TICKER}}/{{user:id}} placeholders
                     // so the fast tier renders live pcts identically.
-                    if let tmpl = deterministicGameTemplate(facts) {
+                    if let tmpl = deterministicGameTemplate(facts, window: w) {
                         digestText = renderGameDigestTemplate(tmpl, window: w, data: data)
                         templateText = TEMPLATED_GAME_WINDOWS.contains(w) ? tmpl : nil
                         usedFallback = true
@@ -4352,7 +4924,10 @@ func processGameSummary(data: PriceDataLite, gameAge: Int, windows: [WindowKey] 
                     daysOfData: daysAvail,
                     daysRequired: effRequired,
                     sources: Array(sources),
-                    digestTemplate: templateText
+                    digestTemplate: templateText,
+                    narrativeGeneratedAt: digestText != nil ? nowISO : nil,
+                    anchorMover: facts.topMover?.ticker,
+                    anchorDrag: facts.topDrag?.ticker
                 ))
             }
         }
@@ -4505,26 +5080,29 @@ func runFastTier(args: Args) async {
     var holdingsRendered = 0
     var fundsRendered = 0
 
-    // Game windows
+    // Game windows — re-render live pcts, then let the sign guard act on any
+    // window whose frozen narrative now contradicts the numbers (bounded PCC
+    // regen → deterministic neutral rebuild; see renderGameWindowsWithGuard).
     var gameBlock = existing.game ?? [:]
-    for w in TEMPLATED_GAME_WINDOWS {
-        let key = w.rawValue
-        guard var wd = gameBlock[key], let template = wd.digestTemplate else { continue }
-        wd.digest = renderGameDigestTemplate(template, window: w, data: priceData, signGuardContext: "game \(key)")
-        wd.generatedAt = nowISO
-        gameBlock[key] = wd
-        gameRendered += 1
-    }
+    let templatedBefore = TEMPLATED_GAME_WINDOWS.filter { gameBlock[$0.rawValue]?.digestTemplate != nil }.count
+    gameBlock = await renderGameWindowsWithGuard(gameBlock, data: priceData, nowISO: nowISO, context: "fast tier")
+    gameRendered += templatedBefore
     existing.game = gameBlock.isEmpty ? nil : gameBlock
 
-    // Per-portfolio windows
+    // Per-portfolio windows. Directional disagreement here is log-only —
+    // the §2 prompt neutrality rules should make hits rare, and the log says
+    // if they don't (quota proportionality: no per-portfolio regens).
     if var portfoliosBlock = existing.portfolios {
         for (uid, windows) in portfoliosBlock {
             var updated = windows
             for w in TEMPLATED_PORTFOLIO_WINDOWS {
                 let key = w.rawValue
                 guard var wd = updated[key], let template = wd.digestTemplate else { continue }
-                wd.digest = renderGameDigestTemplate(template, window: w, data: priceData)
+                let rendered = renderGameDigestTemplate(template, window: w, data: priceData)
+                for i in directionalAgreementIssues(prose: rendered) {
+                    logErr("DIRECTION (log-only) portfolio \(uid) \(key): \(i)")
+                }
+                wd.digest = rendered
                 wd.generatedAt = nowISO
                 updated[key] = wd
                 portfolioRendered += 1
@@ -5088,13 +5666,7 @@ func runMain() async {
         let nowISO = isoFormatter.string(from: Date())
 
         var gameBlock = refreshed.game ?? [:]
-        for w in TEMPLATED_GAME_WINDOWS {
-            let key = w.rawValue
-            guard var wd = gameBlock[key], let tmpl = wd.digestTemplate else { continue }
-            wd.digest = renderGameDigestTemplate(tmpl, window: w, data: pd, signGuardContext: "game \(key) (post-run render)")
-            wd.generatedAt = nowISO
-            gameBlock[key] = wd
-        }
+        gameBlock = await renderGameWindowsWithGuard(gameBlock, data: pd, nowISO: nowISO, context: "post-run render")
         refreshed.game = gameBlock.isEmpty ? nil : gameBlock
 
         if var portfoliosBlock = refreshed.portfolios {

@@ -44,6 +44,17 @@ export interface WindowDigest {
   // without an AI call. UI never reads this directly — `digest` is the
   // rendered, display-ready string.
   digestTemplate?: string | null;
+  // When the narrative prose was actually authored. `generatedAt` is bumped
+  // by every 15-min pct re-render ("numbers as of"); this one only moves when
+  // the story itself is (re)written — morning run, or a mid-day sign-guard
+  // regeneration. Optional: snapshots predating the field just show the
+  // single "Updated" label.
+  narrativeGeneratedAt?: string | null;
+  // Game windows only: which ticker the narrative frames as top mover /
+  // biggest drag. Powers the pipeline's sign guard; the UI doesn't render
+  // these but they're part of the JSON shape.
+  anchorMover?: string | null;
+  anchorDrag?: string | null;
 }
 
 export interface DigestsJson {

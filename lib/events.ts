@@ -43,6 +43,8 @@
  * 2025-10-30, BEFORE the game's 2026-02-05 start, so it's already baked into
  * HON's history and needs no entry here.)
  */
+import eventsJson from "@/config/events.json";
+
 export interface SpinoffEvent {
   parentTicker: string;
   childTicker: string;
@@ -51,15 +53,13 @@ export interface SpinoffEvent {
   sharesPerParentShare: number;
 }
 
-export const SPINOFFS: SpinoffEvent[] = [
-  {
-    parentTicker: "HON",
-    childTicker: "HONA",
-    childName: "Honeywell Aerospace",
-    effectiveDate: "2026-06-29",
-    sharesPerParentShare: 0.5,
-  },
-];
+// Event data lives in config/events.json so scripts/digest.swift can read the
+// SAME file (its loadEvents() mirrors loadRoster()) — a Swift/TS drift here
+// would make digest prose disagree with the app's portfolio math. Note
+// config/events.json must NOT be excluded in scripts/vercel-ignore-build.sh:
+// it's statically imported, so a change must trigger a rebuild (same rule as
+// roster.json).
+export const SPINOFFS: SpinoffEvent[] = eventsJson.spinoffs;
 
 /**
  * A reverse (or forward) split on `ticker`, effective `effectiveDate`.
@@ -77,10 +77,7 @@ export interface ReverseSplitEvent {
   factor: number;
 }
 
-export const REVERSE_SPLITS: ReverseSplitEvent[] = [
-  // HON 1-for-2 reverse split, bundled with the HONA spin-off above.
-  { ticker: "HON", effectiveDate: "2026-06-29", factor: 2 },
-];
+export const REVERSE_SPLITS: ReverseSplitEvent[] = eventsJson.reverseSplits;
 
 export function getSpinoffTickers(): string[] {
   return SPINOFFS.map((s) => s.childTicker);
