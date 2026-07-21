@@ -172,6 +172,12 @@ export function DigestPanel({ digest, loading, range }: Props) {
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
                 {SHORT_RANGE_LABELS[range]}
+                {(digest.narrativeGeneratedAt ?? digest.generatedAt) && (
+                  <RelativeTime
+                    iso={digest.narrativeGeneratedAt ?? digest.generatedAt}
+                    className="ml-1.5 font-normal normal-case tracking-normal text-[10px] text-zinc-600"
+                  />
+                )}
               </span>
               <span className="flex items-center gap-2">
                 {digest.dataMaturity === "partial" && (
@@ -274,22 +280,48 @@ function SignalDot({ avg }: { avg: number | null }) {
   );
 }
 
+// The narrative is authored once (morning run / sign-guard regen) while the
+// bracketed pcts re-render every 15 min — so "Updated 3 min ago" alone would
+// certify hours-old prose as fresh. When the two timestamps diverge by more
+// than this, show both ("Story from …" + "Numbers updated …").
+const STORY_DIVERGENCE_MS = 20 * 60 * 1000;
+
+function storyDiverges(digest: WindowDigest): boolean {
+  if (!digest.narrativeGeneratedAt || !digest.generatedAt) return false;
+  const story = Date.parse(digest.narrativeGeneratedAt);
+  const numbers = Date.parse(digest.generatedAt);
+  if (Number.isNaN(story) || Number.isNaN(numbers)) return false;
+  return numbers - story > STORY_DIVERGENCE_MS;
+}
+
 function DigestMeta({ digest, range }: { digest: WindowDigest; range: Range }) {
   const dateLabel = useMemo(() => {
     if (!digest.dateRange) return null;
     const { from, to } = digest.dateRange;
     return from === to ? fmtDateShort(from) : `${fmtDateShort(from)} – ${fmtDateShort(to)}`;
   }, [digest.dateRange]);
+  const diverged = storyDiverges(digest);
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
       <span>{RANGE_LABELS[range]}</span>
       {dateLabel && <span>· {dateLabel}</span>}
       <span>· Based on {digest.articleCount} article{digest.articleCount === 1 ? "" : "s"}</span>
-      {digest.generatedAt && (
-        <span>
-          · <RelativeTime iso={digest.generatedAt} prefix="Updated" />
-        </span>
+      {diverged && digest.narrativeGeneratedAt ? (
+        <>
+          <span>
+            · <RelativeTime iso={digest.narrativeGeneratedAt} prefix="Story from" />
+          </span>
+          <span>
+            · <RelativeTime iso={digest.generatedAt} prefix="Numbers updated" />
+          </span>
+        </>
+      ) : (
+        digest.generatedAt && (
+          <span>
+            · <RelativeTime iso={digest.generatedAt} prefix="Updated" />
+          </span>
+        )
       )}
     </div>
   );

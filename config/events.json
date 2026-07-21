@@ -1,0 +1,14 @@
+{
+  "spinoffs": [
+    {
+      "parentTicker": "HON",
+      "childTicker": "HONA",
+      "childName": "Honeywell Aerospace",
+      "effectiveDate": "2026-06-29",
+      "sharesPerParentShare": 0.5
+    }
+  ],
+  "reverseSplits": [
+    { "ticker": "HON", "effectiveDate": "2026-06-29", "factor": 2 }
+  ]
+}

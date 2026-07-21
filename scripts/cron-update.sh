@@ -123,10 +123,15 @@ log "fetching prices"
 npm run --silent fetch-prices
 
 # 2) Fast-tier digest re-render — substitutes live pcts from the new prices.json
-# into the templated game digests (1D / 1W / 1M). No AI, no RSS; just regex.
-# Skipped silently if digests.json doesn't exist yet (first run) or if no
-# templates are present (pre-Phase-3 file). Failures here never block the
-# price commit + push.
+# into the templated game digests (1D / 1W / 1M). No RSS. Normally no AI —
+# EXCEPT when the sign guard detects the morning narrative now contradicts the
+# live numbers (its "biggest drag" rallied), in which case it may regenerate
+# that one game window on PCC via the local fm serve, bounded to
+# DIGEST_REGEN_MAX (default 2) per window per day; if fm serve is down or the
+# cap is hit it rebuilds a neutral blurb deterministically instead. Skipped
+# silently if digests.json doesn't exist yet (first run) or if no templates
+# are present (pre-Phase-3 file). Failures here never block the price
+# commit + push.
 log "fast tier — re-rendering game digest templates"
 if ! swift "$SCRIPT_DIR/digest.swift" --output "$REPO_DIR/public/digests.json" --scope fast; then
   log "fast tier exited non-zero; continuing with the price push"
