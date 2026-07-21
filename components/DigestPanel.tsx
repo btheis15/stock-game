@@ -158,7 +158,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
 
   return (
     <div className="px-4 mt-3">
-      <div className="rounded-2xl bg-card border border-hairline overflow-hidden">
+      <div className="content-in rounded-2xl bg-card border border-hairline overflow-hidden">
         {/* Whole-card tap target. A div, not a button — the prose contains
             real links now, and nested interactive elements are invalid HTML.
             The "Show more" button below supplies keyboard access; taps on it
@@ -202,8 +202,17 @@ export function DigestPanel({ digest, loading, range }: Props) {
           </div>
         </div>
 
-        {expanded && (
-          <div className="px-4 pb-4 pt-1 border-t border-hairline">
+        {/* Height-animated reveal (grid-rows 0fr↔1fr) instead of a mount/
+            unmount pop — same technique as WhatsNew's accordion. */}
+        <div
+          className={`reveal ${expanded ? "is-open" : ""}`}
+          aria-hidden={!expanded}
+          // inert keeps the collapsed block's source links out of the tab
+          // order (the old conditional render unmounted them entirely).
+          inert={!expanded}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div className="px-4 pb-4 pt-1 border-t border-hairline">
             <DigestMeta digest={digest} range={range} />
             {digest.sources && digest.sources.length > 0 && (
               <div className="mt-3">
@@ -227,8 +236,9 @@ export function DigestPanel({ digest, loading, range }: Props) {
                 </ul>
               </div>
             )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

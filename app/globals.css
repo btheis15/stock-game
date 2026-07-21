@@ -67,6 +67,7 @@
   --dur-press: 140ms;
   --dur-fade: 220ms;
   --dur-slide: 320ms;
+  --dur-enter: 360ms; /* content entrances: chart draw-in, list staggers */
 
   /* Per-page accent — set by detail pages (portfolio/stock/fund) to the
      owning entity's color so range pills, holding flashes, and glows pick
@@ -189,13 +190,13 @@ html {
 }
 
 @keyframes overlayIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(4px); }
 }
 
 @keyframes overlayOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from { opacity: 1; backdrop-filter: blur(4px); }
+  to { opacity: 0; backdrop-filter: blur(0); }
 }
 
 .sheet-backdrop {
@@ -212,6 +213,84 @@ html {
 
 .sheet-panel.is-closing {
   animation: sheetOut var(--dur-slide) var(--ease-ios) forwards;
+}
+
+/* Chart draw-in — the line sweeps left-to-right on mount / range change.
+   Pure CSS via the pathLength=1 trick (ScrubChart sets pathLength + the
+   class; a keyed <g> remount replays it when the range flips). Ends well
+   before a human can start scrubbing and leaves no lingering state
+   (stroke-dashoffset rests at 0), so the §6 scrub contract is untouched.
+   The area fill fades in just behind the line. */
+@keyframes chartDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes chartAreaIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chart-line-draw {
+  stroke-dasharray: 1;
+  animation: chartDraw var(--dur-enter) var(--ease-out-ios) backwards;
+}
+
+.chart-area-in {
+  animation: chartAreaIn var(--dur-fade) var(--ease-out-ios) 120ms backwards;
+}
+
+/* Staggered list entrance — children rise in with a small per-row delay.
+   Mount-only by design: a re-sort reorders mounted children without
+   replaying the animation. Delays cap at the 10th child so long lists
+   don't crawl. */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-in > * {
+  animation: riseIn var(--dur-enter) var(--ease-out-ios) backwards;
+}
+
+.stagger-in > *:nth-child(2) { animation-delay: 28ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 56ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 84ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 112ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 140ms; }
+.stagger-in > *:nth-child(7) { animation-delay: 168ms; }
+.stagger-in > *:nth-child(8) { animation-delay: 196ms; }
+.stagger-in > *:nth-child(9) { animation-delay: 224ms; }
+.stagger-in > *:nth-child(n + 10) { animation-delay: 252ms; }
+
+/* Content entrance for cards that replace a skeleton (DigestPanel). */
+.content-in {
+  animation: riseIn var(--dur-fade) var(--ease-out-ios) backwards;
+}
+
+/* Expand/collapse via the grid-template-rows 0fr↔1fr technique (same as
+   WhatsNew's accordion) — height animates without measuring. The inner
+   wrapper needs overflow-hidden + min-h-0. */
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-slide) var(--ease-ios);
+}
+
+.reveal.is-open {
+  grid-template-rows: 1fr;
+}
+
+/* One-shot pop for the active tab icon (TabBar keys the icon by active
+   state so the animation replays on each tab switch). */
+@keyframes tabPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+.tab-icon-pop {
+  animation: tabPop calc(var(--dur-press) * 2) var(--ease-out-ios);
 }
 
 /* Press feedback — a subtle iOS tap-shrink. Applies to native interactive

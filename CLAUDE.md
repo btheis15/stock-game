@@ -686,6 +686,29 @@ Already converted to `<Sheet>`: **FilterSheet** (`components/FundsFilter.tsx`),
 **EditThesisModal** (both `full` sheets using the `footer` action-bar slot).
 Still on its own hand-rolled shell: **ManageFundsSheet**.
 
+### Content entrances (added 2026-07-21)
+
+A fourth motion job joined liveness/feedback/transitions: quick, one-shot
+content entrances, all CSS on the shared tokens (`--dur-enter: 360ms`):
+
+- **Chart draw-in** — ScrubChart's line paths carry `pathLength={1}` +
+  `.chart-line-draw` (stroke-dash sweep); the area fades in behind
+  (`.chart-area-in`). A `drawKey` derived from (series ids, point count,
+  first date) keys the path groups so a range switch remounts them and
+  replays the entrance. Scrub overlays and pointer handling live OUTSIDE
+  the keyed groups — the §6 scrub contract is untouched.
+- **`.stagger-in`** — children rise in with ≤28ms/row delays (nth-child,
+  capped at the 10th). Mount-only: re-sorts reorder mounted children
+  without replaying. On the leaderboard, holdings, stocks list.
+- **`.content-in`** — fade-up for cards replacing a skeleton (DigestPanel).
+- **`.reveal` / `.is-open`** — height animation via grid-template-rows
+  0fr↔1fr (same technique as WhatsNew); DigestPanel's expanded meta uses it
+  with `inert` on the collapsed state so hidden links leave the tab order.
+- **Tab bar**: active icon does a one-shot `tabPop` (keyed by active state)
+  and an accent dot fades in under the label; sheet backdrops blur in.
+- `.press` now also covers leaderboard rows, holdings rows, stocks-list
+  rows, and the digest card.
+
 ### Global reduced-motion guard (`app/globals.css`)
 
 A single `@media (prefers-reduced-motion: reduce)` block neutralizes all

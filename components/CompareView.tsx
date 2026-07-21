@@ -464,7 +464,7 @@ export function CompareView({
       />
 
       <div className="px-4 mt-2">
-        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {stats.map((s, i) => {
             // Gap = how far behind the leader in $ gain over the active range
             // (not raw portfolio diff — that would mix range performance with
@@ -654,7 +654,7 @@ function UserRow({
   return (
     <Link
       href={href}
-      className="block px-3 py-3 active:bg-card-40 transition-colors"
+      className="press block px-3 py-3 active:bg-card-40"
       style={leaderStyle}
     >
       <div className="flex items-center gap-3">{inner}</div>

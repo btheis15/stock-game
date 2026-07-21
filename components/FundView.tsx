@@ -250,7 +250,7 @@ export function FundView({
             loading — full value updates at the next refresh.
           </div>
         )}
-        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {sorted.map((h) => {
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
@@ -265,7 +265,7 @@ export function FundView({
               >
                 <Link
                   href={`/stock/${h.ticker}`}
-                  className="flex items-center gap-3 px-4 py-3 active:bg-pressed transition-colors"
+                  className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
                 >
                   <div className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3">
                     {h.ticker}

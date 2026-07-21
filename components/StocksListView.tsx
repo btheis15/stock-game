@@ -60,12 +60,12 @@ export function StocksListView({ series }: Props) {
       </div>
 
       <div className="px-4">
-        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {rows.map((r) => (
             <Link
               key={r.ticker}
               href={`/stock/${r.ticker}`}
-              className="flex items-center gap-3 px-4 py-3 active:bg-pressed transition-colors"
+              className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
             >
               <OwnerSwatch owners={r.owners} />
               <div className="flex-1 min-w-0">
