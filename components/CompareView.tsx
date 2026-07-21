@@ -29,6 +29,7 @@ import { GolfCountdown } from "./GolfCountdown";
 import { LeadTape } from "./LeadTape";
 import { Celebration } from "./Celebration";
 import { HeadToHead } from "./HeadToHead";
+import { ShareStandings } from "./ShareStandings";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
@@ -568,14 +569,18 @@ export function CompareView({
         </div>
       </div>
 
-      <div className="px-4 mt-2">
+      <div className="px-4 mt-2 grid grid-cols-2 gap-2">
         <button
           onClick={() => setH2hOpen(true)}
-          className="press w-full rounded-2xl bg-card border border-hairline px-4 py-2.5 flex items-center justify-between"
+          className="press rounded-2xl bg-card border border-hairline px-4 py-2.5 text-left"
         >
           <span className="text-[13px] font-semibold text-ink-2">⚔️ Head to head</span>
-          <span className="text-[11px] text-ink-faint">Compare any two players</span>
         </button>
+        <ShareStandings
+          entries={stats}
+          range={range}
+          className="press rounded-2xl bg-card border border-hairline px-4 py-2.5 text-left"
+        />
       </div>
 
       <InsightsCard analysis={analyses[range]} />

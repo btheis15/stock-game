@@ -973,7 +973,16 @@ components/                    Client components (mostly)
                                 callout, so a spin-off parent/child's price move doesn't read
                                 as an unexplained gain/loss. See STATE.md prices.json notes.
   TeeTimesView.tsx             Inshalla CC tee-time hand-off: quick-pick day chips deep-link into foreUP (new tab), plus Call-pro-shop + Daily Deals links. No iframe.
-  ThemeController.tsx          Toggles light/dark theme based on isMarketLive.
+  ThemeController.tsx          Toggles dark/light/twilight by market session; ?theme= QA override.
+  MotionProvider.tsx           MotionConfig reducedMotion="user" for all framer springs.
+  AnimatedList.tsx             AnimatedRow — FLIP re-ranking for leaderboard/holdings/stocks rows.
+  AnimatedNumber.tsx           rAF count-up for hero/leaderboard numbers (raw during scrubs).
+  Sparkline.tsx                Dumb SVG polyline for list-row trends.
+  GolfCountdown.tsx            5-year-bet progress bar in Game rules.
+  LeadTape.tsx                 Who-led-when stripe + reign records (lib/rank-history.ts).
+  Celebration.tsx              ALL-time-lead confetti + banner (sessionStorage one-shot).
+  HeadToHead.tsx               Two-player VS sheet (chart, win record, shared holdings).
+  ShareStandings.tsx           Canvas leaderboard card → iOS share sheet / PNG download.
   Sheet.tsx                    Reusable iOS bottom-sheet primitive (portal, CSS slide-up/down, content-height or `full` detent, optional pinned `footer` action bar, no drag-to-dismiss). Used by FilterSheet (FundsFilter.tsx), WhatsNew, CreateFundModal + EditThesisModal (`full` + `footer`); ManageFundsSheet still on its own shell.
   WhatsNew.tsx                 Bell + "What's new" recent-updates sheet via <Sheet> (last-30-days changelog; accordion is a CSS grid-rows transition, moved off framer-motion).
   RangeTabs / TabBar / HeaderBack / PriceHeader / Footer / InstallHint / PullToRefresh / MarketStateBadge
