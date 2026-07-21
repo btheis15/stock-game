@@ -31,6 +31,7 @@ import {
   type CompEntity,
   type IntradayResult,
 } from "./comparisonOverlays";
+import { spinoffRowSuffix } from "./SpinoffNote";
 
 export type { CompSeries } from "./comparisonOverlays";
 
@@ -294,6 +295,9 @@ export function PortfolioView({
                     </div>
                     <div className="text-[11px] text-zinc-500 tabular-nums">
                       {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
+                      {spinoffRowSuffix(h.ticker) && (
+                        <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(h.ticker)}</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">

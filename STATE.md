@@ -99,6 +99,7 @@ Notes:
 - `intraday[].t` and `weekly[].t` are full ISO UTC (`2026-05-05T19:30:00.000Z`); `closes[].date` is `YYYY-MM-DD`. The chart distinguishes by `date.length > 10`.
 - `weekly` bars come at hour boundaries (`:30:00.000Z` for US-market alignment). Yahoo also returns a "live current-quote" bar with the actual second-of-now timestamp when fetched mid-hour — the render-time `isHourBoundaryBar` filter in `lib/portfolio.ts` drops these so all 1W plot points are at consistent hourly intervals.
 - Spin-offs + reverse splits go in `lib/events.ts`. A spin-off child is fetched as if it had a START_DATE of its `effectiveDate` (no backtracked history — value is purely additive from listing day forward). Children are surfaced as first-class holdings/stocks via `SPINOFF_CHILD_TICKERS` + the derived-ownership augmentation in `TICKER_OWNERS`, **without** being added to any user's `tickers` array (that would change `perHoldingDollars` = $100k/N and dilute the user's other picks). Currently populated: **HON → HONA** (Honeywell Aerospace, ratio 0.5, effective 2026-06-29) plus the bundled **HON 1-for-2 reverse split** (`REVERSE_SPLITS`, same date).
+- **Display-side spin-off callouts** (`components/SpinoffNote.tsx`, added 2026-07-21): the parent's own price/return legitimately drops by ~the value that moved to the child (that's real, per the bullet above), but shown in isolation — a bare holding-row pct, a stock-list return-since-inception, or an InsightsCard mover — it reads as an unexplained loss (HON's since-inception return is ~-50% on its own). `spinoffNoteFor(ticker)` (`lib/events.ts`) looks up either side of a spin-off; `spinoffRowSuffix` appends a short " · split off HONA Jun 29" / " · new from HON spin-off" tag to list-row subtitles in `PortfolioView`, `StocksListView`, and `InsightsCard`'s mover rows, and `SpinoffBanner` renders a full explanatory callout on `/stock/[ticker]` (both HON and HONA) right before the owner PositionCards, where the isolated "Total return" number is most likely to be misread.
 
 ### `public/digests.json`
 
@@ -968,6 +969,9 @@ components/                    Client components (mostly)
   StocksListView.tsx           Filterable ticker list.
   DigestPanel.tsx              Per-stock news-digest card (Robinhood-style).
   InsightsCard.tsx             "What's driving it" per-user breakdown, ranked.
+  SpinoffNote.tsx              spinoffRowSuffix() list-row tag + <SpinoffBanner> stock-page
+                                callout, so a spin-off parent/child's price move doesn't read
+                                as an unexplained gain/loss. See STATE.md prices.json notes.
   TeeTimesView.tsx             Inshalla CC tee-time hand-off: quick-pick day chips deep-link into foreUP (new tab), plus Call-pro-shop + Daily Deals links. No iframe.
   ThemeController.tsx          Toggles light/dark theme based on isMarketLive.
   Sheet.tsx                    Reusable iOS bottom-sheet primitive (portal, CSS slide-up/down, content-height or `full` detent, optional pinned `footer` action bar, no drag-to-dismiss). Used by FilterSheet (FundsFilter.tsx), WhatsNew, CreateFundModal + EditThesisModal (`full` + `footer`); ManageFundsSheet still on its own shell.

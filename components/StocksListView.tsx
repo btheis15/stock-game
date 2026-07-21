@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { fmtPct, fmtUSD } from "@/lib/portfolio";
 import { TICKER_OWNERS, USER_LIST, USERS, type UserId } from "@/lib/picks";
 import type { TickerSeries } from "@/lib/types";
+import { spinoffRowSuffix } from "./SpinoffNote";
 
 interface Props {
   series: TickerSeries[];
@@ -74,6 +75,9 @@ export function StocksListView({ series }: Props) {
                 </div>
                 <div className="text-[11px] text-zinc-500 tabular-nums">
                   {fmtUSD(r.last, 2)}
+                  {spinoffRowSuffix(r.ticker) && (
+                    <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(r.ticker)}</span>
+                  )}
                 </div>
               </div>
               <div

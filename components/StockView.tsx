@@ -24,6 +24,7 @@ import { TICKER_OWNERS, USERS, type UserId } from "@/lib/picks";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
 import { FundamentalsPanel } from "./FundamentalsPanel";
+import { SpinoffBanner } from "./SpinoffNote";
 import { useDigests } from "@/lib/digests";
 import type { TickerFundamentals } from "@/lib/types";
 
@@ -121,6 +122,8 @@ export function StockView({ series, intradayDate, generatedAt, fundamentals, own
         loading={digestsLoading}
         range={range}
       />
+
+      <SpinoffBanner ticker={series.ticker} />
 
       {owners.length === 0 ? (
         <div className="px-4 mt-3 text-[12px] text-zinc-500">

@@ -94,6 +94,27 @@ export function spinoffForChild(child: string): SpinoffEvent | undefined {
   return SPINOFFS.find((s) => s.childTicker === child);
 }
 
+export interface SpinoffNote {
+  role: "parent" | "child";
+  event: SpinoffEvent;
+}
+
+/**
+ * Ticker-keyed lookup for display code: is this ticker on either side of a
+ * spin-off? Lets holdings lists, the stock detail page, and mover rows caption
+ * a price move that's actually a corporate-action reclassification (value
+ * moving to/from a sibling ticker) instead of showing a bare, misleading pct
+ * (e.g. HON's ~50% "drop" on the HONA spin-off date, which is really value
+ * that moved to HONA, not a loss).
+ */
+export function spinoffNoteFor(ticker: string): SpinoffNote | null {
+  const asParent = spinoffsForParent(ticker)[0];
+  if (asParent) return { role: "parent", event: asParent };
+  const asChild = spinoffForChild(ticker);
+  if (asChild) return { role: "child", event: asChild };
+  return null;
+}
+
 /**
  * Cumulative factor to divide Yahoo's reported close for `ticker` by, given
  * the run date `asOf`. Returns 1 for tickers/dates with no effective split, so

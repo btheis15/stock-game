@@ -4,6 +4,7 @@ import Link from "next/link";
 import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/portfolio";
 import type { RangeAnalysis, RangeMover } from "@/lib/types";
 import { TICKER_NAMES, USER_LIST, USERS, type UserId } from "@/lib/picks";
+import { spinoffRowSuffix } from "./SpinoffNote";
 
 const MAX_PER_LIST = 3;
 
@@ -136,6 +137,9 @@ function MoverRow({ mover }: { mover: RangeMover }) {
         </div>
         <div className="text-[11px] text-zinc-500 truncate">
           {TICKER_NAMES[mover.ticker] ?? ""}
+          {spinoffRowSuffix(mover.ticker) && (
+            <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(mover.ticker)}</span>
+          )}
         </div>
       </div>
       <div className="text-right shrink-0">
