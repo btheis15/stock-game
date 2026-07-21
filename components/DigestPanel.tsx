@@ -175,7 +175,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
                 {(digest.narrativeGeneratedAt ?? digest.generatedAt) && (
                   <RelativeTime
                     iso={digest.narrativeGeneratedAt ?? digest.generatedAt}
-                    className="ml-1.5 font-normal normal-case tracking-normal text-[10px] text-zinc-600"
+                    className="ml-1.5 font-normal normal-case tracking-normal text-[10px] text-ink-ghost"
                   />
                 )}
               </span>
