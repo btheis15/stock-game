@@ -422,68 +422,43 @@ is open (`Date.now() − latestIntradayBar < 30 min` — the same rule as
 `isMarketLive`). It re-evaluates every 60 seconds so the page flips
 when the market crosses open/close without a reload.
 
-**Semantic design tokens (added 2026-07-21 — the migration target).**
-`globals.css` now defines a semantic token layer — surface tokens
+**Semantic design tokens (migration COMPLETE 2026-07-21).** Theming is
+variable-driven: `globals.css` defines surface tokens
 (`--surface-page/chrome/card/raised/pressed/…`), text tokens
 (`--ink`, `--ink-2/3/muted/faint/ghost/ghost-2`), and border tokens
-(`--border-hairline/deep/strong/ghost`) — assigned per theme in `:root`,
-`[data-theme="light"]`, and `[data-theme="twilight"]`, and exposed as
-Tailwind utilities via `@theme inline` (`bg-card`, `bg-chrome`,
+(`--border-hairline/hairline-70/deep/strong/ghost`) — assigned wholesale in
+`:root` (dark), `[data-theme="light"]`, and `[data-theme="twilight"]`, and
+exposed as Tailwind utilities via `@theme inline` (`bg-card`, `bg-chrome`,
 `text-ink-muted`, `border-hairline`, `border-hairline-deep`,
-`border-edge-strong`, …). Token values were copied EXACTLY from the legacy
-per-utility overrides, so a migrated component is pixel-identical in all
-three themes. **New components should use the semantic utilities, not raw
-zinc classes.** Two rules: (1) never put an opacity modifier on a semantic
-token (`bg-card/50` recreates the whack-a-mole — mint a new token in all
-three theme blocks instead); (2) when you add a token, also add its
-utility class to the theme-transition selector group at the bottom of
-`globals.css`. The app chrome (layout, TabBar, HeaderBack, Footer, Sheet,
-InstallHint, MarketStateBadge) is migrated; the remaining components still
-use the legacy overrides below until the full migration lands.
+`border-edge-strong`, `divide-hairline`, …). Every component uses these;
+the old per-utility `!important` override blocks are GONE. Token values
+were copied exactly from those overrides, so the migration was
+pixel-identical. Three rules:
+
+1. **Markup never uses raw zinc/black/white color utilities** —
+   `npm run check-theme` (denylist mode) fails on any
+   `bg|text|border|divide|decoration|ring|placeholder`-`black|white|zinc-N`
+   in `components/` + `app/`, in ANY variant (`hover:` included — semantic
+   utilities theme interaction states too). The only exceptions are the
+   `ALLOWLIST` entries in `scripts/check-theme-coverage.sh` (inverted white
+   pills, modal scrim), each with a justification.
+2. **Never put an opacity modifier on a semantic token** (`bg-card/50`) —
+   the guard fails on that too. Each translucency is its own token,
+   assigned in all three theme blocks (that's what killed the historical
+   "overridden `/50` and `/70` but not `/60`" bug for good).
+3. **When you mint a token**: assign it in all three theme blocks, map it
+   in `@theme inline`, and add its utility class to the theme-transition
+   selector group at the bottom of `globals.css` so it cross-fades at
+   session flips.
+
+The guard runs in CI (`.github/workflows/build.yml` `theme-coverage` job)
+and the pre-push hook alongside `npm run build`.
 
 **Theme QA override.** `ThemeController` honors `?theme=light|twilight|dark`
 (persisted to localStorage; `?theme=auto` returns control to the market
 clock). This is the fast way to eyeball all three themes — the 60s session
 re-apply no longer fights DevTools edits. Left enabled in production
 deliberately, for reproducing theme reports on-device.
-
-The legacy system below still covers un-migrated components: `globals.css`
-defines the light overrides as targeted utility-class overrides under
-`:root[data-theme="light"]`. The covered classes are exactly what the
-codebase uses today plus their `/N` opacity variants. If you must touch an
-un-migrated component without converting it, reuse those existing
-utilities — they flip themes automatically. New hex literals (e.g.
-`bg-[#xxx]`) won't.
-
-> **⚠ Recurring bug — the #1 thing to get right when adding a feature.**
-> A dark-surface utility only theme-flips if it has an override under
-> **both** `:root[data-theme="light"]` *and* `:root[data-theme="twilight"]`
-> in `globals.css`. The trap is **opacity variants**: the codebase had
-> `.bg-zinc-900\/50` and `.bg-zinc-900\/70` overridden but not `\/60`, so
-> the "What's new" button (`bg-zinc-900/60 border-zinc-700`) rendered as
-> muddy dark-grey-on-light in light mode while looking fine in the dark
-> default. `border-zinc-700`, `bg-zinc-800/70`, `bg-zinc-900/40`, and
-> `text-zinc-100` had the same latent gap. Each opacity variant and each
-> shade is a *separate* selector — adding `.bg-zinc-900` does not cover
-> `.bg-zinc-900\/60`.
->
-> **This is now enforced, not just documented.** `npm run check-theme`
-> (`scripts/check-theme-coverage.sh`) greps every base dark-surface
-> utility used in `components/` + `app/`, diffs it against the override
-> selectors in `globals.css`, and fails if anything is uncovered in
-> either theme. It runs in CI (`.github/workflows/build.yml`
-> `theme-coverage` job) and in the pre-push hook alongside `npm run
-> build`. When it fails you have three options, in order of preference:
-> (1) switch the markup to an already-covered utility; (2) add the class
-> to **both** the light and twilight override blocks (and to the
-> transition-group selector at the bottom of `globals.css` so it animates
-> at the flip); (3) if the class is genuinely theme-independent (an
-> inverted white pill, a modal scrim), add it to `ALLOWLIST` in the
-> script *with a one-line justification*. Interaction/responsive variants
-> (`hover:`/`active:`/`focus:`/`sm:`) are intentionally out of scope —
-> Tailwind emits them as separate classes the overrides don't match, and
-> they're transient desktop-only states, not the always-on surface colors
-> that cause the visible bug.
 
 The Robinhood-light palette is intentionally muted so brand colors
 (player accents + gain-green / loss-red) stay readable on white. The

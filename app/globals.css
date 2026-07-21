@@ -49,6 +49,7 @@
 
   /* Borders */
   --border-hairline: #27272a;               /* was border-zinc-800 / divide-zinc-800 */
+  --border-hairline-70: rgb(39 39 42 / 0.7); /* was divide-zinc-800/70 */
   --border-deep: #18181b;                   /* was border-zinc-900 */
   --border-strong: #3f3f46;                 /* was border-zinc-700 */
   --border-strong-60: rgb(63 63 70 / 0.6);  /* was border-zinc-700/60 */
@@ -253,6 +254,7 @@ button {
   --color-ink-ghost: var(--ink-ghost);
   --color-ink-ghost-2: var(--ink-ghost-2);
   --color-hairline: var(--border-hairline);
+  --color-hairline-70: var(--border-hairline-70);
   --color-hairline-deep: var(--border-deep);
   --color-edge-strong: var(--border-strong);
   --color-edge-strong-60: var(--border-strong-60);
@@ -261,14 +263,14 @@ button {
 
 /*
  * LIGHT THEME — toggled by ThemeController on <html data-theme="light">
- * when the market is open. The toggle target is the entire app surface, so
- * rather than rewriting every component we override the small set of zinc /
- * black / white utility classes the codebase actually uses (see grep audit).
+ * when the market is open. Reassigns the semantic tokens wholesale; every
+ * component reads them via the @theme utilities (bg-card, text-ink, …), so
+ * there are no per-utility overrides anymore.
  *
  * Color palette is Robinhood-Light-inspired: zinc-50 page bg, white cards,
- * zinc-200 borders, zinc-900 primary text, zinc-600/500 muted text. Brand
- * accents (player colors, gain green, loss red) stay identical so the chart
- * lines and badges read the same across themes.
+ * zinc-200 borders, zinc-900 primary text, muted grays for secondary text.
+ * Brand accents (player colors, gain green, loss red) stay identical so the
+ * chart lines and badges read the same across themes.
  *
  * `color-scheme: light` tells iOS Safari to render scrollbars / form chrome
  * in light mode and adjusts the system status-bar overlay.
@@ -282,7 +284,7 @@ button {
   --chart-axis-label: rgba(24, 24, 27, 0.55);
   color-scheme: light;
 
-  /* Semantic tokens — values identical to the legacy utility overrides below. */
+  /* Semantic tokens — values carried over from the retired per-utility overrides. */
   --surface-page: #fafafa;
   --surface-solid: #fafafa;
   --surface-chrome: rgb(255 255 255 / 0.92);
@@ -308,95 +310,20 @@ button {
   --ink-ghost: #a1a1aa;
   --ink-ghost-2: #d4d4d8;
   --border-hairline: #e4e4e7;
+  --border-hairline-70: #e4e4e7;
   --border-deep: #e4e4e7;
   --border-strong: #e4e4e7;
   --border-strong-60: #e4e4e7;
   --border-ghost: #e4e4e7;
 }
 
-:root[data-theme="light"] .bg-black,
-:root[data-theme="light"] .bg-zinc-950 {
-  background-color: #fafafa !important; /* zinc-50 page */
-}
-
-:root[data-theme="light"] .bg-black\/85,
-:root[data-theme="light"] .bg-black\/95 {
-  background-color: rgb(255 255 255 / 0.92) !important;
-}
-
-:root[data-theme="light"] .bg-zinc-900,
-:root[data-theme="light"] .bg-zinc-900\/95,
-:root[data-theme="light"] .bg-zinc-900\/70,
-:root[data-theme="light"] .bg-zinc-900\/60,
-:root[data-theme="light"] .bg-zinc-900\/50,
-:root[data-theme="light"] .bg-zinc-900\/40 {
-  background-color: #ffffff !important; /* card surface */
-}
-
-:root[data-theme="light"] .bg-zinc-800,
-:root[data-theme="light"] .bg-zinc-800\/80,
-:root[data-theme="light"] .bg-zinc-800\/70 {
-  background-color: #f4f4f5 !important; /* zinc-100 — small pills, ticker badges */
-}
-
-:root[data-theme="light"] .bg-zinc-800\/60,
-:root[data-theme="light"] .bg-zinc-800\/40 {
-  background-color: rgb(228 228 231 / 0.7) !important; /* zinc-200/70 — pressed state */
-}
-
-:root[data-theme="light"] .bg-zinc-700 {
-  background-color: #d4d4d8 !important; /* zinc-300 */
-}
-
-:root[data-theme="light"] .bg-zinc-600 {
-  background-color: #a1a1aa !important; /* zinc-400 — closed-state pulse dot */
-}
-
-:root[data-theme="light"] .text-white,
-:root[data-theme="light"] .text-zinc-100 {
-  color: #18181b !important; /* zinc-900 */
-}
-
-:root[data-theme="light"] .text-zinc-200 {
-  color: #27272a !important; /* zinc-800 */
-}
-
-:root[data-theme="light"] .text-zinc-300 {
-  color: #3f3f46 !important; /* zinc-700 */
-}
-
-:root[data-theme="light"] .text-zinc-400 {
-  color: #52525b !important; /* zinc-600 */
-}
-
 /* zinc-500 is mid-gray and reads OK on both backgrounds; keep as-is. */
-
-:root[data-theme="light"] .text-zinc-600 {
-  color: #a1a1aa !important; /* zinc-400 — subtler captions */
-}
-
-:root[data-theme="light"] .text-zinc-700 {
-  color: #d4d4d8 !important; /* zinc-300 — subtlest text */
-}
-
-:root[data-theme="light"] .border-zinc-800,
-:root[data-theme="light"] .border-zinc-900,
-:root[data-theme="light"] .border-zinc-700,
-:root[data-theme="light"] .border-zinc-700\/60,
-:root[data-theme="light"] .border-zinc-600 {
-  border-color: #e4e4e7 !important; /* zinc-200 */
-}
 
 /* Tailwind v4 implements divide-y with `border-bottom: 1px` on every child
    except :last-child. The previous Tailwind v3 selector used `~` (every
    child except :first-child). Match BOTH patterns so the override is
    future-proof against either implementation, and use `> *` as a fallback
    to catch any child that has a border set on it. */
-:root[data-theme="light"] .divide-zinc-800 > *,
-:root[data-theme="light"] .divide-zinc-800\/70 > * {
-  border-color: #e4e4e7 !important; /* zinc-200 */
-}
-
 /*
  * TWILIGHT THEME — toggled by ThemeController on
  * <html data-theme="twilight"> during pre-market (7:00 - 9:30 AM ET) and
@@ -404,9 +331,7 @@ button {
  * deep-blue palette that visually sits between the dark default (closed)
  * and the light theme (regular hours) — evokes dawn / dusk.
  *
- * Same override strategy as the light theme: remap the small set of zinc /
- * black utility classes the codebase uses instead of introducing new
- * tokens.
+ * Same strategy as the light theme: reassign the semantic tokens wholesale.
  */
 :root[data-theme="twilight"] {
   --background: #0b1024; /* deep midnight indigo */
@@ -416,7 +341,7 @@ button {
   --chart-axis-label: rgba(199, 210, 254, 0.55);
   color-scheme: dark;
 
-  /* Semantic tokens — values identical to the legacy utility overrides below. */
+  /* Semantic tokens — values carried over from the retired per-utility overrides. */
   --surface-page: #0b1024;
   --surface-solid: #0b1024;
   --surface-chrome: rgb(11 16 36 / 0.92);
@@ -442,96 +367,16 @@ button {
   --ink-ghost: #6b75ad;
   --ink-ghost-2: #4b5895;
   --border-hairline: #283260;
+  --border-hairline-70: #283260;
   --border-deep: #283260;
   --border-strong: #283260;
   --border-strong-60: #283260;
   --border-ghost: #283260;
 }
 
-:root[data-theme="twilight"] .bg-black,
-:root[data-theme="twilight"] .bg-zinc-950 {
-  background-color: #0b1024 !important; /* page bg */
-}
-
-:root[data-theme="twilight"] .bg-black\/85,
-:root[data-theme="twilight"] .bg-black\/95 {
-  background-color: rgb(11 16 36 / 0.92) !important;
-}
-
-:root[data-theme="twilight"] .bg-zinc-900,
-:root[data-theme="twilight"] .bg-zinc-900\/95,
-:root[data-theme="twilight"] .bg-zinc-900\/70,
-:root[data-theme="twilight"] .bg-zinc-900\/60,
-:root[data-theme="twilight"] .bg-zinc-900\/50,
-:root[data-theme="twilight"] .bg-zinc-900\/40 {
-  background-color: #161e3d !important; /* card surface — indigo-950 leaning */
-}
-
-:root[data-theme="twilight"] .bg-zinc-800,
-:root[data-theme="twilight"] .bg-zinc-800\/80,
-:root[data-theme="twilight"] .bg-zinc-800\/70 {
-  background-color: #1f2a52 !important; /* small pills, ticker badges */
-}
-
-:root[data-theme="twilight"] .bg-zinc-800\/60,
-:root[data-theme="twilight"] .bg-zinc-800\/40 {
-  background-color: rgb(31 42 82 / 0.7) !important; /* pressed state */
-}
-
-:root[data-theme="twilight"] .bg-zinc-700 {
-  background-color: #2d3a6b !important;
-}
-
-:root[data-theme="twilight"] .bg-zinc-600 {
-  background-color: #4b5895 !important; /* closed-state dot */
-}
-
-:root[data-theme="twilight"] .text-white,
-:root[data-theme="twilight"] .text-zinc-100 {
-  color: #e0e7ff !important; /* indigo-100 */
-}
-
-:root[data-theme="twilight"] .text-zinc-200 {
-  color: #c7d2fe !important; /* indigo-200 */
-}
-
-:root[data-theme="twilight"] .text-zinc-300 {
-  color: #a5b4fc !important; /* indigo-300 */
-}
-
-:root[data-theme="twilight"] .text-zinc-400 {
-  color: #818cf8 !important; /* indigo-400 — muted captions */
-}
-
-:root[data-theme="twilight"] .text-zinc-500 {
-  color: #8b94c8 !important; /* cool muted */
-}
-
-:root[data-theme="twilight"] .text-zinc-600 {
-  color: #6b75ad !important;
-}
-
-:root[data-theme="twilight"] .text-zinc-700 {
-  color: #4b5895 !important; /* subtlest */
-}
-
-:root[data-theme="twilight"] .border-zinc-800,
-:root[data-theme="twilight"] .border-zinc-900,
-:root[data-theme="twilight"] .border-zinc-700,
-:root[data-theme="twilight"] .border-zinc-700\/60,
-:root[data-theme="twilight"] .border-zinc-600 {
-  border-color: #283260 !important; /* indigo-tinted divider */
-}
-
-:root[data-theme="twilight"] .divide-zinc-800 > *,
-:root[data-theme="twilight"] .divide-zinc-800\/70 > * {
-  border-color: #283260 !important;
-}
-
 /* Smooth surface/text transitions when the theme flips at session boundaries.
-   Semantic-token utilities (bg-card, text-ink, …) are listed alongside the
-   legacy zinc utilities; once PR-2 finishes the migration the zinc half of
-   this list goes away. */
+   Every semantic-token utility class is listed; when you mint a new token,
+   add its utility here so it cross-fades at the flip. */
 .bg-page,
 .bg-solid,
 .bg-chrome,
@@ -561,32 +406,7 @@ button {
 .border-edge-strong,
 .border-edge-ghost,
 :root,
-body,
-.bg-black,
-.bg-zinc-950,
-.bg-zinc-900,
-.bg-zinc-900\/95,
-.bg-zinc-900\/70,
-.bg-zinc-900\/60,
-.bg-zinc-900\/50,
-.bg-zinc-900\/40,
-.bg-zinc-800,
-.bg-zinc-800\/80,
-.bg-zinc-800\/70,
-.bg-zinc-800\/60,
-.bg-zinc-800\/40,
-.text-white,
-.text-zinc-100,
-.text-zinc-200,
-.text-zinc-300,
-.text-zinc-400,
-.text-zinc-500,
-.text-zinc-600,
-.text-zinc-700,
-.border-zinc-800,
-.border-zinc-900,
-.border-zinc-700,
-.border-zinc-600 {
+body {
   transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
 }
 

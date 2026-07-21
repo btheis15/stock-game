@@ -126,7 +126,7 @@ export function StockView({ series, intradayDate, generatedAt, fundamentals, own
       <SpinoffBanner ticker={series.ticker} />
 
       {owners.length === 0 ? (
-        <div className="px-4 mt-3 text-[12px] text-zinc-500">
+        <div className="px-4 mt-3 text-[12px] text-ink-faint">
           Not held by any player.
         </div>
       ) : (
@@ -151,17 +151,17 @@ export function StockView({ series, intradayDate, generatedAt, fundamentals, own
 
       {dividends.length > 0 && (
         <div className="px-4 mt-5">
-          <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">
+          <h2 className="text-[15px] font-semibold text-ink-3 mb-2">
             Dividends per share
           </h2>
-          <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800">
+          <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline">
             {dividends.map((d) => (
               <div
                 key={d.date}
                 className="flex items-center justify-between px-4 py-3"
               >
-                <span className="text-[13px] text-zinc-400">{fmtDateShort(d.date)}</span>
-                <span className="text-[14px] tabular-nums text-white">
+                <span className="text-[13px] text-ink-muted">{fmtDateShort(d.date)}</span>
+                <span className="text-[14px] tabular-nums text-ink">
                   {fmtUSD(d.amount, 4)} per share
                 </span>
               </div>
@@ -195,17 +195,17 @@ function PositionCard({
   const plPct = costBasis === 0 ? 0 : pl / costBasis;
 
   return (
-    <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800">
+    <div className="rounded-2xl bg-card border border-hairline overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-hairline">
         <span
           className="w-2.5 h-2.5 rounded-full"
           style={{ backgroundColor: owner.color }}
         />
-        <span className="text-[13px] font-semibold text-white">
+        <span className="text-[13px] font-semibold text-ink">
           {owner.name}'s position
         </span>
       </div>
-      <div className="divide-y divide-zinc-800">
+      <div className="divide-y divide-hairline">
         <Row label="Shares" value={fmtShares(shares)} />
         <Row label="Cost basis" value={fmtUSD(costBasis)} />
         <Row label="Bought at" value={fmtUSD(series.startClose, 2)} />
@@ -214,7 +214,7 @@ function PositionCard({
           <Row
             label="Dividends received"
             valueNode={
-              <span className="text-white tabular-nums font-semibold">
+              <span className="text-ink tabular-nums font-semibold">
                 {fmtUSD(divCash)}
               </span>
             }
@@ -247,8 +247,8 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-[13px] text-zinc-400">{label}</span>
-      <span className={`text-[14px] tabular-nums text-white ${bold ? "font-semibold" : ""}`}>
+      <span className="text-[13px] text-ink-muted">{label}</span>
+      <span className={`text-[14px] tabular-nums text-ink ${bold ? "font-semibold" : ""}`}>
         {valueNode ?? value}
       </span>
     </div>

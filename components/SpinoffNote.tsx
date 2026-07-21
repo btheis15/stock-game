@@ -40,7 +40,7 @@ export function SpinoffBanner({ ticker }: { ticker: string }) {
 
   return (
     <div className="px-4 mt-3">
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 px-4 py-3 text-[12px] leading-snug text-zinc-400">
+      <div className="rounded-2xl bg-card border border-hairline px-4 py-3 text-[12px] leading-snug text-ink-muted">
         <span style={{ color: NOTE_COLOR }} className="font-semibold">
           Spin-off note —{" "}
         </span>

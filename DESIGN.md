@@ -44,6 +44,19 @@ to dazzle once.
 
 **Don't use zinc-950 or near-black.** Use actual `#000`. The visual difference matters: charts and cards lift off a true black background better.
 
+**Reference colors through semantic tokens, not raw utilities (2026-07-21).**
+The table above describes the DARK palette; the app has three themes (dark /
+light / twilight) driven by semantic CSS variables assigned per theme in
+`app/globals.css` and exposed as Tailwind utilities: surfaces (`bg-page`,
+`bg-card`, `bg-card-solid`, `bg-raised`, `bg-pressed`, `bg-chrome`, …), text
+(`text-ink`, `text-ink-2/3`, `text-ink-muted`, `text-ink-faint`,
+`text-ink-ghost`), borders (`border-hairline`, `border-edge-strong`,
+`divide-hairline`). Raw zinc/black/white utilities are BANNED in markup
+(`npm run check-theme` fails the build), as are opacity modifiers on semantic
+tokens (`bg-card/50` — mint a token instead). Porting this system elsewhere:
+copy the token blocks + the guard script, then write components against the
+semantic utilities only.
+
 **Accent colors are personal-identity, not categorical.** Same player = same color everywhere (line on chart, border on card, text in places). This is the visual handle the user grabs onto.
 
 **Gain/loss colors are universal, never overridden.** Even a player with a green personal accent shows red text when their number is negative. Don't mix the two language systems.

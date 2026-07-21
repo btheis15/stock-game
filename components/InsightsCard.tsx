@@ -14,7 +14,7 @@ export function InsightsCard({ analysis }: { analysis: RangeAnalysis }) {
   );
   return (
     <div className="px-4 mt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">What's driving it</h2>
+      <h2 className="text-[15px] font-semibold text-ink-3 mb-2">What's driving it</h2>
       <div className="space-y-3">
         {ranked.map((u, i) => (
           <UserPerformersCard
@@ -60,16 +60,16 @@ function UserPerformersCard({
   const pctColor = rangePct >= 0 ? "#00C805" : "#FF453A";
 
   return (
-    <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
+    <div className="rounded-2xl bg-card border border-hairline p-4">
       <Link
         href={`/portfolio/${userId}`}
-        className="flex items-center gap-2 mb-3 -mx-1 px-1 py-1 rounded-md active:bg-zinc-800/40 transition-colors"
+        className="flex items-center gap-2 mb-3 -mx-1 px-1 py-1 rounded-md active:bg-pressed-40 transition-colors"
       >
         <span
           className="w-2.5 h-2.5 rounded-full"
           style={{ backgroundColor: user.color }}
         />
-        <span className="font-semibold text-[14px] text-white">{user.name}</span>
+        <span className="font-semibold text-[14px] text-ink">{user.name}</span>
         <span className="text-[12px] tabular-nums font-semibold ml-1" style={{ color: pctColor }}>
           {fmtPct(rangePct)}
         </span>
@@ -86,7 +86,7 @@ function UserPerformersCard({
       </Link>
 
       {top.length === 0 && bottom.length === 0 ? (
-        <p className="text-[12px] text-zinc-500">Flat across the board this range.</p>
+        <p className="text-[12px] text-ink-faint">Flat across the board this range.</p>
       ) : (
         <div className="space-y-3">
           {top.length > 0 && <Section label="Top performers" items={top} />}
@@ -108,10 +108,10 @@ function Section({
 }) {
   return (
     <div>
-      <h3 className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1.5">
+      <h3 className="text-[10px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-1.5">
         {label}
       </h3>
-      <div className="divide-y divide-zinc-800/70">
+      <div className="divide-y divide-hairline-70">
         {items.map((m) => (
           <MoverRow key={m.ticker} mover={m} />
         ))}
@@ -126,16 +126,16 @@ function MoverRow({ mover }: { mover: RangeMover }) {
   return (
     <Link
       href={`/stock/${mover.ticker}`}
-      className="flex items-center gap-3 py-2 active:bg-zinc-800/40 transition-colors"
+      className="flex items-center gap-3 py-2 active:bg-pressed-40 transition-colors"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[13px] font-semibold text-white">{mover.ticker}</span>
-          <span className="text-[11px] text-zinc-500 tabular-nums">
+          <span className="text-[13px] font-semibold text-ink">{mover.ticker}</span>
+          <span className="text-[11px] text-ink-faint tabular-nums">
             {fmtUSD(mover.price, 2)}
           </span>
         </div>
-        <div className="text-[11px] text-zinc-500 truncate">
+        <div className="text-[11px] text-ink-faint truncate">
           {TICKER_NAMES[mover.ticker] ?? ""}
           {spinoffRowSuffix(mover.ticker) && (
             <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(mover.ticker)}</span>

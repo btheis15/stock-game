@@ -108,18 +108,18 @@ function AboutCard({ fundamentals: f }: { fundamentals: TickerFundamentals }) {
 
   return (
     <div className="px-4">
-      <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">About</h2>
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4 space-y-4">
+      <h2 className="text-[15px] font-semibold text-ink-3 mb-2">About</h2>
+      <div className="rounded-2xl bg-card border border-hairline p-4 space-y-4">
         {description && (
           <div>
-            <p className="text-[13px] leading-relaxed text-zinc-300 whitespace-pre-line">
+            <p className="text-[13px] leading-relaxed text-ink-3 whitespace-pre-line">
               {truncated}
             </p>
             {description.length > 400 && (
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="mt-2 text-[12px] text-zinc-500 hover:text-zinc-300"
+                className="mt-2 text-[12px] text-ink-faint hover:text-ink-3"
               >
                 {expanded ? "Show less" : "Show more"}
               </button>
@@ -130,10 +130,10 @@ function AboutCard({ fundamentals: f }: { fundamentals: TickerFundamentals }) {
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1">
             {populated.map(([label, value]) => (
               <div key={label} className="flex flex-col">
-                <dt className="text-[11px] uppercase tracking-wide text-zinc-500">
+                <dt className="text-[11px] uppercase tracking-wide text-ink-faint">
                   {label}
                 </dt>
-                <dd className="text-[13px] tabular-nums text-zinc-200">
+                <dd className="text-[13px] tabular-nums text-ink-2">
                   {value}
                 </dd>
               </div>
@@ -145,7 +145,7 @@ function AboutCard({ fundamentals: f }: { fundamentals: TickerFundamentals }) {
             href={f.website}
             target="_blank"
             rel="noreferrer"
-            className="inline-block text-[12px] text-zinc-400 hover:text-zinc-200 underline"
+            className="inline-block text-[12px] text-ink-muted hover:text-ink-2 underline"
           >
             {f.website.replace(/^https?:\/\//, "").replace(/\/$/, "")} ↗
           </a>
@@ -167,7 +167,7 @@ function GranularityTabs({
   onChange: (v: Granularity) => void;
 }) {
   return (
-    <div className="inline-flex rounded-full bg-zinc-900/70 border border-zinc-800 p-0.5">
+    <div className="inline-flex rounded-full bg-card border border-hairline p-0.5">
       {(["quarterly", "annual"] as const).map((g) => (
         <button
           key={g}
@@ -176,7 +176,7 @@ function GranularityTabs({
           className={`px-4 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
             value === g
               ? "bg-zinc-100 text-zinc-900"
-              : "text-zinc-400 hover:text-zinc-200"
+              : "text-ink-muted hover:text-ink-2"
           }`}
         >
           {g === "quarterly" ? "Quarterly" : "Annual"}
@@ -200,13 +200,13 @@ function FinancialsSection({
   return (
     <div className="px-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300">Financials</h2>
+        <h2 className="text-[15px] font-semibold text-ink-3">Financials</h2>
         <GranularityTabs value={g} onChange={setG} />
       </div>
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
+      <div className="rounded-2xl bg-card border border-hairline p-4">
         <FinancialsLegend />
         {recent.length === 0 ? (
-          <p className="text-[12px] text-zinc-500 mt-4">
+          <p className="text-[12px] text-ink-faint mt-4">
             No {g} data available.
           </p>
         ) : (
@@ -226,7 +226,7 @@ function FinancialsSection({
             <button
               type="button"
               onClick={() => setShowTable((v) => !v)}
-              className="mt-3 text-[12px] text-zinc-500 hover:text-zinc-300"
+              className="mt-3 text-[12px] text-ink-faint hover:text-ink-3"
             >
               {showTable ? "Hide numbers" : "Show numbers"}
             </button>
@@ -263,16 +263,16 @@ function FinancialsTable({
         return (
           <div
             key={r.date}
-            className="rounded-lg bg-zinc-800/40 border border-zinc-800 px-3 py-2"
+            className="rounded-lg bg-pressed-40 border border-hairline px-3 py-2"
           >
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted mb-1">
               {label}
             </div>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
               {fields.map(([k, v]) => (
                 <div key={k} className="flex items-baseline justify-between">
-                  <dt className="text-[11px] text-zinc-500">{k}</dt>
-                  <dd className="text-[12px] tabular-nums text-zinc-200">{v}</dd>
+                  <dt className="text-[11px] text-ink-faint">{k}</dt>
+                  <dd className="text-[12px] tabular-nums text-ink-2">{v}</dd>
                 </div>
               ))}
             </dl>
@@ -291,7 +291,7 @@ function FinancialsLegend() {
     ["Net margin", MARGIN_LINE_VAR, "line"],
   ];
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-zinc-400">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-ink-muted">
       {items.map(([label, color, shape]) => (
         <div key={label} className="flex items-center gap-1.5">
           {shape === "square" ? (
@@ -579,12 +579,12 @@ function EarningsSection({
   return (
     <div className="px-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300">Earnings</h2>
+        <h2 className="text-[15px] font-semibold text-ink-3">Earnings</h2>
       </div>
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
+      <div className="rounded-2xl bg-card border border-hairline p-4">
         <EarningsLegend />
         {recent.length === 0 ? (
-          <p className="text-[12px] text-zinc-500 mt-4">
+          <p className="text-[12px] text-ink-faint mt-4">
             No quarterly earnings data available.
           </p>
         ) : (
@@ -599,7 +599,7 @@ function EarningsSection({
             <button
               type="button"
               onClick={() => setShowTable((v) => !v)}
-              className="mt-3 text-[12px] text-zinc-500 hover:text-zinc-300"
+              className="mt-3 text-[12px] text-ink-faint hover:text-ink-3"
             >
               {showTable ? "Hide numbers" : "Show numbers"}
             </button>
@@ -626,16 +626,16 @@ function EarningsTable({ rows }: { rows: EarningsRow[] }) {
         return (
           <div
             key={r.date}
-            className="rounded-lg bg-zinc-800/40 border border-zinc-800 px-3 py-2"
+            className="rounded-lg bg-pressed-40 border border-hairline px-3 py-2"
           >
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted mb-1">
               {label}
             </div>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
               {fields.map(([k, v]) => (
                 <div key={k} className="flex items-baseline justify-between">
-                  <dt className="text-[11px] text-zinc-500">{k}</dt>
-                  <dd className="text-[12px] tabular-nums text-zinc-200">{v}</dd>
+                  <dt className="text-[11px] text-ink-faint">{k}</dt>
+                  <dd className="text-[12px] tabular-nums text-ink-2">{v}</dd>
                 </div>
               ))}
             </dl>
@@ -648,7 +648,7 @@ function EarningsTable({ rows }: { rows: EarningsRow[] }) {
 
 function EarningsLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-zinc-400">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-ink-muted">
       <div className="flex items-center gap-1.5">
         <span
           className="inline-block w-2.5 h-2.5 rounded-full"

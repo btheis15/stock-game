@@ -390,12 +390,12 @@ export function CompareView({
     <div className="pb-24">
       <div className="px-4 pt-2 pb-3">
         <div className="flex items-start justify-between">
-          <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1">
+          <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-1">
             Compare
           </div>
           <WhatsNew />
         </div>
-        <h1 className="text-[22px] leading-tight font-semibold text-white">
+        <h1 className="text-[22px] leading-tight font-semibold text-ink">
           {!hasAny
             ? "Nothing visible"
             : gapPct === 0
@@ -410,14 +410,14 @@ export function CompareView({
             >
               {fmtPct(gapPct)}
             </div>
-            <div className="text-[14px] font-medium text-zinc-400 mt-0.5">
+            <div className="text-[14px] font-medium text-ink-muted mt-0.5">
               {fmtSignedUSD(gapDollars)} gap
-              {scrubLabel && <span className="text-zinc-500"> • {scrubLabel}</span>}
+              {scrubLabel && <span className="text-ink-faint"> • {scrubLabel}</span>}
             </div>
           </>
         ) : (
-          <div className="text-[14px] font-medium text-zinc-400 mt-1">
-            Tap <span className="text-zinc-200">Show 0 of {filterChips.length}</span> above to enable a player or fund.
+          <div className="text-[14px] font-medium text-ink-muted mt-1">
+            Tap <span className="text-ink-2">Show 0 of {filterChips.length}</span> above to enable a player or fund.
           </div>
         )}
       </div>
@@ -457,7 +457,7 @@ export function CompareView({
       />
 
       <div className="px-4 mt-2">
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
           {stats.map((s, i) => {
             // Gap = how far behind the leader in $ gain over the active range
             // (not raw portfolio diff — that would mix range performance with
@@ -494,8 +494,8 @@ export function CompareView({
       />
 
       <div className="px-4 mt-6">
-        <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Game rules</h2>
-        <div className="text-[13px] text-zinc-500 leading-relaxed">
+        <h2 className="text-[15px] font-semibold text-ink-3 mb-2">Game rules</h2>
+        <div className="text-[13px] text-ink-faint leading-relaxed">
           Each portfolio started with $100,000 split evenly across each player's
           picks at the Feb 5, 2026 close. Partial shares allowed. Updated daily.
         </div>
@@ -578,7 +578,7 @@ function UserRow({
   const pending = pendingTickers ?? [];
   const inner = (
     <>
-      <div className="w-6 text-center text-[14px] font-semibold text-zinc-500 tabular-nums shrink-0">
+      <div className="w-6 text-center text-[14px] font-semibold text-ink-faint tabular-nums shrink-0">
         {place}
       </div>
       <div
@@ -586,10 +586,10 @@ function UserRow({
         style={{ backgroundColor: color }}
       />
       <div className="flex flex-col min-w-0 flex-1">
-        <div className="text-[15px] font-semibold text-zinc-200 truncate">
+        <div className="text-[15px] font-semibold text-ink-2 truncate">
           {name}
         </div>
-        <div className="text-[11px] text-zinc-500 tabular-nums mt-0.5">
+        <div className="text-[11px] text-ink-faint tabular-nums mt-0.5">
           {isLeader ? (
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
@@ -603,7 +603,7 @@ function UserRow({
         </div>
       </div>
       <div className="flex flex-col items-end shrink-0">
-        <div className="text-[16px] font-semibold text-white tabular-nums">
+        <div className="text-[16px] font-semibold text-ink tabular-nums">
           {fmtUSD(value, 0)}
         </div>
         <div
@@ -637,7 +637,7 @@ function UserRow({
   return (
     <Link
       href={href}
-      className="block px-3 py-3 active:bg-zinc-900/40 transition-colors"
+      className="block px-3 py-3 active:bg-card-40 transition-colors"
     >
       <div className="flex items-center gap-3">{inner}</div>
       {note}

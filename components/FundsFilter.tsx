@@ -103,7 +103,7 @@ export function FilterToolbar({
     <div className="px-4 mb-2 flex items-center gap-2">
       <button
         onClick={onOpenFilter}
-        className="press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-zinc-800 border border-zinc-700 text-zinc-200 active:bg-zinc-700 transition-colors"
+        className="press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium bg-raised border border-edge-strong text-ink-2 active:bg-strong transition-colors"
         aria-label="Open filter"
       >
         <FilterIcon />
@@ -125,7 +125,7 @@ export function FilterToolbar({
       {onManage && (
         <button
           onClick={onManage}
-          className="press inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-zinc-400"
+          className="press inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[12px] text-ink-muted"
           aria-label="Manage funds"
         >
           Manage
@@ -194,24 +194,24 @@ export function FilterSheet({
         if (!list || list.length === 0) return null;
         return (
           <div key={group} className="mb-5">
-            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-2">
+            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint mb-2">
               {group}
             </div>
-            <ul className="rounded-xl bg-zinc-900/50 border border-zinc-800 divide-y divide-zinc-800">
+            <ul className="rounded-xl bg-card-50 border border-hairline divide-y divide-hairline">
               {list.map((c) => {
                 const on = isOn(c.id, c.defaultOn);
                 return (
                   <li key={c.id}>
                     <button
                       onClick={() => setOn(c.id, !on)}
-                      className="w-full flex items-center gap-3 px-3 py-3 active:bg-zinc-900/40 transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-3 active:bg-card-40 transition-colors"
                       aria-pressed={on}
                     >
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: c.color, opacity: on ? 1 : 0.3 }}
                       />
-                      <span className="flex-1 text-left text-[15px] font-medium text-white truncate">
+                      <span className="flex-1 text-left text-[15px] font-medium text-ink truncate">
                         {c.name}
                       </span>
                       <ToggleSwitch on={on} />
@@ -224,8 +224,8 @@ export function FilterSheet({
         );
       })}
       {grouped.Funds.length === 0 && (
-        <div className="text-[11px] text-zinc-500 leading-snug -mt-3">
-          No funds yet — tap <span className="text-zinc-300">Add Fund</span> above to create one.
+        <div className="text-[11px] text-ink-faint leading-snug -mt-3">
+          No funds yet — tap <span className="text-ink-3">Add Fund</span> above to create one.
         </div>
       )}
     </Sheet>
@@ -237,7 +237,7 @@ function ToggleSwitch({ on }: { on: boolean }) {
     <span
       className={
         "relative inline-block w-9 h-5 rounded-full shrink-0 transition-colors " +
-        (on ? "bg-emerald-500" : "bg-zinc-700")
+        (on ? "bg-emerald-500" : "bg-strong")
       }
       aria-hidden
     >

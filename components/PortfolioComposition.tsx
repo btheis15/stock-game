@@ -50,11 +50,11 @@ export function PortfolioComposition({
   return (
     <div className="px-4 mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300">{title}</h2>
+        <h2 className="text-[15px] font-semibold text-ink-3">{title}</h2>
         <ViewTabs value={view} onChange={(v) => { setView(v); setSelected(null); }} />
       </div>
 
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">
+      <div className="rounded-2xl bg-card border border-hairline p-4">
         <ParentSize debounceTime={50}>
           {({ width }) => (
             <BreakdownDonut
@@ -69,7 +69,7 @@ export function PortfolioComposition({
           )}
         </ParentSize>
 
-        <div className="mt-4 divide-y divide-zinc-800/70">
+        <div className="mt-4 divide-y divide-hairline-70">
           <AnimatePresence mode="wait">
             <motion.div
               key={view + (selectedSlice?.key ?? "all")}
@@ -112,7 +112,7 @@ function ViewTabs({
 }) {
   const tabs: ViewKey[] = ["sector", "industry", "marketcap"];
   return (
-    <div className="inline-flex rounded-full bg-zinc-900/70 border border-zinc-800 p-0.5">
+    <div className="inline-flex rounded-full bg-card border border-hairline p-0.5">
       {tabs.map((t) => (
         <button
           key={t}
@@ -121,7 +121,7 @@ function ViewTabs({
           className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
             value === t
               ? "bg-zinc-100 text-zinc-900"
-              : "text-zinc-400 hover:text-zinc-200"
+              : "text-ink-muted hover:text-ink-2"
           }`}
         >
           {VIEW_LABEL[t]}
@@ -148,13 +148,13 @@ function AboutThisPortfolio({
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-[15px] font-semibold text-zinc-300">{title}</h2>
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+        <h2 className="text-[15px] font-semibold text-ink-3">{title}</h2>
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-ink-faint">
           <span style={{ color: accentColor }}>✦</span>
           <span>Claude analysis</span>
         </div>
       </div>
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4 space-y-3 relative overflow-hidden">
+      <div className="rounded-2xl bg-card border border-hairline p-4 space-y-3 relative overflow-hidden">
         {/* Faint accent gradient in the corner — gives the card a touch of
             "this was synthesized" energy without being shouty. */}
         <div
@@ -176,14 +176,14 @@ function AboutThisPortfolio({
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
             {analysis.styleLabel}
           </div>
-          <p className="mt-3 text-[14px] leading-snug font-semibold text-zinc-100">
+          <p className="mt-3 text-[14px] leading-snug font-semibold text-ink">
             {analysis.headline}
           </p>
         </div>
 
         <div className="relative space-y-3">
           {showParagraphs.map((p, i) => (
-            <p key={i} className="text-[13px] leading-relaxed text-zinc-300">
+            <p key={i} className="text-[13px] leading-relaxed text-ink-3">
               {p}
             </p>
           ))}
@@ -191,7 +191,7 @@ function AboutThisPortfolio({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="text-[12px] text-zinc-500 hover:text-zinc-300"
+              className="text-[12px] text-ink-faint hover:text-ink-3"
             >
               {expanded ? "Show less" : "Read full analysis"}
             </button>
@@ -200,16 +200,16 @@ function AboutThisPortfolio({
 
         {analysis.themes.length > 0 && (
           <div className="relative pt-1">
-            <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-2">
+            <div className="text-[11px] uppercase tracking-wide text-ink-faint mb-2">
               Themes
             </div>
             <div className="flex flex-wrap gap-1.5">
               {analysis.themes.map((t) => (
                 <div
                   key={t.name}
-                  className="inline-flex items-center px-2.5 py-1 rounded-full bg-zinc-800/70 border border-zinc-700/60"
+                  className="inline-flex items-center px-2.5 py-1 rounded-full bg-raised-70 border border-edge-strong-60"
                 >
-                  <span className="text-[11px] font-medium text-zinc-200">
+                  <span className="text-[11px] font-medium text-ink-2">
                     {t.name}
                   </span>
                 </div>

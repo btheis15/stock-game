@@ -30,7 +30,7 @@ export function RangeTabs({
             onClick={() => onChange(r)}
             className={clsx(
               "px-3 py-1.5 rounded-full text-[13px] font-semibold tracking-wide transition-colors",
-              active ? "text-black" : "text-zinc-400 hover:text-zinc-200"
+              active ? "text-black" : "text-ink-muted hover:text-ink-2"
             )}
             style={active ? { backgroundColor: accent } : undefined}
           >

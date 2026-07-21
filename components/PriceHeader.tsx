@@ -43,14 +43,14 @@ export function PriceHeader({
   return (
     <div className="px-4 pt-1 pb-3">
       {(label || ticker) && (
-        <div className="flex items-center gap-2 mb-1 text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-400">
+        <div className="flex items-center gap-2 mb-1 text-[11px] font-bold tracking-[0.12em] uppercase text-ink-muted">
           {ticker && <span>{ticker}</span>}
           {label && <span>{label}</span>}
         </div>
       )}
-      <h1 className="text-[22px] leading-tight font-semibold text-white">{title}</h1>
+      <h1 className="text-[22px] leading-tight font-semibold text-ink">{title}</h1>
       <div
-        className="text-[34px] font-semibold tracking-tight text-white mt-1"
+        className="text-[34px] font-semibold tracking-tight text-ink mt-1"
         style={accent ? { color: accent } : undefined}
       >
         {fmtUSD(value, fractionDigits)}
@@ -59,12 +59,12 @@ export function PriceHeader({
         <Triangle up={positive} />
         <span>{fmtSignedUSD(delta, fractionDigits)}</span>
         <span className="opacity-90">({fmtPct(pct)})</span>
-        <span className={clsx("text-zinc-500 font-normal", scrubDate ? "" : "hidden")}>
+        <span className={clsx("text-ink-faint font-normal", scrubDate ? "" : "hidden")}>
           • {scrubDate}
         </span>
       </div>
       {compareTo && (
-        <div className="flex items-center gap-2 mt-1 text-[12px] font-medium text-zinc-400">
+        <div className="flex items-center gap-2 mt-1 text-[12px] font-medium text-ink-muted">
           <div
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: compareTo.color }}

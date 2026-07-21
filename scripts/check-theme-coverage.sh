@@ -1,42 +1,35 @@
 #!/usr/bin/env bash
 #
-# check-theme-coverage.sh — guard against light/twilight contrast regressions.
+# check-theme-coverage.sh — guard the semantic-token theme system.
 #
 # WHY THIS EXISTS
 # ---------------
 # The theme system (see CLAUDE.md §5.6) flips the app between dark (default),
-# light, and twilight by *overriding a fixed set of zinc/black/white Tailwind
-# utility classes* under `:root[data-theme="light"]` / `[twilight]` in
-# app/globals.css. A component only theme-flips if every dark-surface utility
-# it uses has a matching override.
+# light, and twilight by reassigning semantic CSS variables
+# (--surface-*/--ink-*/--border-*) per theme in app/globals.css; components
+# reference them via @theme utilities (bg-card, text-ink-muted,
+# border-hairline, …). A component themes correctly if and only if it uses
+# those semantic utilities.
 #
-# The recurring failure mode: a new feature uses a utility — or, more subtly,
-# an OPACITY VARIANT of one (`bg-zinc-900/60` when only `/50` and `/70` are
-# overridden) — that has no override. It looks fine in dark mode (the default)
-# and ships, then renders as dark-grey-on-light in light mode. The "What's
-# new" button shipped exactly this bug (bg-zinc-900/60 + border-zinc-700, both
-# un-overridden). This script catches that class of bug before it ships.
+# This script therefore fails on the two ways to break theming:
 #
-# WHAT IT DOES
-# ------------
-# 1. Collects every BASE (non-variant) dark-surface utility used in
-#    components/ and app/ *.tsx. Variant-prefixed tokens (hover:/active:/
-#    focus:/sm:/group-*:) are intentionally skipped — Tailwind emits those as
-#    separate `.hover\:bg-*:hover` classes the override selectors don't match,
-#    and they're transient desktop-only interaction states, not the always-on
-#    surface colors that cause the visible bug.
-# 2. Collects every class overridden under BOTH the light AND twilight themes
-#    in globals.css. A class needs both, or it's broken in whichever theme
-#    lacks it.
-# 3. Anything used but not covered (and not in the ALLOWLIST of intentionally
-#    theme-independent classes) is reported, and the script exits non-zero.
+#   1. RAW DARK-SURFACE UTILITIES in markup (bg-zinc-900/60, text-white,
+#      border-zinc-800, …). These render dark in every theme — the historical
+#      "looks fine in dark, muddy in light" bug. Use the semantic utility
+#      instead (see the token table in app/globals.css / CLAUDE.md §5.6).
+#      A small ALLOWLIST covers classes that are theme-independent BY DESIGN.
 #
-# Run via `npm run check-theme`. Wired into CI (.github/workflows/build.yml).
+#   2. OPACITY MODIFIERS ON SEMANTIC TOKENS (bg-card/50, text-ink/80). Each
+#      translucency must be its own token, assigned in all three theme blocks
+#      — a slash modifier silently recreates the per-alpha coverage gap the
+#      tokens were introduced to kill. Mint a token instead.
+#
+# Run via `npm run check-theme`. Wired into CI (.github/workflows/build.yml)
+# and the pre-push hook.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-CSS="app/globals.css"
 SRC_DIRS=(components app)
 
 # Utilities that are theme-independent BY DESIGN and must NOT be flipped.
@@ -48,7 +41,6 @@ text-black
 bg-zinc-100
 bg-zinc-200
 text-zinc-900
-text-zinc-500
 bg-black/60
 EOF
 )
@@ -58,52 +50,59 @@ EOF
 # bg-zinc-100 / text-zinc-900  — the LIGHT half of inverted toggles; renders
 #                                light in dark mode on purpose.
 # bg-zinc-200                  — active-press tint under the white CTA pill.
-# text-zinc-500                — mid-gray; reads on every theme (CSS comment in
-#                                globals.css notes it's deliberately un-flipped).
 # bg-black/60                  — modal scrim. Intentionally dim in all themes so
 #                                the dialog reads above the dimmed page.
 
-# 1. Base dark-surface utilities used in markup (variant-prefixed excluded via
-#    the (?<![\w:/-]) lookbehind — a leading ':' means it's hover:/active:/etc).
-#    Uses perl rather than `grep -P`: the patterns need PCRE (lookbehind, and
-#    \K below) which BSD/macOS grep lacks — `grep -P` errors with "invalid
-#    option -- P" on the Mac mini, which silently broke every push from it.
-#    perl ships on both macOS and the Linux CI runner and speaks PCRE.
+fail=0
+
+# 1. Raw dark-surface utilities in markup (any variant prefix counts — a
+#    hover:bg-zinc-800 is just as un-themed as a bare one now that the
+#    semantic utilities theme interaction states too). Uses perl for PCRE
+#    (macOS grep lacks -P; see git history).
 used=$(find "${SRC_DIRS[@]}" -type f -name '*.tsx' -print0 \
   | xargs -0 perl -ne \
-    'print "$&\n" while /(?<![\w:\/-])(?:bg|text|border|divide)-(?:black|white|zinc-[0-9]+)(?:\/[0-9]+)?(?![\w\/-])/g' \
+    'print "$&\n" while /(?<![\w\/-])(?:bg|text|border|divide|decoration|ring|placeholder)-(?:black|white|zinc-[0-9]+)(?:\/[0-9]+)?(?![\w\/-])/g' \
   | sort -u)
 
-# 2. Classes overridden per theme (unescape Tailwind's `\/` opacity escape).
-covered_for() {
-  perl -ne 'print "$1\n" while /:root\[data-theme="'"$1"'"\] \.([\w\\\/-]+)/g' "$CSS" \
-    | sed 's/\\//g' | sort -u
-}
-light=$(covered_for light)
-twilight=$(covered_for twilight)
-# A class is covered only if BOTH themes override it.
-covered=$(comm -12 <(printf '%s\n' "$light") <(printf '%s\n' "$twilight"))
+raw=$(comm -23 <(printf '%s\n' "$used") <(printf '%s\n' "$ALLOWLIST" | sort -u))
 
-safe=$(printf '%s\n%s\n' "$covered" "$ALLOWLIST" | sort -u)
-
-# 3. Report anything used but not safe.
-missing=$(comm -23 <(printf '%s\n' "$used") <(printf '%s\n' "$safe"))
-
-if [[ -n "$missing" ]]; then
-  echo "✗ Theme coverage gap — these utilities are used in markup but have no"
-  echo "  light+twilight override in app/globals.css (they'll render dark in"
-  echo "  light mode). Either add an override under BOTH :root[data-theme=...]"
-  echo "  blocks, switch to an already-covered utility, or — if the class is"
-  echo "  intentionally theme-independent — add it to ALLOWLIST in this script"
-  echo "  with a justification. See CLAUDE.md §5.6."
+if [[ -n "$raw" ]]; then
+  echo "✗ Raw dark-surface utilities in markup — these don't theme-flip. Use the"
+  echo "  semantic token utilities instead (bg-card, bg-raised, text-ink-muted,"
+  echo "  border-hairline, … — table in app/globals.css / CLAUDE.md §5.6), or,"
+  echo "  if the class is intentionally theme-independent, add it to ALLOWLIST"
+  echo "  in this script with a justification."
   echo
   while IFS= read -r cls; do
     [[ -z "$cls" ]] && continue
     echo "  • $cls"
     grep -rln --include="*.tsx" -F "$cls" "${SRC_DIRS[@]}" | sed 's/^/      /'
-  done <<< "$missing"
+  done <<< "$raw"
   echo
-  exit 1
+  fail=1
 fi
 
-echo "✓ Theme coverage OK — every dark-surface utility flips in light + twilight."
+# 2. Opacity modifiers on semantic token utilities.
+SEMANTIC='(?:page|solid|chrome|chrome-soft|card|card-solid|card-95|card-60|card-50|card-40|raised|raised-80|raised-70|pressed|pressed-40|strong|ghost|ink|ink-2|ink-3|ink-muted|ink-faint|ink-ghost|ink-ghost-2|hairline|hairline-70|hairline-deep|edge-strong|edge-strong-60|edge-ghost)'
+modified=$(find "${SRC_DIRS[@]}" -type f -name '*.tsx' -print0 \
+  | xargs -0 perl -ne \
+    'print "$&\n" while /(?<![\w\/-])(?:bg|text|border|divide|decoration)-'"$SEMANTIC"'\/[0-9]+(?![\w\/-])/g' \
+  | sort -u)
+
+if [[ -n "$modified" ]]; then
+  echo "✗ Opacity modifiers on semantic tokens — each translucency must be its"
+  echo "  own token assigned in all three theme blocks of app/globals.css"
+  echo "  (a /N modifier recreates the per-alpha coverage gap). Mint a token."
+  echo
+  while IFS= read -r cls; do
+    [[ -z "$cls" ]] && continue
+    echo "  • $cls"
+    grep -rln --include="*.tsx" -F "$cls" "${SRC_DIRS[@]}" | sed 's/^/      /'
+  done <<< "$modified"
+  echo
+  fail=1
+fi
+
+[[ "$fail" -ne 0 ]] && exit 1
+
+echo "✓ Theme coverage OK — markup uses semantic token utilities only."

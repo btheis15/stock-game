@@ -44,11 +44,11 @@ export function PortfolioThesis({
   return (
     <div className="px-4 mt-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300">Why these picks</h2>
+        <h2 className="text-[15px] font-semibold text-ink-3">Why these picks</h2>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 pl-2 pr-2.5 py-1 text-[12px] font-semibold text-zinc-300 hover:text-white hover:border-zinc-600 active:bg-zinc-800 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-full border border-edge-strong bg-card-60 pl-2 pr-2.5 py-1 text-[12px] font-semibold text-ink-3 hover:text-ink hover:border-edge-ghost active:bg-raised transition-colors"
         >
           <PencilIcon />
           {hasContent ? "Edit" : "Add thesis"}
@@ -60,7 +60,7 @@ export function PortfolioThesis({
           <ThesisIntro thesis={thesis} accentColor={accentColor} />
 
           {entries.length > 0 && (
-            <div className="mt-3 rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+            <div className="mt-3 rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
               {entries.map(({ ticker, pick }) => (
                 <PickRow key={ticker} ticker={ticker} pick={pick} accentColor={accentColor} />
               ))}
@@ -68,7 +68,7 @@ export function PortfolioThesis({
           )}
 
           {thesis.disclaimer && (
-            <p className="text-[11px] leading-relaxed text-zinc-500 mt-3 px-1">
+            <p className="text-[11px] leading-relaxed text-ink-faint mt-3 px-1">
               {thesis.disclaimer}
             </p>
           )}
@@ -103,16 +103,16 @@ function EmptyState({
   onAdd: () => void;
 }) {
   return (
-    <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-5 text-center relative overflow-hidden">
+    <div className="rounded-2xl bg-card border border-hairline p-5 text-center relative overflow-hidden">
       <div
         aria-hidden
         className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${accentColor}1f, transparent 70%)` }}
       />
       <div className="relative">
-        <p className="text-[14px] font-semibold text-zinc-200">No thesis yet</p>
-        <p className="text-[13px] leading-relaxed text-zinc-400 mt-1.5 max-w-xs mx-auto">
-          Share the <span className="text-zinc-200">why</span> behind {userName}&rsquo;s
+        <p className="text-[14px] font-semibold text-ink-2">No thesis yet</p>
+        <p className="text-[13px] leading-relaxed text-ink-muted mt-1.5 max-w-xs mx-auto">
+          Share the <span className="text-ink-2">why</span> behind {userName}&rsquo;s
           picks — a big-picture theme plus a quick take on each holding.
         </p>
         <button
@@ -138,7 +138,7 @@ function ThesisIntro({ thesis, accentColor }: { thesis: Thesis; accentColor: str
   const hasMore = paras.length > 1;
 
   return (
-    <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4 relative overflow-hidden">
+    <div className="rounded-2xl bg-card border border-hairline p-4 relative overflow-hidden">
       <div
         aria-hidden
         className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
@@ -159,7 +159,7 @@ function ThesisIntro({ thesis, accentColor }: { thesis: Thesis; accentColor: str
         {paras.length > 0 && (
           <div className="mt-3 space-y-3">
             {shown.map((p, i) => (
-              <p key={i} className="text-[13px] leading-relaxed text-zinc-300">
+              <p key={i} className="text-[13px] leading-relaxed text-ink-3">
                 {p}
               </p>
             ))}
@@ -167,7 +167,7 @@ function ThesisIntro({ thesis, accentColor }: { thesis: Thesis; accentColor: str
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="text-[12px] text-zinc-500 hover:text-zinc-300"
+                className="text-[12px] text-ink-faint hover:text-ink-3"
               >
                 {expanded ? "Show less" : "Read full thesis"}
               </button>
@@ -176,7 +176,7 @@ function ThesisIntro({ thesis, accentColor }: { thesis: Thesis; accentColor: str
         )}
 
         {thesis.source && (
-          <div className="mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+          <div className="mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-ink-faint">
             <span style={{ color: accentColor }}>✎</span>
             <span>{thesis.source}</span>
           </div>
@@ -208,16 +208,16 @@ function PickRow({
         onClick={() => hasFull && setOpen((v) => !v)}
         aria-expanded={open}
         className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-          hasFull ? "active:bg-zinc-800/60" : "cursor-default"
+          hasFull ? "active:bg-pressed" : "cursor-default"
         }`}
       >
-        <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300 flex-shrink-0">
+        <div className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3 flex-shrink-0">
           {ticker}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-semibold text-white truncate">{name}</div>
+          <div className="text-[14px] font-semibold text-ink truncate">{name}</div>
           {!open && pick.summary && (
-            <div className="text-[12px] leading-snug text-zinc-400 mt-0.5 line-clamp-2">
+            <div className="text-[12px] leading-snug text-ink-muted mt-0.5 line-clamp-2">
               {pick.summary}
             </div>
           )}
@@ -227,7 +227,7 @@ function PickRow({
             aria-hidden
             animate={{ rotate: open ? 90 : 0 }}
             transition={{ duration: 0.18 }}
-            className="text-zinc-500 text-[13px] flex-shrink-0"
+            className="text-ink-faint text-[13px] flex-shrink-0"
           >
             ›
           </motion.span>
@@ -245,11 +245,11 @@ function PickRow({
           >
             <div className="px-4 pb-4 pl-16">
               {pick.summary && (
-                <p className="text-[12px] font-semibold text-zinc-300 mb-1.5">
+                <p className="text-[12px] font-semibold text-ink-3 mb-1.5">
                   {pick.summary}
                 </p>
               )}
-              <p className="text-[13px] leading-relaxed text-zinc-400">{pick.full}</p>
+              <p className="text-[13px] leading-relaxed text-ink-muted">{pick.full}</p>
               <Link
                 href={`/stock/${ticker}`}
                 className="inline-block mt-2.5 text-[12px] font-medium"

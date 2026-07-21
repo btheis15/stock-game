@@ -6,13 +6,13 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <div className="px-4 pt-20 pb-12 text-center">
-      <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+      <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint">
         Stock Game
       </div>
-      <h1 className="mt-2 text-[22px] font-bold text-white">
+      <h1 className="mt-2 text-[22px] font-bold text-ink">
         This page doesn&apos;t exist
       </h1>
-      <p className="mt-2 text-[13px] text-zinc-500">
+      <p className="mt-2 text-[13px] text-ink-faint">
         Nothing&apos;s tracked at this address — the game lives elsewhere.
       </p>
       <Link

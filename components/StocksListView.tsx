@@ -37,10 +37,10 @@ export function StocksListView({ series }: Props) {
   return (
     <div className="pb-24">
       <div className="px-4 pt-2 pb-3">
-        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1">
+        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-1">
           All picks
         </div>
-        <h1 className="text-[22px] leading-tight font-semibold text-white">Stocks</h1>
+        <h1 className="text-[22px] leading-tight font-semibold text-ink">Stocks</h1>
       </div>
 
       <div className="px-4 flex gap-2 mb-3 overflow-x-auto -mx-4 px-4 pb-1">
@@ -60,20 +60,20 @@ export function StocksListView({ series }: Props) {
       </div>
 
       <div className="px-4">
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
           {rows.map((r) => (
             <Link
               key={r.ticker}
               href={`/stock/${r.ticker}`}
-              className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors"
+              className="flex items-center gap-3 px-4 py-3 active:bg-pressed transition-colors"
             >
               <OwnerSwatch owners={r.owners} />
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-white truncate">
+                <div className="text-[14px] font-semibold text-ink truncate">
                   {r.ticker}{" "}
-                  <span className="text-zinc-500 font-normal">{r.name}</span>
+                  <span className="text-ink-faint font-normal">{r.name}</span>
                 </div>
-                <div className="text-[11px] text-zinc-500 tabular-nums">
+                <div className="text-[11px] text-ink-faint tabular-nums">
                   {fmtUSD(r.last, 2)}
                   {spinoffRowSuffix(r.ticker) && (
                     <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(r.ticker)}</span>
@@ -96,10 +96,10 @@ export function StocksListView({ series }: Props) {
 
 function OwnerSwatch({ owners }: { owners: UserId[] }) {
   if (owners.length === 0) {
-    return <div className="w-9 h-9 rounded-full bg-zinc-800 shrink-0" />;
+    return <div className="w-9 h-9 rounded-full bg-raised shrink-0" />;
   }
   return (
-    <div className="w-9 h-9 rounded-full bg-zinc-800 shrink-0 flex items-center justify-center gap-0.5">
+    <div className="w-9 h-9 rounded-full bg-raised shrink-0 flex items-center justify-center gap-0.5">
       {owners.map((id) => (
         <span
           key={id}
@@ -129,7 +129,7 @@ function Chip({
         "px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors shrink-0",
         active
           ? "text-black"
-          : "text-zinc-400 border-zinc-800 bg-zinc-900/50 hover:text-zinc-200"
+          : "text-ink-muted border-hairline bg-card-50 hover:text-ink-2"
       )}
       style={
         active

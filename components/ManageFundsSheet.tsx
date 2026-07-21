@@ -101,28 +101,28 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
     // moved to <Sheet full>, which owns the same three details for them.
     <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
-        className="w-full sm:max-w-md sm:rounded-3xl bg-zinc-950 border border-zinc-800 h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
+        className="w-full sm:max-w-md sm:rounded-3xl bg-solid border border-hairline h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <header
-          className="flex items-center justify-between px-5 py-4 border-b border-zinc-800"
+          className="flex items-center justify-between px-5 py-4 border-b border-hairline"
           style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
         >
           <div>
-            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
+            <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint">
               Manage
             </div>
-            <h2 className="text-[17px] font-semibold text-white mt-0.5">Funds</h2>
+            <h2 className="text-[17px] font-semibold text-ink mt-0.5">Funds</h2>
           </div>
           <button
-            className="text-zinc-500 hover:text-zinc-300 text-[15px] px-2 py-1"
+            className="text-ink-faint hover:text-ink-3 text-[15px] px-2 py-1"
             onClick={onClose}
             aria-label="Close"
           >
             Close
           </button>
         </header>
-        <div className="px-5 pt-3 pb-2 border-b border-zinc-800 flex gap-1">
+        <div className="px-5 pt-3 pb-2 border-b border-hairline flex gap-1">
           <TabBtn label={`Active (${active.length})`} active={tab === "active"} onClick={() => setTab("active")} />
           <TabBtn label={`Archive (${archived.length})`} active={tab === "archive"} onClick={() => setTab("archive")} />
         </div>
@@ -133,7 +133,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
             </div>
           )}
           {list.length === 0 ? (
-            <div className="text-[13px] text-zinc-500 py-6 text-center">
+            <div className="text-[13px] text-ink-faint py-6 text-center">
               {tab === "active"
                 ? "No funds yet. Create one from the Compare view."
                 : "Nothing in the archive."}
@@ -143,7 +143,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
               {list.map((f) => (
                 <li
                   key={f.id}
-                  className="rounded-xl bg-zinc-900/50 border border-zinc-800 p-3"
+                  className="rounded-xl bg-card-50 border border-hairline p-3"
                 >
                   <div className="flex items-center gap-2.5">
                     <span
@@ -151,10 +151,10 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
                       style={{ backgroundColor: f.color }}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-semibold text-white truncate">
+                      <div className="text-[14px] font-semibold text-ink truncate">
                         {f.name}
                       </div>
-                      <div className="text-[11px] text-zinc-500 truncate">
+                      <div className="text-[11px] text-ink-faint truncate">
                         {f.creator ? `by ${f.creator} · ` : ""}
                         {f.holdings.length}{" "}
                         {f.holdings.length === 1 ? "holding" : "holdings"}
@@ -169,7 +169,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
                     {tab === "active" ? (
                       <>
                         <button
-                          className="text-[12px] text-zinc-400 px-2 py-1"
+                          className="text-[12px] text-ink-muted px-2 py-1"
                           onClick={() => onEdit(f)}
                           disabled={pending === f.id}
                         >
@@ -197,7 +197,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
                     {f.holdings.map((h) => (
                       <span
                         key={h.ticker}
-                        className="text-[11px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full tabular-nums"
+                        className="text-[11px] bg-raised text-ink-3 px-2 py-0.5 rounded-full tabular-nums"
                       >
                         {h.ticker} {fmtWeightPct(h.weight)}
                       </span>
@@ -208,7 +208,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
             </ul>
           )}
           {tab === "archive" && archived.length > 0 && (
-            <div className="text-[11px] text-zinc-500 mt-3 leading-snug">
+            <div className="text-[11px] text-ink-faint mt-3 leading-snug">
               Archived funds are recoverable for {FUND_RESTORE_WINDOW_DAYS} days
               from when you archived them. After that the entry stays in the
               repo but the UI hides it.
@@ -227,8 +227,8 @@ function TabBtn({ label, active, onClick }: { label: string; active: boolean; on
       className={
         "px-3 py-1.5 rounded-full text-[12px] font-medium " +
         (active
-          ? "bg-zinc-800 text-white"
-          : "text-zinc-500")
+          ? "bg-raised text-ink"
+          : "text-ink-faint")
       }
     >
       {label}
