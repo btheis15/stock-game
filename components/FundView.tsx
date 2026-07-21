@@ -6,7 +6,7 @@
 // so a fund reads exactly like an individual account. Shares come from the
 // fund's weights rather than an equal per-pick split.
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
@@ -87,6 +87,16 @@ export function FundView({
   holdings,
   pending,
 }: Props) {
+  // Force scroll-to-top on mount — see StockView's identical effect. Without
+  // it, Next.js's scroll restoration can land the user mid-page when they
+  // tap into a fund from a scrolled list. Skip if there's a hash so a
+  // holding deep-link's own scroll-into-view still wins.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash) return;
+    window.scrollTo(0, 0);
+  }, []);
+
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);

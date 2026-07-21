@@ -313,6 +313,11 @@ html {
   transition-property: transform, background-color, border-color, color;
   transition-duration: var(--dur-press);
   transition-timing-function: var(--ease-out-ios);
+  /* Belt-and-suspenders alongside the viewport's maximumScale/userScalable
+     lock: without this, some iOS/PWA contexts still run the double-tap-to-
+     zoom gesture recognizer before committing a tap to a click, which reads
+     as "the first tap did nothing." */
+  touch-action: manipulation;
 }
 
 .press:active {
