@@ -941,7 +941,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - Per-user dividend totals on the portfolio drill-down ("Dividends received: $X").
 - Show realized vs. unrealized splits if we ever add a "sell" event.
 - Push notifications when ranks change (would need a service worker + a live backend; not worth it for 4 friends).
-- Theming: dark + light themes ship; light is automatically active while the market is open via `ThemeController`. Manual override toggle could be added.
+- Theming: dark + light + twilight themes ship, token-driven; `?theme=` QA override exists.
 
 ## 14. File-by-file map
 

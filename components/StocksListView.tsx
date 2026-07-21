@@ -8,6 +8,7 @@ import { fmtPct, fmtUSD } from "@/lib/portfolio";
 import { TICKER_OWNERS, USER_LIST, USERS, type UserId } from "@/lib/picks";
 import type { TickerSeries } from "@/lib/types";
 import { spinoffRowSuffix } from "./SpinoffNote";
+import { Sparkline } from "./Sparkline";
 
 interface Props {
   series: TickerSeries[];
@@ -29,6 +30,8 @@ export function StocksListView({ series }: Props) {
           last,
           plPct,
           owners: TICKER_OWNERS[s.ticker] ?? [],
+          // Last ~30 daily closes for the row's mini trend line.
+          spark: s.closes.slice(-30).map((c) => c.close),
         };
       })
       .filter((r) => filter === "all" || r.owners.includes(filter))
@@ -81,6 +84,12 @@ export function StocksListView({ series }: Props) {
                   )}
                 </div>
               </div>
+              <Sparkline
+                values={r.spark}
+                color={r.plPct >= 0 ? "var(--gain)" : "var(--loss)"}
+                width={48}
+                height={18}
+              />
               <div
                 className="text-[14px] font-semibold tabular-nums"
                 style={{ color: r.plPct >= 0 ? "var(--gain)" : "var(--loss)" }}

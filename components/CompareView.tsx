@@ -24,6 +24,8 @@ import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { accentFor, useP3 } from "@/lib/color";
 import { AnimatedRow } from "./AnimatedList";
+import { Sparkline } from "./Sparkline";
+import { GolfCountdown } from "./GolfCountdown";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
@@ -381,6 +383,20 @@ export function CompareView({
     });
   }
 
+  // Downsampled range curve for a row's sparkline (~30 points). Reads the
+  // same per-entity ranged points the chart plots.
+  function sparkFor(id: string): number[] {
+    const pts: PortfolioPoint[] =
+      (ranged as Record<string, PortfolioPoint[]>)[id] ??
+      (id === BASELINE.id ? baselineRanged ?? [] : fundRanged[id] ?? []);
+    if (pts.length < 2) return [];
+    const step = Math.max(1, Math.floor(pts.length / 30));
+    const out: number[] = [];
+    for (let i = 0; i < pts.length; i += step) out.push(pts[i].value);
+    if (out[out.length - 1] !== pts[pts.length - 1].value) out.push(pts[pts.length - 1].value);
+    return out;
+  }
+
   function refreshAfterSave() {
     // Router refresh re-runs the server component (app/page.tsx), which
     // re-reads funds.json with the just-committed entry and pipes the new
@@ -423,6 +439,28 @@ export function CompareView({
               <AnimatedNumber value={gapDollars} format={fmtSignedUSD} animate={scrub == null} /> gap
               {scrubLabel && <span className="text-ink-faint"> • {scrubLabel}</span>}
             </div>
+            {/* Spread-at-a-glance: every visible entry as a dot on one
+                track, positioned by range pct (leader at the right). */}
+            {stats.length > 1 && (
+              <div className="relative h-[3px] rounded-full bg-raised mt-3 mb-1">
+                {(() => {
+                  const min = Math.min(...stats.map((s) => s.pct));
+                  const max = Math.max(...stats.map((s) => s.pct));
+                  const span = max - min || 1;
+                  return stats.map((s) => (
+                    <span
+                      key={s.id}
+                      title={s.name}
+                      className="absolute top-1/2 w-2 h-2 rounded-full -translate-y-1/2 -translate-x-1/2 ring-2 ring-page"
+                      style={{
+                        left: `${(((s.pct - min) / span) * 94 + 3).toFixed(1)}%`,
+                        backgroundColor: s.color,
+                      }}
+                    />
+                  ));
+                })()}
+              </div>
+            )}
           </>
         ) : (
           <div className="text-[14px] font-medium text-ink-muted mt-1">
@@ -484,6 +522,7 @@ export function CompareView({
                 <UserRow
                   name={s.name}
                   color={s.color}
+                  spark={sparkFor(s.id)}
                   value={s.value}
                   pct={s.pct}
                   gap={gap}
@@ -513,6 +552,7 @@ export function CompareView({
           Each portfolio started with $100,000 split evenly across each player's
           picks at the Feb 5, 2026 close. Partial shares allowed. Updated daily.
         </div>
+        <GolfCountdown />
       </div>
 
       <FilterSheet
@@ -573,6 +613,7 @@ function UserRow({
   href,
   pendingTickers,
   animateNumbers = true,
+  spark,
 }: {
   name: string;
   color: string;
@@ -582,6 +623,8 @@ function UserRow({
   place: number;
   /** False while a scrub drives the values — they render raw, not eased. */
   animateNumbers?: boolean;
+  /** Downsampled range curve for the row's mini trend line. */
+  spark?: number[];
   // Null for the S&P 500 baseline row — it has no drill-down page so we
   // render a plain div instead of a tappable Link.
   href: string | null;
@@ -629,6 +672,9 @@ function UserRow({
           )}
         </div>
       </div>
+      {spark && spark.length > 1 && (
+        <Sparkline values={spark} color={color} width={52} height={18} />
+      )}
       <div className="flex flex-col items-end shrink-0">
         <div className="text-[16px] font-semibold text-ink tabular-nums">
           <AnimatedNumber value={value} format={(n) => fmtUSD(n, 0)} animate={animateNumbers} />

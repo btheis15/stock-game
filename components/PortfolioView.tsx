@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
 import { AnimatedRow } from "./AnimatedList";
+import { fmtDateShort } from "@/lib/portfolio";
 import { PriceHeader } from "./PriceHeader";
 import {
   filterRange,
@@ -222,6 +223,21 @@ export function PortfolioView({
     [holdings, range]
   );
 
+  // Best / worst single trading day over the whole game, from the daily
+  // series (day-over-day $ change). Small identity chips under Holdings.
+  const dayRecords = useMemo(() => {
+    if (series.length < 2) return null;
+    let best = { delta: -Infinity, date: "" };
+    let worst = { delta: Infinity, date: "" };
+    for (let i = 1; i < series.length; i++) {
+      const delta = series[i].value - series[i - 1].value;
+      if (delta > best.delta) best = { delta, date: series[i].date };
+      if (delta < worst.delta) worst = { delta, date: series[i].date };
+    }
+    if (!isFinite(best.delta) || !isFinite(worst.delta)) return null;
+    return { best, worst };
+  }, [series]);
+
   return (
     <div className="pb-24" style={{ "--accent": accent } as CSSProperties}>
       <PriceHeader
@@ -268,6 +284,20 @@ export function PortfolioView({
 
       <div className="px-4 mt-3">
         <h2 className="text-[15px] font-semibold text-ink-3 mb-2">Holdings</h2>
+        {dayRecords && (
+          <div className="flex gap-2 mb-2 text-[11px] font-medium tabular-nums">
+            <span className="px-2 py-1 rounded-full bg-card border border-hairline">
+              <span className="text-ink-faint">Best day </span>
+              <span style={{ color: "var(--gain)" }}>{fmtSignedUSD(dayRecords.best.delta, 0)}</span>
+              <span className="text-ink-ghost"> · {fmtDateShort(dayRecords.best.date)}</span>
+            </span>
+            <span className="px-2 py-1 rounded-full bg-card border border-hairline">
+              <span className="text-ink-faint">Worst day </span>
+              <span style={{ color: "var(--loss)" }}>{fmtSignedUSD(dayRecords.worst.delta, 0)}</span>
+              <span className="text-ink-ghost"> · {fmtDateShort(dayRecords.worst.date)}</span>
+            </span>
+          </div>
+        )}
         <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {sorted.map((h) => {
             const stat = h.rangeStats[range];
