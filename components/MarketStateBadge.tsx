@@ -120,7 +120,7 @@ export function MarketStateBadge({
           <RelativeTime
             iso={generatedAt}
             prefix="Updated"
-            className="text-[10px] font-medium tracking-wide text-zinc-600"
+            className="text-[10px] font-medium tracking-wide text-ink-ghost"
           />
         )}
       </div>
@@ -136,7 +136,7 @@ export function MarketStateBadge({
         </div>
       )}
       {!notice && schedule.weekend && (
-        <div className="mt-1.5 text-[11px] font-medium leading-snug text-zinc-500">
+        <div className="mt-1.5 text-[11px] font-medium leading-snug text-ink-faint">
           {schedule.weekend}
         </div>
       )}

@@ -99,7 +99,7 @@ export default async function RootLayout({
           />
         ))}
       </head>
-      <body className="min-h-full bg-black text-white antialiased">
+      <body className="min-h-full bg-page text-ink antialiased">
         <ThemeController />
         <ServiceWorkerRegistrar />
         <InstallHint />

@@ -5,6 +5,54 @@
   --foreground: #ffffff;
   --gain: #00c805;
   --loss: #ff453a;
+
+  /* ── Semantic surface/text/border tokens ─────────────────────────────
+     One variable per (role × translucency-in-use); each theme block below
+     re-assigns the whole set. Values are copied EXACTLY from the legacy
+     per-utility overrides so migrating a component from `bg-zinc-900/70`
+     to `bg-card` is pixel-identical in all three themes. Components use
+     these via the @theme utilities (bg-card, text-ink-muted,
+     border-hairline, …).
+
+     RULE: never put a Tailwind opacity modifier on a semantic token
+     (`bg-card/50` is banned) — that recreates the per-alpha override
+     whack-a-mole these tokens exist to kill. Need a new translucency?
+     Mint a token here and assign it in all three theme blocks. */
+
+  /* Surfaces */
+  --surface-page: #000000;                  /* was bg-black */
+  --surface-solid: #09090b;                 /* was bg-zinc-950 (sheet panel) */
+  --surface-chrome: rgb(0 0 0 / 0.95);      /* was bg-black/95 (tab bar) */
+  --surface-chrome-soft: rgb(0 0 0 / 0.85); /* was bg-black/85 (sticky headers) */
+  --surface-card: rgb(24 24 27 / 0.7);      /* was bg-zinc-900/70 — THE card */
+  --surface-card-solid: #18181b;            /* was bg-zinc-900 */
+  --surface-card-95: rgb(24 24 27 / 0.95);  /* was bg-zinc-900/95 */
+  --surface-card-60: rgb(24 24 27 / 0.6);   /* was bg-zinc-900/60 */
+  --surface-card-50: rgb(24 24 27 / 0.5);   /* was bg-zinc-900/50 */
+  --surface-card-40: rgb(24 24 27 / 0.4);   /* was bg-zinc-900/40 */
+  --surface-raised: #27272a;                /* was bg-zinc-800 (pills, badges) */
+  --surface-raised-80: rgb(39 39 42 / 0.8); /* was bg-zinc-800/80 */
+  --surface-raised-70: rgb(39 39 42 / 0.7); /* was bg-zinc-800/70 */
+  --surface-pressed: rgb(39 39 42 / 0.6);   /* was bg-zinc-800/60 */
+  --surface-pressed-40: rgb(39 39 42 / 0.4);/* was bg-zinc-800/40 */
+  --surface-strong: #3f3f46;                /* was bg-zinc-700 */
+  --surface-ghost: #52525b;                 /* was bg-zinc-600 (closed dot) */
+
+  /* Text */
+  --ink: #ffffff;         /* was text-white / text-zinc-100 */
+  --ink-2: #e4e4e7;       /* was text-zinc-200 — body prose */
+  --ink-3: #d4d4d8;       /* was text-zinc-300 */
+  --ink-muted: #a1a1aa;   /* was text-zinc-400 — secondary */
+  --ink-faint: #71717a;   /* was text-zinc-500 — captions/kickers */
+  --ink-ghost: #52525b;   /* was text-zinc-600 — subtle attribution */
+  --ink-ghost-2: #3f3f46; /* was text-zinc-700 — subtlest */
+
+  /* Borders */
+  --border-hairline: #27272a;               /* was border-zinc-800 / divide-zinc-800 */
+  --border-deep: #18181b;                   /* was border-zinc-900 */
+  --border-strong: #3f3f46;                 /* was border-zinc-700 */
+  --border-strong-60: rgb(63 63 70 / 0.6);  /* was border-zinc-700/60 */
+  --border-ghost: #52525b;                  /* was border-zinc-600 */
   /* Chart UI lines (baseline reference + scrub crosshair). Tinted with the
      theme's foreground so they stay visible on whichever surface is active. */
   --chart-baseline: rgba(255, 255, 255, 0.12);
@@ -175,6 +223,40 @@ button {
   --color-foreground: var(--foreground);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
+
+  /* Semantic tokens → utilities (bg-card, text-ink-muted, border-hairline…).
+     One --color-* per token; Tailwind v4 derives bg-/text-/border-/divide-
+     utilities from each. NO opacity modifiers on these in markup — see the
+     token rule in :root. */
+  --color-page: var(--surface-page);
+  --color-solid: var(--surface-solid);
+  --color-chrome: var(--surface-chrome);
+  --color-chrome-soft: var(--surface-chrome-soft);
+  --color-card: var(--surface-card);
+  --color-card-solid: var(--surface-card-solid);
+  --color-card-95: var(--surface-card-95);
+  --color-card-60: var(--surface-card-60);
+  --color-card-50: var(--surface-card-50);
+  --color-card-40: var(--surface-card-40);
+  --color-raised: var(--surface-raised);
+  --color-raised-80: var(--surface-raised-80);
+  --color-raised-70: var(--surface-raised-70);
+  --color-pressed: var(--surface-pressed);
+  --color-pressed-40: var(--surface-pressed-40);
+  --color-strong: var(--surface-strong);
+  --color-ghost: var(--surface-ghost);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-ghost: var(--ink-ghost);
+  --color-ink-ghost-2: var(--ink-ghost-2);
+  --color-hairline: var(--border-hairline);
+  --color-hairline-deep: var(--border-deep);
+  --color-edge-strong: var(--border-strong);
+  --color-edge-strong-60: var(--border-strong-60);
+  --color-edge-ghost: var(--border-ghost);
 }
 
 /*
@@ -199,6 +281,37 @@ button {
   --chart-scrub-line: rgba(24, 24, 27, 0.45);
   --chart-axis-label: rgba(24, 24, 27, 0.55);
   color-scheme: light;
+
+  /* Semantic tokens — values identical to the legacy utility overrides below. */
+  --surface-page: #fafafa;
+  --surface-solid: #fafafa;
+  --surface-chrome: rgb(255 255 255 / 0.92);
+  --surface-chrome-soft: rgb(255 255 255 / 0.92);
+  --surface-card: #ffffff;
+  --surface-card-solid: #ffffff;
+  --surface-card-95: #ffffff;
+  --surface-card-60: #ffffff;
+  --surface-card-50: #ffffff;
+  --surface-card-40: #ffffff;
+  --surface-raised: #f4f4f5;
+  --surface-raised-80: #f4f4f5;
+  --surface-raised-70: #f4f4f5;
+  --surface-pressed: rgb(228 228 231 / 0.7);
+  --surface-pressed-40: rgb(228 228 231 / 0.7);
+  --surface-strong: #d4d4d8;
+  --surface-ghost: #a1a1aa;
+  --ink: #18181b;
+  --ink-2: #27272a;
+  --ink-3: #3f3f46;
+  --ink-muted: #52525b;
+  --ink-faint: #71717a; /* zinc-500 reads OK on both backgrounds */
+  --ink-ghost: #a1a1aa;
+  --ink-ghost-2: #d4d4d8;
+  --border-hairline: #e4e4e7;
+  --border-deep: #e4e4e7;
+  --border-strong: #e4e4e7;
+  --border-strong-60: #e4e4e7;
+  --border-ghost: #e4e4e7;
 }
 
 :root[data-theme="light"] .bg-black,
@@ -302,6 +415,37 @@ button {
   --chart-scrub-line: rgba(199, 210, 254, 0.5);
   --chart-axis-label: rgba(199, 210, 254, 0.55);
   color-scheme: dark;
+
+  /* Semantic tokens — values identical to the legacy utility overrides below. */
+  --surface-page: #0b1024;
+  --surface-solid: #0b1024;
+  --surface-chrome: rgb(11 16 36 / 0.92);
+  --surface-chrome-soft: rgb(11 16 36 / 0.92);
+  --surface-card: #161e3d;
+  --surface-card-solid: #161e3d;
+  --surface-card-95: #161e3d;
+  --surface-card-60: #161e3d;
+  --surface-card-50: #161e3d;
+  --surface-card-40: #161e3d;
+  --surface-raised: #1f2a52;
+  --surface-raised-80: #1f2a52;
+  --surface-raised-70: #1f2a52;
+  --surface-pressed: rgb(31 42 82 / 0.7);
+  --surface-pressed-40: rgb(31 42 82 / 0.7);
+  --surface-strong: #2d3a6b;
+  --surface-ghost: #4b5895;
+  --ink: #e0e7ff;
+  --ink-2: #c7d2fe;
+  --ink-3: #a5b4fc;
+  --ink-muted: #818cf8;
+  --ink-faint: #8b94c8;
+  --ink-ghost: #6b75ad;
+  --ink-ghost-2: #4b5895;
+  --border-hairline: #283260;
+  --border-deep: #283260;
+  --border-strong: #283260;
+  --border-strong-60: #283260;
+  --border-ghost: #283260;
 }
 
 :root[data-theme="twilight"] .bg-black,
@@ -384,7 +528,38 @@ button {
   border-color: #283260 !important;
 }
 
-/* Smooth surface/text transitions when the theme flips at session boundaries. */
+/* Smooth surface/text transitions when the theme flips at session boundaries.
+   Semantic-token utilities (bg-card, text-ink, …) are listed alongside the
+   legacy zinc utilities; once PR-2 finishes the migration the zinc half of
+   this list goes away. */
+.bg-page,
+.bg-solid,
+.bg-chrome,
+.bg-chrome-soft,
+.bg-card,
+.bg-card-solid,
+.bg-card-95,
+.bg-card-60,
+.bg-card-50,
+.bg-card-40,
+.bg-raised,
+.bg-raised-80,
+.bg-raised-70,
+.bg-pressed,
+.bg-pressed-40,
+.bg-strong,
+.bg-ghost,
+.text-ink,
+.text-ink-2,
+.text-ink-3,
+.text-ink-muted,
+.text-ink-faint,
+.text-ink-ghost,
+.text-ink-ghost-2,
+.border-hairline,
+.border-hairline-deep,
+.border-edge-strong,
+.border-edge-ghost,
 :root,
 body,
 .bg-black,

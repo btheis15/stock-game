@@ -422,12 +422,38 @@ is open (`Date.now() − latestIntradayBar < 30 min` — the same rule as
 `isMarketLive`). It re-evaluates every 60 seconds so the page flips
 when the market crosses open/close without a reload.
 
-`globals.css` defines the light overrides as targeted utility-class
-overrides under `:root[data-theme="light"]` rather than introducing new
-theme tokens. The covered classes are exactly what the codebase uses
-today plus their `/N` opacity variants. **If you add a new component,
-reuse those existing utilities** — they flip themes automatically. New
-hex literals (e.g. `bg-[#xxx]`) won't.
+**Semantic design tokens (added 2026-07-21 — the migration target).**
+`globals.css` now defines a semantic token layer — surface tokens
+(`--surface-page/chrome/card/raised/pressed/…`), text tokens
+(`--ink`, `--ink-2/3/muted/faint/ghost/ghost-2`), and border tokens
+(`--border-hairline/deep/strong/ghost`) — assigned per theme in `:root`,
+`[data-theme="light"]`, and `[data-theme="twilight"]`, and exposed as
+Tailwind utilities via `@theme inline` (`bg-card`, `bg-chrome`,
+`text-ink-muted`, `border-hairline`, `border-hairline-deep`,
+`border-edge-strong`, …). Token values were copied EXACTLY from the legacy
+per-utility overrides, so a migrated component is pixel-identical in all
+three themes. **New components should use the semantic utilities, not raw
+zinc classes.** Two rules: (1) never put an opacity modifier on a semantic
+token (`bg-card/50` recreates the whack-a-mole — mint a new token in all
+three theme blocks instead); (2) when you add a token, also add its
+utility class to the theme-transition selector group at the bottom of
+`globals.css`. The app chrome (layout, TabBar, HeaderBack, Footer, Sheet,
+InstallHint, MarketStateBadge) is migrated; the remaining components still
+use the legacy overrides below until the full migration lands.
+
+**Theme QA override.** `ThemeController` honors `?theme=light|twilight|dark`
+(persisted to localStorage; `?theme=auto` returns control to the market
+clock). This is the fast way to eyeball all three themes — the 60s session
+re-apply no longer fights DevTools edits. Left enabled in production
+deliberately, for reproducing theme reports on-device.
+
+The legacy system below still covers un-migrated components: `globals.css`
+defines the light overrides as targeted utility-class overrides under
+`:root[data-theme="light"]`. The covered classes are exactly what the
+codebase uses today plus their `/N` opacity variants. If you must touch an
+un-migrated component without converting it, reuse those existing
+utilities — they flip themes automatically. New hex literals (e.g.
+`bg-[#xxx]`) won't.
 
 > **⚠ Recurring bug — the #1 thing to get right when adding a feature.**
 > A dark-surface utility only theme-flips if it has an override under

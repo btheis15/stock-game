@@ -9,13 +9,13 @@ export function Footer({
   generatedAt: string;
 }) {
   return (
-    <div className="px-4 py-6 text-center text-[11px] text-zinc-600 leading-relaxed">
+    <div className="px-4 py-6 text-center text-[11px] text-ink-ghost leading-relaxed">
       Data through {fmtDateLong(lastDate)}
       <br />
       <RelativeTime
         iso={generatedAt}
         prefix="Snapshot"
-        className="text-zinc-700"
+        className="text-ink-ghost-2"
       />
     </div>
   );

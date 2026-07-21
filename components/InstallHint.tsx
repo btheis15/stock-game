@@ -36,21 +36,21 @@ export function InstallHint() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-40 bg-zinc-900/95 backdrop-blur-md border-b border-zinc-800"
+      className="fixed top-0 left-0 right-0 z-40 bg-card-95 backdrop-blur-md border-b border-hairline"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
       <div className="max-w-md mx-auto flex items-center gap-3 px-4 py-2.5">
-        <div className="text-[12px] leading-snug flex-1 text-zinc-200">
-          <span className="font-semibold text-white">Add to Home Screen</span>{" "}
+        <div className="text-[12px] leading-snug flex-1 text-ink-2">
+          <span className="font-semibold text-ink">Add to Home Screen</span>{" "}
           for full-screen mode. Tap{" "}
           <ShareIcon />
           {" "}then{" "}
-          <span className="text-white">Add to Home Screen</span>.
+          <span className="text-ink">Add to Home Screen</span>.
         </div>
         <button
           onClick={dismiss}
           aria-label="Dismiss"
-          className="w-7 h-7 -mr-1 rounded-full flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-800"
+          className="w-7 h-7 -mr-1 rounded-full flex items-center justify-center text-ink-muted hover:text-ink active:bg-raised"
         >
           <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
             <path
@@ -68,7 +68,7 @@ export function InstallHint() {
 
 function ShareIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="inline w-4 h-4 -mt-0.5 text-white" aria-label="Share">
+    <svg viewBox="0 0 24 24" fill="none" className="inline w-4 h-4 -mt-0.5 text-ink" aria-label="Share">
       <path
         d="M12 4v12M12 4l-3.5 3.5M12 4l3.5 3.5"
         stroke="currentColor"

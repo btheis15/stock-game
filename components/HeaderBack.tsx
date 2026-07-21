@@ -21,7 +21,7 @@ export function HeaderBack({ title }: { title?: string }) {
   //     below the status bar.
   return (
     <div
-      className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-2 bg-black/85 backdrop-blur-md"
+      className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-2 bg-chrome-soft backdrop-blur-md"
       style={{
         marginTop: "calc(-1 * env(safe-area-inset-top))",
         paddingTop: "max(env(safe-area-inset-top), 12px)",
@@ -30,7 +30,7 @@ export function HeaderBack({ title }: { title?: string }) {
       <button
         onClick={() => router.back()}
         aria-label="Back"
-        className="press w-9 h-9 -ml-2 rounded-full flex items-center justify-center bg-zinc-900/70 hover:bg-zinc-800 active:bg-zinc-700"
+        className="press w-9 h-9 -ml-2 rounded-full flex items-center justify-center bg-card hover:bg-raised active:bg-strong"
       >
         <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
           <path
@@ -42,7 +42,7 @@ export function HeaderBack({ title }: { title?: string }) {
           />
         </svg>
       </button>
-      {title && <span className="text-sm font-medium text-zinc-300">{title}</span>}
+      {title && <span className="text-sm font-medium text-ink-3">{title}</span>}
     </div>
   );
 }
