@@ -26,6 +26,7 @@ import { accentFor, useP3 } from "@/lib/color";
 import { AnimatedRow } from "./AnimatedList";
 import { Sparkline } from "./Sparkline";
 import { GolfCountdown } from "./GolfCountdown";
+import { LeadTape } from "./LeadTape";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
@@ -538,6 +539,8 @@ export function CompareView({
       </div>
 
       <InsightsCard analysis={analyses[range]} />
+
+      <LeadTape series={series} />
 
       <PortfolioComposition
         composition={combinedComposition}
