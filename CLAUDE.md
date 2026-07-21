@@ -454,6 +454,22 @@ pixel-identical. Three rules:
 The guard runs in CI (`.github/workflows/build.yml` `theme-coverage` job)
 and the pre-push hook alongside `npm run build`.
 
+**Wide-gamut color (P3) + per-page accents (added 2026-07-21).**
+On Display-P3 screens an `@supports (color: color(display-p3 1 1 1))` layer
+upgrades `--gain`/`--loss` (globals.css); player accents carry a P3 variant
+(`color_p3` in config/roster.json, exposed as `colorP3` by `lib/picks.ts`).
+DOM styling uses `var(--gain)`/`var(--loss)` — never
+hardcode `#00C805`/`#FF453A` in new code. SVG *attributes* (chart strokes,
+gradient stops) can't resolve `var()`, so client components pick the value
+via `lib/color.ts` (`useP3()` + `accentFor(entity, p3)`) — the hook starts
+false on server + first paint (hydration-safe) and flips post-mount.
+Detail pages (portfolio/stock/fund) publish the owning entity's accent as
+`--accent` on the page root; the deep-link `holdingFlash` and other
+accent-aware chrome read it (fallback: gain green). The leader row and hero
+gap number on Compare get a subtle same-hue glow via `color-mix`; twilight
+gets a fixed dawn-gradient page wash (dark stays pure #000 — OLED rule).
+FundamentalsPanel's SVG fill constants stay hex on purpose (fill attrs).
+
 **Theme QA override.** `ThemeController` honors `?theme=light|twilight|dark`
 (persisted to localStorage; `?theme=auto` returns control to the market
 clock). This is the fast way to eyeball all three themes — the 60s session

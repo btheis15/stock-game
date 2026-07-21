@@ -182,7 +182,7 @@ export function PullToRefresh() {
             className="w-5 h-5 transition-transform"
             style={{
               transform: `rotate(${arrowRotation}deg)`,
-              color: ready ? "#00C805" : "#a1a1aa",
+              color: ready ? "var(--gain)" : "#a1a1aa",
             }}
           >
             <path

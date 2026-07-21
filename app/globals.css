@@ -67,6 +67,24 @@
   --dur-press: 140ms;
   --dur-fade: 220ms;
   --dur-slide: 320ms;
+
+  /* Per-page accent — set by detail pages (portfolio/stock/fund) to the
+     owning entity's color so range pills, holding flashes, and glows pick
+     up that identity. Falls back to gain green on pages that don't set it. */
+  --accent: var(--gain);
+}
+
+/* Wide-gamut upgrade: on Display-P3 screens (every iPhone in the group),
+   push the semantic gain/loss colors toward the P3 gamut boundary —
+   hue-preserved, just richer. sRGB values above remain the fallback and
+   the source of truth. Neutrals deliberately stay sRGB (wide-gamut grays
+   read as tinted). Player accents get the same treatment via color_p3 in
+   config/roster.json (see the style block in app/layout.tsx). */
+@supports (color: color(display-p3 1 1 1)) {
+  :root {
+    --gain: color(display-p3 0 0.8 0.05);
+    --loss: color(display-p3 1 0.27 0.23);
+  }
 }
 
 html,
@@ -96,7 +114,7 @@ html {
 
 @keyframes holdingFlash {
   0% {
-    background-color: rgba(0, 200, 5, 0.18);
+    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
   }
   100% {
     background-color: transparent;
@@ -317,13 +335,6 @@ button {
   --border-ghost: #e4e4e7;
 }
 
-/* zinc-500 is mid-gray and reads OK on both backgrounds; keep as-is. */
-
-/* Tailwind v4 implements divide-y with `border-bottom: 1px` on every child
-   except :last-child. The previous Tailwind v3 selector used `~` (every
-   child except :first-child). Match BOTH patterns so the override is
-   future-proof against either implementation, and use `> *` as a fallback
-   to catch any child that has a border set on it. */
 /*
  * TWILIGHT THEME — toggled by ThemeController on
  * <html data-theme="twilight"> during pre-market (7:00 - 9:30 AM ET) and
@@ -372,6 +383,24 @@ button {
   --border-strong: #283260;
   --border-strong-60: #283260;
   --border-ghost: #283260;
+}
+
+/* Dawn/dusk wash — a fixed indigo gradient behind the twilight page.
+   The dark theme deliberately keeps pure #000 (OLED rule, DESIGN.md §2.1);
+   twilight gets the atmosphere. P3 variant blooms slightly richer. */
+:root[data-theme="twilight"] body {
+  background-image: linear-gradient(180deg, #131a3a 0%, #0b1024 45%);
+  background-attachment: fixed;
+}
+
+@supports (color: color(display-p3 1 1 1)) {
+  :root[data-theme="twilight"] body {
+    background-image: linear-gradient(
+      180deg,
+      color(display-p3 0.07 0.1 0.25) 0%,
+      #0b1024 45%
+    );
+  }
 }
 
 /* Smooth surface/text transitions when the theme flips at session boundaries.

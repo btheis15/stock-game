@@ -14,7 +14,7 @@ interface StateStyle {
 }
 
 const STATE_STYLES: Record<MarketSessionState, StateStyle> = {
-  open: { label: "Market open", color: "#00C805", pulse: true },
+  open: { label: "Market open", color: "var(--gain)", pulse: true },
   // Indigo-300 for both extended-hours states so the badge reads cool/dim,
   // distinct from the bright green of regular hours. Pulse stays on because
   // bars are still streaming in.

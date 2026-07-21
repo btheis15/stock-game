@@ -57,7 +57,7 @@ function UserPerformersCard({
     .slice(0, MAX_PER_LIST)
     .reverse();
   const placeLabel = ["1st", "2nd", "3rd", "4th"][place - 1] ?? `${place}th`;
-  const pctColor = rangePct >= 0 ? "#00C805" : "#FF453A";
+  const pctColor = rangePct >= 0 ? "var(--gain)" : "var(--loss)";
 
   return (
     <div className="rounded-2xl bg-card border border-hairline p-4">
@@ -122,7 +122,7 @@ function Section({
 
 function MoverRow({ mover }: { mover: RangeMover }) {
   const positive = mover.pct >= 0;
-  const color = positive ? "#00C805" : "#FF453A";
+  const color = positive ? "var(--gain)" : "var(--loss)";
   return (
     <Link
       href={`/stock/${mover.ticker}`}

@@ -40,7 +40,7 @@ export function OverlayLegend({
               </span>
               <span
                 className="text-[13px] font-semibold tabular-nums"
-                style={{ color: row.pct >= 0 ? "#00C805" : "#FF453A" }}
+                style={{ color: row.pct >= 0 ? "var(--gain)" : "var(--loss)" }}
               >
                 {fmtPct(row.pct)}
               </span>

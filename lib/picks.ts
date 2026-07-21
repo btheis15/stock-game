@@ -24,6 +24,10 @@ export interface User {
   name: string;
   color: string;
   colorRgb: string;
+  /** Display-P3 accent (CSS Color 4 string) — richer than `color` on
+   *  wide-gamut screens. Optional; pick at runtime via lib/color.ts
+   *  `accentFor` so non-P3 displays fall back to the sRGB hex. */
+  colorP3?: string;
   tickers: string[];
 }
 
@@ -40,6 +44,7 @@ interface RawUser {
   name: string;
   color: string;
   color_rgb: string;
+  color_p3?: string;
   tickers: string[];
 }
 
@@ -68,6 +73,7 @@ function toUser(u: RawUser): User {
     name: u.name,
     color: u.color,
     colorRgb: u.color_rgb,
+    colorP3: u.color_p3,
     tickers: u.tickers,
   };
 }

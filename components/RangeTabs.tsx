@@ -8,7 +8,7 @@ const RANGES: Range[] = ["1D", "1W", "1M", "3M", "1YR", "ALL"];
 export function RangeTabs({
   value,
   onChange,
-  accent = "#00C805",
+  accent = "var(--gain)",
 }: {
   value: Range;
   onChange: (r: Range) => void;

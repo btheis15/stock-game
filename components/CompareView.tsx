@@ -22,6 +22,7 @@ import {
 } from "@/lib/portfolio";
 import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
+import { accentFor, useP3 } from "@/lib/color";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
 import { PortfolioComposition } from "./PortfolioComposition";
@@ -101,6 +102,7 @@ export function CompareView({
   combinedComposition,
 }: Props) {
   const router = useRouter();
+  const p3 = useP3();
   const [range, setRange] = useState<Range>("1D");
   const { loading: digestsLoading, getGameDigest } = useDigests();
   const [scrub, setScrub] = useState<ScrubState | null>(null);
@@ -240,7 +242,7 @@ export function CompareView({
       entries.push({
         id: u.id,
         name: u.name,
-        color: u.color,
+        color: accentFor(u, p3),
         href: `/portfolio/${u.id}`,
         value,
         pct,
@@ -301,7 +303,7 @@ export function CompareView({
     }
     return entries.sort((a, b) => b.pct - a.pct);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, fundPending, isIntraday, isOn]);
+  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, fundPending, isIntraday, isOn, p3]);
 
   // Empty-state guard: if every chip is toggled off, stats is empty and
   // leader/second below would crash. Use safe defaults so the page still
@@ -335,7 +337,7 @@ export function CompareView({
     const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
     return {
       id: u.id,
-      color: u.color,
+      color: accentFor(u, p3),
       data: pts.map((p) => ({
         date: p.date,
         value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
@@ -406,7 +408,12 @@ export function CompareView({
           <>
             <div
               className="text-[34px] font-semibold tracking-tight mt-1"
-              style={{ color: leader.color }}
+              style={{
+                color: leader.color,
+                // A soft same-hue bloom behind the hero number — reads as
+                // glow on OLED, invisible enough to stay professional.
+                textShadow: `0 0 22px color-mix(in srgb, ${leader.color} 35%, transparent)`,
+              }}
             >
               {fmtPct(gapPct)}
             </div>
@@ -573,9 +580,19 @@ function UserRow({
   pendingTickers?: string[];
 }) {
   const positive = pct >= 0;
-  const deltaColor = positive ? "#00C805" : "#FF453A";
+  const deltaColor = positive ? "var(--gain)" : "var(--loss)";
   const isLeader = place === 1;
   const pending = pendingTickers ?? [];
+  // Leader identity treatment: a 3px accent bar plus a faint same-hue wash
+  // fading out across the row. inset box-shadow (not border) so the row's
+  // box doesn't shift vs. the others; color-mix keeps it subtle in every
+  // theme and inherits the P3 accent on wide-gamut screens.
+  const leaderStyle = isLeader
+    ? {
+        boxShadow: `inset 3px 0 0 0 ${color}`,
+        backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${color} 7%, transparent), transparent 55%)`,
+      }
+    : undefined;
   const inner = (
     <>
       <div className="w-6 text-center text-[14px] font-semibold text-ink-faint tabular-nums shrink-0">
@@ -628,7 +645,7 @@ function UserRow({
     ) : null;
   if (href == null) {
     return (
-      <div className="px-3 py-3">
+      <div className="px-3 py-3" style={leaderStyle}>
         <div className="flex items-center gap-3">{inner}</div>
         {note}
       </div>
@@ -638,6 +655,7 @@ function UserRow({
     <Link
       href={href}
       className="block px-3 py-3 active:bg-card-40 transition-colors"
+      style={leaderStyle}
     >
       <div className="flex items-center gap-3">{inner}</div>
       {note}

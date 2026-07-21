@@ -88,7 +88,7 @@ function renderProse(text: string): React.ReactNode[] {
       <span
         key={`pct-${key++}`}
         className="tabular-nums font-medium"
-        style={{ color: positive ? "#00C805" : "#FF453A" }}
+        style={{ color: positive ? "var(--gain)" : "var(--loss)" }}
       >
         {m[1].replace("-", "−")}
       </span>
@@ -264,7 +264,7 @@ function SignalDot({ avg }: { avg: number | null }) {
   // Green dot for a high-quality digest (≥8), yellow for moderate (6–7).
   // The dot doesn't appear if no AI scoring happened.
   if (avg == null) return <span className="w-2 h-2 mt-1.5 rounded-full bg-ghost shrink-0" />;
-  const color = avg >= 8 ? "#00C805" : avg >= 6 ? "#FFCC00" : "#71717A";
+  const color = avg >= 8 ? "var(--gain)" : avg >= 6 ? "#FFCC00" : "#71717A";
   return (
     <span
       className="w-2 h-2 mt-1.5 rounded-full shrink-0"

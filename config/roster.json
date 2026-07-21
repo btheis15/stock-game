@@ -15,35 +15,95 @@
       "name": "Brian",
       "color": "#00C805",
       "color_rgb": "0, 200, 5",
-      "tickers": ["ASTS", "AMZN", "UBER", "SERV", "AAPL", "QCOM", "ISRG", "CRSP", "HON", "EXOD"]
+      "color_p3": "color(display-p3 0 0.8 0.05)",
+      "tickers": [
+        "ASTS",
+        "AMZN",
+        "UBER",
+        "SERV",
+        "AAPL",
+        "QCOM",
+        "ISRG",
+        "CRSP",
+        "HON",
+        "EXOD"
+      ]
     },
     {
       "id": "kevin",
       "name": "Kevin",
       "color": "#5AC8FA",
       "color_rgb": "90, 200, 250",
-      "tickers": ["TSLA", "NVDA", "AVGO", "MRVL", "CRDO", "PLTR", "ORCL", "ZS", "VST", "VRT"]
+      "color_p3": "color(display-p3 0.3 0.78 1)",
+      "tickers": [
+        "TSLA",
+        "NVDA",
+        "AVGO",
+        "MRVL",
+        "CRDO",
+        "PLTR",
+        "ORCL",
+        "ZS",
+        "VST",
+        "VRT"
+      ]
     },
     {
       "id": "rick",
       "name": "Rick",
       "color": "#FF9F0A",
       "color_rgb": "255, 159, 10",
-      "tickers": ["COHR", "CRWV", "GFS", "GOOGL", "NBIS", "QBTS", "NVDA", "RKLB", "S", "TSLA"]
+      "color_p3": "color(display-p3 1 0.63 0)",
+      "tickers": [
+        "COHR",
+        "CRWV",
+        "GFS",
+        "GOOGL",
+        "NBIS",
+        "QBTS",
+        "NVDA",
+        "RKLB",
+        "S",
+        "TSLA"
+      ]
     },
     {
       "id": "lee",
       "name": "Lee",
       "color": "#BF5AF2",
       "color_rgb": "191, 90, 242",
-      "tickers": ["PEP", "GM", "TAP", "VZ", "UL", "DKS", "WMT", "PFE", "HD", "AAPL"]
+      "color_p3": "color(display-p3 0.76 0.32 1)",
+      "tickers": [
+        "PEP",
+        "GM",
+        "TAP",
+        "VZ",
+        "UL",
+        "DKS",
+        "WMT",
+        "PFE",
+        "HD",
+        "AAPL"
+      ]
     },
     {
       "id": "gene",
       "name": "Gene",
       "color": "#FF375F",
       "color_rgb": "255, 55, 95",
-      "tickers": ["ASML", "CRSP", "OKLO", "GLUE", "VVOS", "HUT", "AMRZ", "SMR", "RKLB", "ZBRA"]
+      "color_p3": "color(display-p3 1 0.19 0.35)",
+      "tickers": [
+        "ASML",
+        "CRSP",
+        "OKLO",
+        "GLUE",
+        "VVOS",
+        "HUT",
+        "AMRZ",
+        "SMR",
+        "RKLB",
+        "ZBRA"
+      ]
     }
   ],
   "ticker_names": {

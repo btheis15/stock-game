@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/portfolio";
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
 import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
+import { accentFor, useP3 } from "@/lib/color";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
 import { useDigests } from "@/lib/digests";
@@ -87,6 +88,11 @@ export function PortfolioView({
   thesis,
 }: Props) {
   const user = USERS[userId];
+  const p3 = useP3();
+  // This player's accent, P3-upgraded on wide-gamut screens. Also published
+  // as --accent on the page root so CSS consumers (the deep-link holding
+  // flash, accent-aware chrome) inherit the page's identity.
+  const accent = accentFor(user, p3);
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -196,7 +202,7 @@ export function PortfolioView({
   const { filterChips, chartSeries, legend } = useComparisonOverlays({
       subjectId: userId,
       subjectName: user.name,
-      subjectColor: user.color,
+      subjectColor: accent,
       ranged,
       baselineValue,
       isIntraday,
@@ -216,7 +222,7 @@ export function PortfolioView({
   );
 
   return (
-    <div className="pb-24">
+    <div className="pb-24" style={{ "--accent": accent } as CSSProperties}>
       <PriceHeader
         ticker={user.name.toUpperCase()}
         title={`${user.name}'s portfolio`}
@@ -251,7 +257,7 @@ export function PortfolioView({
 
       <OverlayLegend legend={legend} subjectLabel="You" />
 
-      <RangeTabs value={range} onChange={setRange} accent={user.color} />
+      <RangeTabs value={range} onChange={setRange} accent={accent} />
 
       <DigestPanel
         digest={getPortfolioDigest(userId, range)}
@@ -306,7 +312,7 @@ export function PortfolioView({
                     </div>
                     <div
                       className="text-[11px] font-medium tabular-nums"
-                      style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
+                      style={{ color: rangePct >= 0 ? "var(--gain)" : "var(--loss)" }}
                     >
                       {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
                     </div>
@@ -318,14 +324,14 @@ export function PortfolioView({
         </div>
       </div>
 
-      <PortfolioComposition composition={composition} accentColor={user.color} />
+      <PortfolioComposition composition={composition} accentColor={accent} />
 
       <PortfolioThesis
         thesis={thesis}
         userId={user.id}
         userName={user.name}
         tickers={user.tickers}
-        accentColor={user.color}
+        accentColor={accent}
       />
 
       <FilterSheet

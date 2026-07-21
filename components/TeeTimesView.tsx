@@ -139,7 +139,7 @@ export function TeeTimesView() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[15px] font-semibold text-ink">View Daily Deals</span>
-              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#00C805] text-black">
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gain text-black">
                 Save
               </span>
             </div>

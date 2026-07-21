@@ -82,7 +82,7 @@ export function StocksListView({ series }: Props) {
               </div>
               <div
                 className="text-[14px] font-semibold tabular-nums"
-                style={{ color: r.plPct >= 0 ? "#00C805" : "#FF453A" }}
+                style={{ color: r.plPct >= 0 ? "var(--gain)" : "var(--loss)" }}
               >
                 {fmtPct(r.plPct)}
               </div>

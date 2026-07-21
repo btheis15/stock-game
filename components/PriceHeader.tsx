@@ -39,7 +39,7 @@ export function PriceHeader({
   const delta = value - baseline;
   const pct = baseline === 0 ? 0 : delta / baseline;
   const positive = delta >= 0;
-  const color = positive ? "#00C805" : "#FF453A";
+  const color = positive ? "var(--gain)" : "var(--loss)";
   return (
     <div className="px-4 pt-1 pb-3">
       {(label || ticker) && (
@@ -72,7 +72,7 @@ export function PriceHeader({
           <span>
             <span
               className="tabular-nums"
-              style={{ color: compareTo.pct >= 0 ? "#00C805" : "#FF453A" }}
+              style={{ color: compareTo.pct >= 0 ? "var(--gain)" : "var(--loss)" }}
             >
               {fmtPct(compareTo.pct)}
             </span>{" "}

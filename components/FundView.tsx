@@ -6,7 +6,7 @@
 // so a fund reads exactly like an individual account. Shares come from the
 // fund's weights rather than an equal per-pick split.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
@@ -199,7 +199,7 @@ export function FundView({
   );
 
   return (
-    <div className="pb-24">
+    <div className="pb-24" style={{ "--accent": color } as CSSProperties}>
       <PriceHeader
         ticker={creator ? `FUND · BY ${creator.toUpperCase()}` : "COMPARISON FUND"}
         title={name}
@@ -285,7 +285,7 @@ export function FundView({
                     </div>
                     <div
                       className="text-[11px] font-medium tabular-nums"
-                      style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
+                      style={{ color: rangePct >= 0 ? "var(--gain)" : "var(--loss)" }}
                     >
                       {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
                     </div>
