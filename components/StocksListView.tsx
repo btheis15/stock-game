@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { AnimatedRow } from "./AnimatedList";
 import clsx from "clsx";
 import { fmtPct, fmtUSD } from "@/lib/portfolio";
 import { TICKER_OWNERS, USER_LIST, USERS, type UserId } from "@/lib/picks";
@@ -62,8 +63,8 @@ export function StocksListView({ series }: Props) {
       <div className="px-4">
         <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {rows.map((r) => (
+            <AnimatedRow key={r.ticker}>
             <Link
-              key={r.ticker}
               href={`/stock/${r.ticker}`}
               className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
             >
@@ -87,6 +88,7 @@ export function StocksListView({ series }: Props) {
                 {fmtPct(r.plPct)}
               </div>
             </Link>
+            </AnimatedRow>
           ))}
         </div>
       </div>

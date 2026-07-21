@@ -10,6 +10,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
+import { AnimatedRow } from "./AnimatedList";
 import { PriceHeader } from "./PriceHeader";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
@@ -257,8 +258,8 @@ export function FundView({
             const rangeDollars = stat?.dollars ?? 0;
             const weightPct = h.costBasis / STARTING_PORTFOLIO_DOLLARS;
             return (
+              <AnimatedRow key={h.ticker}>
               <div
-                key={h.ticker}
                 id={h.ticker}
                 style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
                 className="target:bg-raised-80 target:animate-[holdingFlash_1.6s_ease]"
@@ -292,6 +293,7 @@ export function FundView({
                   </div>
                 </Link>
               </div>
+              </AnimatedRow>
             );
           })}
         </div>

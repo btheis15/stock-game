@@ -23,6 +23,8 @@ import {
 import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
 import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
 import { accentFor, useP3 } from "@/lib/color";
+import { AnimatedRow } from "./AnimatedList";
+import { AnimatedNumber } from "./AnimatedNumber";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
 import { PortfolioComposition } from "./PortfolioComposition";
@@ -415,10 +417,10 @@ export function CompareView({
                 textShadow: `0 0 22px color-mix(in srgb, ${leader.color} 35%, transparent)`,
               }}
             >
-              {fmtPct(gapPct)}
+              <AnimatedNumber value={gapPct} format={fmtPct} animate={scrub == null} />
             </div>
             <div className="text-[14px] font-medium text-ink-muted mt-0.5">
-              {fmtSignedUSD(gapDollars)} gap
+              <AnimatedNumber value={gapDollars} format={fmtSignedUSD} animate={scrub == null} /> gap
               {scrubLabel && <span className="text-ink-faint"> • {scrubLabel}</span>}
             </div>
           </>
@@ -475,17 +477,22 @@ export function CompareView({
             const leaderGain = leader.value - leader.baseline;
             const gap = i === 0 ? 0 : leaderGain - rangeGain;
             return (
-              <UserRow
-                key={s.id}
-                name={s.name}
-                color={s.color}
-                value={s.value}
-                pct={s.pct}
-                gap={gap}
-                place={i + 1}
-                href={s.href}
-                pendingTickers={s.pendingTickers}
-              />
+              // FLIP re-rank: rows glide to new slots when the standings
+              // change (range switch, fresh data). Frozen while scrubbing —
+              // scrub-driven re-ranks must snap with the finger, not spring.
+              <AnimatedRow key={s.id} animate={scrub == null}>
+                <UserRow
+                  name={s.name}
+                  color={s.color}
+                  value={s.value}
+                  pct={s.pct}
+                  gap={gap}
+                  place={i + 1}
+                  href={s.href}
+                  pendingTickers={s.pendingTickers}
+                  animateNumbers={scrub == null}
+                />
+              </AnimatedRow>
             );
           })}
         </div>
@@ -565,6 +572,7 @@ function UserRow({
   place,
   href,
   pendingTickers,
+  animateNumbers = true,
 }: {
   name: string;
   color: string;
@@ -572,6 +580,8 @@ function UserRow({
   pct: number;
   gap: number; // $ behind the leader in this range's gain; 0 when place === 1
   place: number;
+  /** False while a scrub drives the values — they render raw, not eased. */
+  animateNumbers?: boolean;
   // Null for the S&P 500 baseline row — it has no drill-down page so we
   // render a plain div instead of a tappable Link.
   href: string | null;
@@ -621,13 +631,13 @@ function UserRow({
       </div>
       <div className="flex flex-col items-end shrink-0">
         <div className="text-[16px] font-semibold text-ink tabular-nums">
-          {fmtUSD(value, 0)}
+          <AnimatedNumber value={value} format={(n) => fmtUSD(n, 0)} animate={animateNumbers} />
         </div>
         <div
           className="text-[12px] font-medium tabular-nums mt-0.5"
           style={{ color: deltaColor }}
         >
-          {fmtPct(pct)}
+          <AnimatedNumber value={pct} format={fmtPct} animate={animateNumbers} />
         </div>
       </div>
     </>

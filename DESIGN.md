@@ -459,10 +459,13 @@ them missing):
 10. **Skeleton→content fade-up** (`.content-in`) and height-animated
     expand/collapse (`.reveal`, the grid-rows 0fr↔1fr technique).
 
-Things that **still don't** animate, intentionally:
-- Numbers (no count-up yet — a scrub-safe AnimatedNumber is planned; when
-  it lands, values must render RAW during a scrub, never eased)
-- Anything per-frame in JS on the chart's scrub path
+Numbers DO count up now (`<AnimatedNumber>`, ~450ms ease-out) and ranked
+rows FLIP to new slots (`<AnimatedRow>`), with one absolute rule: while a
+scrub is active, values render RAW and rows snap — nothing eases behind
+the finger.
+
+The one thing that **still doesn't** animate, intentionally: anything
+per-frame in JS on the chart's scrub path.
 
 The rule is unchanged in spirit: motion must earn its place. If the user
 wouldn't notice it missing, don't add it. Liveness, feedback, and

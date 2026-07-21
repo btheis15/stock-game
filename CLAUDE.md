@@ -717,6 +717,23 @@ iteration-count → 1) and turns off smooth scroll. This is global and
 closes a gap — the repo had no reduced-motion handling before the motion
 layer. **Anything you animate is covered automatically**; don't bypass it.
 
+### framer-motion layer (added 2026-07-21)
+
+JS springs now cover what CSS can't, all under `<MotionProvider>`
+(`MotionConfig reducedMotion="user"` in app/layout.tsx):
+
+- **`<AnimatedRow>`** (components/AnimatedList.tsx) — FLIP re-ranking:
+  leaderboard, holdings, and stocks-list rows glide to new slots on a
+  sort/rank change. CompareView passes `animate={scrub == null}` — rows
+  must SNAP while a scrub drives live re-ranking (the §6 16ms budget
+  covers everything the scrub updates, not just the chart).
+- **`<AnimatedNumber>`** — rAF count-up (~450ms, cubic ease-out,
+  tabular-nums) on the Compare hero gap, leaderboard values, and the
+  PriceHeader hero $. HARD RULE: pass `animate={false}` whenever a scrub
+  is active so values render raw, never eased.
+- **RangeTabs** — the active pill is a `layoutId="range-pill"` shared
+  element that glides between tabs.
+
 ### framer-motion is NOT gone
 
 `framer-motion` was **not** removed from the app. The new motion layer is

@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedNumber } from "./AnimatedNumber";
 import clsx from "clsx";
 import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/portfolio";
 
@@ -53,7 +54,11 @@ export function PriceHeader({
         className="text-[34px] font-semibold tracking-tight text-ink mt-1"
         style={accent ? { color: accent } : undefined}
       >
-        {fmtUSD(value, fractionDigits)}
+        <AnimatedNumber
+          value={value}
+          format={(n) => fmtUSD(n, fractionDigits)}
+          animate={scrubDate == null}
+        />
       </div>
       <div className="flex items-center gap-2 mt-0.5 text-[14px] font-medium" style={{ color }}>
         <Triangle up={positive} />
