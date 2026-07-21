@@ -36,6 +36,46 @@ export interface ChangelogEntry {
 // reverse-chronological order makes the file easy to scan.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "snappier-navigation",
+    date: "2026-07-21",
+    category: "Improved",
+    icon: "⚡",
+    title: "Faster, smoother taps",
+    summary:
+      "Tapping into a name, stock, or fund now responds instantly and lands right at the top — no more double-tapping or scrolling up to see the number.",
+    details: [
+      "A few rough edges in getting around the app are fixed. Tapping a player's name, a stock, or a fund used to sometimes need a second tap to register, and landing on someone's portfolio could leave you scrolled partway down instead of at the top. Both are fixed — a tap now responds right away, and every page opens fully scrolled up.",
+      "Under the hood, the app now starts loading a page the moment its row scrolls into view, instead of waiting until you actually tap it — so by the time you do tap, it's often already there. The daily briefings also now remember what they showed you last, so reopening the app after it's been closed shows something instantly instead of a blank loading spot while it catches up.",
+    ],
+  },
+  {
+    id: "briefings-match-the-score",
+    date: "2026-07-21",
+    category: "Improved",
+    icon: "🧭",
+    title: "Briefings that always match the score",
+    summary:
+      "Fixed the odd cases where the written recap didn't match the live standings — the app now catches that itself and rewrites the line.",
+    details: [
+      "The game-wide briefing on the Compare screen is written once each morning, then just the numbers in it update through the day as prices move. Every so often that meant the wording stopped making sense — it might say a stock was “hurting” someone whose portfolio was actually up for the day, since the story was written hours earlier.",
+      "The app now watches for that itself. If the story and the live numbers start to disagree, it quietly rewrites that part — either with a fresh AI-written line or a straightforward fallback — so what you read always matches what you see. Expand a briefing and you'll also now see two timestamps when they differ: when the story was written, and when the numbers were last updated.",
+    ],
+  },
+  {
+    id: "world-class-redesign",
+    date: "2026-07-21",
+    category: "New",
+    icon: "🎨",
+    title: "A brand new look, with way more color",
+    summary:
+      "Richer colors (extra-vivid on newer iPhones), buttery-smooth animations everywhere, and a handful of fun new features.",
+    details: [
+      "The whole app got a visual overhaul: bolder, richer colors — including extra-vivid wide-gamut color on newer iPhone screens — plus smooth animations on the charts, lists, numbers, and tabs so everything feels more alive when you tap around.",
+      "New: a “Lead Tape” strip on the Compare screen showing who was in the all-time lead on any given day, plus a Records card for streaks and reigns. When someone takes over the all-time #1 spot, you'll get a little confetti celebration. There's also a head-to-head mode to put any two competitors side by side, and a “Share standings” button to send a snapshot of the leaderboard.",
+      "Smaller touches: a countdown to golf day, tiny trend sparklines next to stocks and holdings, and best/worst-day highlights on portfolio pages.",
+    ],
+  },
+  {
     id: "smarter-news-briefings",
     date: "2026-06-18",
     category: "Improved",
