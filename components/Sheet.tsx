@@ -130,7 +130,7 @@ export function Sheet({
         aria-label={title}
         tabIndex={-1}
         className={
-          "sheet-panel relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-zinc-950 border border-zinc-800 flex flex-col overflow-hidden outline-none " +
+          "sheet-panel relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-solid border border-hairline flex flex-col overflow-hidden outline-none " +
           (full ? "h-[100dvh] sm:h-auto sm:max-h-[90dvh]" : "max-h-[90dvh]") +
           (closing ? " is-closing" : "")
         }
@@ -147,26 +147,26 @@ export function Sheet({
         {/* Grab handle — signals a dismissible sheet on mobile. */}
         <div className="shrink-0">
           <div className="sm:hidden flex justify-center pt-2.5 pb-1">
-            <span className="w-9 h-1 rounded-full bg-zinc-700" />
+            <span className="w-9 h-1 rounded-full bg-strong" />
           </div>
           {header}
           {!header && (title || eyebrow) && (
-            <header className="flex items-start justify-between px-5 pt-3 pb-4 sm:pt-5 border-b border-zinc-800">
+            <header className="flex items-start justify-between px-5 pt-3 pb-4 sm:pt-5 border-b border-hairline">
               <div>
                 {eyebrow && (
-                  <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
+                  <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint">
                     {eyebrow}
                   </div>
                 )}
                 {title && (
-                  <h2 className="text-[17px] font-semibold text-white mt-0.5">
+                  <h2 className="text-[17px] font-semibold text-ink mt-0.5">
                     {title}
                   </h2>
                 )}
               </div>
               <button
                 type="button"
-                className="press -mr-1 text-zinc-500 hover:text-zinc-300 text-[15px] px-2 py-1"
+                className="press -mr-1 text-ink-faint hover:text-ink-3 text-[15px] px-2 py-1"
                 onClick={onClose}
                 aria-label="Close"
               >

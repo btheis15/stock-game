@@ -34,11 +34,46 @@ function syncThemeColorMeta(theme: string) {
   meta.content = color;
 }
 
+// Manual theme override — the QA lever for eyeballing all three themes
+// without waiting for a market-session boundary (the 60s re-apply loop
+// otherwise fights DevTools edits within a minute). Set via query param and
+// persisted: `?theme=light|twilight|dark` pins the theme until `?theme=auto`
+// (or clearing localStorage) hands control back to the session clock. Left
+// enabled in production on purpose — it's how theme bug reports from the
+// group get reproduced on-device.
+const THEME_OVERRIDE_KEY = "theme-override";
+const VALID_OVERRIDES = new Set(["light", "twilight", "dark"]);
+
+function readThemeOverride(): string | null {
+  try {
+    const param = new URLSearchParams(window.location.search).get("theme");
+    if (param === "auto") {
+      window.localStorage.removeItem(THEME_OVERRIDE_KEY);
+      return null;
+    }
+    if (param && VALID_OVERRIDES.has(param)) {
+      window.localStorage.setItem(THEME_OVERRIDE_KEY, param);
+      return param;
+    }
+    const stored = window.localStorage.getItem(THEME_OVERRIDE_KEY);
+    return stored && VALID_OVERRIDES.has(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ThemeController() {
   useEffect(() => {
     function apply() {
-      const state = getMarketSessionState();
       const root = document.documentElement;
+      const override = readThemeOverride();
+      if (override) {
+        if (override === "dark") delete root.dataset.theme;
+        else root.dataset.theme = override;
+        syncThemeColorMeta(override);
+        return;
+      }
+      const state = getMarketSessionState();
       if (state === "open") root.dataset.theme = "light";
       else if (state === "premarket" || state === "afterhours")
         root.dataset.theme = "twilight";

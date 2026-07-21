@@ -67,7 +67,7 @@ export function TabBar() {
   const pathname = usePathname();
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-md border-t border-zinc-900"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-chrome backdrop-blur-md border-t border-hairline-deep"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="max-w-md mx-auto flex items-center justify-around h-16">
@@ -80,7 +80,7 @@ export function TabBar() {
               prefetch
               className={clsx(
                 "press flex flex-col items-center gap-1 transition-colors flex-1",
-                active ? "text-white" : "text-zinc-500"
+                active ? "text-ink" : "text-ink-faint"
               )}
             >
               {t.icon}
