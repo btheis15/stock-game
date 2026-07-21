@@ -264,10 +264,10 @@ export function CreateFundModal({ open, onClose, onSaved, editing = null }: Prop
       }
       doneLabel="Close"
       footer={
-        <footer className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800">
+        <footer className="flex items-center gap-3 px-5 py-4 border-t border-hairline">
           {step > 1 && (
             <button
-              className="text-[14px] text-zinc-400 px-3 py-2"
+              className="text-[14px] text-ink-muted px-3 py-2"
               onClick={() => {
                 setError(null);
                 setStep((s) => Math.max(1, s - 1) as 1 | 2 | 3);
@@ -352,38 +352,38 @@ function FundIntro() {
     ["Set weights", "how the $100k splits across them (totals 100%)."],
   ];
   return (
-    <div className="mb-5 rounded-xl bg-zinc-900/50 border border-zinc-800 p-4">
-      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-1.5">
+    <div className="mb-5 rounded-xl bg-card-50 border border-hairline p-4">
+      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint mb-1.5">
         What&rsquo;s a fund?
       </div>
-      <p className="text-[13px] text-zinc-300 leading-relaxed">
+      <p className="text-[13px] text-ink-3 leading-relaxed">
         A fund is your own custom portfolio that joins the game right alongside
         the players. It starts with a pretend{" "}
-        <span className="text-white font-medium">$100,000</span> invested at the
+        <span className="text-ink font-medium">$100,000</span> invested at the
         Feb&nbsp;5, 2026 baseline — the same starting line as everyone else —
         then tracks live against real prices.
       </p>
-      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mt-4 mb-2">
+      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint mt-4 mb-2">
         How to build one
       </div>
       <ol className="space-y-2">
         {steps.map(([title, desc], i) => (
-          <li key={title} className="flex gap-2.5 text-[13px] text-zinc-300">
-            <span className="shrink-0 w-5 h-5 rounded-full bg-zinc-800 text-zinc-300 text-[11px] font-semibold inline-flex items-center justify-center tabular-nums">
+          <li key={title} className="flex gap-2.5 text-[13px] text-ink-3">
+            <span className="shrink-0 w-5 h-5 rounded-full bg-raised text-ink-3 text-[11px] font-semibold inline-flex items-center justify-center tabular-nums">
               {i + 1}
             </span>
             <span className="leading-5">
-              <span className="text-white font-medium">{title}</span> — {desc}
+              <span className="text-ink font-medium">{title}</span> — {desc}
             </span>
           </li>
         ))}
       </ol>
-      <p className="text-[12px] text-zinc-500 leading-relaxed mt-4">
+      <p className="text-[12px] text-ink-faint leading-relaxed mt-4">
         After you save, your fund shows up on the Compare chart and leaderboard.
         New funds start hidden so the chart doesn&rsquo;t get crowded — tap{" "}
-        <span className="text-zinc-300">Filter</span> to switch yours on. You can
+        <span className="text-ink-3">Filter</span> to switch yours on. You can
         rename, re-weight, or archive it anytime from{" "}
-        <span className="text-zinc-300">Manage</span>.
+        <span className="text-ink-3">Manage</span>.
       </p>
     </div>
   );
@@ -403,7 +403,7 @@ function StepName({
   return (
     <div className="space-y-4">
       <label className="block">
-        <div className="text-[12px] font-medium text-zinc-400 mb-1.5">
+        <div className="text-[12px] font-medium text-ink-muted mb-1.5">
           Fund name
         </div>
         <input
@@ -413,15 +413,15 @@ function StepName({
           placeholder="e.g. Theis Trust"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[16px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+          className="w-full bg-card-solid border border-hairline rounded-xl px-3 py-3 text-[16px] text-ink placeholder:text-ink-ghost focus:outline-none focus:border-edge-ghost"
         />
-        <div className="text-[11px] text-zinc-500 mt-1.5">
+        <div className="text-[11px] text-ink-faint mt-1.5">
           Shown on the leaderboard and chart legend.
         </div>
       </label>
       <label className="block">
-        <div className="text-[12px] font-medium text-zinc-400 mb-1.5">
-          Your name <span className="text-zinc-600">(optional)</span>
+        <div className="text-[12px] font-medium text-ink-muted mb-1.5">
+          Your name <span className="text-ink-ghost">(optional)</span>
         </div>
         <input
           type="text"
@@ -429,9 +429,9 @@ function StepName({
           placeholder="e.g. Brian"
           value={creator}
           onChange={(e) => setCreator(e.target.value)}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[16px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+          className="w-full bg-card-solid border border-hairline rounded-xl px-3 py-3 text-[16px] text-ink placeholder:text-ink-ghost focus:outline-none focus:border-edge-ghost"
         />
-        <div className="text-[11px] text-zinc-500 mt-1.5">
+        <div className="text-[11px] text-ink-faint mt-1.5">
           Shown in the leaderboard card + the git commit on save. Remembered
           on this device for next time.
         </div>
@@ -500,7 +500,7 @@ function StepSearch({
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] text-zinc-400 leading-snug">
+      <p className="text-[12px] text-ink-muted leading-snug">
         Search by company name or ticker symbol, then tap a result to add it.
         Stocks, ETFs, and mutual funds all work — add as many as you like.
         You&rsquo;ll set how the money splits between them next.
@@ -511,11 +511,11 @@ function StepSearch({
         placeholder="Search tickers, ETFs, mutual funds…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[16px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+        className="w-full bg-card-solid border border-hairline rounded-xl px-3 py-3 text-[16px] text-ink placeholder:text-ink-ghost focus:outline-none focus:border-edge-ghost"
       />
       {holdings.length > 0 && (
-        <div className="rounded-xl bg-zinc-900/50 border border-zinc-800 p-3">
-          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-2">
+        <div className="rounded-xl bg-card-50 border border-hairline p-3">
+          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-2">
             Selected ({holdings.length})
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -523,7 +523,7 @@ function StepSearch({
               <button
                 key={h.ticker}
                 onClick={() => removeHolding(h.ticker)}
-                className="bg-zinc-800 text-zinc-200 text-[13px] px-2.5 py-1 rounded-full hover:bg-zinc-700 transition-colors"
+                className="bg-raised text-ink-2 text-[13px] px-2.5 py-1 rounded-full hover:bg-strong transition-colors"
               >
                 {h.ticker} ×
               </button>
@@ -533,17 +533,17 @@ function StepSearch({
       )}
       <div>
         {loading && (
-          <div className="text-[12px] text-zinc-500 py-2">Searching…</div>
+          <div className="text-[12px] text-ink-faint py-2">Searching…</div>
         )}
         {searchErr && (
           <div className="text-[12px] text-red-400 py-2">{searchErr}</div>
         )}
         {!loading && !searchErr && q.trim().length > 0 && results.length === 0 && (
-          <div className="text-[12px] text-zinc-500 py-2">
+          <div className="text-[12px] text-ink-faint py-2">
             No matches. Try a different name or symbol.
           </div>
         )}
-        <ul className="divide-y divide-zinc-800">
+        <ul className="divide-y divide-hairline">
           {results.map((r) => {
             const taken = selected.has(r.symbol);
             return (
@@ -551,26 +551,26 @@ function StepSearch({
                 <button
                   className={
                     "w-full flex items-center gap-3 py-3 text-left " +
-                    (taken ? "opacity-40" : "active:bg-zinc-900/40")
+                    (taken ? "opacity-40" : "active:bg-card-40")
                   }
                   disabled={taken}
                   onClick={() => addHolding(r)}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-semibold text-white">
+                    <div className="text-[15px] font-semibold text-ink">
                       {r.symbol}
-                      <span className="ml-2 text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+                      <span className="ml-2 text-[11px] font-medium text-ink-faint uppercase tracking-wider">
                         {r.type}
                       </span>
                     </div>
-                    <div className="text-[13px] text-zinc-400 truncate">
+                    <div className="text-[13px] text-ink-muted truncate">
                       {r.name}
                       {r.exchange && (
-                        <span className="text-zinc-600"> · {r.exchange}</span>
+                        <span className="text-ink-ghost"> · {r.exchange}</span>
                       )}
                     </div>
                   </div>
-                  <div className="text-[13px] font-semibold text-zinc-500">
+                  <div className="text-[13px] font-semibold text-ink-faint">
                     {taken ? "Added" : "Add"}
                   </div>
                 </button>
@@ -629,26 +629,26 @@ function StepWeights({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-[12px] text-zinc-400">
+        <div className="text-[12px] text-ink-muted">
           Set how each holding is weighted. $100,000 is split by these
           percentages at the Feb 5, 2026 close.
         </div>
         <button
           onClick={equalSplit}
-          className="text-[11px] font-medium text-zinc-400 underline underline-offset-2 shrink-0 ml-3"
+          className="text-[11px] font-medium text-ink-muted underline underline-offset-2 shrink-0 ml-3"
         >
           Equal split
         </button>
       </div>
-      <ul className="rounded-xl bg-zinc-900/50 border border-zinc-800 divide-y divide-zinc-800">
+      <ul className="rounded-xl bg-card-50 border border-hairline divide-y divide-hairline">
         {holdings.map((h) => (
           <li key={h.ticker} className="px-3 py-3">
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-white">
+                <div className="text-[14px] font-semibold text-ink">
                   {h.ticker}
                 </div>
-                <div className="text-[12px] text-zinc-500 truncate">
+                <div className="text-[12px] text-ink-faint truncate">
                   {h.name}
                 </div>
               </div>
@@ -667,12 +667,12 @@ function StepWeights({
                     (e.currentTarget as HTMLInputElement).blur();
                   }
                 }}
-                className="w-20 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-[14px] text-right text-white focus:outline-none focus:border-zinc-600 tabular-nums"
+                className="w-20 bg-card-solid border border-hairline rounded-lg px-2 py-1.5 text-[14px] text-right text-ink focus:outline-none focus:border-edge-ghost tabular-nums"
               />
-              <span className="text-[14px] text-zinc-500">%</span>
+              <span className="text-[14px] text-ink-faint">%</span>
               <button
                 onClick={() => removeHolding(h.ticker)}
-                className="text-zinc-600 hover:text-zinc-400 text-[18px] px-1"
+                className="text-ink-ghost hover:text-ink-muted text-[18px] px-1"
                 aria-label={`Remove ${h.ticker}`}
               >
                 ×
@@ -691,7 +691,7 @@ function StepWeights({
       >
         Total: {fmtWeightPct(totalWeight, 2)}
         {off && (
-          <span className="text-zinc-500 ml-2">
+          <span className="text-ink-faint ml-2">
             (off by {((totalWeight - 1) * 100).toFixed(2)}%)
           </span>
         )}

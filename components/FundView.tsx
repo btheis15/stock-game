@@ -6,10 +6,11 @@
 // so a fund reads exactly like an individual account. Shares come from the
 // fund's weights rather than an equal per-pick split.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
+import { AnimatedRow } from "./AnimatedList";
 import { PriceHeader } from "./PriceHeader";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
@@ -199,7 +200,7 @@ export function FundView({
   );
 
   return (
-    <div className="pb-24">
+    <div className="pb-24" style={{ "--accent": color } as CSSProperties}>
       <PriceHeader
         ticker={creator ? `FUND · BY ${creator.toUpperCase()}` : "COMPARISON FUND"}
         title={name}
@@ -243,55 +244,56 @@ export function FundView({
       />
 
       <div className="px-4 mt-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Holdings</h2>
+        <h2 className="text-[15px] font-semibold text-ink-3 mb-2">Holdings</h2>
         {pending.length > 0 && (
           <div className="text-[11px] text-amber-600 leading-snug mb-2">
             {pending.join(", ")} {pending.length === 1 ? "is" : "are"} still
             loading — full value updates at the next refresh.
           </div>
         )}
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {sorted.map((h) => {
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
             const rangeDollars = stat?.dollars ?? 0;
             const weightPct = h.costBasis / STARTING_PORTFOLIO_DOLLARS;
             return (
+              <AnimatedRow key={h.ticker}>
               <div
-                key={h.ticker}
                 id={h.ticker}
                 style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
-                className="target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
+                className="target:bg-raised-80 target:animate-[holdingFlash_1.6s_ease]"
               >
                 <Link
                   href={`/stock/${h.ticker}`}
-                  className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors"
+                  className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
                 >
-                  <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+                  <div className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3">
                     {h.ticker}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-semibold text-white truncate">
+                    <div className="text-[14px] font-semibold text-ink truncate">
                       {h.name}
                     </div>
-                    <div className="text-[11px] text-zinc-500 tabular-nums">
+                    <div className="text-[11px] text-ink-faint tabular-nums">
                       {fmtPct(weightPct)} • {fmtShares(h.shares)} shares •{" "}
                       {fmtUSD(h.currentClose, 2)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[14px] font-semibold text-white tabular-nums">
+                    <div className="text-[14px] font-semibold text-ink tabular-nums">
                       {fmtUSD(h.currentValue)}
                     </div>
                     <div
                       className="text-[11px] font-medium tabular-nums"
-                      style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
+                      style={{ color: rangePct >= 0 ? "var(--gain)" : "var(--loss)" }}
                     >
                       {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
                     </div>
                   </div>
                 </Link>
               </div>
+              </AnimatedRow>
             );
           })}
         </div>

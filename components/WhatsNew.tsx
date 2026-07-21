@@ -49,8 +49,8 @@ export function WhatsNew() {
         aria-label={hasUnseen ? "What's new — new updates" : "What's new"}
         className={`press relative -mt-1 -mr-1 inline-flex items-center gap-1.5 rounded-full border pl-2 pr-2.5 py-1 text-[12px] font-semibold transition-colors ${
           hasUnseen
-            ? "text-white"
-            : "border-zinc-700 bg-zinc-900/60 text-zinc-400 hover:text-white hover:border-zinc-600 active:bg-zinc-800"
+            ? "text-ink"
+            : "border-edge-strong bg-card-60 text-ink-muted hover:text-ink hover:border-edge-ghost active:bg-raised"
         }`}
         style={
           hasUnseen
@@ -82,18 +82,18 @@ export function WhatsNew() {
         onClose={() => setOpen(false)}
         title="What's new"
         header={
-          <header className="flex items-center justify-between px-5 pt-3 pb-4 sm:pt-5 border-b border-zinc-800 shrink-0">
+          <header className="flex items-center justify-between px-5 pt-3 pb-4 sm:pt-5 border-b border-hairline shrink-0">
             <div className="flex items-center gap-2.5">
               <span
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: "var(--gain)" }}
               />
-              <h2 className="text-[19px] font-semibold text-white tracking-tight">
+              <h2 className="text-[19px] font-semibold text-ink tracking-tight">
                 What&apos;s new
               </h2>
             </div>
             <button
-              className="press -mr-1 w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-800"
+              className="press -mr-1 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:text-ink active:bg-raised"
               onClick={() => setOpen(false)}
               aria-label="Close"
             >
@@ -110,7 +110,7 @@ export function WhatsNew() {
         }
       >
         {entries.length === 0 ? (
-          <div className="text-[13px] text-zinc-500 py-16 text-center">
+          <div className="text-[13px] text-ink-faint py-16 text-center">
             No new updates in the last 30 days.
           </div>
         ) : (
@@ -128,7 +128,7 @@ export function WhatsNew() {
             ))}
           </ul>
         )}
-        <p className="text-[11px] text-zinc-600 leading-snug mt-5 px-1 text-center">
+        <p className="text-[11px] text-ink-ghost leading-snug mt-5 px-1 text-center">
           Major updates from the last 30 days.
         </p>
       </Sheet>
@@ -149,8 +149,8 @@ function UpdateRow({
     <div
       className={`rounded-2xl border overflow-hidden transition-colors ${
         expanded
-          ? "bg-zinc-900 border-zinc-700"
-          : "bg-zinc-900/60 border-zinc-800"
+          ? "bg-card-solid border-edge-strong"
+          : "bg-card-60 border-hairline"
       }`}
     >
       <button
@@ -160,7 +160,7 @@ function UpdateRow({
         className="w-full text-left px-3.5 py-3.5 flex items-start gap-3"
       >
         <span
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] leading-none shrink-0 bg-zinc-800/70"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] leading-none shrink-0 bg-raised-70"
           aria-hidden
         >
           {entry.icon}
@@ -168,15 +168,15 @@ function UpdateRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <CategoryPill category={entry.category} />
-            <span className="text-[11px] text-zinc-500 tabular-nums">
+            <span className="text-[11px] text-ink-faint tabular-nums">
               {fmtDate(entry.date)}
             </span>
           </div>
-          <div className="mt-1 text-[14px] font-semibold text-white leading-snug">
+          <div className="mt-1 text-[14px] font-semibold text-ink leading-snug">
             {entry.title}
           </div>
           <p
-            className={`mt-0.5 text-[13px] leading-[1.5] text-zinc-400 ${
+            className={`mt-0.5 text-[13px] leading-[1.5] text-ink-muted ${
               expanded ? "" : "line-clamp-2"
             }`}
           >
@@ -194,9 +194,9 @@ function UpdateRow({
       >
         <div className="overflow-hidden">
           <div className="px-3.5 pb-4 pl-[60px]">
-            <div className="space-y-2.5 border-t border-zinc-800 pt-3">
+            <div className="space-y-2.5 border-t border-hairline pt-3">
               {entry.details.map((p, i) => (
-                <p key={i} className="text-[13px] leading-[1.6] text-zinc-300">
+                <p key={i} className="text-[13px] leading-[1.6] text-ink-3">
                   {p}
                 </p>
               ))}
@@ -220,7 +220,7 @@ function CategoryPill({ category }: { category: ChangelogEntry["category"] }) {
     );
   }
   return (
-    <span className="text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
+    <span className="text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-raised text-ink-muted">
       Improved
     </span>
   );
@@ -231,7 +231,7 @@ function Chevron({ expanded }: { expanded: boolean }) {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      className={`w-4 h-4 mt-1 shrink-0 text-zinc-500 transition-transform duration-200 ${
+      className={`w-4 h-4 mt-1 shrink-0 text-ink-faint transition-transform duration-200 ${
         expanded ? "rotate-180" : ""
       }`}
       aria-hidden

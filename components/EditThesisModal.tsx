@@ -149,8 +149,8 @@ export function EditThesisModal({
       title={`${userName}’s thesis`}
       doneLabel="Close"
       footer={
-        <footer className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800">
-          <div className="text-[12px] text-zinc-500">
+        <footer className="flex items-center gap-3 px-5 py-4 border-t border-hairline">
+          <div className="text-[12px] text-ink-faint">
             Saves for everyone to see.
           </div>
           <div className="flex-1" />
@@ -190,10 +190,10 @@ export function EditThesisModal({
           <button
             type="button"
             onClick={() => setShowMeta((v) => !v)}
-            className="text-[12px] text-zinc-500 hover:text-zinc-300"
+            className="text-[12px] text-ink-faint hover:text-ink-3"
           >
             {showMeta ? "Hide" : "Add"} source &amp; disclaimer{" "}
-            <span className="text-zinc-600">(optional)</span>
+            <span className="text-ink-ghost">(optional)</span>
           </button>
           {showMeta && (
             <div className="space-y-3 pt-1">
@@ -222,15 +222,15 @@ export function EditThesisModal({
         <section className="space-y-2.5">
           <div className="flex items-center justify-between">
             <SectionLabel>Why each pick</SectionLabel>
-            <span className="text-[11px] text-zinc-500 tabular-nums">
+            <span className="text-[11px] text-ink-faint tabular-nums">
               {filledCount}/{tickers.length} written
             </span>
           </div>
-          <p className="text-[12px] text-zinc-500 leading-snug">
+          <p className="text-[12px] text-ink-faint leading-snug">
             Tap a holding to add a one-line take and the deeper reasoning.
             Every field is optional — write as many or as few as you like.
           </p>
-          <div className="rounded-xl border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+          <div className="rounded-xl border border-hairline divide-y divide-hairline overflow-hidden">
             {tickers.map(({ ticker, name }) => (
               <PickEditor
                 key={ticker}
@@ -273,7 +273,7 @@ export function EditThesisModal({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500">
+    <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint">
       {children}
     </div>
   );
@@ -298,9 +298,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="text-[12px] font-medium text-zinc-400 mb-1.5">
+      <div className="text-[12px] font-medium text-ink-muted mb-1.5">
         {label}{" "}
-        {optional && <span className="text-zinc-600">(optional)</span>}
+        {optional && <span className="text-ink-ghost">(optional)</span>}
       </div>
       <input
         type="text"
@@ -308,9 +308,9 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[16px] text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+        className="w-full bg-card-solid border border-hairline rounded-xl px-3 py-3 text-[16px] text-ink placeholder:text-ink-ghost focus:outline-none focus:border-edge-ghost"
       />
-      {hint && <div className="text-[11px] text-zinc-500 mt-1.5">{hint}</div>}
+      {hint && <div className="text-[11px] text-ink-faint mt-1.5">{hint}</div>}
     </label>
   );
 }
@@ -334,23 +334,23 @@ function TextArea({
 }) {
   return (
     <label className="block">
-      <div className="text-[12px] font-medium text-zinc-400 mb-1.5">{label}</div>
+      <div className="text-[12px] font-medium text-ink-muted mb-1.5">{label}</div>
       <textarea
         rows={rows}
         maxLength={max}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[16px] leading-relaxed text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 resize-y"
+        className="w-full bg-card-solid border border-hairline rounded-xl px-3 py-3 text-[16px] leading-relaxed text-ink placeholder:text-ink-ghost focus:outline-none focus:border-edge-ghost resize-y"
       />
       <div className="flex items-center justify-between mt-1.5">
         {hint ? (
-          <span className="text-[11px] text-zinc-500">{hint}</span>
+          <span className="text-[11px] text-ink-faint">{hint}</span>
         ) : (
           <span />
         )}
         {max && (
-          <span className="text-[11px] text-zinc-600 tabular-nums shrink-0 ml-2">
+          <span className="text-[11px] text-ink-ghost tabular-nums shrink-0 ml-2">
             {value.length}/{max}
           </span>
         )}
@@ -378,19 +378,19 @@ function PickEditor({
 }) {
   const filled = Boolean(draft.summary.trim() || draft.full.trim());
   return (
-    <div className={open ? "bg-zinc-900/60" : ""}>
+    <div className={open ? "bg-card-60" : ""}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:bg-zinc-900/40 transition-colors"
+        className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:bg-card-40 transition-colors"
       >
-        <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
+        <div className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3 shrink-0">
           {ticker}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-semibold text-white truncate">{name}</div>
-          <div className="text-[11px] text-zinc-500 truncate">
+          <div className="text-[14px] font-semibold text-ink truncate">{name}</div>
+          <div className="text-[11px] text-ink-faint truncate">
             {filled
               ? draft.summary.trim() || "Reasoning added"
               : "No thesis yet — tap to add"}
@@ -404,7 +404,7 @@ function PickEditor({
         <svg
           viewBox="0 0 24 24"
           fill="none"
-          className={`w-4 h-4 shrink-0 text-zinc-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 shrink-0 text-ink-faint transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           aria-hidden
         >
           <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -437,17 +437,17 @@ function PickEditor({
 
 function ThesisIntro({ accentColor }: { accentColor: string }) {
   return (
-    <div className="rounded-xl bg-zinc-900/50 border border-zinc-800 p-4">
-      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-zinc-500 mb-1.5">
+    <div className="rounded-xl bg-card-50 border border-hairline p-4">
+      <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint mb-1.5">
         What&rsquo;s a thesis?
       </div>
-      <p className="text-[13px] text-zinc-300 leading-relaxed">
-        Your thesis is the <span className="text-white font-medium">why</span>{" "}
+      <p className="text-[13px] text-ink-3 leading-relaxed">
+        Your thesis is the <span className="text-ink font-medium">why</span>{" "}
         behind your picks — the story tying your portfolio together and your
         take on each stock. It shows up at the bottom of your portfolio page
         for everyone to read.
       </p>
-      <p className="text-[12px] text-zinc-500 leading-relaxed mt-3">
+      <p className="text-[12px] text-ink-faint leading-relaxed mt-3">
         Write a big-picture theme up top, then a quick take on each holding
         below. Everything is optional and you can come back to edit it anytime
         — saving updates the page for everyone.

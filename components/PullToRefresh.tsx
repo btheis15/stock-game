@@ -172,7 +172,7 @@ export function PullToRefresh() {
           : "none",
       }}
     >
-      <div className="w-10 h-10 rounded-full bg-zinc-900/95 border border-zinc-800 flex items-center justify-center shadow-2xl backdrop-blur-md">
+      <div className="w-10 h-10 rounded-full bg-card-95 border border-hairline flex items-center justify-center shadow-2xl backdrop-blur-md">
         {refreshing ? (
           <Spinner />
         ) : (
@@ -182,7 +182,7 @@ export function PullToRefresh() {
             className="w-5 h-5 transition-transform"
             style={{
               transform: `rotate(${arrowRotation}deg)`,
-              color: ready ? "#00C805" : "#a1a1aa",
+              color: ready ? "var(--gain)" : "#a1a1aa",
             }}
           >
             <path

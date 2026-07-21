@@ -49,6 +49,7 @@
 
   /* Borders */
   --border-hairline: #27272a;               /* was border-zinc-800 / divide-zinc-800 */
+  --border-hairline-70: rgb(39 39 42 / 0.7); /* was divide-zinc-800/70 */
   --border-deep: #18181b;                   /* was border-zinc-900 */
   --border-strong: #3f3f46;                 /* was border-zinc-700 */
   --border-strong-60: rgb(63 63 70 / 0.6);  /* was border-zinc-700/60 */
@@ -66,6 +67,25 @@
   --dur-press: 140ms;
   --dur-fade: 220ms;
   --dur-slide: 320ms;
+  --dur-enter: 360ms; /* content entrances: chart draw-in, list staggers */
+
+  /* Per-page accent — set by detail pages (portfolio/stock/fund) to the
+     owning entity's color so range pills, holding flashes, and glows pick
+     up that identity. Falls back to gain green on pages that don't set it. */
+  --accent: var(--gain);
+}
+
+/* Wide-gamut upgrade: on Display-P3 screens (every iPhone in the group),
+   push the semantic gain/loss colors toward the P3 gamut boundary —
+   hue-preserved, just richer. sRGB values above remain the fallback and
+   the source of truth. Neutrals deliberately stay sRGB (wide-gamut grays
+   read as tinted). Player accents get the same treatment via color_p3 in
+   config/roster.json (see the style block in app/layout.tsx). */
+@supports (color: color(display-p3 1 1 1)) {
+  :root {
+    --gain: color(display-p3 0 0.8 0.05);
+    --loss: color(display-p3 1 0.27 0.23);
+  }
 }
 
 html,
@@ -95,7 +115,7 @@ html {
 
 @keyframes holdingFlash {
   0% {
-    background-color: rgba(0, 200, 5, 0.18);
+    background-color: color-mix(in srgb, var(--accent) 18%, transparent);
   }
   100% {
     background-color: transparent;
@@ -170,13 +190,13 @@ html {
 }
 
 @keyframes overlayIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(4px); }
 }
 
 @keyframes overlayOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from { opacity: 1; backdrop-filter: blur(4px); }
+  to { opacity: 0; backdrop-filter: blur(0); }
 }
 
 .sheet-backdrop {
@@ -193,6 +213,95 @@ html {
 
 .sheet-panel.is-closing {
   animation: sheetOut var(--dur-slide) var(--ease-ios) forwards;
+}
+
+/* Chart draw-in — the line sweeps left-to-right on mount / range change.
+   Pure CSS via the pathLength=1 trick (ScrubChart sets pathLength + the
+   class; a keyed <g> remount replays it when the range flips). Ends well
+   before a human can start scrubbing and leaves no lingering state
+   (stroke-dashoffset rests at 0), so the §6 scrub contract is untouched.
+   The area fill fades in just behind the line. */
+@keyframes chartDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes chartAreaIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chart-line-draw {
+  stroke-dasharray: 1;
+  animation: chartDraw var(--dur-enter) var(--ease-out-ios) backwards;
+}
+
+.chart-area-in {
+  animation: chartAreaIn var(--dur-fade) var(--ease-out-ios) 120ms backwards;
+}
+
+/* Staggered list entrance — children rise in with a small per-row delay.
+   Mount-only by design: a re-sort reorders mounted children without
+   replaying the animation. Delays cap at the 10th child so long lists
+   don't crawl. */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-in > * {
+  animation: riseIn var(--dur-enter) var(--ease-out-ios) backwards;
+}
+
+.stagger-in > *:nth-child(2) { animation-delay: 28ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 56ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 84ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 112ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 140ms; }
+.stagger-in > *:nth-child(7) { animation-delay: 168ms; }
+.stagger-in > *:nth-child(8) { animation-delay: 196ms; }
+.stagger-in > *:nth-child(9) { animation-delay: 224ms; }
+.stagger-in > *:nth-child(n + 10) { animation-delay: 252ms; }
+
+/* Content entrance for cards that replace a skeleton (DigestPanel). */
+.content-in {
+  animation: riseIn var(--dur-fade) var(--ease-out-ios) backwards;
+}
+
+/* Expand/collapse via the grid-template-rows 0fr↔1fr technique (same as
+   WhatsNew's accordion) — height animates without measuring. The inner
+   wrapper needs overflow-hidden + min-h-0. */
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-slide) var(--ease-ios);
+}
+
+.reveal.is-open {
+  grid-template-rows: 1fr;
+}
+
+/* One-shot pop for the active tab icon (TabBar keys the icon by active
+   state so the animation replays on each tab switch). */
+@keyframes tabPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+.tab-icon-pop {
+  animation: tabPop calc(var(--dur-press) * 2) var(--ease-out-ios);
+}
+
+/* Confetti fall — lead-change celebration particles (Celebration.tsx sets
+   per-particle delay/duration inline). Frozen by the reduced-motion guard. */
+@keyframes confettiFall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(540deg); opacity: 0.7; }
+}
+
+.confetti-piece {
+  animation: confettiFall 2.4s cubic-bezier(0.3, 0, 0.8, 1) both;
 }
 
 /* Press feedback — a subtle iOS tap-shrink. Applies to native interactive
@@ -253,6 +362,7 @@ button {
   --color-ink-ghost: var(--ink-ghost);
   --color-ink-ghost-2: var(--ink-ghost-2);
   --color-hairline: var(--border-hairline);
+  --color-hairline-70: var(--border-hairline-70);
   --color-hairline-deep: var(--border-deep);
   --color-edge-strong: var(--border-strong);
   --color-edge-strong-60: var(--border-strong-60);
@@ -261,14 +371,14 @@ button {
 
 /*
  * LIGHT THEME — toggled by ThemeController on <html data-theme="light">
- * when the market is open. The toggle target is the entire app surface, so
- * rather than rewriting every component we override the small set of zinc /
- * black / white utility classes the codebase actually uses (see grep audit).
+ * when the market is open. Reassigns the semantic tokens wholesale; every
+ * component reads them via the @theme utilities (bg-card, text-ink, …), so
+ * there are no per-utility overrides anymore.
  *
  * Color palette is Robinhood-Light-inspired: zinc-50 page bg, white cards,
- * zinc-200 borders, zinc-900 primary text, zinc-600/500 muted text. Brand
- * accents (player colors, gain green, loss red) stay identical so the chart
- * lines and badges read the same across themes.
+ * zinc-200 borders, zinc-900 primary text, muted grays for secondary text.
+ * Brand accents (player colors, gain green, loss red) stay identical so the
+ * chart lines and badges read the same across themes.
  *
  * `color-scheme: light` tells iOS Safari to render scrollbars / form chrome
  * in light mode and adjusts the system status-bar overlay.
@@ -282,7 +392,7 @@ button {
   --chart-axis-label: rgba(24, 24, 27, 0.55);
   color-scheme: light;
 
-  /* Semantic tokens — values identical to the legacy utility overrides below. */
+  /* Semantic tokens — values carried over from the retired per-utility overrides. */
   --surface-page: #fafafa;
   --surface-solid: #fafafa;
   --surface-chrome: rgb(255 255 255 / 0.92);
@@ -308,93 +418,11 @@ button {
   --ink-ghost: #a1a1aa;
   --ink-ghost-2: #d4d4d8;
   --border-hairline: #e4e4e7;
+  --border-hairline-70: #e4e4e7;
   --border-deep: #e4e4e7;
   --border-strong: #e4e4e7;
   --border-strong-60: #e4e4e7;
   --border-ghost: #e4e4e7;
-}
-
-:root[data-theme="light"] .bg-black,
-:root[data-theme="light"] .bg-zinc-950 {
-  background-color: #fafafa !important; /* zinc-50 page */
-}
-
-:root[data-theme="light"] .bg-black\/85,
-:root[data-theme="light"] .bg-black\/95 {
-  background-color: rgb(255 255 255 / 0.92) !important;
-}
-
-:root[data-theme="light"] .bg-zinc-900,
-:root[data-theme="light"] .bg-zinc-900\/95,
-:root[data-theme="light"] .bg-zinc-900\/70,
-:root[data-theme="light"] .bg-zinc-900\/60,
-:root[data-theme="light"] .bg-zinc-900\/50,
-:root[data-theme="light"] .bg-zinc-900\/40 {
-  background-color: #ffffff !important; /* card surface */
-}
-
-:root[data-theme="light"] .bg-zinc-800,
-:root[data-theme="light"] .bg-zinc-800\/80,
-:root[data-theme="light"] .bg-zinc-800\/70 {
-  background-color: #f4f4f5 !important; /* zinc-100 — small pills, ticker badges */
-}
-
-:root[data-theme="light"] .bg-zinc-800\/60,
-:root[data-theme="light"] .bg-zinc-800\/40 {
-  background-color: rgb(228 228 231 / 0.7) !important; /* zinc-200/70 — pressed state */
-}
-
-:root[data-theme="light"] .bg-zinc-700 {
-  background-color: #d4d4d8 !important; /* zinc-300 */
-}
-
-:root[data-theme="light"] .bg-zinc-600 {
-  background-color: #a1a1aa !important; /* zinc-400 — closed-state pulse dot */
-}
-
-:root[data-theme="light"] .text-white,
-:root[data-theme="light"] .text-zinc-100 {
-  color: #18181b !important; /* zinc-900 */
-}
-
-:root[data-theme="light"] .text-zinc-200 {
-  color: #27272a !important; /* zinc-800 */
-}
-
-:root[data-theme="light"] .text-zinc-300 {
-  color: #3f3f46 !important; /* zinc-700 */
-}
-
-:root[data-theme="light"] .text-zinc-400 {
-  color: #52525b !important; /* zinc-600 */
-}
-
-/* zinc-500 is mid-gray and reads OK on both backgrounds; keep as-is. */
-
-:root[data-theme="light"] .text-zinc-600 {
-  color: #a1a1aa !important; /* zinc-400 — subtler captions */
-}
-
-:root[data-theme="light"] .text-zinc-700 {
-  color: #d4d4d8 !important; /* zinc-300 — subtlest text */
-}
-
-:root[data-theme="light"] .border-zinc-800,
-:root[data-theme="light"] .border-zinc-900,
-:root[data-theme="light"] .border-zinc-700,
-:root[data-theme="light"] .border-zinc-700\/60,
-:root[data-theme="light"] .border-zinc-600 {
-  border-color: #e4e4e7 !important; /* zinc-200 */
-}
-
-/* Tailwind v4 implements divide-y with `border-bottom: 1px` on every child
-   except :last-child. The previous Tailwind v3 selector used `~` (every
-   child except :first-child). Match BOTH patterns so the override is
-   future-proof against either implementation, and use `> *` as a fallback
-   to catch any child that has a border set on it. */
-:root[data-theme="light"] .divide-zinc-800 > *,
-:root[data-theme="light"] .divide-zinc-800\/70 > * {
-  border-color: #e4e4e7 !important; /* zinc-200 */
 }
 
 /*
@@ -404,9 +432,7 @@ button {
  * deep-blue palette that visually sits between the dark default (closed)
  * and the light theme (regular hours) — evokes dawn / dusk.
  *
- * Same override strategy as the light theme: remap the small set of zinc /
- * black utility classes the codebase uses instead of introducing new
- * tokens.
+ * Same strategy as the light theme: reassign the semantic tokens wholesale.
  */
 :root[data-theme="twilight"] {
   --background: #0b1024; /* deep midnight indigo */
@@ -416,7 +442,7 @@ button {
   --chart-axis-label: rgba(199, 210, 254, 0.55);
   color-scheme: dark;
 
-  /* Semantic tokens — values identical to the legacy utility overrides below. */
+  /* Semantic tokens — values carried over from the retired per-utility overrides. */
   --surface-page: #0b1024;
   --surface-solid: #0b1024;
   --surface-chrome: rgb(11 16 36 / 0.92);
@@ -442,96 +468,34 @@ button {
   --ink-ghost: #6b75ad;
   --ink-ghost-2: #4b5895;
   --border-hairline: #283260;
+  --border-hairline-70: #283260;
   --border-deep: #283260;
   --border-strong: #283260;
   --border-strong-60: #283260;
   --border-ghost: #283260;
 }
 
-:root[data-theme="twilight"] .bg-black,
-:root[data-theme="twilight"] .bg-zinc-950 {
-  background-color: #0b1024 !important; /* page bg */
+/* Dawn/dusk wash — a fixed indigo gradient behind the twilight page.
+   The dark theme deliberately keeps pure #000 (OLED rule, DESIGN.md §2.1);
+   twilight gets the atmosphere. P3 variant blooms slightly richer. */
+:root[data-theme="twilight"] body {
+  background-image: linear-gradient(180deg, #131a3a 0%, #0b1024 45%);
+  background-attachment: fixed;
 }
 
-:root[data-theme="twilight"] .bg-black\/85,
-:root[data-theme="twilight"] .bg-black\/95 {
-  background-color: rgb(11 16 36 / 0.92) !important;
-}
-
-:root[data-theme="twilight"] .bg-zinc-900,
-:root[data-theme="twilight"] .bg-zinc-900\/95,
-:root[data-theme="twilight"] .bg-zinc-900\/70,
-:root[data-theme="twilight"] .bg-zinc-900\/60,
-:root[data-theme="twilight"] .bg-zinc-900\/50,
-:root[data-theme="twilight"] .bg-zinc-900\/40 {
-  background-color: #161e3d !important; /* card surface — indigo-950 leaning */
-}
-
-:root[data-theme="twilight"] .bg-zinc-800,
-:root[data-theme="twilight"] .bg-zinc-800\/80,
-:root[data-theme="twilight"] .bg-zinc-800\/70 {
-  background-color: #1f2a52 !important; /* small pills, ticker badges */
-}
-
-:root[data-theme="twilight"] .bg-zinc-800\/60,
-:root[data-theme="twilight"] .bg-zinc-800\/40 {
-  background-color: rgb(31 42 82 / 0.7) !important; /* pressed state */
-}
-
-:root[data-theme="twilight"] .bg-zinc-700 {
-  background-color: #2d3a6b !important;
-}
-
-:root[data-theme="twilight"] .bg-zinc-600 {
-  background-color: #4b5895 !important; /* closed-state dot */
-}
-
-:root[data-theme="twilight"] .text-white,
-:root[data-theme="twilight"] .text-zinc-100 {
-  color: #e0e7ff !important; /* indigo-100 */
-}
-
-:root[data-theme="twilight"] .text-zinc-200 {
-  color: #c7d2fe !important; /* indigo-200 */
-}
-
-:root[data-theme="twilight"] .text-zinc-300 {
-  color: #a5b4fc !important; /* indigo-300 */
-}
-
-:root[data-theme="twilight"] .text-zinc-400 {
-  color: #818cf8 !important; /* indigo-400 — muted captions */
-}
-
-:root[data-theme="twilight"] .text-zinc-500 {
-  color: #8b94c8 !important; /* cool muted */
-}
-
-:root[data-theme="twilight"] .text-zinc-600 {
-  color: #6b75ad !important;
-}
-
-:root[data-theme="twilight"] .text-zinc-700 {
-  color: #4b5895 !important; /* subtlest */
-}
-
-:root[data-theme="twilight"] .border-zinc-800,
-:root[data-theme="twilight"] .border-zinc-900,
-:root[data-theme="twilight"] .border-zinc-700,
-:root[data-theme="twilight"] .border-zinc-700\/60,
-:root[data-theme="twilight"] .border-zinc-600 {
-  border-color: #283260 !important; /* indigo-tinted divider */
-}
-
-:root[data-theme="twilight"] .divide-zinc-800 > *,
-:root[data-theme="twilight"] .divide-zinc-800\/70 > * {
-  border-color: #283260 !important;
+@supports (color: color(display-p3 1 1 1)) {
+  :root[data-theme="twilight"] body {
+    background-image: linear-gradient(
+      180deg,
+      color(display-p3 0.07 0.1 0.25) 0%,
+      #0b1024 45%
+    );
+  }
 }
 
 /* Smooth surface/text transitions when the theme flips at session boundaries.
-   Semantic-token utilities (bg-card, text-ink, …) are listed alongside the
-   legacy zinc utilities; once PR-2 finishes the migration the zinc half of
-   this list goes away. */
+   Every semantic-token utility class is listed; when you mint a new token,
+   add its utility here so it cross-fades at the flip. */
 .bg-page,
 .bg-solid,
 .bg-chrome,
@@ -561,32 +525,7 @@ button {
 .border-edge-strong,
 .border-edge-ghost,
 :root,
-body,
-.bg-black,
-.bg-zinc-950,
-.bg-zinc-900,
-.bg-zinc-900\/95,
-.bg-zinc-900\/70,
-.bg-zinc-900\/60,
-.bg-zinc-900\/50,
-.bg-zinc-900\/40,
-.bg-zinc-800,
-.bg-zinc-800\/80,
-.bg-zinc-800\/70,
-.bg-zinc-800\/60,
-.bg-zinc-800\/40,
-.text-white,
-.text-zinc-100,
-.text-zinc-200,
-.text-zinc-300,
-.text-zinc-400,
-.text-zinc-500,
-.text-zinc-600,
-.text-zinc-700,
-.border-zinc-800,
-.border-zinc-900,
-.border-zinc-700,
-.border-zinc-600 {
+body {
   transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
 }
 

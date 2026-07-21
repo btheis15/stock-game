@@ -6,6 +6,7 @@ import { InstallHint } from "@/components/InstallHint";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { ThemeController } from "@/components/ThemeController";
+import { MotionProvider } from "@/components/MotionProvider";
 import { loadPriceData } from "@/lib/data";
 
 function siteUrl(): string {
@@ -104,13 +105,15 @@ export default async function RootLayout({
         <ServiceWorkerRegistrar />
         <InstallHint />
         <PullToRefresh />
-        <main
-          className="max-w-md mx-auto pb-20"
-          style={{ paddingTop: "env(safe-area-inset-top)" }}
-        >
-          {children}
-          <Footer lastDate={lastDate} generatedAt={data.generatedAt} />
-        </main>
+        <MotionProvider>
+          <main
+            className="max-w-md mx-auto pb-20"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
+          >
+            {children}
+            <Footer lastDate={lastDate} generatedAt={data.generatedAt} />
+          </main>
+        </MotionProvider>
         <TabBar />
       </body>
     </html>

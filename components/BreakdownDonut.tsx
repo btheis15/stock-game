@@ -218,7 +218,7 @@ export function SliceList({
 }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500 mt-2 mb-2">
+      <div className="text-[11px] uppercase tracking-wide text-ink-faint mt-2 mb-2">
         By {viewLabel.toLowerCase()}
       </div>
       <div className="space-y-1.5">
@@ -227,29 +227,29 @@ export function SliceList({
             key={s.key}
             type="button"
             onClick={() => onSelect(s.key)}
-            className="w-full flex items-center gap-3 py-2 active:bg-zinc-800/40 rounded-lg transition-colors text-left"
+            className="w-full flex items-center gap-3 py-2 active:bg-pressed-40 rounded-lg transition-colors text-left"
           >
             <span
               className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
               style={{ backgroundColor: s.color }}
             />
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-zinc-200 truncate">
+              <div className="text-[13px] font-semibold text-ink-2 truncate">
                 {s.key}
               </div>
-              <div className="text-[11px] text-zinc-500 tabular-nums">
+              <div className="text-[11px] text-ink-faint tabular-nums">
                 {countLabel
                   ? countLabel(s.tickers.length)
                   : `${s.tickers.length} position${s.tickers.length === 1 ? "" : "s"}`}
               </div>
             </div>
-            <div className="w-20 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+            <div className="w-20 h-1.5 rounded-full bg-raised overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{ width: `${s.pct * 100}%`, backgroundColor: s.color }}
               />
             </div>
-            <div className="text-[12px] font-semibold tabular-nums text-zinc-200 w-12 text-right">
+            <div className="text-[12px] font-semibold tabular-nums text-ink-2 w-12 text-right">
               {fmtPct(s.pct)}
             </div>
           </button>
@@ -279,10 +279,10 @@ export function SliceDetail({
           className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
           style={{ backgroundColor: slice.color }}
         />
-        <div className="text-[12px] font-semibold uppercase tracking-wide text-zinc-400">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
           {slice.key}
         </div>
-        <div className="ml-auto text-[11px] text-zinc-500 tabular-nums">
+        <div className="ml-auto text-[11px] text-ink-faint tabular-nums">
           {fmtUSD(slice.value)} · {fmtPct(slice.pct)}
         </div>
       </div>
@@ -291,31 +291,31 @@ export function SliceDetail({
           <Link
             key={t.ticker}
             href={`/stock/${t.ticker}`}
-            className="flex items-center gap-3 px-2 py-2 rounded-lg active:bg-zinc-800/60 transition-colors"
+            className="flex items-center gap-3 px-2 py-2 rounded-lg active:bg-pressed transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+            <div className="w-8 h-8 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3">
               {t.ticker}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-zinc-200 truncate">
+              <div className="text-[13px] font-semibold text-ink-2 truncate">
                 {t.name}
               </div>
-              <div className="text-[11px] text-zinc-500 tabular-nums">
+              <div className="text-[11px] text-ink-faint tabular-nums">
                 {fmtPct(t.portfolioPct)} of {totalNoun}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[13px] font-semibold text-zinc-100 tabular-nums">
+              <div className="text-[13px] font-semibold text-ink tabular-nums">
                 {fmtUSD(t.value)}
               </div>
-              <div className="text-[11px] text-zinc-500 tabular-nums">
+              <div className="text-[11px] text-ink-faint tabular-nums">
                 {fmtPct(t.pct)} of {sliceNoun}
               </div>
             </div>
           </Link>
         ))}
       </div>
-      <div className="text-[11px] text-zinc-500 mt-2 px-2">
+      <div className="text-[11px] text-ink-faint mt-2 px-2">
         Tap the {sliceNoun} again to clear.
       </div>
     </div>

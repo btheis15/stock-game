@@ -67,7 +67,7 @@ const PCT_TOKEN_RE = /\[([+\-−]\d+(?:\.\d+)?%)\]/g;
 const WORD_RE = /[A-Za-z][A-Za-z0-9]*/g;
 
 const PROSE_LINK_CLASS =
-  "font-medium underline decoration-zinc-700 underline-offset-2";
+  "font-medium underline decoration-edge-strong underline-offset-2";
 
 /**
  * Turns digest prose into rich nodes:
@@ -88,7 +88,7 @@ function renderProse(text: string): React.ReactNode[] {
       <span
         key={`pct-${key++}`}
         className="tabular-nums font-medium"
-        style={{ color: positive ? "#00C805" : "#FF453A" }}
+        style={{ color: positive ? "var(--gain)" : "var(--loss)" }}
       >
         {m[1].replace("-", "−")}
       </span>
@@ -158,7 +158,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
 
   return (
     <div className="px-4 mt-3">
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 overflow-hidden">
+      <div className="content-in rounded-2xl bg-card border border-hairline overflow-hidden">
         {/* Whole-card tap target. A div, not a button — the prose contains
             real links now, and nested interactive elements are invalid HTML.
             The "Show more" button below supplies keyboard access; taps on it
@@ -170,7 +170,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
           <SignalDot avg={digest.avgRelevanceScore} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+              <span className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint">
                 {SHORT_RANGE_LABELS[range]}
                 {(digest.narrativeGeneratedAt ?? digest.generatedAt) && (
                   <RelativeTime
@@ -181,7 +181,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
               </span>
               <span className="flex items-center gap-2">
                 {digest.dataMaturity === "partial" && (
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
                     Partial
                   </span>
                 )}
@@ -190,7 +190,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
             </div>
             <p
               ref={proseRef}
-              className={`mt-1.5 text-[13px] leading-[1.55] text-zinc-200 ${
+              className={`mt-1.5 text-[13px] leading-[1.55] text-ink-2 ${
                 expanded ? "" : "line-clamp-3"
               }`}
             >
@@ -200,7 +200,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
               <button
                 type="button"
                 aria-expanded={expanded}
-                className="mt-2 inline-block text-[11px] text-zinc-500 hover:text-zinc-300"
+                className="mt-2 inline-block text-[11px] text-ink-faint hover:text-ink-3"
               >
                 {expanded ? "Show less" : "Show more"}
               </button>
@@ -208,12 +208,21 @@ export function DigestPanel({ digest, loading, range }: Props) {
           </div>
         </div>
 
-        {expanded && (
-          <div className="px-4 pb-4 pt-1 border-t border-zinc-800">
+        {/* Height-animated reveal (grid-rows 0fr↔1fr) instead of a mount/
+            unmount pop — same technique as WhatsNew's accordion. */}
+        <div
+          className={`reveal ${expanded ? "is-open" : ""}`}
+          aria-hidden={!expanded}
+          // inert keeps the collapsed block's source links out of the tab
+          // order (the old conditional render unmounted them entirely).
+          inert={!expanded}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div className="px-4 pb-4 pt-1 border-t border-hairline">
             <DigestMeta digest={digest} range={range} />
             {digest.sources && digest.sources.length > 0 && (
               <div className="mt-3">
-                <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-2">
+                <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-2">
                   Sources
                 </div>
                 <ul className="space-y-2">
@@ -223,18 +232,19 @@ export function DigestPanel({ digest, loading, range }: Props) {
                         href={s.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[12px] leading-[1.4] text-zinc-300 hover:text-white block"
+                        className="text-[12px] leading-[1.4] text-ink-3 hover:text-ink block"
                       >
                         {s.title}
-                        <span className="ml-1.5 text-zinc-500">· {s.source}</span>
+                        <span className="ml-1.5 text-ink-faint">· {s.source}</span>
                       </a>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -246,18 +256,18 @@ export function DigestPanel({ digest, loading, range }: Props) {
 function DigestSkeleton({ range }: { range: Range }) {
   return (
     <div className="px-4 mt-3" aria-hidden>
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 overflow-hidden">
+      <div className="rounded-2xl bg-card border border-hairline overflow-hidden">
         <div className="w-full px-4 py-3 flex items-start gap-3">
-          <span className="skeleton w-2 h-2 mt-1.5 rounded-full bg-zinc-800/40 shrink-0" />
+          <span className="skeleton w-2 h-2 mt-1.5 rounded-full bg-pressed-40 shrink-0" />
           <div className="flex-1 min-w-0">
             <div
-              className="skeleton bg-zinc-800/40 rounded h-[11px] my-[3px]"
+              className="skeleton bg-pressed-40 rounded h-[11px] my-[3px]"
               style={{ width: `${SHORT_RANGE_LABELS[range].length * 7}px` }}
             />
             <div className="mt-[9px] space-y-[7px]">
-              <div className="skeleton bg-zinc-800/40 rounded h-[13px]" />
-              <div className="skeleton bg-zinc-800/40 rounded h-[13px]" />
-              <div className="skeleton bg-zinc-800/40 rounded h-[13px] w-2/3" />
+              <div className="skeleton bg-pressed-40 rounded h-[13px]" />
+              <div className="skeleton bg-pressed-40 rounded h-[13px]" />
+              <div className="skeleton bg-pressed-40 rounded h-[13px] w-2/3" />
             </div>
           </div>
         </div>
@@ -269,8 +279,8 @@ function DigestSkeleton({ range }: { range: Range }) {
 function SignalDot({ avg }: { avg: number | null }) {
   // Green dot for a high-quality digest (≥8), yellow for moderate (6–7).
   // The dot doesn't appear if no AI scoring happened.
-  if (avg == null) return <span className="w-2 h-2 mt-1.5 rounded-full bg-zinc-600 shrink-0" />;
-  const color = avg >= 8 ? "#00C805" : avg >= 6 ? "#FFCC00" : "#71717A";
+  if (avg == null) return <span className="w-2 h-2 mt-1.5 rounded-full bg-ghost shrink-0" />;
+  const color = avg >= 8 ? "var(--gain)" : avg >= 6 ? "#FFCC00" : "#71717A";
   return (
     <span
       className="w-2 h-2 mt-1.5 rounded-full shrink-0"
@@ -303,7 +313,7 @@ function DigestMeta({ digest, range }: { digest: WindowDigest; range: Range }) {
   const diverged = storyDiverges(digest);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-faint">
       <span>{RANGE_LABELS[range]}</span>
       {dateLabel && <span>· {dateLabel}</span>}
       <span>· Based on {digest.articleCount} article{digest.articleCount === 1 ? "" : "s"}</span>
@@ -338,7 +348,7 @@ function InlineAIAttribution({ digest }: { digest: WindowDigest }) {
       : digest.aiEngine ?? null;
   if (!engineLabel) return null;
   return (
-    <span className="text-[10px] tracking-[0.04em] text-zinc-600 whitespace-nowrap">
+    <span className="text-[10px] tracking-[0.04em] text-ink-ghost whitespace-nowrap">
       ⬡ Summarized by {engineLabel}
     </span>
   );
@@ -370,11 +380,11 @@ function InsufficientPanel({ range, digest }: { range: Range; digest: WindowDige
   } away.`;
   return (
     <div className="px-4 mt-3">
-      <div className="rounded-2xl bg-zinc-900/40 border border-dashed border-zinc-800 px-4 py-3">
-        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+      <div className="rounded-2xl bg-card-40 border border-dashed border-hairline px-4 py-3">
+        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint">
           {SHORT_RANGE_LABELS[range]}
         </div>
-        <div className="mt-1 text-[12px] text-zinc-400">{label}</div>
+        <div className="mt-1 text-[12px] text-ink-muted">{label}</div>
       </div>
     </div>
   );

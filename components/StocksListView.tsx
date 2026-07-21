@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { AnimatedRow } from "./AnimatedList";
 import clsx from "clsx";
 import { fmtPct, fmtUSD } from "@/lib/portfolio";
 import { TICKER_OWNERS, USER_LIST, USERS, type UserId } from "@/lib/picks";
 import type { TickerSeries } from "@/lib/types";
 import { spinoffRowSuffix } from "./SpinoffNote";
+import { Sparkline } from "./Sparkline";
 
 interface Props {
   series: TickerSeries[];
@@ -28,6 +30,8 @@ export function StocksListView({ series }: Props) {
           last,
           plPct,
           owners: TICKER_OWNERS[s.ticker] ?? [],
+          // Last ~30 daily closes for the row's mini trend line.
+          spark: s.closes.slice(-30).map((c) => c.close),
         };
       })
       .filter((r) => filter === "all" || r.owners.includes(filter))
@@ -37,10 +41,10 @@ export function StocksListView({ series }: Props) {
   return (
     <div className="pb-24">
       <div className="px-4 pt-2 pb-3">
-        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1">
+        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-1">
           All picks
         </div>
-        <h1 className="text-[22px] leading-tight font-semibold text-white">Stocks</h1>
+        <h1 className="text-[22px] leading-tight font-semibold text-ink">Stocks</h1>
       </div>
 
       <div className="px-4 flex gap-2 mb-3 overflow-x-auto -mx-4 px-4 pb-1">
@@ -60,33 +64,40 @@ export function StocksListView({ series }: Props) {
       </div>
 
       <div className="px-4">
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {rows.map((r) => (
+            <AnimatedRow key={r.ticker}>
             <Link
-              key={r.ticker}
               href={`/stock/${r.ticker}`}
-              className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors"
+              className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
             >
               <OwnerSwatch owners={r.owners} />
               <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-white truncate">
+                <div className="text-[14px] font-semibold text-ink truncate">
                   {r.ticker}{" "}
-                  <span className="text-zinc-500 font-normal">{r.name}</span>
+                  <span className="text-ink-faint font-normal">{r.name}</span>
                 </div>
-                <div className="text-[11px] text-zinc-500 tabular-nums">
+                <div className="text-[11px] text-ink-faint tabular-nums">
                   {fmtUSD(r.last, 2)}
                   {spinoffRowSuffix(r.ticker) && (
                     <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(r.ticker)}</span>
                   )}
                 </div>
               </div>
+              <Sparkline
+                values={r.spark}
+                color={r.plPct >= 0 ? "var(--gain)" : "var(--loss)"}
+                width={48}
+                height={18}
+              />
               <div
                 className="text-[14px] font-semibold tabular-nums"
-                style={{ color: r.plPct >= 0 ? "#00C805" : "#FF453A" }}
+                style={{ color: r.plPct >= 0 ? "var(--gain)" : "var(--loss)" }}
               >
                 {fmtPct(r.plPct)}
               </div>
             </Link>
+            </AnimatedRow>
           ))}
         </div>
       </div>
@@ -96,10 +107,10 @@ export function StocksListView({ series }: Props) {
 
 function OwnerSwatch({ owners }: { owners: UserId[] }) {
   if (owners.length === 0) {
-    return <div className="w-9 h-9 rounded-full bg-zinc-800 shrink-0" />;
+    return <div className="w-9 h-9 rounded-full bg-raised shrink-0" />;
   }
   return (
-    <div className="w-9 h-9 rounded-full bg-zinc-800 shrink-0 flex items-center justify-center gap-0.5">
+    <div className="w-9 h-9 rounded-full bg-raised shrink-0 flex items-center justify-center gap-0.5">
       {owners.map((id) => (
         <span
           key={id}
@@ -129,7 +140,7 @@ function Chip({
         "px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors shrink-0",
         active
           ? "text-black"
-          : "text-zinc-400 border-zinc-800 bg-zinc-900/50 hover:text-zinc-200"
+          : "text-ink-muted border-hairline bg-card-50 hover:text-ink-2"
       )}
       style={
         active

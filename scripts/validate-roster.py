@@ -99,6 +99,12 @@ def main() -> None:
                 f"users[{i}].name must be a non-empty string")
         require(HEX_RE.match(u["color"]),
                 f"users[{i}].color {u['color']!r} not a #RRGGBB hex code")
+        if "color_p3" in u:
+            require(isinstance(u["color_p3"], str)
+                    and u["color_p3"].startswith("color(display-p3 ")
+                    and u["color_p3"].endswith(")"),
+                    f"users[{i}].color_p3 {u.get('color_p3')!r} must be a "
+                    f"'color(display-p3 R G B)' CSS string")
         require(isinstance(u["tickers"], list) and u["tickers"],
                 f"users[{i}].tickers must be a non-empty array")
         for t in u["tickers"]:

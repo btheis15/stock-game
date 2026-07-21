@@ -44,6 +44,19 @@ to dazzle once.
 
 **Don't use zinc-950 or near-black.** Use actual `#000`. The visual difference matters: charts and cards lift off a true black background better.
 
+**Reference colors through semantic tokens, not raw utilities (2026-07-21).**
+The table above describes the DARK palette; the app has three themes (dark /
+light / twilight) driven by semantic CSS variables assigned per theme in
+`app/globals.css` and exposed as Tailwind utilities: surfaces (`bg-page`,
+`bg-card`, `bg-card-solid`, `bg-raised`, `bg-pressed`, `bg-chrome`, …), text
+(`text-ink`, `text-ink-2/3`, `text-ink-muted`, `text-ink-faint`,
+`text-ink-ghost`), borders (`border-hairline`, `border-edge-strong`,
+`divide-hairline`). Raw zinc/black/white utilities are BANNED in markup
+(`npm run check-theme` fails the build), as are opacity modifiers on semantic
+tokens (`bg-card/50` — mint a token instead). Porting this system elsewhere:
+copy the token blocks + the guard script, then write components against the
+semantic utilities only.
+
 **Accent colors are personal-identity, not categorical.** Same player = same color everywhere (line on chart, border on card, text in places). This is the visual handle the user grabs onto.
 
 **Gain/loss colors are universal, never overridden.** Even a player with a green personal accent shows red text when their number is negative. Don't mix the two language systems.
@@ -407,11 +420,16 @@ any `[data-no-ptr]` ancestor.
 
 ## §6. Animation principles
 
-Animation in this app serves three jobs — **liveness, feedback, and
-purposeful iOS-style transitions** — and nothing else. Content itself is
-still calm: cards don't fly in, numbers don't count up. But navigation and
-overlays now have deliberate motion, because a native-feeling app moves
-between screens, it doesn't just hard-cut.
+Animation in this app serves four jobs — **liveness, feedback, purposeful
+iOS-style transitions, and content entrances** — and nothing else.
+Navigation and overlays have deliberate motion because a native-feeling
+app moves between screens; content entrances (added 2026-07-21,
+superseding the old "cards don't fly in" rule the same way §6.1 superseded
+"transitions don't animate") are quick, one-shot, and quiet: the chart
+line draws in over ~360ms on mount/range change, list rows rise in with a
+≤28ms-per-row stagger on mount only (re-sorts don't replay), and cards
+that replace a skeleton fade up. All CSS, all on the shared motion tokens,
+all neutralized by the global reduced-motion guard.
 
 **The liveness / feedback set** (these animate because the user would notice
 them missing):
@@ -431,10 +449,23 @@ them missing):
 7. **Sheets** — the iOS bottom-sheet primitive slides up to open and slides
    back down to dismiss.
 
-Things that **still don't** animate, intentionally:
-- Range tab transitions (data swaps; chart re-renders crisply, no slide)
-- Card mount/unmount inside a page (no per-item stagger)
-- Numbers (no count-up)
+**The content-entrance set** (added 2026-07-21; `--dur-enter` token):
+
+8. **Chart draw-in** — the line sweeps left-to-right via the `pathLength=1`
+   stroke-dash trick, keyed to replay on range change. Ends before a scrub
+   can start; never touches the scrub path.
+9. **List stagger** — `.stagger-in` containers rise their children in with
+   small per-row delays, mount only.
+10. **Skeleton→content fade-up** (`.content-in`) and height-animated
+    expand/collapse (`.reveal`, the grid-rows 0fr↔1fr technique).
+
+Numbers DO count up now (`<AnimatedNumber>`, ~450ms ease-out) and ranked
+rows FLIP to new slots (`<AnimatedRow>`), with one absolute rule: while a
+scrub is active, values render RAW and rows snap — nothing eases behind
+the finger.
+
+The one thing that **still doesn't** animate, intentionally: anything
+per-frame in JS on the chart's scrub path.
 
 The rule is unchanged in spirit: motion must earn its place. If the user
 wouldn't notice it missing, don't add it. Liveness, feedback, and

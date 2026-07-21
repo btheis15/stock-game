@@ -79,12 +79,21 @@ export function TabBar() {
               href={t.href}
               prefetch
               className={clsx(
-                "press flex flex-col items-center gap-1 transition-colors flex-1",
+                "press relative flex flex-col items-center gap-1 transition-colors flex-1",
                 active ? "text-ink" : "text-ink-faint"
               )}
             >
-              {t.icon}
+              {/* Keyed by active state so the pop keyframe replays on each
+                  tab switch (a class swap alone wouldn't restart it). */}
+              <span key={active ? "on" : "off"} className={clsx(active && "tab-icon-pop")}>
+                {t.icon}
+              </span>
               <span className="text-[10px] font-medium tracking-wide">{t.label}</span>
+              <span
+                aria-hidden
+                className="absolute bottom-0.5 w-1 h-1 rounded-full bg-gain transition-opacity"
+                style={{ opacity: active ? 1 : 0, transitionDuration: "var(--dur-fade)" }}
+              />
             </Link>
           );
         })}

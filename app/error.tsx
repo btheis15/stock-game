@@ -18,13 +18,13 @@ export default function Error({
 
   return (
     <div className="px-4 pt-20 pb-12 text-center">
-      <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+      <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint">
         Stock Game
       </div>
-      <h1 className="mt-2 text-[22px] font-bold text-white">
+      <h1 className="mt-2 text-[22px] font-bold text-ink">
         Something went wrong
       </h1>
-      <p className="mt-2 text-[13px] text-zinc-500">
+      <p className="mt-2 text-[13px] text-ink-faint">
         The page hit an error — the standings are safe, this is just a display
         hiccup.
       </p>

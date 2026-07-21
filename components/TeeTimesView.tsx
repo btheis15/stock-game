@@ -74,22 +74,22 @@ export function TeeTimesView() {
   return (
     <div className="pb-24">
       <div className="px-4 pt-3 pb-2">
-        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500">
+        <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint">
           Tee Times
         </div>
-        <h1 className="text-[22px] leading-tight font-semibold text-white">
+        <h1 className="text-[22px] leading-tight font-semibold text-ink">
           Inshalla CC
         </h1>
-        <div className="text-[13px] font-medium text-zinc-400 mt-0.5">
+        <div className="text-[13px] font-medium text-ink-muted mt-0.5">
           Tomahawk, WI
         </div>
       </div>
 
       <div className="px-4 mt-3">
-        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-2">
+        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-2">
           Quick book
         </div>
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
           <DayLink date={today} label="Today" />
           <DayLink date={tomorrow} label="Tomorrow" />
           <DayLink date={dayAfter} label={fmtDow(dayAfter)} />
@@ -106,18 +106,18 @@ export function TeeTimesView() {
 
         <a
           href={`tel:${INSHALLA_PHONE_TEL}`}
-          className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-zinc-900/70 border border-zinc-800 text-white font-semibold text-[14px] py-3 active:bg-zinc-800 transition-colors"
+          className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-card border border-hairline text-ink font-semibold text-[14px] py-3 active:bg-raised transition-colors"
         >
           <PhoneIcon />
           <span>Call pro shop</span>
-          <span className="text-zinc-400 font-medium tabular-nums">
+          <span className="text-ink-muted font-medium tabular-nums">
             {INSHALLA_PHONE_DISPLAY}
           </span>
         </a>
       </div>
 
       <div className="px-4 mt-6">
-        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-2">
+        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-2">
           Daily Deals
         </div>
         {/*
@@ -134,37 +134,37 @@ export function TeeTimesView() {
           href={DAILY_DEALS_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center px-4 py-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 active:bg-zinc-800/60 transition-colors"
+          className="flex items-center px-4 py-4 rounded-2xl bg-card border border-hairline active:bg-pressed transition-colors"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-semibold text-white">View Daily Deals</span>
-              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#00C805] text-black">
+              <span className="text-[15px] font-semibold text-ink">View Daily Deals</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gain text-black">
                 Save
               </span>
             </div>
-            <div className="text-[11px] text-zinc-500 mt-0.5">
+            <div className="text-[11px] text-ink-faint mt-0.5">
               Discounted Inshalla tee times via Sagacity Golf
             </div>
           </div>
-          <div className="text-zinc-500 text-[18px] leading-none ml-3">↗</div>
+          <div className="text-ink-faint text-[18px] leading-none ml-3">↗</div>
         </a>
       </div>
 
       <div className="px-4">
-        <div className="mt-5 text-[11px] text-zinc-500 leading-relaxed">
+        <div className="mt-5 text-[11px] text-ink-faint leading-relaxed">
           Tee times, pricing, and booking are managed by Inshalla Country Club
           via foreUP. Tapping a day above opens foreUP's secure booking page
           pre-filtered to that day — your tee time, account, and payment all
           live there. Or tap the call button to book by phone.
         </div>
 
-        <div className="mt-3 text-[11px] text-zinc-600">
+        <div className="mt-3 text-[11px] text-ink-ghost">
           <a
             href={`${FOREUP_BASE}#/teetimes`}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline decoration-zinc-700 active:text-zinc-300"
+            className="underline decoration-edge-strong active:text-ink-3"
           >
             Inshalla CC on foreUP →
           </a>
@@ -181,13 +181,13 @@ function DayLink({ date, label }: { date: Date; label: string }) {
       href={buildForeUpUrl({ dateMdY: toForeUpDate(date) })}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center px-4 py-4 active:bg-zinc-800/60 transition-colors"
+      className="flex items-center px-4 py-4 active:bg-pressed transition-colors"
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[15px] font-semibold text-white">{label}</div>
-        <div className="text-[11px] text-zinc-500">{fullDate}</div>
+        <div className="text-[15px] font-semibold text-ink">{label}</div>
+        <div className="text-[11px] text-ink-faint">{fullDate}</div>
       </div>
-      <div className="text-zinc-500 text-[18px] leading-none ml-3">↗</div>
+      <div className="text-ink-faint text-[18px] leading-none ml-3">↗</div>
     </a>
   );
 }

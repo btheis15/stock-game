@@ -108,6 +108,18 @@ function ScrubChartInner({
     return longest?.data.map((d) => new Date(d.date.length > 10 ? d.date : d.date + "T00:00:00Z")) ?? [];
   }, [series]);
 
+  // Signature of the plotted window. Changes on a range switch (different
+  // first date / point count / series set) but NOT on scrub or re-render —
+  // used to key the path groups below so the draw-in replays exactly when
+  // the user is looking at a new window.
+  const drawKey = useMemo(
+    () =>
+      `${series.map((s) => s.id).join(",")}|${dates.length}|${
+        dates[0]?.getTime() ?? 0
+      }`,
+    [series, dates]
+  );
+
   // In compactX mode the x-axis is index-based (one slot per data point) so
   // overnight / weekend gaps disappear visually. Tick labels are placed at
   // day-boundary indices and labeled with the date there.
@@ -284,8 +296,13 @@ function ScrubChartInner({
         />
       )}
 
+      {/* drawKey remounts the area+line groups when the plotted window
+          changes (range tab, new day), replaying the CSS draw-in. Scrub
+          overlays and pointer handling live outside these groups — the §6
+          contract (touch-action, pointer capture, no per-frame JS) is
+          untouched, and the entrance finishes before a scrub can start. */}
       {series.map((s) => (
-        <g key={`area-${s.id}`}>
+        <g key={`area-${drawKey}-${s.id}`} className="chart-area-in">
           <AreaClosed
             data={s.data}
             x={(_, i) => xAt(i)}
@@ -299,7 +316,7 @@ function ScrubChartInner({
 
       {series.map((s) => (
         <LinePath
-          key={`line-${s.id}`}
+          key={`line-${drawKey}-${s.id}`}
           data={s.data}
           x={(_, i) => xAt(i)}
           y={(d) => yScale(d.value)}
@@ -308,6 +325,8 @@ function ScrubChartInner({
           strokeLinejoin="round"
           strokeLinecap="round"
           curve={curveMonotoneX}
+          pathLength={1}
+          className="chart-line-draw"
         />
       ))}
 

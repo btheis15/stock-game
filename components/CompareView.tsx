@@ -21,7 +21,16 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
-import { BASELINE, USER_LIST, type UserId } from "@/lib/picks";
+import { BASELINE, USERS, USER_LIST, type UserId } from "@/lib/picks";
+import { accentFor, useP3 } from "@/lib/color";
+import { AnimatedRow } from "./AnimatedList";
+import { Sparkline } from "./Sparkline";
+import { GolfCountdown } from "./GolfCountdown";
+import { LeadTape } from "./LeadTape";
+import { Celebration } from "./Celebration";
+import { HeadToHead } from "./HeadToHead";
+import { ShareStandings } from "./ShareStandings";
+import { AnimatedNumber } from "./AnimatedNumber";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { WhatsNew } from "./WhatsNew";
 import { PortfolioComposition } from "./PortfolioComposition";
@@ -101,6 +110,7 @@ export function CompareView({
   combinedComposition,
 }: Props) {
   const router = useRouter();
+  const p3 = useP3();
   const [range, setRange] = useState<Range>("1D");
   const { loading: digestsLoading, getGameDigest } = useDigests();
   const [scrub, setScrub] = useState<ScrubState | null>(null);
@@ -108,6 +118,7 @@ export function CompareView({
   const [manageOpen, setManageOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [editing, setEditing] = useState<Fund | null>(null);
+  const [h2hOpen, setH2hOpen] = useState(false);
   const { isOn, setOn } = useFundsFilter();
 
   // Active funds = not soft-deleted. The Manage sheet shows archived too,
@@ -240,7 +251,7 @@ export function CompareView({
       entries.push({
         id: u.id,
         name: u.name,
-        color: u.color,
+        color: accentFor(u, p3),
         href: `/portfolio/${u.id}`,
         value,
         pct,
@@ -301,7 +312,7 @@ export function CompareView({
     }
     return entries.sort((a, b) => b.pct - a.pct);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, fundPending, isIntraday, isOn]);
+  }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, fundPending, isIntraday, isOn, p3]);
 
   // Empty-state guard: if every chip is toggled off, stats is empty and
   // leader/second below would crash. Use safe defaults so the page still
@@ -324,6 +335,25 @@ export function CompareView({
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
+  // ALL-time lead change — the ONLY celebrated event (never the shorter
+  // windows). Compares the total-portfolio leader at the previous session's
+  // close against the live leader now; a flip means someone just took the
+  // overall game lead today. Players only — funds/baseline aren't in the bet.
+  const allTimeLeadChange = useMemo<UserId | null>(() => {
+    let prevLeader: UserId | null = null;
+    let curLeader: UserId | null = null;
+    let prevBest = -Infinity;
+    let curBest = -Infinity;
+    for (const u of USER_LIST) {
+      const prev = intraday[u.id].previousClose;
+      const pts = intraday[u.id].points;
+      const cur = pts[pts.length - 1]?.value ?? prev;
+      if (prev > prevBest) { prevBest = prev; prevLeader = u.id; }
+      if (cur > curBest) { curBest = cur; curLeader = u.id; }
+    }
+    return prevLeader && curLeader && prevLeader !== curLeader ? curLeader : null;
+  }, [intraday]);
+
   // Normalize all lines to % change from the range's baseline so the chart
   // visually matches the leaderboard ranking (highest line = 1st place).
   // Without this, lines would plot raw $ at different starting points and a
@@ -335,7 +365,7 @@ export function CompareView({
     const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
     return {
       id: u.id,
-      color: u.color,
+      color: accentFor(u, p3),
       data: pts.map((p) => ({
         date: p.date,
         value: baseline === 0 ? 0 : (p.value - baseline) / baseline,
@@ -377,6 +407,20 @@ export function CompareView({
     });
   }
 
+  // Downsampled range curve for a row's sparkline (~30 points). Reads the
+  // same per-entity ranged points the chart plots.
+  function sparkFor(id: string): number[] {
+    const pts: PortfolioPoint[] =
+      (ranged as Record<string, PortfolioPoint[]>)[id] ??
+      (id === BASELINE.id ? baselineRanged ?? [] : fundRanged[id] ?? []);
+    if (pts.length < 2) return [];
+    const step = Math.max(1, Math.floor(pts.length / 30));
+    const out: number[] = [];
+    for (let i = 0; i < pts.length; i += step) out.push(pts[i].value);
+    if (out[out.length - 1] !== pts[pts.length - 1].value) out.push(pts[pts.length - 1].value);
+    return out;
+  }
+
   function refreshAfterSave() {
     // Router refresh re-runs the server component (app/page.tsx), which
     // re-reads funds.json with the just-committed entry and pipes the new
@@ -390,12 +434,12 @@ export function CompareView({
     <div className="pb-24">
       <div className="px-4 pt-2 pb-3">
         <div className="flex items-start justify-between">
-          <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 mb-1">
+          <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-ink-faint mb-1">
             Compare
           </div>
           <WhatsNew />
         </div>
-        <h1 className="text-[22px] leading-tight font-semibold text-white">
+        <h1 className="text-[22px] leading-tight font-semibold text-ink">
           {!hasAny
             ? "Nothing visible"
             : gapPct === 0
@@ -406,18 +450,45 @@ export function CompareView({
           <>
             <div
               className="text-[34px] font-semibold tracking-tight mt-1"
-              style={{ color: leader.color }}
+              style={{
+                color: leader.color,
+                // A soft same-hue bloom behind the hero number — reads as
+                // glow on OLED, invisible enough to stay professional.
+                textShadow: `0 0 22px color-mix(in srgb, ${leader.color} 35%, transparent)`,
+              }}
             >
-              {fmtPct(gapPct)}
+              <AnimatedNumber value={gapPct} format={fmtPct} animate={scrub == null} />
             </div>
-            <div className="text-[14px] font-medium text-zinc-400 mt-0.5">
-              {fmtSignedUSD(gapDollars)} gap
-              {scrubLabel && <span className="text-zinc-500"> • {scrubLabel}</span>}
+            <div className="text-[14px] font-medium text-ink-muted mt-0.5">
+              <AnimatedNumber value={gapDollars} format={fmtSignedUSD} animate={scrub == null} /> gap
+              {scrubLabel && <span className="text-ink-faint"> • {scrubLabel}</span>}
             </div>
+            {/* Spread-at-a-glance: every visible entry as a dot on one
+                track, positioned by range pct (leader at the right). */}
+            {stats.length > 1 && (
+              <div className="relative h-[3px] rounded-full bg-raised mt-3 mb-1">
+                {(() => {
+                  const min = Math.min(...stats.map((s) => s.pct));
+                  const max = Math.max(...stats.map((s) => s.pct));
+                  const span = max - min || 1;
+                  return stats.map((s) => (
+                    <span
+                      key={s.id}
+                      title={s.name}
+                      className="absolute top-1/2 w-2 h-2 rounded-full -translate-y-1/2 -translate-x-1/2 ring-2 ring-page"
+                      style={{
+                        left: `${(((s.pct - min) / span) * 94 + 3).toFixed(1)}%`,
+                        backgroundColor: s.color,
+                      }}
+                    />
+                  ));
+                })()}
+              </div>
+            )}
           </>
         ) : (
-          <div className="text-[14px] font-medium text-zinc-400 mt-1">
-            Tap <span className="text-zinc-200">Show 0 of {filterChips.length}</span> above to enable a player or fund.
+          <div className="text-[14px] font-medium text-ink-muted mt-1">
+            Tap <span className="text-ink-2">Show 0 of {filterChips.length}</span> above to enable a player or fund.
           </div>
         )}
       </div>
@@ -456,8 +527,16 @@ export function CompareView({
         range={range}
       />
 
+      {allTimeLeadChange && (
+        <Celebration
+          leaderName={USERS[allTimeLeadChange].name}
+          color={accentFor(USERS[allTimeLeadChange], p3)}
+          storageKey={`stockgame.leadchange.${intradayDate}.${allTimeLeadChange}`}
+        />
+      )}
+
       <div className="px-4 mt-2">
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {stats.map((s, i) => {
             // Gap = how far behind the leader in $ gain over the active range
             // (not raw portfolio diff — that would mix range performance with
@@ -468,23 +547,45 @@ export function CompareView({
             const leaderGain = leader.value - leader.baseline;
             const gap = i === 0 ? 0 : leaderGain - rangeGain;
             return (
-              <UserRow
-                key={s.id}
-                name={s.name}
-                color={s.color}
-                value={s.value}
-                pct={s.pct}
-                gap={gap}
-                place={i + 1}
-                href={s.href}
-                pendingTickers={s.pendingTickers}
-              />
+              // FLIP re-rank: rows glide to new slots when the standings
+              // change (range switch, fresh data). Frozen while scrubbing —
+              // scrub-driven re-ranks must snap with the finger, not spring.
+              <AnimatedRow key={s.id} animate={scrub == null}>
+                <UserRow
+                  name={s.name}
+                  color={s.color}
+                  spark={sparkFor(s.id)}
+                  value={s.value}
+                  pct={s.pct}
+                  gap={gap}
+                  place={i + 1}
+                  href={s.href}
+                  pendingTickers={s.pendingTickers}
+                  animateNumbers={scrub == null}
+                />
+              </AnimatedRow>
             );
           })}
         </div>
       </div>
 
+      <div className="px-4 mt-2 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setH2hOpen(true)}
+          className="press rounded-2xl bg-card border border-hairline px-4 py-2.5 text-left"
+        >
+          <span className="text-[13px] font-semibold text-ink-2">⚔️ Head to head</span>
+        </button>
+        <ShareStandings
+          entries={stats}
+          range={range}
+          className="press rounded-2xl bg-card border border-hairline px-4 py-2.5 text-left"
+        />
+      </div>
+
       <InsightsCard analysis={analyses[range]} />
+
+      <LeadTape series={series} />
 
       <PortfolioComposition
         composition={combinedComposition}
@@ -494,13 +595,20 @@ export function CompareView({
       />
 
       <div className="px-4 mt-6">
-        <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Game rules</h2>
-        <div className="text-[13px] text-zinc-500 leading-relaxed">
+        <h2 className="text-[15px] font-semibold text-ink-3 mb-2">Game rules</h2>
+        <div className="text-[13px] text-ink-faint leading-relaxed">
           Each portfolio started with $100,000 split evenly across each player's
           picks at the Feb 5, 2026 close. Partial shares allowed. Updated daily.
         </div>
+        <GolfCountdown />
       </div>
 
+      <HeadToHead
+        open={h2hOpen}
+        onClose={() => setH2hOpen(false)}
+        series={series}
+        analyses={analyses}
+      />
       <FilterSheet
         open={filterOpen}
         chips={filterChips}
@@ -558,6 +666,8 @@ function UserRow({
   place,
   href,
   pendingTickers,
+  animateNumbers = true,
+  spark,
 }: {
   name: string;
   color: string;
@@ -565,6 +675,10 @@ function UserRow({
   pct: number;
   gap: number; // $ behind the leader in this range's gain; 0 when place === 1
   place: number;
+  /** False while a scrub drives the values — they render raw, not eased. */
+  animateNumbers?: boolean;
+  /** Downsampled range curve for the row's mini trend line. */
+  spark?: number[];
   // Null for the S&P 500 baseline row — it has no drill-down page so we
   // render a plain div instead of a tappable Link.
   href: string | null;
@@ -573,12 +687,22 @@ function UserRow({
   pendingTickers?: string[];
 }) {
   const positive = pct >= 0;
-  const deltaColor = positive ? "#00C805" : "#FF453A";
+  const deltaColor = positive ? "var(--gain)" : "var(--loss)";
   const isLeader = place === 1;
   const pending = pendingTickers ?? [];
+  // Leader identity treatment: a 3px accent bar plus a faint same-hue wash
+  // fading out across the row. inset box-shadow (not border) so the row's
+  // box doesn't shift vs. the others; color-mix keeps it subtle in every
+  // theme and inherits the P3 accent on wide-gamut screens.
+  const leaderStyle = isLeader
+    ? {
+        boxShadow: `inset 3px 0 0 0 ${color}`,
+        backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${color} 7%, transparent), transparent 55%)`,
+      }
+    : undefined;
   const inner = (
     <>
-      <div className="w-6 text-center text-[14px] font-semibold text-zinc-500 tabular-nums shrink-0">
+      <div className="w-6 text-center text-[14px] font-semibold text-ink-faint tabular-nums shrink-0">
         {place}
       </div>
       <div
@@ -586,10 +710,10 @@ function UserRow({
         style={{ backgroundColor: color }}
       />
       <div className="flex flex-col min-w-0 flex-1">
-        <div className="text-[15px] font-semibold text-zinc-200 truncate">
+        <div className="text-[15px] font-semibold text-ink-2 truncate">
           {name}
         </div>
-        <div className="text-[11px] text-zinc-500 tabular-nums mt-0.5">
+        <div className="text-[11px] text-ink-faint tabular-nums mt-0.5">
           {isLeader ? (
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
@@ -602,15 +726,18 @@ function UserRow({
           )}
         </div>
       </div>
+      {spark && spark.length > 1 && (
+        <Sparkline values={spark} color={color} width={52} height={18} />
+      )}
       <div className="flex flex-col items-end shrink-0">
-        <div className="text-[16px] font-semibold text-white tabular-nums">
-          {fmtUSD(value, 0)}
+        <div className="text-[16px] font-semibold text-ink tabular-nums">
+          <AnimatedNumber value={value} format={(n) => fmtUSD(n, 0)} animate={animateNumbers} />
         </div>
         <div
           className="text-[12px] font-medium tabular-nums mt-0.5"
           style={{ color: deltaColor }}
         >
-          {fmtPct(pct)}
+          <AnimatedNumber value={pct} format={fmtPct} animate={animateNumbers} />
         </div>
       </div>
     </>
@@ -628,7 +755,7 @@ function UserRow({
     ) : null;
   if (href == null) {
     return (
-      <div className="px-3 py-3">
+      <div className="px-3 py-3" style={leaderStyle}>
         <div className="flex items-center gap-3">{inner}</div>
         {note}
       </div>
@@ -637,7 +764,8 @@ function UserRow({
   return (
     <Link
       href={href}
-      className="block px-3 py-3 active:bg-zinc-900/40 transition-colors"
+      className="press block px-3 py-3 active:bg-card-40"
+      style={leaderStyle}
     >
       <div className="flex items-center gap-3">{inner}</div>
       {note}

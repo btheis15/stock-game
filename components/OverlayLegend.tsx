@@ -22,7 +22,7 @@ export function OverlayLegend({
   if (legend.length <= 1) return null;
   return (
     <div className="px-4 mt-1">
-      <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+      <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden">
         {legend.map((row) => {
           const inner = (
             <>
@@ -30,22 +30,22 @@ export function OverlayLegend({
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: row.color }}
               />
-              <span className="flex-1 min-w-0 text-[14px] font-medium text-zinc-200 truncate">
+              <span className="flex-1 min-w-0 text-[14px] font-medium text-ink-2 truncate">
                 {row.name}
                 {row.isSubject && (
-                  <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-faint">
                     {subjectLabel}
                   </span>
                 )}
               </span>
               <span
                 className="text-[13px] font-semibold tabular-nums"
-                style={{ color: row.pct >= 0 ? "#00C805" : "#FF453A" }}
+                style={{ color: row.pct >= 0 ? "var(--gain)" : "var(--loss)" }}
               >
                 {fmtPct(row.pct)}
               </span>
               {row.href && (
-                <span className="text-zinc-600 text-[13px] shrink-0">›</span>
+                <span className="text-ink-ghost text-[13px] shrink-0">›</span>
               )}
             </>
           );
@@ -53,7 +53,7 @@ export function OverlayLegend({
             <Link
               key={row.id}
               href={row.href}
-              className="flex items-center gap-3 px-3 py-2.5 active:bg-zinc-900/40 transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 active:bg-card-40 transition-colors"
             >
               {inner}
             </Link>

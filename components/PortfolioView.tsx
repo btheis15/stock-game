@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ScrubChart, type ScrubState } from "./ScrubChart";
 import { RangeTabs } from "./RangeTabs";
+import { AnimatedRow } from "./AnimatedList";
+import { fmtDateShort } from "@/lib/portfolio";
 import { PriceHeader } from "./PriceHeader";
 import {
   filterRange,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/portfolio";
 import type { HoldingRow, PortfolioPoint, Range } from "@/lib/types";
 import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
+import { accentFor, useP3 } from "@/lib/color";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
 import { useDigests } from "@/lib/digests";
@@ -87,6 +90,11 @@ export function PortfolioView({
   thesis,
 }: Props) {
   const user = USERS[userId];
+  const p3 = useP3();
+  // This player's accent, P3-upgraded on wide-gamut screens. Also published
+  // as --accent on the page root so CSS consumers (the deep-link holding
+  // flash, accent-aware chrome) inherit the page's identity.
+  const accent = accentFor(user, p3);
   const [range, setRange] = useState<Range>("1D");
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -196,7 +204,7 @@ export function PortfolioView({
   const { filterChips, chartSeries, legend } = useComparisonOverlays({
       subjectId: userId,
       subjectName: user.name,
-      subjectColor: user.color,
+      subjectColor: accent,
       ranged,
       baselineValue,
       isIntraday,
@@ -215,8 +223,23 @@ export function PortfolioView({
     [holdings, range]
   );
 
+  // Best / worst single trading day over the whole game, from the daily
+  // series (day-over-day $ change). Small identity chips under Holdings.
+  const dayRecords = useMemo(() => {
+    if (series.length < 2) return null;
+    let best = { delta: -Infinity, date: "" };
+    let worst = { delta: Infinity, date: "" };
+    for (let i = 1; i < series.length; i++) {
+      const delta = series[i].value - series[i - 1].value;
+      if (delta > best.delta) best = { delta, date: series[i].date };
+      if (delta < worst.delta) worst = { delta, date: series[i].date };
+    }
+    if (!isFinite(best.delta) || !isFinite(worst.delta)) return null;
+    return { best, worst };
+  }, [series]);
+
   return (
-    <div className="pb-24">
+    <div className="pb-24" style={{ "--accent": accent } as CSSProperties}>
       <PriceHeader
         ticker={user.name.toUpperCase()}
         title={`${user.name}'s portfolio`}
@@ -251,7 +274,7 @@ export function PortfolioView({
 
       <OverlayLegend legend={legend} subjectLabel="You" />
 
-      <RangeTabs value={range} onChange={setRange} accent={user.color} />
+      <RangeTabs value={range} onChange={setRange} accent={accent} />
 
       <DigestPanel
         digest={getPortfolioDigest(userId, range)}
@@ -260,8 +283,22 @@ export function PortfolioView({
       />
 
       <div className="px-4 mt-3">
-        <h2 className="text-[15px] font-semibold text-zinc-300 mb-2">Holdings</h2>
-        <div className="rounded-2xl bg-zinc-900/70 border border-zinc-800 divide-y divide-zinc-800 overflow-hidden">
+        <h2 className="text-[15px] font-semibold text-ink-3 mb-2">Holdings</h2>
+        {dayRecords && (
+          <div className="flex gap-2 mb-2 text-[11px] font-medium tabular-nums">
+            <span className="px-2 py-1 rounded-full bg-card border border-hairline">
+              <span className="text-ink-faint">Best day </span>
+              <span style={{ color: "var(--gain)" }}>{fmtSignedUSD(dayRecords.best.delta, 0)}</span>
+              <span className="text-ink-ghost"> · {fmtDateShort(dayRecords.best.date)}</span>
+            </span>
+            <span className="px-2 py-1 rounded-full bg-card border border-hairline">
+              <span className="text-ink-faint">Worst day </span>
+              <span style={{ color: "var(--loss)" }}>{fmtSignedUSD(dayRecords.worst.delta, 0)}</span>
+              <span className="text-ink-ghost"> · {fmtDateShort(dayRecords.worst.date)}</span>
+            </span>
+          </div>
+        )}
+        <div className="rounded-2xl bg-card border border-hairline divide-y divide-hairline overflow-hidden stagger-in">
           {sorted.map((h) => {
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
@@ -276,24 +313,24 @@ export function PortfolioView({
             // green flash) from the click handler (outgoing nav, which
             // should always land at top).
             return (
+              <AnimatedRow key={h.ticker}>
               <div
-                key={h.ticker}
                 id={h.ticker}
                 style={{ scrollMarginTop: 80, scrollMarginBottom: 100 }}
-                className="target:bg-zinc-800/80 target:animate-[holdingFlash_1.6s_ease]"
+                className="target:bg-raised-80 target:animate-[holdingFlash_1.6s_ease]"
               >
                 <Link
                   href={`/stock/${h.ticker}`}
-                  className="flex items-center gap-3 px-4 py-3 active:bg-zinc-800/60 transition-colors"
+                  className="press flex items-center gap-3 px-4 py-3 active:bg-pressed"
                 >
-                  <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+                  <div className="w-9 h-9 rounded-full bg-raised flex items-center justify-center text-[10px] font-bold text-ink-3">
                     {h.ticker}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-semibold text-white truncate">
+                    <div className="text-[14px] font-semibold text-ink truncate">
                       {TICKER_NAMES[h.ticker] ?? h.ticker}
                     </div>
-                    <div className="text-[11px] text-zinc-500 tabular-nums">
+                    <div className="text-[11px] text-ink-faint tabular-nums">
                       {h.shares.toFixed(2)} shares • {fmtUSD(h.currentClose, 2)}
                       {spinoffRowSuffix(h.ticker) && (
                         <span style={{ color: "#F5A623" }}> · {spinoffRowSuffix(h.ticker)}</span>
@@ -301,31 +338,32 @@ export function PortfolioView({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[14px] font-semibold text-white tabular-nums">
+                    <div className="text-[14px] font-semibold text-ink tabular-nums">
                       {fmtUSD(h.currentValue)}
                     </div>
                     <div
                       className="text-[11px] font-medium tabular-nums"
-                      style={{ color: rangePct >= 0 ? "#00C805" : "#FF453A" }}
+                      style={{ color: rangePct >= 0 ? "var(--gain)" : "var(--loss)" }}
                     >
                       {fmtPct(rangePct)} • {fmtSignedUSD(rangeDollars, 0)}
                     </div>
                   </div>
                 </Link>
               </div>
+              </AnimatedRow>
             );
           })}
         </div>
       </div>
 
-      <PortfolioComposition composition={composition} accentColor={user.color} />
+      <PortfolioComposition composition={composition} accentColor={accent} />
 
       <PortfolioThesis
         thesis={thesis}
         userId={user.id}
         userName={user.name}
         tickers={user.tickers}
-        accentColor={user.color}
+        accentColor={accent}
       />
 
       <FilterSheet
