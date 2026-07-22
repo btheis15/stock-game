@@ -6,7 +6,7 @@ import { loadFundamentalsForTicker } from "@/lib/fundamentals-data";
 import { activeFundTickers } from "@/lib/funds";
 import { ALL_TICKERS, SPINOFF_CHILD_TICKERS, TICKER_OWNERS } from "@/lib/picks";
 import { spinoffForChild } from "@/lib/events";
-import { spinoffChildShares } from "@/lib/portfolio";
+import { sharesFor, spinoffChildShares, spinoffDisplaySeries } from "@/lib/portfolio";
 
 // Player picks + spin-off children (e.g. HONA) + active-fund holdings (e.g.
 // the Legacy Auto comparison fund's Ford / Toyota / Honda, which no player
@@ -39,26 +39,34 @@ export default async function Page({
   // hides the About/Financials/Earnings sections in the view.
   const fundamentals = await loadFundamentalsForTicker(upper);
 
-  // Spin-off child (e.g. HONA): each owner's shares are derived from the parent
-  // position (parentShares × ratio), not a $100k/N pick, so pass explicit per-
-  // owner share counts for the PositionCards.
+  // Per-owner share counts from the REAL series (sharesFor divides by the
+  // frozen startClose). A spin-off child's shares derive from the parent
+  // (parentShares × ratio). Passed explicitly so PositionCard never recomputes
+  // shares off the DISPLAY series below — which rebases startClose for a
+  // spin-off parent (see spinoffDisplaySeries) and would otherwise double the
+  // share count.
   const spinoff = spinoffForChild(upper);
   const parent = spinoff ? data.tickers[spinoff.parentTicker] : undefined;
-  const ownerShares =
-    spinoff && parent
-      ? Object.fromEntries(
-          (TICKER_OWNERS[upper] ?? []).map((ownerId) => [
-            ownerId,
-            spinoffChildShares(ownerId, parent, spinoff.sharesPerParentShare),
-          ])
-        )
-      : undefined;
+  const ownerShares = Object.fromEntries(
+    (TICKER_OWNERS[upper] ?? []).map((ownerId) => [
+      ownerId,
+      spinoff && parent
+        ? spinoffChildShares(ownerId, parent, spinoff.sharesPerParentShare)
+        : sharesFor(ownerId, series),
+    ])
+  );
+
+  // Spin-off PARENTS (HON) render a back-adjusted history so the chart + return
+  // read continuously across the distribution instead of a fake ~-50% cliff.
+  // No-op for every other ticker. Portfolio totals elsewhere still use the raw
+  // series (they add the HONA position separately).
+  const displaySeries = spinoffDisplaySeries(series, data);
 
   return (
     <>
       <HeaderBack />
       <StockView
-        series={series}
+        series={displaySeries}
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
         generatedAt={data.generatedAt}
         fundamentals={fundamentals}

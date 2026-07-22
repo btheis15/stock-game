@@ -33,7 +33,7 @@ export function SpinoffBanner({ ticker }: { ticker: string }) {
 
   const copy =
     role === "parent"
-      ? `${event.parentTicker} spun off ${event.childName} (${event.childTicker}) on ${dateLabel}. Holders received ${ratio} ${event.childTicker} share${ratio === 1 ? "" : "s"} per ${event.parentTicker} share — the move shown here reflects only the value that stayed in ${event.parentTicker}, not a loss.`
+      ? `${event.parentTicker} spun off ${event.childName} (${event.childTicker}) on ${dateLabel}: holders received ${ratio} ${event.childTicker} share${ratio === 1 ? "" : "s"} per ${event.parentTicker} share. To keep this an apples-to-apples chart, ${event.parentTicker}'s history, cost basis, and return are rebased to that day — so they track only the value that stayed in ${event.parentTicker}. The value that left didn't vanish: you hold it as ${event.childTicker}, so the raw ~50% step-down is a distribution, not a loss.`
       : `${event.childName} (${event.childTicker}) began trading ${dateLabel} after splitting off from ${event.parentTicker}. This position was received via the spin-off, not bought with new cash.`;
 
   const otherTicker = role === "parent" ? event.childTicker : event.parentTicker;

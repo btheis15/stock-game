@@ -1,6 +1,7 @@
 import { StocksListView } from "@/components/StocksListView";
 import { loadPriceData } from "@/lib/data";
 import { activeFundTickers } from "@/lib/funds";
+import { spinoffDisplaySeries } from "@/lib/portfolio";
 import { ALL_TICKERS, SPINOFF_CHILD_TICKERS } from "@/lib/picks";
 
 // Dynamic (not force-static) because the displayed list now includes
@@ -18,6 +19,12 @@ export default async function Page() {
   const tickers = [
     ...new Set([...ALL_TICKERS, ...SPINOFF_CHILD_TICKERS, ...fundTickers]),
   ];
-  const series = tickers.map((t) => data.tickers[t]).filter((s) => s != null);
+  // Spin-off parents (HON) show a back-adjusted "since Feb 5" so the list
+  // doesn't rank them as a fake ~-50% loser (value distributed to HONA, not a
+  // loss). No-op for every other ticker. See spinoffDisplaySeries.
+  const series = tickers
+    .map((t) => data.tickers[t])
+    .filter((s) => s != null)
+    .map((s) => spinoffDisplaySeries(s!, data));
   return <StocksListView series={series} />;
 }

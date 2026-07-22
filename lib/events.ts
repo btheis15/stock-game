@@ -113,11 +113,16 @@ export function spinoffNoteFor(ticker: string): SpinoffNote | null {
 }
 
 /**
- * Cumulative factor to divide Yahoo's reported close for `ticker` by, given
- * the run date `asOf`. Returns 1 for tickers/dates with no effective split, so
- * `fetch-prices.ts` can call it unconditionally on every ticker. Only splits
- * whose `effectiveDate` has arrived apply — before then Yahoo hasn't re-scaled
- * the series yet, so dividing would be wrong.
+ * Cumulative factor to divide Yahoo's RAW reported close for `ticker` by, as of
+ * the date `asOf`. Returns 1 for tickers/dates with no effective split, so
+ * `fetch-prices.ts` can call it unconditionally on every close.
+ *
+ * IMPORTANT: pass the CLOSE'S OWN date, not the fetch-run date. Yahoo's
+ * `quotes[].close` is the raw (unadjusted) price, so only closes dated on/after
+ * a split's `effectiveDate` are in post-split units and need dividing; earlier
+ * closes are already in inception-day units. Keying on the run date instead
+ * once wrongly halved the pre-split days inside an incremental refetch's
+ * trailing window (the fake HON cliff — see fetch-prices.ts).
  */
 export function priceUnitDivisor(ticker: string, asOf: Date = new Date()): number {
   const iso = asOf.toISOString().slice(0, 10);

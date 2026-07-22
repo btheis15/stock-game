@@ -1823,21 +1823,48 @@ spin-off is mostly a config edit:
    it up; running `npm run fetch-prices -- --full` from the laptop after the
    event gives the cleanest result (re-normalizes the parent's whole series).
 
-4. No view changes. portfolioSeries adds the child position from
-   effectiveDate forward (purely additive — no backtracked history, like
-   receiving the distribution in a real brokerage account, so the parent's
-   holders are made whole rather than punished). buildHoldingRows appends a
-   derived child row (shares = parentShares × ratio), and the child gets its
-   own /stock page + /stocks list entry + owner PositionCards.
+4. No view changes for the PORTFOLIO totals. portfolioSeries adds the child
+   position from effectiveDate forward (purely additive — no backtracked
+   history, like receiving the distribution in a real brokerage account, so the
+   parent's holders are made whole rather than punished). buildHoldingRows
+   appends a derived child row (shares = parentShares × ratio), and the child
+   gets its own /stock page + /stocks list entry + owner PositionCards.
 
-5. STATE.md / OVERVIEW.md: note the event.
+5. The PARENT's STANDALONE display is spin-off-adjusted (added 2026-07-22).
+   `spinoffDisplaySeries(series, data)` (lib/portfolio.ts) returns a
+   DISPLAY-ONLY copy of a parent whose pre-event closes + frozen startClose are
+   rebased by the corporate-action step (detected empirically as the steepest
+   >30% single-day drop within ±a few days of effectiveDate), so the parent's
+   own chart + return read continuously instead of a raw "~-50% since Feb 5"
+   (that drop is value that moved to the child, not a loss). Applied in
+   StockView (server passes the adjusted series + REAL per-owner shares so
+   PositionCard's share math is untouched), buildHoldingRows (parent row: shares
+   + current value stay real, only the return baseline rebases), analyzeRange
+   (movers), and the /stocks list. NEVER feed it to sharesFor or
+   portfolioSeries/intraday/weekly — totals use raw prices + the separate child
+   position and are already continuous. SpinoffBanner (components/SpinoffNote)
+   captions the exception in text (never drawn on the chart).
+
+6. STATE.md / OVERVIEW.md: note the event.
 ```
 
 **HON-specific operational note (June 2026):** the spin-off + reverse split
 both land 2026-06-29. Everything above is date-gated, so it's inert until then
-and activates automatically on the first fetch on/after that date (Yahoo only
-re-scales HON once the split processes). HONA has no price data until it lists,
-so it shows as a 404/absent everywhere until 2026-06-29 — that's expected.
+and activates automatically on the first fetch on/after that date. HONA has no
+price data until it lists, so it shows as a 404/absent everywhere until
+2026-06-29 — that's expected.
+
+**Reverse-split divisor is per-CLOSE-date (fixed 2026-07-22).** `priceUnitDivisor`
+must be called with each close's OWN date, not the fetch-run date — Yahoo's
+`quotes[].close` is raw, so only on/after-effective-date closes are in
+post-split units. The old run-date keying let a post-event incremental refetch
+halve the still-pre-split trailing days, planting a fake 2× cliff in HON a few
+days BEFORE 2026-06-29 (read as "-50% since Feb 5" and dented the portfolio
+total for the days before HONA was credited). The code fix stops recurrence;
+**existing corrupted snapshots need one `npm run fetch-prices -- --full` to
+re-normalize HON's whole series** (moves the step onto the real event date and
+removes the pre-HONA portfolio dip). The `spinoffDisplaySeries` back-adjustment
+makes the parent's standalone views correct regardless of that re-fetch.
 
 ### §10.5. Change a player's color
 

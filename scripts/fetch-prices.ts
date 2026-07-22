@@ -111,27 +111,32 @@ async function fetchTicker(plan: FetchPlan): Promise<TickerSeries> {
     })
   );
 
-  // Reverse-split normalization: once a split is effective Yahoo retroactively
-  // re-scales the WHOLE series, so divide every fetched value back into the
-  // inception-day share units our frozen `startClose` lives in (see
-  // priceUnitDivisor). 1 (no-op) for every ticker until its split's effective
-  // date. Applies uniformly to whatever Yahoo returns this run, so it stays
-  // consistent across incremental merges and `--full` refetches.
-  const divisor = priceUnitDivisor(plan.ticker);
+  // Reverse-split normalization. Yahoo's `quotes[].close` is the RAW close, so
+  // from a split's effective date onward it's the post-split price; divide
+  // those back into the inception-day (pre-split) share units our frozen
+  // `startClose` lives in. Keyed on each CLOSE's OWN date — NOT the fetch-run
+  // date — so an incremental refetch whose trailing window straddles the
+  // effective date can't wrongly halve the still-pre-split days. (That bug put
+  // a fake 2× cliff into HON's history a few days BEFORE the real HONA event,
+  // which read as "−50% since Feb 5" and dented the portfolio total for the
+  // days before HONA was credited.) Pre-effective dates get divisor 1; on/after
+  // get the factor. `--full` refetches are handled identically, date by date.
+  const divisorFor = (dateStr: string) =>
+    priceUnitDivisor(plan.ticker, new Date(`${dateStr}T12:00:00Z`));
 
   const fresh = (result.quotes ?? [])
     .filter((q) => q.close != null && q.date != null)
-    .map<DailyClose>((q) => ({
-      date: fmtDate(new Date(q.date as Date)),
-      close: (q.close as number) / divisor,
-    }))
+    .map<DailyClose>((q) => {
+      const date = fmtDate(new Date(q.date as Date));
+      return { date, close: (q.close as number) / divisorFor(date) };
+    })
     .filter((c) => c.date >= START_DATE);
 
   const freshDivs: DividendEvent[] = (result.events?.dividends ?? [])
-    .map((d) => ({
-      date: fmtDate(new Date(d.date as Date)),
-      amount: (d.amount as number) / divisor,
-    }))
+    .map((d) => {
+      const date = fmtDate(new Date(d.date as Date));
+      return { date, amount: (d.amount as number) / divisorFor(date) };
+    })
     .filter((d) => d.date >= START_DATE);
 
   let merged: DailyClose[];
@@ -203,13 +208,16 @@ async function fetchIntraday(ticker: string): Promise<IntradayBar[]> {
         }),
       SOFT_RETRY_DELAYS_MS
     );
-    const divisor = priceUnitDivisor(ticker);
+    // Per-bar divisor keyed on the bar's own date (see the daily-path note).
+    // These bars are always recent so in practice they're all post-split, but
+    // keying per-date keeps the whole fetcher consistent and correct if a
+    // future split's effective date ever falls inside the window.
     const quotes = result.quotes ?? [];
     return quotes
       .filter((q) => q.close != null && q.date != null)
       .map<IntradayBar>((q) => ({
         t: new Date(q.date as Date).toISOString(),
-        close: (q.close as number) / divisor,
+        close: (q.close as number) / priceUnitDivisor(ticker, new Date(q.date as Date)),
       }));
   } catch {
     return [];
@@ -233,13 +241,13 @@ async function fetchWeeklyHourly(ticker: string): Promise<IntradayBar[]> {
         }),
       SOFT_RETRY_DELAYS_MS
     );
-    const divisor = priceUnitDivisor(ticker);
+    // Per-bar divisor keyed on the bar's own date (see the daily-path note).
     const quotes = result.quotes ?? [];
     return quotes
       .filter((q) => q.close != null && q.date != null)
       .map<IntradayBar>((q) => ({
         t: new Date(q.date as Date).toISOString(),
-        close: (q.close as number) / divisor,
+        close: (q.close as number) / priceUnitDivisor(ticker, new Date(q.date as Date)),
       }));
   } catch {
     return [];
