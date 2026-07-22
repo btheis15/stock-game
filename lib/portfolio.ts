@@ -110,6 +110,28 @@ export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint
 }
 
 /**
+ * An entity's live "current value" — the freshest point available, INDEPENDENT
+ * of the selected chart range: the last intraday bar when the market's been
+ * trading today, else the last daily close. Headlines use this so the big
+ * dollar number reads "what it's worth right now" identically on every range
+ * tab (1D/1W/1M/…/ALL), while the range still drives the chart line and the
+ * window return %. Without it the headline was the *selected range's* last data
+ * point, which is sampled from a different feed (15-min vs hourly vs daily
+ * close) at a different moment, so the same portfolio showed slightly different
+ * totals per tab intraday. Returns undefined only when neither series has a
+ * point (caller supplies its own fallback).
+ */
+export function currentValueOf(
+  intraday: { points: PortfolioPoint[] } | null | undefined,
+  daily: readonly PortfolioPoint[] | null | undefined
+): number | undefined {
+  const pts = intraday?.points;
+  if (pts && pts.length > 0) return pts[pts.length - 1].value;
+  if (daily && daily.length > 0) return daily[daily.length - 1].value;
+  return undefined;
+}
+
+/**
  * Baseline ("S&P 500") portfolio: $100k of SPY bought at the START_DATE close,
  * plus dividend reinvestment-equivalent cash (kept as cash, same as the human
  * players' dividend handling — neither side compounds). Mirrors

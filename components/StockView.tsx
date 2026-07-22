@@ -9,6 +9,7 @@ import {
   filterRange,
   fmtDateLong,
   fmtDateShort,
+  currentValueOf,
   fmtPct,
   fmtShares,
   fmtTimeOfDay,
@@ -83,7 +84,9 @@ export function StockView({ series, intradayDate, generatedAt, fundamentals, own
     return filterRange(closesAsPoints, range);
   }, [isIntraday, isWeeklyHourly, intraday, weekly, closesAsPoints, range]);
   const baseline = isIntraday ? intraday.previousClose : ranged[0]?.value ?? 0;
-  const last = ranged[ranged.length - 1]?.value ?? baseline;
+  // Headline price = the live current price, identical on every range tab; the
+  // range only moves the baseline (and thus the % change + chart).
+  const last = currentValueOf(intraday, closesAsPoints) ?? baseline;
   const scrubVal = scrub?.values.find((v) => v.id === series.ticker)?.value;
   const price = scrubVal ?? last;
   const scrubLabel = scrub

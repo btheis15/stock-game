@@ -12,6 +12,7 @@ import { ManageFundsSheet } from "./ManageFundsSheet";
 import { FilterToolbar, FilterSheet, useFundsFilter, type FilterChipDef } from "./FundsFilter";
 import { useDigests } from "@/lib/digests";
 import {
+  currentValueOf,
   filterRange,
   fmtDateLong,
   fmtPct,
@@ -240,7 +241,10 @@ export function CompareView({
       if (!userOn(u.id)) continue;
       const pts = ranged[u.id];
       const baseline = isIntraday ? intraday[u.id].previousClose : pts[0]?.value ?? 0;
-      const lastVal = pts[pts.length - 1]?.value ?? baseline;
+      // Displayed dollars = the live current value, identical on every range
+      // tab; the range still sets `baseline` so the % + ranking reflect the
+      // window.
+      const lastVal = currentValueOf(intraday[u.id], series[u.id]) ?? baseline;
       // The chart plots % change so scrub.values are pct fractions, not
       // dollar values. Rehydrate by indexing into the underlying $ points.
       const scrubIdx = scrub?.index;
@@ -269,7 +273,7 @@ export function CompareView({
         isIntraday && baselineIntraday
           ? baselineIntraday.previousClose
           : pts[0]?.value ?? 0;
-      const lastVal = pts[pts.length - 1]?.value ?? baseline;
+      const lastVal = currentValueOf(baselineIntraday, baselineDaily) ?? baseline;
       const scrubIdx = scrub?.index;
       const scrubDollar =
         scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
@@ -291,7 +295,7 @@ export function CompareView({
         isIntraday && fundIntraday[f.id]
           ? fundIntraday[f.id]!.previousClose
           : pts[0]?.value ?? 0;
-      const lastVal = pts[pts.length - 1]?.value ?? baseline;
+      const lastVal = currentValueOf(fundIntraday[f.id], fundSeries[f.id]) ?? baseline;
       const scrubIdx = scrub?.index;
       const scrubDollar =
         scrubIdx != null && pts[scrubIdx] ? pts[scrubIdx].value : undefined;
