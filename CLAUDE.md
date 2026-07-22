@@ -822,9 +822,13 @@ report involves the 1D view, work through all 5:
 
 1. **Data source**: comes from `series.intraday[]` (15-min bars), not
    `series.closes[]`. Helpers: `intradayPortfolioSeries`, `intradayTickerSeries`.
-2. **Baseline**: previous day's close, not "first point in range." Computed
-   by walking `closes[]` for the most recent date strictly before the
-   intraday date.
+2. **Baseline**: previous day's portfolio value, not "first point in range."
+   Anchored to the most recent trading date strictly before the intraday date,
+   and (since the 2026-07-22 parity fix) computed via `portfolioValueEntries`
+   so it EQUALS `portfolioSeries`' value at that date — i.e. price + dividend
+   cash + spin-off child held through then. `intradayPortfolioSeries` builds
+   its bars from the same helper, so the 1D hero value matches 1M/…/ALL rather
+   than dropping dividends + the child.
 3. **X-axis**: forced to full session bounds via `xDomain` prop —
    `sessionBoundsForDate(intradayDate)` returns `[09:30 ET, 16:00 ET]` as
    UTC dates. The line covers only the elapsed portion.
@@ -1195,11 +1199,16 @@ old/new digest.swift and digests.json interleave safely.
 beside `loadRoster()`, embedded fallback). digest.swift now mirrors
 `portfolioSeries`: spin-off children contribute to holders' portfolio pcts
 (`computeUserMovers`) and are first-class narratable tickers (derived
-ownership in `TICKER_OWNERS`, `KNOWN_TICKERS`, ownership QA) — BUT only for
-windows whose app-side chart includes them (`windowIncludesSpinoffChildren`:
-1M+ yes, 1D/1W no, because `intradayPortfolioSeries` /
-`weeklyPortfolioSeries` don't add children yet — keep Swift and the UI in
-lockstep if that changes). Game-anchor selection uses the ECONOMIC pct across
+ownership in `TICKER_OWNERS`, `KNOWN_TICKERS`, ownership QA) for
+**every** window (`windowIncludesSpinoffChildren` now returns true across the
+board). This used to be 1M+ only: `intradayPortfolioSeries` /
+`weeklyPortfolioSeries` didn't add children, so 1D/1W silently dropped the
+child (and, separately, all accumulated dividend cash) and the hero portfolio
+value disagreed between tabs. Fixed 2026-07-22 — all three series now build
+their positions from one shared `portfolioValueEntries()` helper (direct picks
++ spin-off children + per-date dividend cash), so 1D/1W/1M/…/ALL value the
+identical position set; `windowIncludesSpinoffChildren` was flipped to keep the
+digest's `{{user:id}}` pcts in lockstep. Game-anchor selection uses the ECONOMIC pct across
 a spanning window (parent close + ratio × child close) so a distribution
 can't be crowned "biggest drag" (HON −49% ≠ a loss), with an explanatory fact
 note if a spanning parent is still picked; per-stock prompts get a one-line
