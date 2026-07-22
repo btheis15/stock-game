@@ -985,7 +985,9 @@ components/                    Client components (mostly)
   AnimatedList.tsx             AnimatedRow — FLIP re-ranking for leaderboard/holdings/stocks rows.
   AnimatedNumber.tsx           rAF count-up for hero/leaderboard numbers (raw during scrubs).
   Sparkline.tsx                Dumb SVG polyline for list-row trends.
-  GolfCountdown.tsx            5-year-bet progress bar in Game rules.
+  GolfCountdown.tsx            Brian-vs-Kevin golf side bet: countdown + progress bar to the
+                               NEXT annual Feb 5 reckoning (not a single game-end date), plus
+                               each one's live total return since game start.
   LeadTape.tsx                 Who-led-when stripe + reign records (lib/rank-history.ts).
   Celebration.tsx              ALL-time-lead confetti + banner (sessionStorage one-shot).
   HeadToHead.tsx               Two-player VS sheet (chart, win record, shared holdings).
