@@ -21,7 +21,7 @@ import {
   sessionBoundsForDate,
 } from "@/lib/portfolio";
 import type { Fund, PortfolioPoint, Range, RangeAnalysis } from "@/lib/types";
-import { BASELINE, USERS, USER_LIST, type UserId } from "@/lib/picks";
+import { BASELINE, STARTING_PORTFOLIO_DOLLARS, USERS, USER_LIST, type UserId } from "@/lib/picks";
 import { accentFor, useP3 } from "@/lib/color";
 import { AnimatedRow } from "./AnimatedList";
 import { Sparkline } from "./Sparkline";
@@ -335,6 +335,24 @@ export function CompareView({
 
   const xDomain = isIntraday ? sessionBoundsForDate(intradayDate) : undefined;
 
+  // The golf side bet is Brian vs Kevin only (see GolfCountdown) — total
+  // return since game start (Feb 5, 2026), not the active range tab. Live
+  // intraday point if today has one, else the latest daily close.
+  const golfBet = useMemo(() => {
+    const currentValue = (id: UserId) => {
+      const live = intraday[id]?.points;
+      const liveLast = live?.[live.length - 1]?.value;
+      if (liveLast != null) return liveLast;
+      const daily = series[id];
+      return daily?.[daily.length - 1]?.value ?? STARTING_PORTFOLIO_DOLLARS;
+    };
+    const pct = (v: number) => (v - STARTING_PORTFOLIO_DOLLARS) / STARTING_PORTFOLIO_DOLLARS;
+    return {
+      brianPct: pct(currentValue("brian")),
+      kevinPct: pct(currentValue("kevin")),
+    };
+  }, [series, intraday]);
+
   // ALL-time lead change — the ONLY celebrated event (never the shorter
   // windows). Compares the total-portfolio leader at the previous session's
   // close against the live leader now; a flip means someone just took the
@@ -463,28 +481,6 @@ export function CompareView({
               <AnimatedNumber value={gapDollars} format={fmtSignedUSD} animate={scrub == null} /> gap
               {scrubLabel && <span className="text-ink-faint"> • {scrubLabel}</span>}
             </div>
-            {/* Spread-at-a-glance: every visible entry as a dot on one
-                track, positioned by range pct (leader at the right). */}
-            {stats.length > 1 && (
-              <div className="relative h-[3px] rounded-full bg-raised mt-3 mb-1">
-                {(() => {
-                  const min = Math.min(...stats.map((s) => s.pct));
-                  const max = Math.max(...stats.map((s) => s.pct));
-                  const span = max - min || 1;
-                  return stats.map((s) => (
-                    <span
-                      key={s.id}
-                      title={s.name}
-                      className="absolute top-1/2 w-2 h-2 rounded-full -translate-y-1/2 -translate-x-1/2 ring-2 ring-page"
-                      style={{
-                        left: `${(((s.pct - min) / span) * 94 + 3).toFixed(1)}%`,
-                        backgroundColor: s.color,
-                      }}
-                    />
-                  ));
-                })()}
-              </div>
-            )}
           </>
         ) : (
           <div className="text-[14px] font-medium text-ink-muted mt-1">
@@ -600,7 +596,7 @@ export function CompareView({
           Each portfolio started with $100,000 split evenly across each player's
           picks at the Feb 5, 2026 close. Partial shares allowed. Updated daily.
         </div>
-        <GolfCountdown />
+        <GolfCountdown brianPct={golfBet.brianPct} kevinPct={golfBet.kevinPct} />
       </div>
 
       <HeadToHead
