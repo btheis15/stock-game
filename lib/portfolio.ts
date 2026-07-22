@@ -17,7 +17,7 @@ import {
   perHoldingDollars,
   type UserId,
 } from "./picks";
-import { SPINOFFS } from "./events";
+import { SPINOFFS, spinoffsForParent } from "./events";
 import {
   EARLY_CLOSE_HOUR_ET,
   marketEarlyCloseName,
@@ -793,6 +793,73 @@ export function rangeBounds(
  * curve; other ranges use (lastKnownClose at startDate → lastKnownClose at
  * endDate).
  */
+/**
+ * A DISPLAY-ONLY copy of a spin-off PARENT's series, back-adjusted so its
+ * standalone price chart and its own return read continuously across the
+ * corporate action — the way a brokerage shows a post-spin-off ticker.
+ *
+ * Without it HON reads "-50% since Feb 5": half its value was distributed to
+ * HONA on the spin-off date, so the raw HON price steps down there. That's
+ * value that moved to a sibling ticker, not a loss — the holder received HONA
+ * (captured in portfolioSeries). A real holder's brokerage chart rebases the
+ * pre-event history down by the same step so the line is continuous and the
+ * return reflects only the remaining company.
+ *
+ * We detect the step EMPIRICALLY — the largest single-day decline within a
+ * window around the spin-off's effectiveDate — and multiply every close before
+ * it (and the frozen startClose) by the continuity ratio r = post/pre. Detecting
+ * it empirically (rather than assuming it sits exactly on effectiveDate) makes
+ * this robust to the reverse-split unit artifact that currently lands the step a
+ * few days early in the raw data (see the per-close-date divisor fix in
+ * fetch-prices.ts); once a `--full` re-fetch cleans that up, the step moves onto
+ * the real event date and this still finds it.
+ *
+ * DISPLAY ONLY. Never feed the result to share-count math (`sharesFor` divides
+ * by startClose) or to portfolioSeries/intraday/weekly — portfolio totals use
+ * raw HON prices plus the separately-added HONA position and are already
+ * continuous. Returns the series unchanged for any non-parent ticker or when no
+ * corporate-action step is present (e.g. after a clean re-fetch that Yahoo
+ * already adjusted).
+ */
+export function spinoffDisplaySeries(
+  series: TickerSeries,
+  data: PriceData
+): TickerSeries {
+  const spinoffs = spinoffsForParent(series.ticker);
+  if (spinoffs.length === 0) return series;
+  const ex = spinoffs[0].effectiveDate;
+  const dates = data.tradingDates;
+  const exIdx = dates.findIndex((d) => d >= ex);
+  if (exIdx < 0) return series;
+  // Bracket the search a bit before/after the effective date: the unit artifact
+  // can precede the real event, and a clean series steps down on it.
+  const loDate = dates[Math.max(0, exIdx - 12)];
+  const hiDate = dates[Math.min(dates.length - 1, exIdx + 3)];
+
+  const closes = series.closes;
+  let cliffIdx = -1;
+  let ratio = 1;
+  for (let i = 1; i < closes.length; i++) {
+    const d = closes[i].date;
+    if (d < loDate || d > hiDate) continue;
+    const prev = closes[i - 1].close;
+    if (prev <= 0) continue;
+    const r = closes[i].close / prev;
+    // A >30% single-day drop is a corporate action, not volatility. Keep the
+    // steepest one in the window.
+    if (r < 0.7 && r < ratio) {
+      ratio = r;
+      cliffIdx = i;
+    }
+  }
+  if (cliffIdx < 0) return series;
+
+  const adjustedCloses = closes.map((c, i) =>
+    i < cliffIdx ? { ...c, close: c.close * ratio } : c
+  );
+  return { ...series, closes: adjustedCloses, startClose: series.startClose * ratio };
+}
+
 export function rangeCloses(
   series: TickerSeries,
   data: PriceData,
@@ -833,8 +900,11 @@ export function analyzeRange(data: PriceData, range: Range): RangeAnalysis {
     for (const t of u.tickers) {
       const s = data.tickers[t];
       if (!s) continue;
+      // Spin-off-adjusted history for parents so a distribution (HON→HONA)
+      // isn't scored as a ~-50% loser; shares stay on the real series.
+      const disp = spinoffDisplaySeries(s, data);
       const shares = sharesFor(u.id, s);
-      const { startClose, endClose } = rangeCloses(s, data, range);
+      const { startClose, endClose } = rangeCloses(disp, data, range);
       const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
       const dollars = shares * (endClose - startClose);
       const points = endClose - startClose;
@@ -937,12 +1007,17 @@ export function buildHoldingRows(
   const directRows = USERS[userId].tickers.flatMap((t) => {
     const s = data.tickers[t];
     if (!s || s.closes.length === 0) return [];
+    // Spin-off parents (HON) render a spin-off-ADJUSTED history so the row's
+    // return reads continuously instead of a fake ~-50% (see
+    // spinoffDisplaySeries). Shares and current value stay on the REAL series —
+    // only the return baseline (startClose) is rebased.
+    const disp = spinoffDisplaySeries(s, data);
     const last = s.closes[s.closes.length - 1];
     const currentClose = last.close;
     const shares = sharesFor(userId, s);
     const divCash = dividendsReceived(s, shares, last.date);
     const currentValue = shares * currentClose + divCash;
-    const costBasis = shares * s.startClose;
+    const costBasis = shares * disp.startClose;
     const pl = currentValue - costBasis;
     const plPct = costBasis === 0 ? 0 : pl / costBasis;
 
@@ -951,7 +1026,7 @@ export function buildHoldingRows(
     // the live curve.
     const rangeStats = {} as HoldingRow["rangeStats"];
     for (const r of HOLDING_RANGES) {
-      const { startClose, endClose } = rangeCloses(s, data, r);
+      const { startClose, endClose } = rangeCloses(disp, data, r);
       const pct = startClose === 0 ? 0 : (endClose - startClose) / startClose;
       rangeStats[r] = {
         pct,
@@ -965,7 +1040,7 @@ export function buildHoldingRows(
         ticker: t,
         name: s.name,
         shares,
-        startClose: s.startClose,
+        startClose: disp.startClose,
         currentClose,
         costBasis,
         currentValue,
