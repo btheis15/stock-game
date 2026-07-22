@@ -24,6 +24,7 @@ import {
   type IntradayResult,
 } from "./comparisonOverlays";
 import {
+  currentValueOf,
   filterRange,
   fmtDateLong,
   fmtPct,
@@ -128,9 +129,11 @@ export function FundView({
   const baselineValue = isIntraday
     ? intraday.previousClose
     : ranged[0]?.value ?? 0;
-  const lastValue = ranged[ranged.length - 1]?.value ?? baselineValue;
+  // Headline dollars = the live current value, identical on every range tab;
+  // the range only moves the baseline (and thus the % change + chart).
+  const currentValue = currentValueOf(intraday, series) ?? baselineValue;
   const scrubVal = scrub?.values.find((v) => v.id === fundId)?.value;
-  const value = scrubVal ?? lastValue;
+  const value = scrubVal ?? currentValue;
   const scrubLabel = scrub
     ? scrub.date.length > 10
       ? fmtTimeOfDay(scrub.date)

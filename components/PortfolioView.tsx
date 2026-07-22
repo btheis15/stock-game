@@ -8,6 +8,7 @@ import { AnimatedRow } from "./AnimatedList";
 import { fmtDateShort } from "@/lib/portfolio";
 import { PriceHeader } from "./PriceHeader";
 import {
+  currentValueOf,
   filterRange,
   fmtDateLong,
   fmtPct,
@@ -144,9 +145,13 @@ export function PortfolioView({
   const baselineValue = isIntraday
     ? intraday.previousClose
     : ranged[0]?.value ?? 0;
-  const lastValue = ranged[ranged.length - 1]?.value ?? baselineValue;
+  // The headline dollars are the live current value — identical on every range
+  // tab. The range only moves the baseline (and thus the % change + chart), not
+  // "what the portfolio is worth right now." Scrubbing still shows the value
+  // under the finger.
+  const currentValue = currentValueOf(intraday, series) ?? baselineValue;
   const scrubVal = scrub?.values.find((v) => v.id === userId)?.value;
-  const value = scrubVal ?? lastValue;
+  const value = scrubVal ?? currentValue;
   const scrubLabel = scrub
     ? scrub.date.length > 10
       ? fmtTimeOfDay(scrub.date)
@@ -170,7 +175,9 @@ export function PortfolioView({
     if (!baselineRanged) return baselineLastValue;
     const idx = scrub?.index;
     if (idx != null && baselineRanged[idx]) return baselineRanged[idx].value;
-    return baselineLastValue;
+    // Live current SPY value (range-independent) so the "vs S&P 500" excess is
+    // measured from the same "now" as the player's pinned current value.
+    return currentValueOf(baselineIntraday, baselineDaily) ?? baselineLastValue;
   })();
   const playerPct =
     baselineValue === 0 ? 0 : (value - baselineValue) / baselineValue;
