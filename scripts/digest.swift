@@ -3723,16 +3723,15 @@ func windowStartDateFor(data: PriceDataLite, window: WindowKey) -> String {
 }
 
 // Whether this window's PORTFOLIO math includes spin-off child positions.
-// Must track what the app actually displays per range: the daily-close path
-// (portfolioSeries, 1M+) includes children; the 1D intraday and 1W hourly
-// paths (intradayPortfolioSeries / weeklyPortfolioSeries) do NOT yet — so
-// short windows exclude them here too, or the digest's rendered {{user:id}}
-// pcts would disagree with the leaderboard the reader is looking at.
+// Must track what the app actually displays per range. ALL ranges now include
+// children: the daily-close path (portfolioSeries, 1M+) always did, and as of
+// the 1D/1W parity fix the intraday and hourly paths
+// (intradayPortfolioSeries / weeklyPortfolioSeries) add the child too — so the
+// digest's rendered {{user:id}} pcts match the leaderboard the reader sees on
+// every tab. (Kept as a function so a future window that should exclude them
+// has one place to branch.)
 func windowIncludesSpinoffChildren(_ window: WindowKey) -> Bool {
-    switch window {
-    case .d1, .w1: return false
-    default:       return true
-    }
+    return true
 }
 
 // Per-user mover computation. Called per (player, window) — once by the

@@ -57,37 +57,55 @@ export function dividendsReceived(
   return cash;
 }
 
-export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint[] {
-  const tickers = USERS[userId].tickers;
-  // Filter out tickers missing from prices.json — handles the transient state
-  // right after a roster change, where picks.ts lists a ticker the cron hasn't
-  // fetched yet. The next fetch-prices run populates them and the curve fills
-  // in. Without this guard, the SSG build crashes on `undefined.startClose`.
-  const seriesByTicker = tickers
-    .map((t) => data.tickers[t])
-    .filter((s): s is TickerSeries => s != null);
-  const userSpinoffs = SPINOFFS.filter((s) =>
-    USERS[userId].tickers.includes(s.parentTicker)
-  );
+/**
+ * The priced positions a user holds as of `asOf`, each with its share count:
+ * the user's direct picks plus any spin-off child shares distributed on or
+ * before `asOf` (e.g. HONA for HON owners — 0.5 share per HON share). This is
+ * the single source of truth for "what does this user own, and how much,"
+ * shared by every portfolio-value path (daily / intraday / weekly) so they
+ * can't drift apart — the omission that made 1D/1W silently drop dividend cash
+ * and the spin-off child while the daily-close ranges counted both.
+ *
+ * Tickers missing from the snapshot (transient state right after a roster
+ * change, before the next fetch backfills them) are skipped so the SSG build
+ * doesn't crash on `undefined.startClose`. Spin-off children are additive from
+ * their effective date forward (a distribution, not a backtracked position),
+ * mirroring receiving the shares in a real brokerage account.
+ */
+function portfolioValueEntries(
+  data: PriceData,
+  userId: UserId,
+  asOf: string
+): { series: TickerSeries; shares: number }[] {
+  const entries: { series: TickerSeries; shares: number }[] = [];
+  for (const t of USERS[userId].tickers) {
+    const s = data.tickers[t];
+    if (s != null) entries.push({ series: s, shares: sharesFor(userId, s) });
+  }
+  for (const so of SPINOFFS) {
+    if (!USERS[userId].tickers.includes(so.parentTicker)) continue;
+    if (so.effectiveDate > asOf) continue;
+    const parent = data.tickers[so.parentTicker];
+    const child = data.tickers[so.childTicker];
+    if (parent == null || child == null) continue;
+    entries.push({
+      series: child,
+      shares: spinoffChildShares(userId, parent, so.sharesPerParentShare),
+    });
+  }
+  return entries;
+}
 
+export function portfolioSeries(data: PriceData, userId: UserId): PortfolioPoint[] {
   return data.tradingDates.map((date) => {
-    let total = 0;
-    for (const s of seriesByTicker) {
-      const shares = sharesFor(userId, s);
-      total += shares * lastKnownClose(s, date);
-      total += dividendsReceived(s, shares, date);
-    }
-    for (const so of userSpinoffs) {
-      if (so.effectiveDate > date) continue;
-      const parent = data.tickers[so.parentTicker];
-      const child = data.tickers[so.childTicker];
-      if (!parent || !child) continue;
-      const parentShares = sharesFor(userId, parent);
-      const childShares = parentShares * so.sharesPerParentShare;
-      total += childShares * lastKnownClose(child, date);
-      total += dividendsReceived(child, childShares, date);
-    }
-    return { date, value: total };
+    const value = portfolioValueEntries(data, userId, date).reduce(
+      (sum, { series, shares }) =>
+        sum +
+        shares * lastKnownClose(series, date) +
+        dividendsReceived(series, shares, date),
+      0
+    );
+    return { date, value };
   });
 }
 
@@ -316,33 +334,44 @@ export function intradayPortfolioSeries(
   data: PriceData,
   userId: UserId
 ): { points: PortfolioPoint[]; previousClose: number } {
-  const tickers = USERS[userId].tickers;
-  const seriesByTicker = tickers
-    .map((t) => data.tickers[t])
-    .filter((s): s is TickerSeries => s != null);
-
   // Find previous trading day (last entry in tradingDates that's before today's intraday date)
   const intradayDate = data.intradayDate ?? "";
   const prevDates = data.tradingDates.filter((d) => d < intradayDate);
   const prevDate = prevDates[prevDates.length - 1] ?? data.tradingDates[data.tradingDates.length - 1];
 
-  const previousClose = seriesByTicker.reduce((sum, s) => {
-    return sum + sharesFor(userId, s) * lastKnownClose(s, prevDate);
-  }, 0);
+  // Baseline = yesterday's full daily portfolio value: price + accumulated
+  // dividend cash + any spin-off child shares held by then. Computed from the
+  // same position set as portfolioSeries so the 1D % baseline is identical to
+  // the value the longer ranges show at prevDate (child evaluated as of prevDate
+  // so a distribution that lists on the intraday day itself isn't backdated).
+  const previousClose = portfolioValueEntries(data, userId, prevDate).reduce(
+    (sum, { series, shares }) =>
+      sum +
+      shares * lastKnownClose(series, prevDate) +
+      dividendsReceived(series, shares, prevDate),
+    0
+  );
 
-  // Collect all unique intraday timestamps across this user's tickers
+  // Positions to value intraday: direct picks + spin-off child shares held as
+  // of today, each with its own share count. Mirrors portfolioSeries so the 1D
+  // hero value matches 1M/…/ALL instead of silently dropping the child +
+  // dividend cash.
+  const entries = portfolioValueEntries(data, userId, intradayDate);
+
+  // Collect all unique intraday timestamps across every held ticker (incl. the
+  // spin-off child, which has its own intraday bars).
   const tsSet = new Set<string>();
-  for (const s of seriesByTicker) {
-    for (const b of s.intraday ?? []) tsSet.add(b.t);
+  for (const { series } of entries) {
+    for (const b of series.intraday ?? []) tsSet.add(b.t);
   }
   const timestamps = [...tsSet].sort();
   if (timestamps.length === 0) return { points: [], previousClose };
 
   // Build per-ticker quick lookups
-  const lookups = seriesByTicker.map((s) => {
+  const lookups = entries.map(({ series, shares }) => {
     const m = new Map<string, number>();
-    for (const b of s.intraday ?? []) m.set(b.t, b.close);
-    return { series: s, m };
+    for (const b of series.intraday ?? []) m.set(b.t, b.close);
+    return { series, shares, m };
   });
 
   const points: PortfolioPoint[] = [];
@@ -353,12 +382,15 @@ export function intradayPortfolioSeries(
   }
 
   for (const t of timestamps) {
+    const asOf = t.slice(0, 10);
     let total = 0;
-    for (const { series, m } of lookups) {
+    for (const { series, shares, m } of lookups) {
       const fresh = m.get(t);
       if (fresh != null) lastSeen.set(series.ticker, fresh);
-      const price = lastSeen.get(series.ticker)!;
-      total += sharesFor(userId, series) * price;
+      total += shares * lastSeen.get(series.ticker)!;
+      // Dividend cash held through this bar's date (constant across the day),
+      // matching portfolioSeries' per-date dividend term.
+      total += dividendsReceived(series, shares, asOf);
     }
     points.push({ date: t, value: total });
   }
@@ -423,16 +455,28 @@ export function weeklyPortfolioSeries(
   data: PriceData,
   userId: UserId
 ): PortfolioPoint[] | null {
-  const tickers = USERS[userId].tickers;
-  const seriesByTicker = tickers
+  const directSeries = USERS[userId].tickers
     .map((t) => data.tickers[t])
     .filter((s): s is TickerSeries => s != null);
-  const haveWeekly = seriesByTicker.some((s) => (s.weekly?.length ?? 0) > 0);
+  const haveWeekly = directSeries.some((s) => (s.weekly?.length ?? 0) > 0);
   if (!haveWeekly) return null;
 
+  // Approximate window start from the direct picks' bars — used only to decide
+  // which spin-off children were already trading during the window.
+  const directTs = new Set<string>();
+  for (const s of directSeries)
+    for (const b of s.weekly ?? []) if (isHourBoundaryBar(b)) directTs.add(b.t);
+  const windowStart =
+    [...directTs].sort()[0]?.slice(0, 10) ?? data.intradayDate ?? "";
+
+  // Positions to value: direct picks + spin-off child shares held as of the
+  // window start, each with its own share count. Mirrors portfolioSeries so the
+  // 1W value includes dividend cash + the child, matching the longer ranges.
+  const entries = portfolioValueEntries(data, userId, windowStart);
+
   const tsSet = new Set<string>();
-  for (const s of seriesByTicker) {
-    for (const b of s.weekly ?? []) {
+  for (const { series } of entries) {
+    for (const b of series.weekly ?? []) {
       // Skip Yahoo's live partial bar so all plotted points sit on hour
       // boundaries (consistent intervals, no stray sub-hour spacing).
       if (!isHourBoundaryBar(b)) continue;
@@ -448,10 +492,10 @@ export function weeklyPortfolioSeries(
   // from just before the first timestamp so a missing first bar doesn't drag
   // the value to zero.
   const firstDate = timestamps[0].slice(0, 10);
-  const lookups = seriesByTicker.map((s) => {
+  const lookups = entries.map(({ series, shares }) => {
     const m = new Map<string, number>();
-    for (const b of s.weekly ?? []) m.set(b.t, b.close);
-    return { series: s, m };
+    for (const b of series.weekly ?? []) m.set(b.t, b.close);
+    return { series, shares, m };
   });
   const lastSeen = new Map<string, number>();
   for (const { series } of lookups) {
@@ -460,12 +504,14 @@ export function weeklyPortfolioSeries(
 
   const points: PortfolioPoint[] = [];
   for (const t of timestamps) {
+    const asOf = t.slice(0, 10);
     let total = 0;
-    for (const { series, m } of lookups) {
+    for (const { series, shares, m } of lookups) {
       const fresh = m.get(t);
       if (fresh != null) lastSeen.set(series.ticker, fresh);
-      const price = lastSeen.get(series.ticker)!;
-      total += sharesFor(userId, series) * price;
+      total += shares * lastSeen.get(series.ticker)!;
+      // Dividend cash held through this bar's date, matching portfolioSeries.
+      total += dividendsReceived(series, shares, asOf);
     }
     points.push({ date: t, value: total });
   }
