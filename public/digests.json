@@ -7,46 +7,46 @@
         "dataMaturity" : "insufficient",
         "daysOfData" : 0,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       },
       "1W" : {
         "articleCount" : 0,
         "dataMaturity" : "insufficient",
         "daysOfData" : 0,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       }
     },
     "health-care-oddgl" : {
       "1D" : {
         "articleCount" : 0,
         "dataMaturity" : "full",
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       },
       "1W" : {
         "articleCount" : 0,
         "dataMaturity" : "full",
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       }
     },
     "legacy-auto" : {
       "1D" : {
         "articleCount" : 0,
         "dataMaturity" : "full",
-        "daysOfData" : 133,
+        "daysOfData" : 134,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       },
       "1W" : {
         "articleCount" : 0,
         "dataMaturity" : "full",
-        "daysOfData" : 133,
+        "daysOfData" : 134,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       }
     },
     "nasdaq-jcost" : {
@@ -55,91 +55,91 @@
         "dataMaturity" : "insufficient",
         "daysOfData" : 0,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       },
       "1W" : {
         "articleCount" : 0,
         "dataMaturity" : "insufficient",
         "daysOfData" : 0,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:10.136Z"
+        "generatedAt" : "2026-09-22T17:10:09.800Z"
       }
     }
   },
   "game" : {
     "1D" : {
       "aiEngine" : "AppleIntelligence",
-      "anchorDrag" : "QBTS",
+      "anchorDrag" : "COHR",
       "anchorMover" : "DKS",
       "articleCount" : 15,
-      "avgRelevanceScore" : 8.066666666666666,
+      "avgRelevanceScore" : 8,
       "dataMaturity" : "full",
       "dateRange" : {
-        "from" : "2026-09-18",
-        "to" : "2026-09-21"
+        "from" : "2026-09-21",
+        "to" : "2026-09-22"
       },
-      "daysOfData" : 134,
+      "daysOfData" : 135,
       "daysRequired" : 1,
-      "digest" : "DKS [+8.08%] made the day's biggest move — it's held by Lee [+1.07%]. QBTS [-2.08%] swung hardest the other way, a position of Rick [+0.12%]. HON [+2.63%] is worth watching next for Brian [+0.43%].",
-      "digestTemplate" : "DKS {{DKS}} made the day's biggest move — it's held by Lee {{user:lee}}. QBTS {{QBTS}} swung hardest the other way, a position of Rick {{user:rick}}. HON {{HON}} is worth watching next for Brian {{user:brian}}.",
-      "generatedAt" : "2026-09-22T17:00:26.055Z",
-      "narrativeGeneratedAt" : "2026-09-22T14:15:26.427Z",
+      "digest" : "DKS [+8.08%] made the day's biggest move — it's held by Lee [+1.07%]. COHR [-3.75%] swung hardest the other way, a position of Rick [+0.12%]. SMR [+1.31%] is worth watching next for Gene [+1.71%].",
+      "digestTemplate" : "DKS {{DKS}} made the day's biggest move — it's held by Lee {{user:lee}}. COHR {{COHR}} swung hardest the other way, a position of Rick {{user:rick}}. SMR {{SMR}} is worth watching next for Gene {{user:gene}}.",
+      "generatedAt" : "2026-09-22T17:10:10.326Z",
+      "narrativeGeneratedAt" : "2026-09-22T17:10:06.867Z",
       "sources" : [
         {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/tesla-gains-over-2-cybercab-203412694.html?.tsrc=rss",
-          "score" : 9,
-          "source" : "Yahoo Finance",
-          "title" : "Tesla Gains Over 2% as Cybercab Faces a September 30 Compliance Test"
-        },
-        {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/www.just-food.com\/news\/unilever-accused-of-double-standards-for-workers-post-mccormick-merger\/?.tsrc=rss",
+          "date" : "2026-09-18",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/17\/smr-developer-holtec-just-cancelled-its-ipo-should-nuscale-power-and-oklo-investors-panic\/?.tsrc=rss",
           "score" : 8,
-          "source" : "just-food.com",
-          "title" : "Unilever accused of “double standards” for workers post McCormick merger"
-        },
-        {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/www.fooddive.com\/news\/antitrust-unilever-mccormick-merger-UK-review\/830525\/?.tsrc=rss",
-          "score" : 8,
-          "source" : "fooddive.com",
-          "title" : "McCormick and Unilever’s $45B merger under investigation in UK"
-        },
-        {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/unilever-lse-ulvr-could-10-141438302.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Unilever (LSE:ULVR) Could Be 10% Overvalued On Its Restructuring Story"
+          "source" : "Motley Fool",
+          "title" : "SMR Developer Holtec Just Cancelled Its IPO. Should NuScale Power and Oklo Investors Panic?"
         },
         {
           "date" : "2026-09-18",
-          "link" : "https:\/\/finance.yahoo.com\/small-business\/articles\/unilever-offers-shorter-worker-safeguards-093641856.html?.tsrc=rss",
+          "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/why-did-nuclear-stocks-oklo-smr-nne-leu-xe-jump-on-thursday\/cZtuW2xRBdu?.tsrc=rss",
+          "score" : 8,
+          "source" : "stocktwits.com",
+          "title" : "Why Did Nuclear Stocks OKLO, SMR, NNE, LEU, XE Jump On Thursday?"
+        },
+        {
+          "date" : "2026-09-21",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/21\/oklo-climbs-5-as-nuclear-names-bounce-back-from-last-weeks-selloff-nuscale-power-gains-4-uranium-energy-rises-3\/?.tsrc=rss",
+          "score" : 8,
+          "source" : "247wallst.com",
+          "title" : "Oklo Climbs 5% as Nuclear Names Bounce Back From Last Week’s Selloff; NuScale Power Gains 4%, Uranium Energy Rises 3%"
+        },
+        {
+          "date" : "2026-09-21",
+          "link" : "https:\/\/www.fool.com\/coverage\/stock-market-today\/2026\/09\/18\/stock-market-midday-sept-18-stocks-slip-crypto-gains\/?.tsrc=rss",
+          "score" : 8,
+          "source" : "Motley Fool",
+          "title" : "Stock Market Midday, Sept. 18: Stocks Slip, Crypto Gains"
+        },
+        {
+          "date" : "2026-09-22",
+          "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/nuscales-e2-centers-turn-smr-132400727.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Update: Unilever Offers Shorter Worker Safeguards Outside Europe in McCormick Deal"
+          "title" : "NuScale's E2 Centers Turn SMR Learning Into Hands-On Training"
+        },
+        {
+          "date" : "2026-09-22",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/nuscale-power-smr-draws-fresh-121351602.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "NuScale Power (SMR) Draws Fresh Attention, Is The Stock Still A Bargain?"
+        },
+        {
+          "date" : "2026-09-22",
+          "link" : "https:\/\/finance.yahoo.com\/m\/7ffb0204-f3bf-343d-9073-4ebc5991f799\/uranium-stocks-are-rallying..html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "Uranium Stocks Are Rallying. Why NXE Got Initiated At Overweight."
         },
         {
           "date" : "2026-09-18",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/why-aristotle-international-equity-fund-135629902.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/technology\/article\/how-apples-iphone-18-price-increases-impact-your-trade-in-value-at-verizon-t-mobile-or-att-122122027.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Here’s Why Aristotle International Equity Fund Exited Unilever (UL)"
-        },
-        {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/hedy-adds-apple-private-cloud-204900280.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Hedy Adds Apple Private Cloud Compute to Its AI Meeting Assistant in iOS 27"
-        },
-        {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/finance.yahoo.com\/m\/415f2741-5513-310b-aab7-935bf92d5a58\/apple%E2%80%99s-biggest-win-this-week.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Apple’s Biggest Win This Week Isn’t the New iPhone"
+          "title" : "How Apple's iPhone 18 price increases impact your trade-in value at Verizon, T-Mobile, or AT&T"
         }
       ]
     },
@@ -152,15 +152,29 @@
       "dataMaturity" : "full",
       "dateRange" : {
         "from" : "2026-08-24",
-        "to" : "2026-09-21"
+        "to" : "2026-09-22"
       },
-      "daysOfData" : 134,
+      "daysOfData" : 135,
       "daysRequired" : 1,
       "digest" : "HUT [+34.02%] made the month's biggest move — it's held by Gene [+4.04%]. VVOS [-43.65%] swung hardest the other way, a position of Gene [+4.04%]. AAPL [+10.26%] is worth watching next for Brian [+3.85%] and Lee [-5.33%].",
       "digestTemplate" : "HUT {{HUT}} made the month's biggest move — it's held by Gene {{user:gene}}. VVOS {{VVOS}} swung hardest the other way, a position of Gene {{user:gene}}. AAPL {{AAPL}} is worth watching next for Brian {{user:brian}} and Lee {{user:lee}}.",
-      "generatedAt" : "2026-09-22T17:00:26.055Z",
-      "narrativeGeneratedAt" : "2026-09-21T17:10:07.133Z",
+      "generatedAt" : "2026-09-22T17:10:10.326Z",
+      "narrativeGeneratedAt" : "2026-09-22T17:10:06.867Z",
       "sources" : [
+        {
+          "date" : "2026-09-02",
+          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/nvidia-put-2-billion-coherent-110311865.html?.tsrc=rss",
+          "score" : 9,
+          "source" : "Yahoo Finance",
+          "title" : "Nvidia Put $2 Billion Into Coherent. Is Optical Bandwidth the Next AI Bottleneck?"
+        },
+        {
+          "date" : "2026-08-31",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/08\/31\/vistra-wont-stop-declining-in-2026-why-does-this-prominent-wall-street-firm-expect-120-returns\/?.tsrc=rss",
+          "score" : 9,
+          "source" : "247wallst.com",
+          "title" : "Vistra Won’t Stop Declining in 2026: Why Does This Prominent Wall Street Firm Expect 120% Returns?"
+        },
         {
           "date" : "2026-08-27",
           "link" : "https:\/\/beincrypto.com\/apple-september-event-iphone-18-foldable\/?.tsrc=rss",
@@ -202,40 +216,26 @@
           "score" : 9,
           "source" : "Yahoo Finance",
           "title" : "‘The soul of an innovator’: Tim Cook hands a $4.5T Apple to John Ternus. Turn $10K into your own wealth-building machine"
-        },
-        {
-          "date" : "2026-09-04",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/04\/apple-is-entering-a-new-chapter-what-should-invest\/?.tsrc=rss",
-          "score" : 9,
-          "source" : "Motley Fool",
-          "title" : "Apple Is Entering a New Chapter. What Should Investors Expect?"
-        },
-        {
-          "date" : "2026-09-07",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/keybanc-warns-apple-iphone-18-173545777.html?.tsrc=rss",
-          "score" : 9,
-          "source" : "Yahoo Finance",
-          "title" : "KeyBanc warns Apple’s iPhone 18 launch may be a negative catalyst for shares"
         }
       ]
     },
     "1W" : {
       "aiEngine" : "AppleIntelligence",
-      "anchorDrag" : "GLUE",
-      "anchorMover" : "CRDO",
+      "anchorDrag" : "VZ",
+      "anchorMover" : "EXOD",
       "articleCount" : 15,
-      "avgRelevanceScore" : 8.266666666666667,
+      "avgRelevanceScore" : 8.333333333333334,
       "dataMaturity" : "full",
       "dateRange" : {
-        "from" : "2026-09-14",
-        "to" : "2026-09-21"
+        "from" : "2026-09-15",
+        "to" : "2026-09-22"
       },
-      "daysOfData" : 134,
+      "daysOfData" : 135,
       "daysRequired" : 7,
-      "digest" : "CRDO [+27.23%] made the week's biggest move — it's held by Kevin [+11.56%]. GLUE [-5.43%] swung hardest the other way, a position of Gene [+10.02%]. UL [+0.66%] is worth watching next for Lee [-0.72%].",
-      "digestTemplate" : "CRDO {{CRDO}} made the week's biggest move — it's held by Kevin {{user:kevin}}. GLUE {{GLUE}} swung hardest the other way, a position of Gene {{user:gene}}. UL {{UL}} is worth watching next for Lee {{user:lee}}.",
-      "generatedAt" : "2026-09-22T17:00:26.055Z",
-      "narrativeGeneratedAt" : "2026-09-21T17:10:07.133Z",
+      "digest" : "EXOD [+30.00%] made the week's biggest move — it's held by Brian [+6.71%]. VZ [-8.71%] swung hardest the other way, a position of Lee [-0.72%]. AAPL [+3.27%] is worth watching next for Brian [+6.71%] and Lee [-0.72%].",
+      "digestTemplate" : "EXOD {{EXOD}} made the week's biggest move — it's held by Brian {{user:brian}}. VZ {{VZ}} swung hardest the other way, a position of Lee {{user:lee}}. AAPL {{AAPL}} is worth watching next for Brian {{user:brian}} and Lee {{user:lee}}.",
+      "generatedAt" : "2026-09-22T17:10:10.326Z",
+      "narrativeGeneratedAt" : "2026-09-22T17:10:06.867Z",
       "sources" : [
         {
           "date" : "2026-09-14",
@@ -245,18 +245,11 @@
           "title" : "Tim Cook Could Have Purchased Any of 488 S&P 500 Companies With $879 Billion. Instead, He Bought Something That Changed Apple's Fortune Forever."
         },
         {
-          "date" : "2026-09-17",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/tesla-gains-over-2-cybercab-203412694.html?.tsrc=rss",
-          "score" : 9,
-          "source" : "Yahoo Finance",
-          "title" : "Tesla Gains Over 2% as Cybercab Faces a September 30 Compliance Test"
-        },
-        {
           "date" : "2026-09-14",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/13\/jeff-bezos-built-amazon-into-a-18-trillion-company\/?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/12\/qualcomm-lost-apples-modem-business-amazon-just-offered-a-60-billion-escape-route\/?.tsrc=rss",
           "score" : 9,
-          "source" : "Motley Fool",
-          "title" : "Jeff Bezos Built Amazon Into a $1.8 Trillion Company. Here's How Andy Jassy Is Making It Worth Even More."
+          "source" : "247wallst.com",
+          "title" : "Qualcomm Lost Apple’s Modem Business. Amazon Just Offered a $60 Billion Escape Route."
         },
         {
           "date" : "2026-09-14",
@@ -267,31 +260,38 @@
         },
         {
           "date" : "2026-09-14",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/procter-gamble-stock-looks-pricey-174200839.html?.tsrc=rss",
-          "score" : 8,
-          "source" : "Yahoo Finance",
-          "title" : "Procter & Gamble Stock Looks Pricey: What's the Best Move Now?"
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/13\/jeff-bezos-built-amazon-into-a-18-trillion-company\/?.tsrc=rss",
+          "score" : 9,
+          "source" : "Motley Fool",
+          "title" : "Jeff Bezos Built Amazon Into a $1.8 Trillion Company. Here's How Andy Jassy Is Making It Worth Even More."
         },
         {
-          "date" : "2026-09-15",
-          "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/nuritas-appoints-former-unilever-north-110000524.html?.tsrc=rss",
-          "score" : 8,
+          "date" : "2026-09-17",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/tesla-gains-over-2-cybercab-203412694.html?.tsrc=rss",
+          "score" : 9,
           "source" : "Yahoo Finance",
-          "title" : "Nuritas Appoints Former Unilever North America President Kees Kruythoff as Board Chair"
+          "title" : "Tesla Gains Over 2% as Cybercab Faces a September 30 Compliance Test"
         },
         {
-          "date" : "2026-09-15",
-          "link" : "https:\/\/uk.finance.yahoo.com\/news\/colman-sale-owner-switches-american-182005798.html?.tsrc=rss",
+          "date" : "2026-09-14",
+          "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/aaois-optical-networking-demand-rise-143900911.html?.tsrc=rss",
           "score" : 8,
           "source" : "Yahoo Finance",
-          "title" : "Colman’s up for sale as owner switches to American mustard"
+          "title" : "AAOI's Optical Networking Demand Rise: Can It Beat LITE and COHR?"
         },
         {
-          "date" : "2026-09-16",
-          "link" : "https:\/\/www.just-food.com\/news\/unilever-mccormick-deal-comes-under-scrutiny-of-uk-watchdog\/?.tsrc=rss",
+          "date" : "2026-09-14",
+          "link" : "https:\/\/finance.yahoo.com\/m\/d4ea1271-0473-33c5-ada7-61a6c104a9a4\/hpe-stock-is-downgraded-after.html?.tsrc=rss",
           "score" : 8,
-          "source" : "just-food.com",
-          "title" : "Unilever-McCormick deal comes under scrutiny of UK watchdog"
+          "source" : "Yahoo Finance",
+          "title" : "HPE Stock Is Downgraded After Rising 159% This Year. Why?"
+        },
+        {
+          "date" : "2026-09-14",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/adbe-q3-earnings-beat-estimates-153300676.html?.tsrc=rss",
+          "score" : 8,
+          "source" : "Yahoo Finance",
+          "title" : "ADBE Q3 Earnings Beat Estimates, Revenues Rise on Subscription Growth"
         }
       ]
     },
@@ -304,69 +304,69 @@
       "dataMaturity" : "full",
       "dateRange" : {
         "from" : "2026-02-05",
-        "to" : "2026-09-21"
+        "to" : "2026-09-22"
       },
-      "daysOfData" : 134,
+      "daysOfData" : 135,
       "daysRequired" : 1,
-      "digest" : "MRVL [+243.48%] made the year's biggest move — it's held by Kevin [+48.64%]. VVOS [-89.39%] swung hardest the other way, a position of Gene [+0.85%]. AAPL [+22.76%] is worth watching next for Brian [-3.85%] and Lee [-10.74%].",
-      "generatedAt" : "2026-09-21T17:10:07.133Z",
-      "narrativeGeneratedAt" : "2026-09-21T17:10:07.133Z",
+      "digest" : "MRVL [+255.17%] made the year's biggest move — it's held by Kevin [+51.22%]. VVOS [-89.59%] swung hardest the other way, a position of Gene [+2.30%]. SMR [-39.99%] is worth watching next for Gene [+2.30%].",
+      "generatedAt" : "2026-09-22T17:10:06.867Z",
+      "narrativeGeneratedAt" : "2026-09-22T17:10:06.867Z",
       "sources" : [
         {
-          "date" : "2026-05-15",
-          "link" : "https:\/\/uk.finance.yahoo.com\/news\/tate-lyle-2-7bn-takeover-150830248.html?.tsrc=rss",
+          "date" : "2026-05-13",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/11\/how-buying-nuscale-power-stock-today-could-10x-you\/?.tsrc=rss",
           "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Tate & Lyle in £2.7bn takeover talks with US suitor"
+          "source" : "Motley Fool",
+          "title" : "How Buying NuScale Power Stock Today Could 10X Your Net Worth"
+        },
+        {
+          "date" : "2026-06-02",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/01\/nuscale-is-on-sale-could-this-be-the-buy-that\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "NuScale Power Is on Sale. Could This Be the Buy That Sets You Up for Life?"
+        },
+        {
+          "date" : "2026-05-21",
+          "link" : "https:\/\/www.thestreet.com\/investing\/stocks\/att-verizon-back-1-2b-broadband-bet-in-space-tech-leader?.tsrc=rss",
+          "score" : 10,
+          "source" : "thestreet.com",
+          "title" : "AT&T, Verizon back $1.2B broadband bet in space tech leader"
+        },
+        {
+          "date" : "2026-05-12",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/12\/the-ai-data-center-backlash-is-growing-kevin-olearys-1-billion-stratos-project-reveals-why\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "The AI Data Center Backlash Is Growing. Kevin O’Leary’s $1 Billion Stratos Project Reveals Why"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/13\/nvidia-will-soon-make-more-than-apple-and-microsoft-combined\/?.tsrc=rss",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/13\/nvidia-hits-5-5-trillion-its-now-worth-more-than-the-gdp-of-every-country-but-the-u-s-and-china\/?.tsrc=rss",
           "score" : 10,
           "source" : "247wallst.com",
-          "title" : "Nvidia Will Soon Make More than Apple and Microsoft Combined"
+          "title" : "Nvidia Hits $5.5 Trillion — It’s Now Worth More Than the GDP of Every Country but the U.S. and China"
         },
         {
-          "date" : "2026-05-25",
-          "link" : "https:\/\/www.barchart.com\/story\/news\/2102609\/the-microsoft-disaster-why-dropping-the-openai-leash-flips-the-entire-script-for-msft-stock?.tsrc=rss",
+          "date" : "2026-05-15",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/05\/15\/nvidia-nears-52-week-high-is-it-a-buy-sell-or-hold\/?.tsrc=rss",
           "score" : 10,
-          "source" : "barchart.com",
-          "title" : "The Microsoft Disaster: Why Dropping the OpenAI Leash Flips the Entire Script for MSFT Stock"
+          "source" : "247wallst.com",
+          "title" : "Nvidia Nears 52-Week High: Is It a Buy, Sell or Hold?"
         },
         {
-          "date" : "2026-05-28",
-          "link" : "https:\/\/finance.yahoo.com\/sectors\/healthcare\/articles\/eli-lilly-stock-hits-record-203900546.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Eli Lilly Stock Hits Record Highs, Becomes First Pharmaceutical Firm Worth $1 Trillion"
-        },
-        {
-          "date" : "2026-05-28",
-          "link" : "https:\/\/finance.yahoo.com\/video\/how-apples-ai-weakness-could-become-its-biggest-agentic-advantage-200853250.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "How Apple's AI weakness could become its biggest 'agentic advantage'"
-        },
-        {
-          "date" : "2026-06-02",
-          "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/apple-s-wwdc-2026-key-catalyst-for-aapl-stock-will-decide-ai-positioning-morgan-stanley\/cZ0WeZpRev1?.tsrc=rss",
-          "score" : 10,
-          "source" : "stocktwits.com",
-          "title" : "Apple’s WWDC 2026 ‘Key Catalyst’ For AAPL Stock, Will Decide AI Positioning: Morgan Stanley"
-        },
-        {
-          "date" : "2026-06-05",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/05\/warren-buffetts-successor-greg-abel-dumped-amazon\/?.tsrc=rss",
+          "date" : "2026-06-01",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/01\/warren-buffett-successor-abel-sell-amzn-buy-googl\/?.tsrc=rss",
           "score" : 10,
           "source" : "Motley Fool",
-          "title" : "Warren Buffett's Successor, Greg Abel, Dumped Amazon and Bought 3 Million Shares of This Undervalued Stock"
+          "title" : "Warren Buffett's Successor, Greg Abel, Started His Tenure With a Bang by Dumping Amazon and More Than Tripling Berkshire's Stake in a Virtual Monopoly"
         },
         {
-          "date" : "2026-06-02",
-          "link" : "https:\/\/finance.yahoo.com\/m\/e9a1df49-5d6a-3354-98ff-6a1e7c41f5e4\/stock-market-today%3A-dow-falls.html?.tsrc=rss",
+          "date" : "2026-07-16",
+          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/eu-orders-google-open-android-131301212.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Stock Market Today: Dow Falls With U.S.-Iran Talks 'Continuing'; AI Name Marvell Tech Soars By 19% (Live Coverage)"
+          "title" : "EU orders Google to open Android, search data to OpenAI and AI rivals"
         }
       ]
     },
@@ -378,21 +378,28 @@
       "avgRelevanceScore" : 10,
       "dataMaturity" : "full",
       "dateRange" : {
-        "from" : "2026-06-23",
-        "to" : "2026-09-21"
+        "from" : "2026-06-24",
+        "to" : "2026-09-22"
       },
-      "daysOfData" : 134,
+      "daysOfData" : 135,
       "daysRequired" : 1,
-      "digest" : "ZS [+61.25%] made the quarter's biggest move — it's held by Kevin [-5.09%]. VVOS [-65.84%] swung hardest the other way, a position of Gene [-13.30%]. RKLB [-26.72%] is worth watching next for Rick [-11.86%] and Gene [-13.30%].",
-      "generatedAt" : "2026-09-21T17:10:07.133Z",
-      "narrativeGeneratedAt" : "2026-09-21T17:10:07.133Z",
+      "digest" : "ZS [+63.60%] made the quarter's biggest move — it's held by Kevin [-2.46%]. VVOS [-64.60%] swung hardest the other way, a position of Gene [-9.74%]. GOOGL [+1.61%] is worth watching next for Rick [-9.08%].",
+      "generatedAt" : "2026-09-22T17:10:06.867Z",
+      "narrativeGeneratedAt" : "2026-09-22T17:10:06.867Z",
       "sources" : [
         {
-          "date" : "2026-06-30",
-          "link" : "https:\/\/www.thestreet.com\/investing\/stocks\/orcl-oracle-stock-suffers-its-worst-weekly-slump-since-the-2001-dot-com-bust?.tsrc=rss",
+          "date" : "2026-07-16",
+          "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/eu-orders-google-open-android-131301212.html?.tsrc=rss",
           "score" : 10,
-          "source" : "thestreet.com",
-          "title" : "Oracle stock suffers its worst weekly slump since 2001 dot-com bust"
+          "source" : "Yahoo Finance",
+          "title" : "EU orders Google to open Android, search data to OpenAI and AI rivals"
+        },
+        {
+          "date" : "2026-07-17",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/07\/17\/ast-spacemobiles-new-1-billion-note-converts-at-79\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "AST SpaceMobile: Shares Sink 17% After Pricing a $1 Billion Convertible-Note Offering, But Dilution Risk Is Smaller Than It Looks (NASDAQ:ASTS)"
         },
         {
           "date" : "2026-06-29",
@@ -400,13 +407,6 @@
           "score" : 10,
           "source" : "Motley Fool",
           "title" : "1 Stock That's More Than Doubled in 3 Years, and 3 Reasons It Will Keep Soaring"
-        },
-        {
-          "date" : "2026-07-06",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/07\/03\/is-honeywell-stock-a-buy-after-its-latest-structur\/?.tsrc=rss",
-          "score" : 10,
-          "source" : "Motley Fool",
-          "title" : "Is Honeywell Stock a Buy After Its Latest Structural Shakeup?"
         },
         {
           "date" : "2026-07-15",
@@ -454,74 +454,74 @@
       "dataMaturity" : "full",
       "dateRange" : {
         "from" : "2026-02-05",
-        "to" : "2026-09-21"
+        "to" : "2026-09-22"
       },
-      "daysOfData" : 134,
+      "daysOfData" : 135,
       "daysRequired" : 1,
-      "digest" : "MRVL [+243.48%] made the game's biggest move — it's held by Kevin [+48.64%]. VVOS [-89.39%] swung hardest the other way, a position of Gene [+0.85%]. ORCL [+9.77%] is worth watching next for Kevin [+48.64%].",
-      "generatedAt" : "2026-09-21T17:10:07.133Z",
-      "narrativeGeneratedAt" : "2026-09-21T17:10:07.133Z",
+      "digest" : "MRVL [+255.17%] made the game's biggest move — it's held by Kevin [+51.22%]. VVOS [-89.59%] swung hardest the other way, a position of Gene [+2.30%]. ZS [+22.92%] is worth watching next for Kevin [+51.22%].",
+      "generatedAt" : "2026-09-22T17:10:06.867Z",
+      "narrativeGeneratedAt" : "2026-09-22T17:10:06.867Z",
       "sources" : [
         {
-          "date" : "2026-05-18",
-          "link" : "https:\/\/www.barchart.com\/story\/news\/1962255\/oracle-went-from-tech-dinosaur-to-ai-heavyweight?.tsrc=rss",
-          "score" : 10,
-          "source" : "barchart.com",
-          "title" : "Oracle Went From Tech Dinosaur to AI Heavyweight"
-        },
-        {
-          "date" : "2026-05-28",
-          "link" : "https:\/\/www.barchart.com\/story\/news\/2133759\/arm-surges-as-nvidia-s-vera-drives-cpu-demand?.tsrc=rss",
-          "score" : 10,
-          "source" : "barchart.com",
-          "title" : "Arm Surges as Nvidia's Vera Drives CPU Demand"
-        },
-        {
-          "date" : "2026-06-03",
-          "link" : "https:\/\/finance.yahoo.com\/m\/b3058533-e53a-3866-ae57-686eaea3bc18\/google%E2%80%99s-%2480-billion-equity.html?.tsrc=rss",
+          "date" : "2026-05-22",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/workday-zscaler-shares-skyrocket-know-185255492.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "Google’s $80 Billion Equity Plan Suggests Bond Markets Are Feeling the Strain of AI Spending"
+          "title" : "Workday and Zscaler Shares Skyrocket, What You Need To Know"
         },
         {
-          "date" : "2026-06-08",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/arista-networks-inc-anet-good-201352864.html?.tsrc=rss",
+          "date" : "2026-05-29",
+          "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/nbis-stock-jumps-after-ex-openai-researchers-fund-discloses-major-stake\/cZgiqlCRet3?.tsrc=rss",
           "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Is Arista Networks, Inc. (ANET) A Good Stock To Buy Now?"
+          "source" : "stocktwits.com",
+          "title" : "NBIS Stock Soars Over 10% — Ex-OpenAI Researcher’s Fund Reveals Massive Stake"
         },
         {
-          "date" : "2026-06-30",
-          "link" : "https:\/\/www.thestreet.com\/investing\/stocks\/orcl-oracle-stock-suffers-its-worst-weekly-slump-since-the-2001-dot-com-bust?.tsrc=rss",
-          "score" : 10,
-          "source" : "thestreet.com",
-          "title" : "Oracle stock suffers its worst weekly slump since 2001 dot-com bust"
-        },
-        {
-          "date" : "2026-05-13",
-          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/13\/heres-why-stock-is-a-buy-before-date\/?.tsrc=rss",
+          "date" : "2026-06-10",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/09\/this-top-artificial-intelligence-ai-stock-is-benef\/?.tsrc=rss",
           "score" : 10,
           "source" : "Motley Fool",
-          "title" : "Here's Why Tesla Stock Is a Buy Before 2031"
+          "title" : "This Top Artificial Intelligence (AI) Stock Is Benefiting From the Next Infrastructure Bottleneck, and It Just Became an Attractive Buy"
+        },
+        {
+          "date" : "2026-06-29",
+          "link" : "https:\/\/www.barchart.com\/story\/news\/3016917\/why-investors-should-avoid-nebius-stock?.tsrc=rss",
+          "score" : 10,
+          "source" : "barchart.com",
+          "title" : "Why Investors Should Avoid Nebius Stock"
+        },
+        {
+          "date" : "2026-07-16",
+          "link" : "https:\/\/247wallst.com\/investing\/2026\/07\/15\/morgan-stanley-destroys-bear-case-against-nebius-proves-the-35-plunge-was-a-huge-mistake\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "247wallst.com",
+          "title" : "Morgan Stanley Destroys Bear Case Against Nebius. Proves The 35% Plunge Was a Huge Mistake"
+        },
+        {
+          "date" : "2026-05-25",
+          "link" : "https:\/\/www.fool.com\/investing\/2026\/05\/21\/2-most-compelling-stocks-to-buy-for-longterm-inves\/?.tsrc=rss",
+          "score" : 10,
+          "source" : "Motley Fool",
+          "title" : "2 Most Compelling Stocks to Buy for Long‑Term Investors Right Now"
+        },
+        {
+          "date" : "2026-06-05",
+          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/why-market-dipped-intuitive-surgical-215003398.html?.tsrc=rss",
+          "score" : 10,
+          "source" : "Yahoo Finance",
+          "title" : "Why the Market Dipped But Intuitive Surgical, Inc. (ISRG) Gained Today"
         },
         {
           "date" : "2026-05-13",
-          "link" : "https:\/\/finance.yahoo.com\/news\/us-equity-futures-mixed-nvidia-121130581.html?.tsrc=rss",
+          "link" : "https:\/\/finance.yahoo.com\/news\/asml-holding-n-v-asml-172116842.html?.tsrc=rss",
           "score" : 10,
           "source" : "Yahoo Finance",
-          "title" : "US Equity Futures Mixed as Nvidia Stock Rises Ahead of Crucial US-China Meeting"
-        },
-        {
-          "date" : "2026-05-11",
-          "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/qualcomm-stock-just-doubled-breakout-193600970.html?.tsrc=rss",
-          "score" : 10,
-          "source" : "Yahoo Finance",
-          "title" : "Qualcomm Stock Just Doubled: Breakout or Blow-Off?"
+          "title" : "ASML Holding N.V. (ASML) Pushing for Europe Technology Leadership Amid Soaring AI Opportunities"
         }
       ]
     }
   },
-  "generatedAt" : "2026-09-22T17:00:26.055Z",
+  "generatedAt" : "2026-09-22T17:10:10.326Z",
   "holdings" : {
     "AAPL" : {
       "1D" : {
@@ -607,7 +607,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, AAPL [+10.26%]’s defining theme was its aggressive push into agentic AI through the WWDC unveiling of a rebuilt Siri co-developed with Google Gemini and upgrades across Apple Intelligence to drive future hardware cycles. The biggest risk that emerged was intensifying regulatory pressure, highlighted by the EU blocking Siri’s AI rollout over interoperability rules and new probes in Italy and India. Despite analyst upgrades early in the month and a confirmed CEO transition with John Ternus replacing Tim Cook on September 1, AAPL stock experienced volatility as skepticism lingered about whether AI advances would immediately boost iPhone demand.",
         "digestTemplate" : "Over the past month, AAPL {{AAPL}}’s defining theme was its aggressive push into agentic AI through the WWDC unveiling of a rebuilt Siri co-developed with Google Gemini and upgrades across Apple Intelligence to drive future hardware cycles. The biggest risk that emerged was intensifying regulatory pressure, highlighted by the EU blocking Siri’s AI rollout over interoperability rules and new probes in Italy and India. Despite analyst upgrades early in the month and a confirmed CEO transition with John Ternus replacing Tim Cook on September 1, AAPL stock experienced volatility as skepticism lingered about whether AI advances would immediately boost iPhone demand.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-25",
@@ -990,7 +990,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, AMRZ [-14.14%] has solidified its identity as “The AI Foundation,” a new spin-off emphasizing its emergence and focus on artificial intelligence. The biggest catalyst was the report of a Q4 2025 EBITDA of $779 million on July 1, which reinforced the company’s growing financial stability. Currently, AMRZ is recognized as a distinct entity within a broader corporate framework, with its stock gaining visibility as a leader in the AI sector.",
         "digestTemplate" : "Over the past month, AMRZ {{AMRZ}} has solidified its identity as “The AI Foundation,” a new spin-off emphasizing its emergence and focus on artificial intelligence. The biggest catalyst was the report of a Q4 2025 EBITDA of $779 million on July 1, which reinforced the company’s growing financial stability. Currently, AMRZ is recognized as a distinct entity within a broader corporate framework, with its stock gaining visibility as a leader in the AI sector.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-07-01",
@@ -1072,9 +1072,9 @@
           "from" : "2026-05-13",
           "to" : "2026-07-20"
         },
-        "daysOfData" : 113,
+        "daysOfData" : 129,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.942Z",
+        "generatedAt" : "2026-09-22T17:10:10.071Z",
         "sources" : [
           {
             "date" : "2026-07-20",
@@ -1142,9 +1142,9 @@
           "from" : "2026-07-01",
           "to" : "2026-09-02"
         },
-        "daysOfData" : 113,
+        "daysOfData" : 129,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.942Z",
+        "generatedAt" : "2026-09-22T17:10:10.071Z",
         "sources" : [
           {
             "date" : "2026-07-20",
@@ -1212,9 +1212,9 @@
           "from" : "2026-05-13",
           "to" : "2026-07-30"
         },
-        "daysOfData" : 113,
+        "daysOfData" : 129,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.942Z",
+        "generatedAt" : "2026-09-22T17:10:10.071Z",
         "sources" : [
           {
             "date" : "2026-07-20",
@@ -1359,7 +1359,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, AMZN [-2.91%]’s defining theme was simultaneous expansion in artificial intelligence, cloud infrastructure, and logistics amid record profitability and Fortune 500 leadership. The biggest risk that emerged was escalating regulatory pressure, as the FTC drafted a complaint on advertising practices and EU regulators launched a Digital Markets Act probe into AWS interoperability, compounded by Blue Origin’s New Glenn test failure. By the end of June, AMZN regained its position as the world’s fifth most valuable company after surpassing SpaceX, supported by AWS AI partnerships like the one with PennyMac Financial Services and the Graviton5 processor’s general availability.",
         "digestTemplate" : "Over the past month, AMZN {{AMZN}}’s defining theme was simultaneous expansion in artificial intelligence, cloud infrastructure, and logistics amid record profitability and Fortune 500 leadership. The biggest risk that emerged was escalating regulatory pressure, as the FTC drafted a complaint on advertising practices and EU regulators launched a Digital Markets Act probe into AWS interoperability, compounded by Blue Origin’s New Glenn test failure. By the end of June, AMZN regained its position as the world’s fifth most valuable company after surpassing SpaceX, supported by AWS AI partnerships like the one with PennyMac Financial Services and the Graviton5 processor’s general availability.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-25",
@@ -1784,7 +1784,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, ASML [-0.70%] (ASML) was defined by AI-driven demand boosting confidence in its EUV lithography tools and market leadership amid strong earnings and upgraded analyst ratings. The biggest catalyst or risk to emerge was the $119 billion TeraFab facility in Texas, highlighted by reports of Elon Musk in direct talks during the week of June 8, bringing both growth potential and governance scrutiny. The stock stands elevated after surging to become Europe’s most valuable during the week of June 1, maintaining momentum through share repurchases in mid-to-late June and BofA raising its price target while the company confirmed it has not shipped EUV tools to China.",
         "digestTemplate" : "Over the past month, ASML {{ASML}} (ASML) was defined by AI-driven demand boosting confidence in its EUV lithography tools and market leadership amid strong earnings and upgraded analyst ratings. The biggest catalyst or risk to emerge was the $119 billion TeraFab facility in Texas, highlighted by reports of Elon Musk in direct talks during the week of June 8, bringing both growth potential and governance scrutiny. The stock stands elevated after surging to become Europe’s most valuable during the week of June 1, maintaining momentum through share repurchases in mid-to-late June and BofA raising its price target while the company confirmed it has not shipped EUV tools to China.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -2209,7 +2209,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, AST SpaceMobile (ASTS [+2.41%]) navigated a defining theme of hardware execution versus operational risk amid sector volatility and competitive pressure from Starlink. The biggest catalyst was the successful June 17 Falcon 9 launch of BlueBird satellites 8, 9, and 10, which reversed prior declines and boosted confidence in network performance after Deutsche Bank’s downgrade and Blue Origin’s New Glenn test explosion. By the end of the period, ASTS stood on stronger bullish footing, reinforced by Zacks initiating an upbeat outlook following the confirmed deployment and ongoing telecom partnership progress.",
         "digestTemplate" : "Over the past month, AST SpaceMobile (ASTS {{ASTS}}) navigated a defining theme of hardware execution versus operational risk amid sector volatility and competitive pressure from Starlink. The biggest catalyst was the successful June 17 Falcon 9 launch of BlueBird satellites 8, 9, and 10, which reversed prior declines and boosted confidence in network performance after Deutsche Bank’s downgrade and Blue Origin’s New Glenn test explosion. By the end of the period, ASTS stood on stronger bullish footing, reinforced by Zacks initiating an upbeat outlook following the confirmed deployment and ongoing telecom partnership progress.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-25",
@@ -2634,7 +2634,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Broadcom (AVGO [+1.26%]) reinforced its defining theme of rapid AI infrastructure expansion through custom chip demand from Meta, Google, Anthropic, and OpenAI, new broadband and networking silicon, and AI-enabled security initiatives. The biggest risk that emerged was conservative long-term AI guidance despite strong earnings, compounded by Q3 AI revenue guidance falling short of forecasts, while the launch of the AI XPV Platform with Apollo and Blackstone served as a key catalyst. By the end of the period, AVGO stabilized amid growing analyst confidence, including recognition from D.A. Davidson on CNBC as an Intel alternative, following strategic moves like a senior note repurchase and Morningstar’s endorsement of its dividend appeal.",
         "digestTemplate" : "Over the past month, Broadcom (AVGO {{AVGO}}) reinforced its defining theme of rapid AI infrastructure expansion through custom chip demand from Meta, Google, Anthropic, and OpenAI, new broadband and networking silicon, and AI-enabled security initiatives. The biggest risk that emerged was conservative long-term AI guidance despite strong earnings, compounded by Q3 AI revenue guidance falling short of forecasts, while the launch of the AI XPV Platform with Apollo and Blackstone served as a key catalyst. By the end of the period, AVGO stabilized amid growing analyst confidence, including recognition from D.A. Davidson on CNBC as an Intel alternative, following strategic moves like a senior note repurchase and Morningstar’s endorsement of its dividend appeal.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -3059,7 +3059,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Coherent Corp. (COHR [+12.33%]) exemplified a shift from sector uncertainty to high-growth momentum in AI optics, driven by expanding infrastructure demand and strategic advancements. The biggest catalyst was the multibillion-dollar AI datacenter partnership with Nvidia, highlighted during Jensen Huang’s Computex keynote that labeled COHR a potential “next trillion-dollar” company and spurred dramatic investor enthusiasm in the first week. After strong earnings, upward guidance, facility expansion plans in Texas supported by CHIPS and Science Act funding, and a quiet final week with no material developments, COHR’s stock stands elevated following sustained analyst confidence despite mid-period volatility.",
         "digestTemplate" : "Over the past month, Coherent Corp. (COHR {{COHR}}) exemplified a shift from sector uncertainty to high-growth momentum in AI optics, driven by expanding infrastructure demand and strategic advancements. The biggest catalyst was the multibillion-dollar AI datacenter partnership with Nvidia, highlighted during Jensen Huang’s Computex keynote that labeled COHR a potential “next trillion-dollar” company and spurred dramatic investor enthusiasm in the first week. After strong earnings, upward guidance, facility expansion plans in Texas supported by CHIPS and Science Act funding, and a quiet final week with no material developments, COHR’s stock stands elevated following sustained analyst confidence despite mid-period volatility.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-05",
@@ -3484,7 +3484,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, CRDO [-14.05%]’s defining theme was sustained momentum in AI data center connectivity, fueled by record earnings and expanding optical solutions amid strong demand. The biggest catalyst that emerged was the completion of the DustPhotonics acquisition during the week of June 22, enhancing CRDO’s silicon photonics capabilities, while margin and supply chain pressures remained key risks highlighted after Q4 results in the week of June 1. The stock CRDO extended its multi-month rise throughout the period, supported by analyst upgrades including Evercore ISI’s initiation and Mizuho’s reiteration, alongside valuation reassessment against peers.",
         "digestTemplate" : "Over the past month, CRDO {{CRDO}}’s defining theme was sustained momentum in AI data center connectivity, fueled by record earnings and expanding optical solutions amid strong demand. The biggest catalyst that emerged was the completion of the DustPhotonics acquisition during the week of June 22, enhancing CRDO’s silicon photonics capabilities, while margin and supply chain pressures remained key risks highlighted after Q4 results in the week of June 1. The stock CRDO extended its multi-month rise throughout the period, supported by analyst upgrades including Evercore ISI’s initiation and Mizuho’s reiteration, alongside valuation reassessment against peers.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -3895,7 +3895,7 @@
         "daysRequired" : 1,
         "digest" : "The defining theme for CRISPR Therapeutics (CRSP [+1.46%]) over the past month was business continuity amid shifting investor sentiment, with no operational, regulatory, or leadership changes despite ongoing pipeline speculation and competitive analysis against Editas Medicine and Eli Lilly’s VERVE-102. The biggest catalyst that emerged was the mid-June shelf registration filed on June 15, enhancing financial flexibility while execution challenges remain the key risk to performance despite CASGEVY’s commercial presence. As of late June 2026, CRSP stands with stable cash reserves and an approved sickle cell and beta thalassemia treatment, supported by confirmed management participation in upcoming healthcare conferences and sustained analyst coverage.",
         "digestTemplate" : "The defining theme for CRISPR Therapeutics (CRSP {{CRSP}}) over the past month was business continuity amid shifting investor sentiment, with no operational, regulatory, or leadership changes despite ongoing pipeline speculation and competitive analysis against Editas Medicine and Eli Lilly’s VERVE-102. The biggest catalyst that emerged was the mid-June shelf registration filed on June 15, enhancing financial flexibility while execution challenges remain the key risk to performance despite CASGEVY’s commercial presence. As of late June 2026, CRSP stands with stable cash reserves and an approved sickle cell and beta thalassemia treatment, supported by confirmed management participation in upcoming healthcare conferences and sustained analyst coverage.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-25",
@@ -4320,7 +4320,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, CoreWeave (CRWV [-0.06%]) reinforced its leadership in AI infrastructure through expanded multi-cloud capabilities, major partnerships, and record performance using NVIDIA technology. The biggest catalyst was the company’s inclusion in the Nasdaq-100 on June 22, 2026, following breakthroughs like training DeepSeek-V3 and deploying the Vera Rubin NVL72 system, while a key risk emerged from significant insider share sales by co-founders and the CFO. The stock surged amid strong analyst sentiment and earnings performance but experienced volatility before stabilizing well above its IPO level after joining the index.",
         "digestTemplate" : "Over the past month, CoreWeave (CRWV {{CRWV}}) reinforced its leadership in AI infrastructure through expanded multi-cloud capabilities, major partnerships, and record performance using NVIDIA technology. The biggest catalyst was the company’s inclusion in the Nasdaq-100 on June 22, 2026, following breakthroughs like training DeepSeek-V3 and deploying the Vera Rubin NVL72 system, while a key risk emerged from significant insider share sales by co-founders and the CFO. The stock surged amid strong analyst sentiment and earnings performance but experienced volatility before stabilizing well above its IPO level after joining the index.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -4731,7 +4731,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, DKS [-25.46%] demonstrated a defining theme of earnings recovery amid market volatility, shifting from cautious first-quarter results to renewed optimism driven by a strong second-quarter performance. The biggest catalyst to emerge was the launch of new initiatives enhancing digital engagement and customer experience, reinforcing the risk tied to sustaining these innovations during uncertain conditions. With the company reaffirming its quarterly dividend and reporting improved second-quarter earnings after an initial earnings call raised concerns, DKS now stands positioned for continued strategic momentum in a competitive retail landscape.",
         "digestTemplate" : "Over the past month, DKS {{DKS}} demonstrated a defining theme of earnings recovery amid market volatility, shifting from cautious first-quarter results to renewed optimism driven by a strong second-quarter performance. The biggest catalyst to emerge was the launch of new initiatives enhancing digital engagement and customer experience, reinforcing the risk tied to sustaining these innovations during uncertain conditions. With the company reaffirming its quarterly dividend and reporting improved second-quarter earnings after an initial earnings call raised concerns, DKS now stands positioned for continued strategic momentum in a competitive retail landscape.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -5114,7 +5114,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, EXOD [+4.33%] shifted toward integrating traditional finance with blockchain, highlighted by the June 15 launch of Ondo-powered on-chain markets enabling tokenized stock and ETF trading, the period’s biggest catalyst amid ongoing efforts to scale adoption. The company also reinforced its UFC partnership as of June 22 while maintaining stable analyst sentiment during June 8–13 despite no new announcements that week. As of late June, EXOD stands at a crossroads where the success of its conventional asset integrations contrasts with sustained financial underperformance risks tied to aggressive innovation spending.",
         "digestTemplate" : "Over the past month, EXOD {{EXOD}} shifted toward integrating traditional finance with blockchain, highlighted by the June 15 launch of Ondo-powered on-chain markets enabling tokenized stock and ETF trading, the period’s biggest catalyst amid ongoing efforts to scale adoption. The company also reinforced its UFC partnership as of June 22 while maintaining stable analyst sentiment during June 8–13 despite no new announcements that week. As of late June, EXOD stands at a crossroads where the success of its conventional asset integrations contrasts with sustained financial underperformance risks tied to aggressive innovation spending.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-08",
@@ -5469,7 +5469,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, GlobalFoundries (GFS [+6.21%]) advanced its defining theme of expanding into AI and silicon photonics through acquisitions like Synopsys’ Processor IP businesses and partnerships with Sivers Semiconductors, Keysight Technologies, Qualinx, and the U.S. Department of Energy’s Genesis Mission. The biggest catalyst emerged from strong earnings across multiple quarters and strategic launches, including a new photonics process and Europe’s first sovereign manufacturing flow, while analyst caution about valuation amid rapid expansion posed a key risk. Despite analyst upgrades and sustained momentum from hyperscaler and aerospace demand, GFS stock stabilized after a surge following the Week of 2026-06-08 developments.",
         "digestTemplate" : "Over the past month, GlobalFoundries (GFS {{GFS}}) advanced its defining theme of expanding into AI and silicon photonics through acquisitions like Synopsys’ Processor IP businesses and partnerships with Sivers Semiconductors, Keysight Technologies, Qualinx, and the U.S. Department of Energy’s Genesis Mission. The biggest catalyst emerged from strong earnings across multiple quarters and strategic launches, including a new photonics process and Europe’s first sovereign manufacturing flow, while analyst caution about valuation amid rapid expansion posed a key risk. Despite analyst upgrades and sustained momentum from hyperscaler and aerospace demand, GFS stock stabilized after a surge following the Week of 2026-06-08 developments.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-04",
@@ -5831,7 +5831,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, GLUE [-10.82%] (Monte Rosa Therapeutics) has been defined by strong clinical progress and consistent earnings growth driving investor confidence in its cardiovascular and oncology pipeline. The biggest catalyst was the June 3 earnings beat, which sparked institutional interest and sent the stock surging during the week of June 1–6. As of late June 2026, GLUE maintains an upward market trajectory amid ongoing advancements, with regulatory milestones and MRT-2359’s combination therapy success remaining key risks.",
         "digestTemplate" : "Over the past month, GLUE {{GLUE}} (Monte Rosa Therapeutics) has been defined by strong clinical progress and consistent earnings growth driving investor confidence in its cardiovascular and oncology pipeline. The biggest catalyst was the June 3 earnings beat, which sparked institutional interest and sent the stock surging during the week of June 1–6. As of late June 2026, GLUE maintains an upward market trajectory amid ongoing advancements, with regulatory milestones and MRT-2359’s combination therapy success remaining key risks.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-03",
@@ -6158,7 +6158,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, GM [-3.60%] advanced its defining theme of technological transformation through electric vehicle innovation, battery advancements, energy storage partnerships with Peak Energy, and AI-driven autonomy progress at Factory Zero. The biggest risk emerged from a California privacy settlement that triggered IT job cuts and regulatory scrutiny. Despite these challenges, GM stock gained momentum amid strong earnings, a major buyback, an analyst upgrade on June 5, and sustained investor confidence reflected in rising targets through the end of June.",
         "digestTemplate" : "Over the past month, GM {{GM}} advanced its defining theme of technological transformation through electric vehicle innovation, battery advancements, energy storage partnerships with Peak Energy, and AI-driven autonomy progress at Factory Zero. The biggest risk emerged from a California privacy settlement that triggered IT job cuts and regulatory scrutiny. Despite these challenges, GM stock gained momentum amid strong earnings, a major buyback, an analyst upgrade on June 5, and sustained investor confidence reflected in rising targets through the end of June.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -6583,7 +6583,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, GOOGL [+0.81%]’s defining theme was Alphabet’s aggressive pivot toward AI-driven performance marketing and infrastructure, marked by an equity raise with Berkshire Hathaway, a chip deal with Anthropic, cloud agreements with SpaceX and Nokia, and clean-energy financing. The biggest catalyst or risk that emerged was cooling AI sentiment affecting market reactions, compounded by regulatory pressures like the UK mandate on AI search results and the departure of Gemini co-lead Noam Shazeer for OpenAI. Despite TD Cowen raising its price target amid AI momentum and partnerships with Lovable and Interluxe Group, GOOGL faced mixed stock reactions tied to these evolving developments.",
         "digestTemplate" : "Over the past month, GOOGL {{GOOGL}}’s defining theme was Alphabet’s aggressive pivot toward AI-driven performance marketing and infrastructure, marked by an equity raise with Berkshire Hathaway, a chip deal with Anthropic, cloud agreements with SpaceX and Nokia, and clean-energy financing. The biggest catalyst or risk that emerged was cooling AI sentiment affecting market reactions, compounded by regulatory pressures like the UK mandate on AI search results and the departure of Gemini co-lead Noam Shazeer for OpenAI. Despite TD Cowen raising its price target amid AI momentum and partnerships with Lovable and Interluxe Group, GOOGL faced mixed stock reactions tied to these evolving developments.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -7008,7 +7008,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, HD [-9.89%] (Home Depot) advanced its strategic shift toward professional construction through the acquisitions of SRS Distribution and Mingledorff’s, alongside a Walmart partnership to expand DIY offerings like the Greenworks Pro line, while maintaining multi-channel growth amid softer remodeling demand. The biggest emerging risk is data privacy concerns tied to license plate cameras from the Mingledorff’s acquisition, compounded by ongoing regulatory compliance and liability pressures highlighted by a favorable Texas Supreme Court ruling on shipper liability. Despite solid fiscal first-quarter sales and resilient earnings, the stock faces tempered analyst sentiment, exemplified by a UBS price target reduction while retaining a Buy rating.",
         "digestTemplate" : "Over the past month, HD {{HD}} (Home Depot) advanced its strategic shift toward professional construction through the acquisitions of SRS Distribution and Mingledorff’s, alongside a Walmart partnership to expand DIY offerings like the Greenworks Pro line, while maintaining multi-channel growth amid softer remodeling demand. The biggest emerging risk is data privacy concerns tied to license plate cameras from the Mingledorff’s acquisition, compounded by ongoing regulatory compliance and liability pressures highlighted by a favorable Texas Supreme Court ruling on shipper liability. Despite solid fiscal first-quarter sales and resilient earnings, the stock faces tempered analyst sentiment, exemplified by a UBS price target reduction while retaining a Buy rating.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-02",
@@ -7426,7 +7426,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, HON [-1.35%] advanced its defining theme of portfolio realignment to unlock value through restructuring into Honeywell Technologies and an independent Aerospace business by June 29, highlighted by Quantinuum’s Nasdaq debut and an inaugural Investor Day. The biggest catalyst that emerged was the unveiling of an acquisition plan targeting industrial automation growth during the Q2 earnings report, while a key risk remains post-split performance amid slowing growth concerns. As of the week of June 22, HON executed a reverse stock split to support its long-term direction ahead of the separation.",
         "digestTemplate" : "Over the past month, HON {{HON}} advanced its defining theme of portfolio realignment to unlock value through restructuring into Honeywell Technologies and an independent Aerospace business by June 29, highlighted by Quantinuum’s Nasdaq debut and an inaugural Investor Day. The biggest catalyst that emerged was the unveiling of an acquisition plan targeting industrial automation growth during the Q2 earnings report, while a key risk remains post-split performance amid slowing growth concerns. As of the week of June 22, HON executed a reverse stock split to support its long-term direction ahead of the separation.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-02",
@@ -7851,7 +7851,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, HUT [+34.02%] advanced its strategic pivot from Bitcoin mining to AI infrastructure, anchored by the Beacon Point hyperscale data center project in Texas and a refreshed corporate identity that includes leadership changes like E. Stanley O’Neal’s appointment as board chair and Mark Eidelman’s role in investor relations. The biggest catalyst or risk centers on executing the Texas facility amid valuation scrutiny, intensified after completing major financing and earning Keefe Bruyette’s reaffirmation alongside new analyst coverage on June 22, 2026. Despite revenue pressure from declining Bitcoin prices and a board member’s stock sale, HUT’s stock gained momentum through bond sales, an employee stock ownership plan filing, and continued investor confidence in its AI and energy-driven direction.",
         "digestTemplate" : "Over the past month, HUT {{HUT}} advanced its strategic pivot from Bitcoin mining to AI infrastructure, anchored by the Beacon Point hyperscale data center project in Texas and a refreshed corporate identity that includes leadership changes like E. Stanley O’Neal’s appointment as board chair and Mark Eidelman’s role in investor relations. The biggest catalyst or risk centers on executing the Texas facility amid valuation scrutiny, intensified after completing major financing and earning Keefe Bruyette’s reaffirmation alongside new analyst coverage on June 22, 2026. Despite revenue pressure from declining Bitcoin prices and a board member’s stock sale, HUT’s stock gained momentum through bond sales, an employee stock ownership plan filing, and continued investor confidence in its AI and energy-driven direction.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -7989,9 +7989,9 @@
           "from" : "2026-05-13",
           "to" : "2026-09-01"
         },
-        "daysOfData" : 118,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.759Z",
+        "generatedAt" : "2026-09-22T17:10:09.986Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -8056,12 +8056,12 @@
         "avgRelevanceScore" : 8.32,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-06-11",
+          "from" : "2026-06-25",
           "to" : "2026-09-01"
         },
-        "daysOfData" : 118,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.759Z",
+        "generatedAt" : "2026-09-22T17:10:09.986Z",
         "sources" : [
           {
             "date" : "2026-07-20",
@@ -8129,9 +8129,9 @@
           "from" : "2026-05-13",
           "to" : "2026-09-01"
         },
-        "daysOfData" : 118,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.759Z",
+        "generatedAt" : "2026-09-22T17:10:09.986Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -8276,7 +8276,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, ISRG [+7.52%] emphasized commercial execution and leadership continuity through Taylor Patton’s appointment as Chief Commercial and Marketing Officer, effective July 1, reinforcing strategic priorities around scaling da Vinci system adoption and AI capabilities. The biggest risk that emerged was the FDA-prompted voluntary recall of stapler products such as the S and Si instruments and SureForm reloads during the week of June 15, highlighting ongoing regulatory and safety concerns. Despite conflicting analyst views and no new product launches or earnings, ISRG’s stock hovered near recent levels as the company reaffirmed margin improvements amid inflationary pressures while reporting strong first-quarter system placements.",
         "digestTemplate" : "Over the past month, ISRG {{ISRG}} emphasized commercial execution and leadership continuity through Taylor Patton’s appointment as Chief Commercial and Marketing Officer, effective July 1, reinforcing strategic priorities around scaling da Vinci system adoption and AI capabilities. The biggest risk that emerged was the FDA-prompted voluntary recall of stapler products such as the S and Si instruments and SureForm reloads during the week of June 15, highlighting ongoing regulatory and safety concerns. Despite conflicting analyst views and no new product launches or earnings, ISRG’s stock hovered near recent levels as the company reaffirmed margin improvements amid inflationary pressures while reporting strong first-quarter system placements.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-25",
@@ -8701,7 +8701,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, MRVL [+14.95%]’s defining theme was accelerating momentum in AI infrastructure, fueled by strong fiscal 2027 Q1 and Q2 earnings, the Teralynx T100 switch launch, and growing demand for data center networking and optical interconnect solutions. The biggest catalyst to emerge was the $2 billion NVIDIA investment to advance AI-focused optical technology, announced during the week of June 15, while ongoing executive stock activity—including CFO Dan Durn’s filing shortly after his appointment the week of June 22—highlighted evolving risks amid elevated valuation attention. MRVL now trades at all-time highs following S&P 500 inclusion effective June 22 and sustained analyst confidence after surpassing 5 million coherent photonic IC shipments with Tower Semiconductor.",
         "digestTemplate" : "Over the past month, MRVL {{MRVL}}’s defining theme was accelerating momentum in AI infrastructure, fueled by strong fiscal 2027 Q1 and Q2 earnings, the Teralynx T100 switch launch, and growing demand for data center networking and optical interconnect solutions. The biggest catalyst to emerge was the $2 billion NVIDIA investment to advance AI-focused optical technology, announced during the week of June 15, while ongoing executive stock activity—including CFO Dan Durn’s filing shortly after his appointment the week of June 22—highlighted evolving risks amid elevated valuation attention. MRVL now trades at all-time highs following S&P 500 inclusion effective June 22 and sustained analyst confidence after surpassing 5 million coherent photonic IC shipments with Tower Semiconductor.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-02",
@@ -9126,7 +9126,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Nebius Group (NBIS [+11.53%]) advanced its defining theme of rapid AI infrastructure expansion through major acquisitions like Eigen AI, strategic partnerships including with Oracle and Nvidia, and large-scale investments in UK and global data center capacity. The biggest catalyst to emerge was the planned multiyear capital expenditure to boost AI infrastructure through 2027, while the primary risk is leadership uncertainty following CEO John Smith’s announced retirement at year-end. The stock now trades with heightened visibility after NBIS joined the Nasdaq-100 Index, supported by strong earnings, the Nvidia investment, and growth in AI and robotics ventures such as Avride’s partnership with Uber.",
         "digestTemplate" : "Over the past month, Nebius Group (NBIS {{NBIS}}) advanced its defining theme of rapid AI infrastructure expansion through major acquisitions like Eigen AI, strategic partnerships including with Oracle and Nvidia, and large-scale investments in UK and global data center capacity. The biggest catalyst to emerge was the planned multiyear capital expenditure to boost AI infrastructure through 2027, while the primary risk is leadership uncertainty following CEO John Smith’s announced retirement at year-end. The stock now trades with heightened visibility after NBIS joined the Nasdaq-100 Index, supported by strong earnings, the Nvidia investment, and growth in AI and robotics ventures such as Avride’s partnership with Uber.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -9551,7 +9551,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, NVDA [+10.02%] exemplified accelerating global expansion in AI infrastructure through record revenue, new product launches like the RTX Spark processor, and deepening partnerships with companies including Apple, SK hynix, and KKR. The biggest catalyst to emerge was the $25 billion bond issuance in the week of June 15 to fund gigawatt-scale growth tied to HBM4 supply and the Vera Rubin platform, while ongoing regulatory attention around China-linked H200 demand remained a key risk amid CEO Jensen Huang’s international engagements. As of late June, NVDA stands with strengthened financial footing and broadened ecosystem reach across AI, quantum, and sustainable energy domains following developments unveiled at ISC High Performance and through ecosystem funding initiatives.",
         "digestTemplate" : "Over the past month, NVDA {{NVDA}} exemplified accelerating global expansion in AI infrastructure through record revenue, new product launches like the RTX Spark processor, and deepening partnerships with companies including Apple, SK hynix, and KKR. The biggest catalyst to emerge was the $25 billion bond issuance in the week of June 15 to fund gigawatt-scale growth tied to HBM4 supply and the Vera Rubin platform, while ongoing regulatory attention around China-linked H200 demand remained a key risk amid CEO Jensen Huang’s international engagements. As of late June, NVDA stands with strengthened financial footing and broadened ecosystem reach across AI, quantum, and sustainable energy domains following developments unveiled at ISC High Performance and through ecosystem funding initiatives.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -9976,7 +9976,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Oklo’s defining theme was accelerating commercialization and regulatory progress for its Aurora powerhouse and vertically integrated nuclear supply chain. The biggest catalyst emerged June 3 with the announcement of a multibillion-dollar uranium expansion project, while market volatility remained a key risk, notably affecting OKLO [+3.65%]’s stock during the week of June 8 despite the June 4 Department of Energy “advanced negotiations” milestone and the June 8 ARMEC acquisition. OKLO’s stock stands elevated after early gains, tempered by fluctuations amid ongoing developments like the June 18 Letter of Intent with Centrus Energy and the June 12 approval of the Preliminary Documented Safety Analysis by the Department of Energy’s Idaho Operations Office.",
         "digestTemplate" : "Over the past month, Oklo’s defining theme was accelerating commercialization and regulatory progress for its Aurora powerhouse and vertically integrated nuclear supply chain. The biggest catalyst emerged June 3 with the announcement of a multibillion-dollar uranium expansion project, while market volatility remained a key risk, notably affecting OKLO {{OKLO}}’s stock during the week of June 8 despite the June 4 Department of Energy “advanced negotiations” milestone and the June 8 ARMEC acquisition. OKLO’s stock stands elevated after early gains, tempered by fluctuations amid ongoing developments like the June 18 Letter of Intent with Centrus Energy and the June 12 approval of the Preliminary Documented Safety Analysis by the Department of Energy’s Idaho Operations Office.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -10401,7 +10401,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, ORCL [+4.89%]’s defining theme was aggressive AI and cloud infrastructure expansion amid rising capital commitments and strong demand signals. The biggest catalyst that emerged was the Q4 2026 earnings beat paired with a major financing plan to accelerate AI buildout, while investor caution grew over rising expenditures highlighted by a planned rise in capital spending and equity fundraising. The stock ended the period under pressure despite confirmed growth drivers like construction starting on the Stargate data center with OpenAI, new partnerships with Bloom Energy and Arm, and record remaining performance obligations.",
         "digestTemplate" : "Over the past month, ORCL {{ORCL}}’s defining theme was aggressive AI and cloud infrastructure expansion amid rising capital commitments and strong demand signals. The biggest catalyst that emerged was the Q4 2026 earnings beat paired with a major financing plan to accelerate AI buildout, while investor caution grew over rising expenditures highlighted by a planned rise in capital spending and equity fundraising. The stock ended the period under pressure despite confirmed growth drivers like construction starting on the Stargate data center with OpenAI, new partnerships with Bloom Energy and Arm, and record remaining performance obligations.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -10826,7 +10826,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, PEP [-9.39%]’s defining theme was balancing portfolio transformation and margin expansion amid sustained dividend strength and operational innovation across beverages and snacks. The biggest catalyst was the IPO of PepsiCo’s Indian bottling unit on June 5, paired with the Adrenaline Rush launch in India and the Gatik driverless freight partnership, while the key risk remained integrating Alani and Rockstar amid analyst caution and regulatory hurdles in the energy drink space. By late June, PEP stood amid renewed product strategy—evidenced by reviving a discontinued soda brand—while maintaining investor focus despite softer consumption signals and lowered price targets from firms like Wells Fargo and Deutsche Bank.",
         "digestTemplate" : "Over the past month, PEP {{PEP}}’s defining theme was balancing portfolio transformation and margin expansion amid sustained dividend strength and operational innovation across beverages and snacks. The biggest catalyst was the IPO of PepsiCo’s Indian bottling unit on June 5, paired with the Adrenaline Rush launch in India and the Gatik driverless freight partnership, while the key risk remained integrating Alani and Rockstar amid analyst caution and regulatory hurdles in the energy drink space. By late June, PEP stood amid renewed product strategy—evidenced by reviving a discontinued soda brand—while maintaining investor focus despite softer consumption signals and lowered price targets from firms like Wells Fargo and Deutsche Bank.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -11251,7 +11251,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, PFE [-0.48%]’s defining theme was its strategic pivot toward oncology and rare diseases, driven by the Innovent Biologics partnership, Metsera and Seagen asset acquisitions, breakthrough Phase 3 results for BRAFTOVI and TALZENNA, and expanded FDA approvals for HYMPAVZI. The biggest catalyst or risk to emerge was the GLP-1 manufacturing and biosimilars deal with Amneal Pharmaceuticals, introduced during the week of June 8 amid ongoing regulatory and geopolitical pressures. With interim CFO Cecile Guegan appointed in the final week and leadership emphasizing internal stability and AI innovation over new deals, PFE now stands anchored in execution amid intensified competition from rivals like Merck and AstraZeneca.",
         "digestTemplate" : "Over the past month, PFE {{PFE}}’s defining theme was its strategic pivot toward oncology and rare diseases, driven by the Innovent Biologics partnership, Metsera and Seagen asset acquisitions, breakthrough Phase 3 results for BRAFTOVI and TALZENNA, and expanded FDA approvals for HYMPAVZI. The biggest catalyst or risk to emerge was the GLP-1 manufacturing and biosimilars deal with Amneal Pharmaceuticals, introduced during the week of June 8 amid ongoing regulatory and geopolitical pressures. With interim CFO Cecile Guegan appointed in the final week and leadership emphasizing internal stability and AI innovation over new deals, PFE now stands anchored in execution amid intensified competition from rivals like Merck and AstraZeneca.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -11529,9 +11529,9 @@
           "from" : "2026-05-12",
           "to" : "2026-06-08"
         },
-        "daysOfData" : 120,
+        "daysOfData" : 134,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.434Z",
+        "generatedAt" : "2026-09-22T17:10:09.823Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -11676,7 +11676,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, PLTR [+4.61%]’s defining theme was accelerating AI-driven growth across government and commercial sectors, fueled by expanded integrations with Dell, NVIDIA, and Google Cloud and record quarterly revenue. The biggest risk that emerged was regulatory scrutiny from a UK parliamentary committee over NHS England’s concerns about patient data access, highlighted during the first week and revisited in later reviews. The stock now trades near recent highs after Wolfe Research resumed coverage with an upgraded outlook and UBS reiterated confidence, following PLTR’s announcement of record results and continued multiyear expansions including its first Mexican customer.",
         "digestTemplate" : "Over the past month, PLTR {{PLTR}}’s defining theme was accelerating AI-driven growth across government and commercial sectors, fueled by expanded integrations with Dell, NVIDIA, and Google Cloud and record quarterly revenue. The biggest risk that emerged was regulatory scrutiny from a UK parliamentary committee over NHS England’s concerns about patient data access, highlighted during the first week and revisited in later reviews. The stock now trades near recent highs after Wolfe Research resumed coverage with an upgraded outlook and UBS reiterated confidence, following PLTR’s announcement of record results and continued multiyear expansions including its first Mexican customer.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -12101,7 +12101,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, QBTS [-7.25%] advanced a defining theme of strategic momentum toward fault-tolerant quantum computing, anchored by a pivot to gate-model systems and a first-of-its-kind simulator unveiled on June 18. The biggest catalyst or risk emerged from federal funding dynamics, including a proposed CHIPS Act award on June 1 and a letter of intent signed on June 15, alongside Rigetti’s competing grant approval, while leadership shifted with Sharon Holt’s appointment as Chair on June 8. After a highly oversubscribed IPO on June 4 and sustained analyst upgrades from B. Riley and Mizuho through June 22, QBTS now trades with elevated visibility and institutional confidence.",
         "digestTemplate" : "Over the past month, QBTS {{QBTS}} advanced a defining theme of strategic momentum toward fault-tolerant quantum computing, anchored by a pivot to gate-model systems and a first-of-its-kind simulator unveiled on June 18. The biggest catalyst or risk emerged from federal funding dynamics, including a proposed CHIPS Act award on June 1 and a letter of intent signed on June 15, alongside Rigetti’s competing grant approval, while leadership shifted with Sharon Holt’s appointment as Chair on June 8. After a highly oversubscribed IPO on June 4 and sustained analyst upgrades from B. Riley and Mizuho through June 22, QBTS now trades with elevated visibility and institutional confidence.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -12526,7 +12526,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, QCOM [+24.10%] advanced its defining theme of AI-led diversification across mobile, data centers, automotive, and emerging edge markets through launches like the Snapdragon C Platform with Acer, HP, and Lenovo, expanded Edge AI work with Primax Electronics, SDG&E, UC San Diego, and SLB, and silicon acquisitions to strengthen data center leadership. The biggest risk that emerged was intensified competition from Nvidia’s Computex 2026 AI PC chip unveiling, while the key catalyst ahead remained Qualcomm’s Investor Day following JPMorgan and Wells Fargo price target upgrades after strong Q2 earnings. After early-month declines tied to sector pressures and ex-dividend trading, QCOM built sustained momentum through earnings reinforcement and hedge fund recognition of its Navigate-on-Autopilot technology in SA8650P-powered production vehicles by the week of June 22.",
         "digestTemplate" : "Over the past month, QCOM {{QCOM}} advanced its defining theme of AI-led diversification across mobile, data centers, automotive, and emerging edge markets through launches like the Snapdragon C Platform with Acer, HP, and Lenovo, expanded Edge AI work with Primax Electronics, SDG&E, UC San Diego, and SLB, and silicon acquisitions to strengthen data center leadership. The biggest risk that emerged was intensified competition from Nvidia’s Computex 2026 AI PC chip unveiling, while the key catalyst ahead remained Qualcomm’s Investor Day following JPMorgan and Wells Fargo price target upgrades after strong Q2 earnings. After early-month declines tied to sector pressures and ex-dividend trading, QCOM built sustained momentum through earnings reinforcement and hedge fund recognition of its Navigate-on-Autopilot technology in SA8650P-powered production vehicles by the week of June 22.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-08",
@@ -12951,7 +12951,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, RKLB [+5.52%]’s defining theme was advancing space infrastructure and launch execution amid market volatility tied to SpaceX’s IPO anticipation. The biggest catalyst was the continued progress on the Neutron rocket, highlighted by the System Requirements Review passage for the Space Development Agency’s Tracking Layer Tranche 3 project, while supply-chain risks remained a persistent concern. The stock now stands stronger following analyst upgrades and RKLB’s addition to the Nasdaq-100 Index, supported by Electron launch activity and the completion of the Motiv Space Systems acquisition.",
         "digestTemplate" : "Over the past month, RKLB {{RKLB}}’s defining theme was advancing space infrastructure and launch execution amid market volatility tied to SpaceX’s IPO anticipation. The biggest catalyst was the continued progress on the Neutron rocket, highlighted by the System Requirements Review passage for the Space Development Agency’s Tracking Layer Tranche 3 project, while supply-chain risks remained a persistent concern. The stock now stands stronger following analyst upgrades and RKLB’s addition to the Nasdaq-100 Index, supported by Electron launch activity and the completion of the Motiv Space Systems acquisition.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -13376,7 +13376,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, SentinelOne (S [+14.72%]) advanced its defining theme of AI-driven innovation in cybersecurity through product launches like Purple AI Agentic Investigation and Prompt Security’s integration with Amazon Bedrock AgentCore, alongside continued earnings momentum. The biggest catalyst or risk to emerge was CEO Tom Anderson’s promotion to the board during the week of June 8, occurring amid ongoing revenue pressure from a restructuring plan announced the prior week. Despite beating earnings expectations in late June and earning recognition such as Latio’s SOC Platform Leader award in Latin America and Pax8’s Most Valuable Vendor Award in EMEA, the stock initially dropped sharply on June 1 following weak guidance and market reactions to earnings calls.",
         "digestTemplate" : "Over the past month, SentinelOne (S {{S}}) advanced its defining theme of AI-driven innovation in cybersecurity through product launches like Purple AI Agentic Investigation and Prompt Security’s integration with Amazon Bedrock AgentCore, alongside continued earnings momentum. The biggest catalyst or risk to emerge was CEO Tom Anderson’s promotion to the board during the week of June 8, occurring amid ongoing revenue pressure from a restructuring plan announced the prior week. Despite beating earnings expectations in late June and earning recognition such as Latio’s SOC Platform Leader award in Latin America and Pax8’s Most Valuable Vendor Award in EMEA, the stock initially dropped sharply on June 1 following weak guidance and market reactions to earnings calls.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -13738,7 +13738,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Serve Robotics (SERV [-3.64%]) advanced its defining theme of scaling operations and diversifying beyond food delivery through a launch in forty-four U.S. cities and an autonomous laundry pilot with NoScrubs in Los Angeles. The biggest catalyst that emerged was strong financial performance tied to expanded fleet services revenue and an earnings beat, while ongoing speculation about the stock reflected persistent risk around balancing growth with utilization and margins. As of late June, SERV maintains focus on sustaining momentum from expanded DoorDash partnerships and rising software revenue amid continued market attention.",
         "digestTemplate" : "Over the past month, Serve Robotics (SERV {{SERV}}) advanced its defining theme of scaling operations and diversifying beyond food delivery through a launch in forty-four U.S. cities and an autonomous laundry pilot with NoScrubs in Los Angeles. The biggest catalyst that emerged was strong financial performance tied to expanded fleet services revenue and an earnings beat, while ongoing speculation about the stock reflected persistent risk around balancing growth with utilization and margins. As of late June, SERV maintains focus on sustaining momentum from expanded DoorDash partnerships and rising software revenue amid continued market attention.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-10",
@@ -14128,7 +14128,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, NuScale Power (SMR [-1.60%]) exemplified a theme of resilience and innovation through financial strength, regulatory progress, and strategic expansion in behind-the-meter solutions for data centers and industrial users. The biggest risk that emerged was investor uncertainty over securing firm sales and managing financial pressures, highlighted by stock declines despite Nuclear Regulatory Commission approvals supporting TVA and Romanian projects and the opening of the 12th Energy Exploration Center™ at the University of Virginia. After a leadership addition including Dale E. Klein, a design contract with Paragon for the Highly Integrated Protection System, and a late-month rally, SMR closed the period with renewed investor confidence amid ongoing project momentum.",
         "digestTemplate" : "Over the past month, NuScale Power (SMR {{SMR}}) exemplified a theme of resilience and innovation through financial strength, regulatory progress, and strategic expansion in behind-the-meter solutions for data centers and industrial users. The biggest risk that emerged was investor uncertainty over securing firm sales and managing financial pressures, highlighted by stock declines despite Nuclear Regulatory Commission approvals supporting TVA and Romanian projects and the opening of the 12th Energy Exploration Center™ at the University of Virginia. After a leadership addition including Dale E. Klein, a design contract with Paragon for the Highly Integrated Protection System, and a late-month rally, SMR closed the period with renewed investor confidence amid ongoing project momentum.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-02",
@@ -14266,9 +14266,9 @@
           "from" : "2026-05-13",
           "to" : "2026-08-13"
         },
-        "daysOfData" : 119,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.277Z",
+        "generatedAt" : "2026-09-22T17:10:10.131Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -14333,12 +14333,12 @@
         "avgRelevanceScore" : 8.04,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-06-11",
+          "from" : "2026-06-25",
           "to" : "2026-08-13"
         },
-        "daysOfData" : 119,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.277Z",
+        "generatedAt" : "2026-09-22T17:10:10.131Z",
         "sources" : [
           {
             "date" : "2026-08-13",
@@ -14348,53 +14348,53 @@
             "title" : "Can NuScale's TVA Opportunity Unlock Its Next Growth Phase?"
           },
           {
-            "date" : "2026-06-11",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/nuscale-power-down-35-ytd-123200409.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "NuScale Power Down 35% YTD: Is It a Buy-the-Dip Opportunity?"
-          },
-          {
-            "date" : "2026-06-11",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/assessing-nuscale-power-smr-valuation-161422924.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Assessing NuScale Power (SMR) Valuation After Sharp Recent Share Price Weakness"
-          },
-          {
-            "date" : "2026-06-15",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/japan-us-25b-smr-pledge-220930830.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Japan’s US$25b SMR Pledge Puts NuScale’s Risk Reward In Focus"
-          },
-          {
-            "date" : "2026-06-15",
-            "link" : "https:\/\/www.marketbeat.com\/articles\/the-127-gigawatt-problem-why-ai-needs-its-own-power\/?utm_source=yahoofinance&utm_medium=yahoofinance&.tsrc=rss",
-            "score" : 8,
-            "source" : "marketbeat.com",
-            "title" : "The 127-Gigawatt Problem: Why AI Needs Its Own Power"
-          },
-          {
-            "date" : "2026-06-17",
-            "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/17\/1-reason-to-buy-nuscale-power-stock-and-2-reasons\/?.tsrc=rss",
+            "date" : "2026-06-25",
+            "link" : "https:\/\/www.fool.com\/coverage\/better-buy\/2026\/06\/25\/nano-nuclear-energy-vs-nuscale-power-which-nuclear-energy-stock-is-a-better-buy-in-2026\/?.tsrc=rss",
             "score" : 8,
             "source" : "Motley Fool",
-            "title" : "1 Reason to Buy NuScale Power Stock, and 2 Reasons to Sell"
+            "title" : "Nano Nuclear Energy vs. NuScale Power: Which Nuclear Energy Stock Is a Better Buy in 2026?"
           },
           {
-            "date" : "2026-06-17",
-            "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/nuscales-e2-centers-bring-smr-120700945.html?.tsrc=rss",
+            "date" : "2026-06-26",
+            "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/26\/where-will-nuscale-power-stock-be-in-100-years\/?.tsrc=rss",
             "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "NuScale's E2 Centers Bring SMR Operations Into the Classroom"
+            "source" : "Motley Fool",
+            "title" : "Where Will NuScale Power Stock Be in 100 Years?"
           },
           {
-            "date" : "2026-06-17",
-            "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/paragon-awarded-contract-complete-final-105000088.html?.tsrc=rss",
+            "date" : "2026-06-26",
+            "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/smr-bwxt-why-one-nuclear-122000001.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Paragon Awarded Contract to Complete Final Design Work Supporting NuScale Power's Small Modular Reactor"
+            "title" : "SMR or BWXT: Why One Nuclear Stock Looks More Attractive"
+          },
+          {
+            "date" : "2026-06-26",
+            "link" : "https:\/\/www.fool.com\/investing\/2026\/06\/25\/nuscale-power-stock-is-plunging-whats-causing\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "Motley Fool",
+            "title" : "NuScale Power Stock Is Plunging: What's Causing the Decline"
+          },
+          {
+            "date" : "2026-06-29",
+            "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/nuscale-power-smr-secures-paragon-020552129.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "NuScale Power (SMR) Secures Paragon Contract As SMR Rollout Gets More Real"
+          },
+          {
+            "date" : "2026-06-29",
+            "link" : "https:\/\/finance.yahoo.com\/m\/11168907-3405-3d5e-9a2a-62f9f2e8fcfd\/nuclear-stocks-and-small.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Nuclear Stocks And Small Modular Reactors Ace Big Wins. A DOE Deadline Looms."
+          },
+          {
+            "date" : "2026-07-01",
+            "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/bwx-technologies-benefit-commercial-nuclear-121100700.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Can BWX Technologies Benefit From the Commercial Nuclear Revival?"
           }
         ]
       },
@@ -14406,9 +14406,9 @@
           "from" : "2026-05-13",
           "to" : "2026-08-13"
         },
-        "daysOfData" : 119,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.277Z",
+        "generatedAt" : "2026-09-22T17:10:10.131Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -14518,7 +14518,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, TAP [-13.29%] (Molson Coors Beverage) demonstrated a defining theme of robust earnings growth supported by financial stability and strategic diversification, including the launch of low-calorie beers in Europe and the Coors Banquet x Wrangler apparel line. The biggest risk to emerge is anticipated glass pinch issues that could disrupt distribution, while key catalysts included a strategic distributor partnership in North America and a debt raise following strong Q1 and Q2 earnings beats. As of late June 2026, TAP stands positioned with strengthened market confidence amid its premium product focus and dividend-paying reputation.",
         "digestTemplate" : "Over the past month, TAP {{TAP}} (Molson Coors Beverage) demonstrated a defining theme of robust earnings growth supported by financial stability and strategic diversification, including the launch of low-calorie beers in Europe and the Coors Banquet x Wrangler apparel line. The biggest risk to emerge is anticipated glass pinch issues that could disrupt distribution, while key catalysts included a strategic distributor partnership in North America and a debt raise following strong Q1 and Q2 earnings beats. As of late June 2026, TAP stands positioned with strengthened market confidence amid its premium product focus and dividend-paying reputation.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -14922,7 +14922,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, TSLA [+8.48%]’s defining theme was investor enthusiasm tied to autonomy progress and SpaceX IPO-linked merger speculation amid evolving corporate identity. The biggest catalyst that emerged was the metro-wide expansion of Tesla’s unsupervised robotaxi service in Austin following AI5 chip tape-out completion, while regulatory scrutiny over self-generated safety data in Sweden and the Netherlands stood out as a key risk. By the end of the period, TSLA’s stock valuation shifted amid analyst adjustments and Elon Musk increasing his voting stake, with ongoing uncertainty about strategic direction despite Q2 revenue beating expectations and Megapack filings advancing in Texas.",
         "digestTemplate" : "Over the past month, TSLA {{TSLA}}’s defining theme was investor enthusiasm tied to autonomy progress and SpaceX IPO-linked merger speculation amid evolving corporate identity. The biggest catalyst that emerged was the metro-wide expansion of Tesla’s unsupervised robotaxi service in Austin following AI5 chip tape-out completion, while regulatory scrutiny over self-generated safety data in Sweden and the Netherlands stood out as a key risk. By the end of the period, TSLA’s stock valuation shifted amid analyst adjustments and Elon Musk increasing his voting stake, with ongoing uncertainty about strategic direction despite Q2 revenue beating expectations and Megapack filings advancing in Texas.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -15347,7 +15347,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, UBER [-11.48%] advanced its transformation into a diversified “everything app” through AI-driven productivity, robotaxi partnerships with companies like Nvidia, Lucid, and WeRide, and expansion of delivery and mobility initiatives including commercial pilots in Madrid and Munich and a Delivery Hero acquisition bid. The biggest catalyst to emerge was confirmation of a 2027 Houston robotaxi rollout with Nuro and Lucid, while regulatory risks intensified as UBER sued New York City over driver rules and faced opposition in Illinois and Saudi Arabia. Despite market fluctuations early on, UBER stock gained investor confidence by month’s end, supported by strong Q2 revenue, analyst upgrades like Tigress Financial’s raised target, and hedge fund positioning amid sector trends.",
         "digestTemplate" : "Over the past month, UBER {{UBER}} advanced its transformation into a diversified “everything app” through AI-driven productivity, robotaxi partnerships with companies like Nvidia, Lucid, and WeRide, and expansion of delivery and mobility initiatives including commercial pilots in Madrid and Munich and a Delivery Hero acquisition bid. The biggest catalyst to emerge was confirmation of a 2027 Houston robotaxi rollout with Nuro and Lucid, while regulatory risks intensified as UBER sued New York City over driver rules and faced opposition in Illinois and Saudi Arabia. Despite market fluctuations early on, UBER stock gained investor confidence by month’s end, supported by strong Q2 revenue, analyst upgrades like Tigress Financial’s raised target, and hedge fund positioning amid sector trends.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -15737,7 +15737,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, UL [-3.78%] (Unilever) advanced a defining theme of innovation and expansion through its Global Innovation Center in New Haven focused on AI and quantum computing, a media platform investment, sustainable packaging growth, and evolving food sector strategy via a definitive merger agreement with McCormick that replaced earlier stake plans. The biggest catalyst or risk to emerge is the regulatory landscape shaping sustainable packaging and digital transformation, highlighted during the week of June 8–13 amid earnings and strategic shifts led by CEO Marie-Claire Gasco-Buisson. With no material developments reported in the final week beginning June 22, UL’s stock trajectory remains anchored to the earlier momentum from innovation and consolidation efforts.",
         "digestTemplate" : "Over the past month, UL {{UL}} (Unilever) advanced a defining theme of innovation and expansion through its Global Innovation Center in New Haven focused on AI and quantum computing, a media platform investment, sustainable packaging growth, and evolving food sector strategy via a definitive merger agreement with McCormick that replaced earlier stake plans. The biggest catalyst or risk to emerge is the regulatory landscape shaping sustainable packaging and digital transformation, highlighted during the week of June 8–13 amid earnings and strategic shifts led by CEO Marie-Claire Gasco-Buisson. With no material developments reported in the final week beginning June 22, UL’s stock trajectory remains anchored to the earlier momentum from innovation and consolidation efforts.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -16162,7 +16162,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Vertiv (VRT [-0.49%]) was defined by rising demand for AI-powered data center infrastructure driving strategic growth and financial confidence. The biggest catalyst was the deepening NVIDIA partnership, including co-development of an 800-volt DC power architecture and a production-grade digital twin for SmartRun in NVIDIA Omniverse DSX, while GLJ Research’s upgrade to Hold from Sell highlighted evolving risk perceptions amid valuation questions. The stock reached a high early in June amid strong Q1 and Q2 earnings, completed ThermoKey S.p.A. acquisition, raised guidance, and maintained investor interest through dividend approvals and S&P 500 inclusion.",
         "digestTemplate" : "Over the past month, Vertiv (VRT {{VRT}}) was defined by rising demand for AI-powered data center infrastructure driving strategic growth and financial confidence. The biggest catalyst was the deepening NVIDIA partnership, including co-development of an 800-volt DC power architecture and a production-grade digital twin for SmartRun in NVIDIA Omniverse DSX, while GLJ Research’s upgrade to Hold from Sell highlighted evolving risk perceptions amid valuation questions. The stock reached a high early in June amid strong Q1 and Q2 earnings, completed ThermoKey S.p.A. acquisition, raised guidance, and maintained investor interest through dividend approvals and S&P 500 inclusion.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -16587,7 +16587,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Vistra Corp. (VST [+4.92%]) anchored its strategy in powering AI-driven energy demand through nuclear, renewable, and natural gas expansion while integrating major acquisitions like Cogentrix and Calpine. The biggest catalyst was Vistra’s selection as the primary energy provider for two $10 billion AI infrastructure projects backed by KKR—one with Nvidia and the Kuwait Investment Authority, the other with Helix Digital Infrastructure—while insider sales and project delays emerged as key risks. Despite strong earnings, ongoing buybacks, and analyst endorsements such as Bernstein’s Outperform rating, VST’s stock repeatedly dipped below key moving averages amid shifting market sentiment.",
         "digestTemplate" : "Over the past month, Vistra Corp. (VST {{VST}}) anchored its strategy in powering AI-driven energy demand through nuclear, renewable, and natural gas expansion while integrating major acquisitions like Cogentrix and Calpine. The biggest catalyst was Vistra’s selection as the primary energy provider for two $10 billion AI infrastructure projects backed by KKR—one with Nvidia and the Kuwait Investment Authority, the other with Helix Digital Infrastructure—while insider sales and project delays emerged as key risks. Despite strong earnings, ongoing buybacks, and analyst endorsements such as Bernstein’s Outperform rating, VST’s stock repeatedly dipped below key moving averages amid shifting market sentiment.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -16949,7 +16949,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, VVOS [-43.65%] (Vivos Therapeutics) advanced its defining theme of financial stabilization and growth through strategic financing and expanded partnerships, including a senior debt-to-equity swap with Streeterville Capital and collaborations with a leading pharmaceutical firm and the Florida Cardiology Group. The biggest catalyst or risk to emerge is the upcoming US SEC rights offering, alongside FDA approval for a new clinical trial phase announced during the week of June 8, which will shape future regulatory and funding momentum. With continued efforts to maintain Nasdaq listing status and extend financing agreements through the end of June, VVOS now sits at a pivotal juncture tied to clinical progress and capital execution.",
         "digestTemplate" : "Over the past month, VVOS {{VVOS}} (Vivos Therapeutics) advanced its defining theme of financial stabilization and growth through strategic financing and expanded partnerships, including a senior debt-to-equity swap with Streeterville Capital and collaborations with a leading pharmaceutical firm and the Florida Cardiology Group. The biggest catalyst or risk to emerge is the upcoming US SEC rights offering, alongside FDA approval for a new clinical trial phase announced during the week of June 8, which will shape future regulatory and funding momentum. With continued efforts to maintain Nasdaq listing status and extend financing agreements through the end of June, VVOS now sits at a pivotal juncture tied to clinical progress and capital execution.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -17026,7 +17026,7 @@
         },
         "daysOfData" : 119,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.137Z",
+        "generatedAt" : "2026-09-22T17:10:10.245Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -17087,45 +17087,17 @@
         ]
       },
       "3M" : {
-        "articleCount" : 24,
-        "avgRelevanceScore" : 7.75,
+        "articleCount" : 19,
+        "avgRelevanceScore" : 7.7894736842105265,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-06-11",
+          "from" : "2026-06-30",
           "to" : "2026-09-08"
         },
         "daysOfData" : 119,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.137Z",
+        "generatedAt" : "2026-09-22T17:10:10.245Z",
         "sources" : [
-          {
-            "date" : "2026-06-11",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/vivos-therapeutics-plans-file-proposed-131126815.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Vivos Therapeutics Plans to File for Proposed Rights Offering"
-          },
-          {
-            "date" : "2026-06-11",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/vivos-therapeutics-announces-intent-file-123000526.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Vivos Therapeutics Announces Intent to File a Registration Statement for a Proposed Rights Offering"
-          },
-          {
-            "date" : "2026-06-22",
-            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/sector-healthcare-stocks-rise-afternoon-194327826.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Sector Update: Healthcare Stocks Rise Late Afternoon"
-          },
-          {
-            "date" : "2026-06-22",
-            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/vivos-therapeutics-streeterville-extend-timeframe-123000802.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Vivos Therapeutics and Streeterville Extend Timeframe of Strategic Financing Agreement and Reaffirm Commitment to Convert Debt Into Common Stock and Perpetual Preferred Equity"
-          },
           {
             "date" : "2026-06-30",
             "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/vivos-vida-appliance-shows-statistically-124500026.html?.tsrc=rss",
@@ -17153,6 +17125,34 @@
             "score" : 8,
             "source" : "Yahoo Finance",
             "title" : "Vivos Therapeutics (VVOS) Stock Fair Value Falls After Analyst Target Cuts"
+          },
+          {
+            "date" : "2026-08-05",
+            "link" : "https:\/\/investorshub.advfn.com\/market-news\/article\/33544\/vivos-therapeutics-secures-new-u-s-patent-expanding-protection-for-vivos-care-technology?.tsrc=rss",
+            "score" : 8,
+            "source" : "investorshub.advfn.com",
+            "title" : "Vivos Therapeutics Secures New U.S. Patent Expanding Protection for Vivos CARE Technology"
+          },
+          {
+            "date" : "2026-08-05",
+            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/vivos-therapeutics-announces-issuance-us-123000688.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Vivos Therapeutics Announces Issuance of New US Patent Broadening Protection for Its Vivos CARE Oral Medical Device Technology"
+          },
+          {
+            "date" : "2026-08-11",
+            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/vivos-therapeutics-expands-greenway-health-124500929.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Vivos Therapeutics Expands Greenway Health Partnership to Deploy AI-Enabled Platform Across All Clinical and Revenue Operations"
+          },
+          {
+            "date" : "2026-08-14",
+            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/vivos-therapeutics-schedules-release-second-124500183.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Vivos Therapeutics Schedules Release of Second Quarter 2026 Financial Results and Conference Call"
           }
         ]
       },
@@ -17166,7 +17166,7 @@
         },
         "daysOfData" : 119,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:11.137Z",
+        "generatedAt" : "2026-09-22T17:10:10.245Z",
         "sources" : [
           {
             "date" : "2026-05-13",
@@ -17311,7 +17311,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, Verizon (VZ [-6.34%]) advanced its defining theme of integrating AI into customer service and expanding fiber connectivity through the Frontier acquisition while streamlining pricing and financial operations. The biggest risk emerged from the U.S. Supreme Court’s ruling on FCC authority during the first week, compounded by ongoing competitive pressure from SpaceX’s Starlink. After launching AI tools, announcing a capital strategy and new area code, completing a cash tender offer, and reporting strong earnings with plan refreshes and partnerships, VZ stock saw heightened investor interest amid execution of its long-term growth ambitions.",
         "digestTemplate" : "Over the past month, Verizon (VZ {{VZ}}) advanced its defining theme of integrating AI into customer service and expanding fiber connectivity through the Frontier acquisition while streamlining pricing and financial operations. The biggest risk emerged from the U.S. Supreme Court’s ruling on FCC authority during the first week, compounded by ongoing competitive pressure from SpaceX’s Starlink. After launching AI tools, announcing a capital strategy and new area code, completing a cash tender offer, and reporting strong earnings with plan refreshes and partnerships, VZ stock saw heightened investor interest amid execution of its long-term growth ambitions.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -17736,7 +17736,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, WMT [+3.02%]’s defining theme was its aggressive expansion into automation and ultra-fast grocery delivery, highlighted by the launch of the Nella Comfort Kit, broader 30-minute and drone delivery rollouts, and the Symbotic acquisition to boost operational efficiency. The biggest catalyst or risk to emerge was the CEO transition from Andy Sam Walton to John Furner alongside ongoing antitrust scrutiny over pricing strategies, which could affect operational stability. By month’s end, WMT stock stood strong after exceeding earnings expectations and earning Bernstein’s reaffirmed positive outlook during the Walmart Deals launch.",
         "digestTemplate" : "Over the past month, WMT {{WMT}}’s defining theme was its aggressive expansion into automation and ultra-fast grocery delivery, highlighted by the launch of the Nella Comfort Kit, broader 30-minute and drone delivery rollouts, and the Symbotic acquisition to boost operational efficiency. The biggest catalyst or risk to emerge was the CEO transition from Andy Sam Walton to John Furner alongside ongoing antitrust scrutiny over pricing strategies, which could affect operational stability. By month’s end, WMT stock stood strong after exceeding earnings expectations and earning Bernstein’s reaffirmed positive outlook during the Walmart Deals launch.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-01",
@@ -18119,7 +18119,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, ZBRA [-1.08%]’s defining theme was innovation in automation and operational efficiency, highlighted by launches including the Zebra Nucleus platform and Workcloud AI Suite at ZONE 2026, new DNA Software Platforms and AI-Powered Solutions, integrated Elo Pay offerings, and a machine vision ecosystem at Automate 2026. The biggest catalyst or risk to monitor remains sustained demand for AI-driven tools like the Zebra AI Suite, underscored by evolving market dynamics despite stable earnings reports and BNP Paribas maintaining an Outperform rating with a rising price target. ZBRA’s stock now reflects cautious optimism amid mixed market reactions and recognition in the Wall Street Journal’s Best Companies for the Future report, following a period of strong operational momentum.",
         "digestTemplate" : "Over the past month, ZBRA {{ZBRA}}’s defining theme was innovation in automation and operational efficiency, highlighted by launches including the Zebra Nucleus platform and Workcloud AI Suite at ZONE 2026, new DNA Software Platforms and AI-Powered Solutions, integrated Elo Pay offerings, and a machine vision ecosystem at Automate 2026. The biggest catalyst or risk to monitor remains sustained demand for AI-driven tools like the Zebra AI Suite, underscored by evolving market dynamics despite stable earnings reports and BNP Paribas maintaining an Outperform rating with a rising price target. ZBRA’s stock now reflects cautious optimism amid mixed market reactions and recognition in the Wall Street Journal’s Best Companies for the Future report, following a period of strong operational momentum.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -18257,9 +18257,9 @@
           "from" : "2026-05-13",
           "to" : "2026-09-03"
         },
-        "daysOfData" : 118,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.674Z",
+        "generatedAt" : "2026-09-22T17:10:09.904Z",
         "sources" : [
           {
             "date" : "2026-05-18",
@@ -18324,12 +18324,12 @@
         "avgRelevanceScore" : 8.04,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-06-11",
+          "from" : "2026-06-26",
           "to" : "2026-09-03"
         },
-        "daysOfData" : 118,
+        "daysOfData" : 133,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-08T17:10:10.674Z",
+        "generatedAt" : "2026-09-22T17:10:09.904Z",
         "sources" : [
           {
             "date" : "2026-09-03",
@@ -18339,53 +18339,53 @@
             "title" : "New Strong Buy Stocks for September 3rd"
           },
           {
-            "date" : "2026-06-11",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/zebra-technologies-zbra-expands-enterprise-130332388.html?.tsrc=rss",
+            "date" : "2026-06-26",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/1-profitable-stock-worth-attention-072025143.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Zebra Technologies (ZBRA) Expands Enterprise Software Offering With New AI Platforms"
+            "title" : "1 Profitable Stock Worth Your Attention and 2 We Find Risky"
           },
           {
-            "date" : "2026-06-12",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/zebra-zbra-down-12-2-153004826.html?.tsrc=rss",
+            "date" : "2026-07-01",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/global-rfid-antenna-market-reach-140700462.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Zebra (ZBRA) Down 12.2% Since Last Earnings Report: Can It Rebound?"
+            "title" : "Global RFID Antenna Market to Reach USD 0.42 Billion by 2032 with 10.1% CAGR"
           },
           {
-            "date" : "2026-06-15",
-            "link" : "https:\/\/finance.yahoo.com\/sectors\/technology\/articles\/zebra-technologies-ranked-wall-street-121000871.html?.tsrc=rss",
+            "date" : "2026-07-02",
+            "link" : "https:\/\/finance.yahoo.com\/m\/8057942f-5012-3418-9df8-06954ce7230b\/these-2-stocks-called-best.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Zebra Technologies Ranked in Wall Street Journal’s Top 10 Companies for AI Readiness"
+            "title" : "These 2 Stocks Called Best Way To Play Industrial Automation Trend"
           },
           {
-            "date" : "2026-06-16",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/ttm-technologies-rogers-zebra-shares-074807840.html?.tsrc=rss",
+            "date" : "2026-07-13",
+            "link" : "https:\/\/www.trefis.com\/articles\/606855\/why-sym-stock-beats-a-bond-at-its-own-game\/2026-07-13?.tsrc=rss",
+            "score" : 8,
+            "source" : "trefis.com",
+            "title" : "Why SYM Stock Beats A Bond At Its Own Game"
+          },
+          {
+            "date" : "2026-07-13",
+            "link" : "https:\/\/www.trefis.com\/articles\/606636\/why-sym-beats-a-bond-at-its-own-game\/2026-07-10?.tsrc=rss",
+            "score" : 8,
+            "source" : "trefis.com",
+            "title" : "Why SYM Beats A Bond At Its Own Game"
+          },
+          {
+            "date" : "2026-07-13",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/zebra-technologies-zbra-lifts-outlook-161259476.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "TTM Technologies, Rogers, and Zebra Shares Are Soaring, What You Need To Know"
+            "title" : "Zebra Technologies (ZBRA) Lifts Outlook On A Narrative That Still Sees Undervaluation"
           },
           {
-            "date" : "2026-06-19",
-            "link" : "https:\/\/www.barchart.com\/story\/news\/2536280\/is-zebra-technologies-stock-underperforming-the-nasdaq?.tsrc=rss",
-            "score" : 8,
-            "source" : "barchart.com",
-            "title" : "Is Zebra Technologies Stock Underperforming the Nasdaq?"
-          },
-          {
-            "date" : "2026-06-22",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/transforming-manufacturing-workflows-zebra-technologies-121000697.html?.tsrc=rss",
+            "date" : "2026-07-13",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/peak-technologies-announces-ceo-transition-120000334.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Transforming Manufacturing Workflows: Zebra Technologies Unveils Machine Vision Ecosystem at Automate 2026"
-          },
-          {
-            "date" : "2026-06-23",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/vecna-robotics-appoints-cody-upp-130000492.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Vecna Robotics Appoints Cody Upp as Chief Commercial Officer As Demand for Case Flow Expands"
+            "title" : "Peak Technologies Announces CEO Transition as Company Enters Next Stage of Growth"
           }
         ]
       },
@@ -18544,7 +18544,7 @@
         "daysRequired" : 1,
         "digest" : "Over the past month, ZS [+18.27%] focused on advancing its AI-driven cybersecurity and Zero Trust platform amid evolving market perceptions of its role in securing autonomous agents. The biggest catalyst emerged in the first week when CEO Jay Chaudhry warned of an “AI Apocalypse” threatening the core business, sparking volatility despite strong fiscal performance and a new strategic partnership with a leading cybersecurity firm. After a temporary Nasdaq-100 removal and ongoing analyst reassessment—including reaffirmed Buy ratings—ZS regained its Nasdaq-100 spot by the final week as the company expanded the ZAgent Framework and Project AI-Guardian with major tech partners.",
         "digestTemplate" : "Over the past month, ZS {{ZS}} focused on advancing its AI-driven cybersecurity and Zero Trust platform amid evolving market perceptions of its role in securing autonomous agents. The biggest catalyst emerged in the first week when CEO Jay Chaudhry warned of an “AI Apocalypse” threatening the core business, sparking volatility despite strong fiscal performance and a new strategic partnership with a leading cybersecurity firm. After a temporary Nasdaq-100 removal and ongoing analyst reassessment—including reaffirmed Buy ratings—ZS regained its Nasdaq-100 spot by the final week as the company expanded the ZAgent Framework and Project AI-Guardian with major tech partners.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -18889,72 +18889,72 @@
   "portfolios" : {
     "brian" : {
       "1D" : {
-        "articleCount" : 8,
+        "articleCount" : 12,
         "avgRelevanceScore" : 8,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-09-17",
-          "to" : "2026-09-21"
+          "from" : "2026-09-18",
+          "to" : "2026-09-18"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/qualcomm-edged-higher-amazon-opens-171713925.html?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/securities-class-action-over-capital-071505751.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Qualcomm Edged Higher as Amazon Opens a $60 Billion AI Door"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/generac-jumps-34-2-4-120727975.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Generac Jumps 34% on a $2.4 Billion Amazon Supply Deal"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/exodus-movement-exod-stock-fair-042806530.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Exodus Movement (EXOD) Stock Fair Value Falls After Analysts Reset Targets"
-          },
-          {
-            "date" : "2026-09-21",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/strength-seen-exodus-movement-inc-092200222.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Strength Seen in Exodus Movement, Inc. (EXOD): Can Its 6.7% Jump Turn into More Strength?"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/crispr-therapeutics-crsp-gains-attention-151124522.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "CRISPR Therapeutics (CRSP) Gains Attention As CASGEVY Momentum Builds But Is The Valuation Too Rich"
+            "title" : "Will Securities Class Action Over Capital Claims and Insider Sales Change AST SpaceMobile's (ASTS) Narrative?"
           },
           {
             "date" : "2026-09-18",
-            "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/17\/where-will-crispr-therapeutics-be-in-10-years-if-g\/?.tsrc=rss",
+            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/rklb-asts-voyg-lunr-steal-spacex-thunder-what-lit-up-space-stocks-this-week\/cZtuNpRRB3O?.tsrc=rss",
+            "score" : 8,
+            "source" : "stocktwits.com",
+            "title" : "RKLB, ASTS, VOYG, LUNR Steal SpaceX’s Thunder — Here’s What Lit Up Space Stocks This Week"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/trump-xi-dinner-next-week-brings-ai-titans-to-the-table-open-ai-nvda-qcom-ceos-to-attend\/cZtscudRBdp?.tsrc=rss",
+            "score" : 8,
+            "source" : "stocktwits.com",
+            "title" : "Trump-Xi Dinner Next Week Brings AI Titans To The Table — OpenAI, NVDA, and QCOM CEOs To Attend, Says Report"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/17\/qualcomm-just-rallied-18-in-a-month-take-profits-or-buy-more\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "247wallst.com",
+            "title" : "Qualcomm Just Rallied 18% in a Month: Take Profits, or Buy More?"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/18\/apple-just-announced-a-groundbreaking-iphone-but-it-has-alienated-a-key-market\/?.tsrc=rss",
             "score" : 8,
             "source" : "Motley Fool",
-            "title" : "Where Will CRISPR Therapeutics Be in 10 Years if Gene Editing Fulfills Its Promise?"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/www.trefis.com\/articles\/615538\/should-record-revenue-make-ionq-stock-feel-safer\/2026-09-16?.tsrc=rss",
-            "score" : 8,
-            "source" : "trefis.com",
-            "title" : "Should Record Revenue Make IonQ Stock Feel Safer?"
+            "title" : "Apple Just Announced a Groundbreaking iPhone, but It Has Alienated a Key Market"
           },
           {
             "date" : "2026-09-18",
-            "link" : "https:\/\/www.trefis.com\/articles\/615677\/could-eaton-stock-lose-a-third-or-gain-half-in-a-year\/2026-09-17?.tsrc=rss",
+            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/biohacking-market-outlook-2026-2035-080900177.html?.tsrc=rss",
             "score" : 8,
-            "source" : "trefis.com",
-            "title" : "Could Eaton Stock Lose A Third Or Gain Half In A Year?"
+            "source" : "Yahoo Finance",
+            "title" : "Biohacking Market Outlook 2026-2035 - Featuring Profiles of Apple, Fitbit, and Thync Global"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/gnrc-stock-heads-for-best-week-since-may-amazon-deal-sparks-fresh-data-center-growth-bets-analysts-say-generac-is-trading-cheap\/cZtuYTHRB3L?.tsrc=rss",
+            "score" : 8,
+            "source" : "stocktwits.com",
+            "title" : "GNRC Stock Heads For Best Week Since May: Amazon Deal Sparks Fresh Data Center Growth Bets, Analysts Say Generac Is Trading Cheap"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/amazon-com-amzn-us-8-021233361.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "What Amazon.com (AMZN)'s US$8 Billion Backup Power Deal With Generac Means For Shareholders"
           }
         ]
       },
@@ -18971,7 +18971,7 @@
         "daysRequired" : 1,
         "digest" : "CRSP [+1.46%] advanced after reporting narrower quarterly losses alongside gene editing pipeline progress, lifting momentum for Brian [+3.85%]’s holdings. ASTS [+2.41%] declined as sector attention shifted away from space connectivity toward unrelated financial innovation. Brian should monitor SERV [-3.64%] for near-term developments as market rotation into AI infrastructure unfolds.",
         "digestTemplate" : "CRSP {{CRSP}} advanced after reporting narrower quarterly losses alongside gene editing pipeline progress, lifting momentum for Brian {{user:brian}}’s holdings. ASTS {{ASTS}} declined as sector attention shifted away from space connectivity toward unrelated financial innovation. Brian should monitor SERV {{SERV}} for near-term developments as market rotation into AI infrastructure unfolds.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-25",
@@ -19039,9 +19039,9 @@
           "from" : "2026-09-14",
           "to" : "2026-09-21"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
           {
             "date" : "2026-09-17",
@@ -19314,16 +19314,16 @@
     },
     "gene" : {
       "1D" : {
-        "articleCount" : 6,
+        "articleCount" : 8,
         "avgRelevanceScore" : 8,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-09-17",
-          "to" : "2026-09-18"
+          "from" : "2026-09-18",
+          "to" : "2026-09-22"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:07.019Z",
+        "generatedAt" : "2026-09-22T17:10:06.743Z",
         "sources" : [
           {
             "date" : "2026-09-18",
@@ -19340,32 +19340,46 @@
             "title" : "Can Applied Digital Stock Recover On Leases It Has Already Signed?"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/rklb-stock-iridium-deal-fcc-hurdle-vc-backer-solar-breakthrough\/cZtr9VxRB53?.tsrc=rss",
+            "date" : "2026-09-21",
+            "link" : "https:\/\/www.trefis.com\/articles\/615889\/what-are-you-really-buying-when-you-buy-samsara\/2026-09-18?.tsrc=rss",
             "score" : 8,
-            "source" : "stocktwits.com",
-            "title" : "RKLB Stock Eyes Ending 5-Week Slide: Iridium Deal Clears First FCC Hurdle, VC Backer Hails Solar Breakthrough"
+            "source" : "trefis.com",
+            "title" : "What Are You Really Buying When You Buy Samsara?"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/rocket-labs-component-portfolio-support-141600431.html?.tsrc=rss",
+            "date" : "2026-09-22",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/top-stock-picks-week-september-204100839.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Can Rocket Lab's Component Portfolio Support Space Market Growth?"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/energy\/articles\/small-modular-reactor-market-outlook-101100167.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Small Modular Reactor Market Outlook 2026-2035 - Featuring Profiles of NuScale Power, Rolls-Royce SMR, and GE Hitachi Nuclear Energy"
+            "title" : "Top Stock Picks for Week of September 21, 2026"
           },
           {
             "date" : "2026-09-18",
-            "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/17\/smr-developer-holtec-just-cancelled-its-ipo-should-nuscale-power-and-oklo-investors-panic\/?.tsrc=rss",
+            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/rklb-asts-voyg-lunr-steal-spacex-thunder-what-lit-up-space-stocks-this-week\/cZtuNpRRB3O?.tsrc=rss",
+            "score" : 8,
+            "source" : "stocktwits.com",
+            "title" : "RKLB, ASTS, VOYG, LUNR Steal SpaceX’s Thunder — Here’s What Lit Up Space Stocks This Week"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/17\/rocket-lab-is-playing-a-much-bigger-game-than-rocket-launches-eyes-90-upside\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "247wallst.com",
+            "title" : "Rocket Lab Is Playing a Much Bigger Game Than Rocket Launches, Eyes 90% Upside"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/17\/where-will-crispr-therapeutics-be-in-10-years-if-g\/?.tsrc=rss",
             "score" : 8,
             "source" : "Motley Fool",
-            "title" : "SMR Developer Holtec Just Cancelled Its IPO. Should NuScale Power and Oklo Investors Panic?"
+            "title" : "Where Will CRISPR Therapeutics Be in 10 Years if Gene Editing Fulfills Its Promise?"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/wall-street-analysts-think-crispr-133002404.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Wall Street Analysts Think CRISPR Therapeutics (CRSP) Is a Good Investment: Is It?"
           }
         ]
       },
@@ -19382,7 +19396,7 @@
         "daysRequired" : 1,
         "digest" : "UBS raised its price target on ASML [-0.70%] amid expanding momentum in AI-linked tech leadership, lifting Gene [+4.04%]’s holdings at the forefront. VVOS [-43.65%] declined sharply after financial restructuring efforts unfolded amid ongoing operational pressures weighing on the stock. Gene should monitor HUT [+34.02%]’s next steps in positioning Bitcoin mining capacity within AI infrastructure development.",
         "digestTemplate" : "UBS raised its price target on ASML {{ASML}} amid expanding momentum in AI-linked tech leadership, lifting Gene {{user:gene}}’s holdings at the forefront. VVOS {{VVOS}} declined sharply after financial restructuring efforts unfolded amid ongoing operational pressures weighing on the stock. Gene should monitor HUT {{HUT}}’s next steps in positioning Bitcoin mining capacity within AI infrastructure development.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-28",
@@ -19450,9 +19464,9 @@
           "from" : "2026-09-14",
           "to" : "2026-09-15"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:07.019Z",
+        "generatedAt" : "2026-09-22T17:10:06.743Z",
         "sources" : [
           {
             "date" : "2026-09-14",
@@ -19729,54 +19743,54 @@
         "avgRelevanceScore" : 8,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-09-17",
-          "to" : "2026-09-17"
+          "from" : "2026-09-18",
+          "to" : "2026-09-21"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/globalfoundries-marvell-expand-collaboration-next-123500628.html?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/marvell-technology-mrvl-deepens-ai-031612345.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "GlobalFoundries and Marvell expand collaboration for next-generation optical connectivity"
+            "title" : "Marvell Technology (MRVL) Deepens Its AI Infrastructure Footprint"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/www.fool.com\/coverage\/better-buy\/2026\/09\/17\/applied-materials-vs-marvell-technology-which-tech-stock-is-a-better-buy-in-2026\/?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.proactiveinvestors.com\/companies\/news\/1098705\/globalfoundries-and-marvell-expand-sige-deal-for-ai-data-centers-1098705.html?.tsrc=rss",
             "score" : 8,
-            "source" : "Motley Fool",
-            "title" : "Applied Materials vs. Marvell Technology: Which Tech Stock Is a Better Buy in 2026?"
+            "source" : "proactiveinvestors.com",
+            "title" : "GlobalFoundries and Marvell expand SiGe deal for AI data centers"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/alab-broadens-leo-portfolio-stay-154200386.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "ALAB Broadens Leo Portfolio: Can It Stay Ahead of MRVL & CRDO?"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/16\/credos-236-million-adjusted-profit-came-with-just-83-million-in-free-cash-flow\/?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/17\/if-ai-spending-keeps-exploding-credo-stock-could-look-very-different-by-2030\/?.tsrc=rss",
             "score" : 8,
             "source" : "247wallst.com",
-            "title" : "Credo’s $236 Million Adjusted Profit Came With Just $83 Million in Free Cash Flow"
+            "title" : "If AI Spending Keeps Exploding, Credo Stock Could Look Very Different by 2030"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/q2-earnings-highlights-zscaler-nasdaq-140452592.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Q2 Earnings Highlights: Zscaler (NASDAQ:ZS) Vs The Rest Of The Cybersecurity Stocks"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/16\/okta-just-rallied-28-in-a-month-and-cybersecurity-stocks-are-red-hot-now-is-200-coming-soon\/?.tsrc=rss",
+            "date" : "2026-09-21",
+            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/21\/credo-technology-crashed-for-3-months-this-wall-street-pro-says-its-about-to-double\/?.tsrc=rss",
             "score" : 8,
             "source" : "247wallst.com",
-            "title" : "Okta Just Rallied 28% in a Month and Cybersecurity Stocks Are Red-Hot Now. Is $200 Coming Soon?"
+            "title" : "Credo Technology Crashed for 3 Months: This Wall Street Pro Says It’s About to Double"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.trefis.com\/articles\/615693\/should-you-buy-vertiv-stock-for-its-widening-margin-despite-delivery-doubts\/2026-09-17?.tsrc=rss",
+            "score" : 8,
+            "source" : "trefis.com",
+            "title" : "Should You Buy Vertiv Stock For Its Widening Margin Despite Delivery Doubts?"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/vertivs-product-revenue-accelerates-outpace-154500357.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Vertiv's Product Revenue Accelerates: Can It Outpace APH & SMCI?"
           }
         ]
       },
@@ -19793,7 +19807,7 @@
         "daysRequired" : 1,
         "digest" : "Marvell’s revenue uplift fueled MRVL [+14.95%]’s surge, giving Kevin [+4.83%] a strong lift as chip demand momentum returned. ZS [+18.27%] stumbled after issuing underwhelming guidance despite solid results, dragging on sentiment. Kevin can monitor VRT [-0.49%]’s new product rollout for clues about ongoing AI infrastructure expansion.",
         "digestTemplate" : "Marvell’s revenue uplift fueled MRVL {{MRVL}}’s surge, giving Kevin {{user:kevin}} a strong lift as chip demand momentum returned. ZS {{ZS}} stumbled after issuing underwhelming guidance despite solid results, dragging on sentiment. Kevin can monitor VRT {{VRT}}’s new product rollout for clues about ongoing AI infrastructure expansion.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-02",
@@ -19861,9 +19875,9 @@
           "from" : "2026-09-14",
           "to" : "2026-09-16"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
           {
             "date" : "2026-09-14",
@@ -20122,31 +20136,17 @@
     },
     "lee" : {
       "1D" : {
-        "articleCount" : 8,
+        "articleCount" : 12,
         "avgRelevanceScore" : 8,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-09-17",
+          "from" : "2026-09-18",
           "to" : "2026-09-21"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/small-business\/articles\/gm-ceo-mary-barra-says-070000803.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "GM CEO Mary Barra says America has a ‘societal problem’ with skilled trades—and is putting $200 million behind training Gen Z to work with their hands"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/general-motor-investors-fresh-warning-181746383.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "General Motor Investors Get Fresh Warning About 2027"
-          },
           {
             "date" : "2026-09-21",
             "link" : "https:\/\/finance.yahoo.com\/video\/nike-earnings-expectations-brutally-cut-135511460.html?.tsrc=rss",
@@ -20162,32 +20162,46 @@
             "title" : "1 Profitable Stock to Research Further and 2 We Find Risky"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/hedy-adds-apple-private-cloud-204900280.html?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.thestreet.com\/retail\/walmart-glp-1-pharmacy-health-ambassador-pilot?.tsrc=rss",
             "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Hedy Adds Apple Private Cloud Compute to Its AI Meeting Assistant in iOS 27"
+            "source" : "thestreet.com",
+            "title" : "Walmart is betting big on the GLP-1 boom"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/m\/415f2741-5513-310b-aab7-935bf92d5a58\/apple%E2%80%99s-biggest-win-this-week.html?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/247wallst.com\/personal-finance\/2026\/09\/17\/the-waltons-are-moving-billions-to-the-next-generation-through-a-trust-named-after-jackie-kennedys-will-it-pays-charity-first-the-heirs-second-and-the-irs-close-to-nothing\/?.tsrc=rss",
             "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Apple’s Biggest Win This Week Isn’t the New iPhone"
+            "source" : "247wallst.com",
+            "title" : "The Waltons Are Moving Billions to the Next Generation Through a Trust Named After Jackie Kennedy’s Will. It Pays Charity First, the Heirs Second, and the IRS Close to Nothing"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/jim-cramer-hesitates-bet-against-114359290.html?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.tikr.com\/blog\/home-depot-paid-2-3-billion-in-dividends-while-returns-on-capital-slipped-heres-where-hd-stock-could-go?ref=yahoofinance&.tsrc=rss",
             "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Jim Cramer Hesitates to Bet Against QXO CEO Brad Jacobs"
+            "source" : "tikr.com",
+            "title" : "Home Depot Paid $2.3 Billion in Dividends While Returns on Capital Slipped. Here’s Where HD Stock Could Go."
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/small-business\/articles\/path-pro-programs-deliver-15-110000034.html?.tsrc=rss",
+            "date" : "2026-09-21",
+            "link" : "https:\/\/qz.com\/tariffs-soaring-fuel-costs-and-rising-rates-are-squeezing-us-manufacturers?.tsrc=rss",
+            "score" : 8,
+            "source" : "qz.com",
+            "title" : "Tariffs, fuel costs, and rising rates squeeze U.S. manufacturers"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/article\/how-apples-iphone-18-price-increases-impact-your-trade-in-value-at-verizon-t-mobile-or-att-122122027.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Path to Pro Programs will Deliver 15 Million Introductions to High-Demand Construction Careers"
+            "title" : "How Apple's iPhone 18 price increases impact your trade-in value at Verizon, T-Mobile, or AT&T"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/siyata-ptt-verizon-launch-sd7-172000415.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Siyata PTT and Verizon to Launch SD7 Ultra 5G Push-to-Talk Handset"
           }
         ]
       },
@@ -20204,7 +20218,7 @@
         "daysRequired" : 1,
         "digest" : "Better-than-expected quarterly results lifted HD [-9.89%] after a distribution strategy expanded retail reach, while VZ [-6.34%] dipped amid shifting telecom partnership dynamics affecting investor sentiment. Lee [-5.33%] can monitor DKS [-25.46%] as core sales momentum and post-acquisition integration shape upcoming guidance. Upcoming earnings insights for AAPL [+10.26%] may clarify how sector shifts influence portfolio direction.",
         "digestTemplate" : "Better-than-expected quarterly results lifted HD {{HD}} after a distribution strategy expanded retail reach, while VZ {{VZ}} dipped amid shifting telecom partnership dynamics affecting investor sentiment. Lee {{user:lee}} can monitor DKS {{DKS}} as core sales momentum and post-acquisition integration shape upcoming guidance. Upcoming earnings insights for AAPL {{AAPL}} may clarify how sector shifts influence portfolio direction.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-06-02",
@@ -20272,10 +20286,24 @@
           "from" : "2026-09-14",
           "to" : "2026-09-21"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
+          {
+            "date" : "2026-09-14",
+            "link" : "https:\/\/finance.yahoo.com\/markets\/stocks\/articles\/nike-downgraded-affirm-upgraded-wall-134559486.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Nike downgraded, Affirm upgraded: Wall Street's top analyst calls"
+          },
+          {
+            "date" : "2026-09-21",
+            "link" : "https:\/\/finance.yahoo.com\/video\/nike-earnings-expectations-brutally-cut-135511460.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Nike earnings expectations get brutally cut down by Stifel analysts"
+          },
           {
             "date" : "2026-09-14",
             "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/14\/tim-cook-purchase-488-sp-500-companies-with-879-billion-he-bought-something-changed-apple-fortune-forever\/?.tsrc=rss",
@@ -20289,20 +20317,6 @@
             "score" : 8,
             "source" : "investorshub.advfn.com",
             "title" : "Apple iPhone 18 Pro Delivery Lead Times Below Last Year, JPMorgan Says"
-          },
-          {
-            "date" : "2026-09-14",
-            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/14\/4-high-yield-dividend-stocks-worth-having-in-your-roth-ira\/?.tsrc=rss",
-            "score" : 8,
-            "source" : "247wallst.com",
-            "title" : "4 High-Yield Dividend Stocks Worth Having in Your Roth IRA"
-          },
-          {
-            "date" : "2026-09-14",
-            "link" : "https:\/\/finance.yahoo.com\/healthcare\/articles\/pfizer-overcome-covid-patent-cliff-133700992.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Can Pfizer Overcome Its COVID and Patent Cliff Headwinds?"
           },
           {
             "date" : "2026-09-14",
@@ -20547,58 +20561,72 @@
     },
     "rick" : {
       "1D" : {
-        "articleCount" : 6,
+        "articleCount" : 12,
         "avgRelevanceScore" : 8,
         "dataMaturity" : "full",
         "dateRange" : {
-          "from" : "2026-09-17",
-          "to" : "2026-09-17"
+          "from" : "2026-09-18",
+          "to" : "2026-09-18"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 1,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/m\/08a882c2-c38e-3e43-8828-38759909efbc\/nebius-stock-and-iren-jump..html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "Nebius Stock and IREN Jump. AI Neoclouds Are Flexing Their Pricing Power."
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/www.trefis.com\/articles\/615654\/whats-happening-with-nbis-stock\/2026-09-17?.tsrc=rss",
-            "score" : 8,
-            "source" : "trefis.com",
-            "title" : "What's Happening With NBIS Stock?"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/sentinelone-expands-wayfinder-openai-newest-065417233.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "SentinelOne (S) Expands Wayfinder With OpenAI’s Newest Cyber Model"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/www.fool.com\/coverage\/filings\/2026\/09\/16\/sentinelone-ceo-sells-shares-worth-usd2-3-million-as-the-stock-soars\/?.tsrc=rss",
-            "score" : 8,
-            "source" : "Motley Fool",
-            "title" : "SentinelOne CEO Sells Shares Worth $2.3 Million as the Stock Soars"
-          },
-          {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/rklb-stock-iridium-deal-fcc-hurdle-vc-backer-solar-breakthrough\/cZtr9VxRB53?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/stocktwits.com\/news-articles\/markets\/equity\/rklb-asts-voyg-lunr-steal-spacex-thunder-what-lit-up-space-stocks-this-week\/cZtuNpRRB3O?.tsrc=rss",
             "score" : 8,
             "source" : "stocktwits.com",
-            "title" : "RKLB Stock Eyes Ending 5-Week Slide: Iridium Deal Clears First FCC Hurdle, VC Backer Hails Solar Breakthrough"
+            "title" : "RKLB, ASTS, VOYG, LUNR Steal SpaceX’s Thunder — Here’s What Lit Up Space Stocks This Week"
           },
           {
-            "date" : "2026-09-17",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/rocket-labs-component-portfolio-support-141600431.html?.tsrc=rss",
+            "date" : "2026-09-18",
+            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/17\/rocket-lab-is-playing-a-much-bigger-game-than-rocket-launches-eyes-90-upside\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "247wallst.com",
+            "title" : "Rocket Lab Is Playing a Much Bigger Game Than Rocket Launches, Eyes 90% Upside"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/m\/36b88880-e3f9-3336-bfc3-edbb83a6653d\/generac%2C-nebius%2C-coreweave%2C.html?.tsrc=rss",
             "score" : 8,
             "source" : "Yahoo Finance",
-            "title" : "Can Rocket Lab's Component Portfolio Support Space Market Growth?"
+            "title" : "Generac, Nebius, CoreWeave, Nokia, Lucid, Paramount, and More Stocks That Explain Today’s Market"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/m\/08a882c2-c38e-3e43-8828-38759909efbc\/nebius-stock-and-iren-gain..html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Nebius Stock and IREN Gain. AI Neoclouds Are Flexing Their Pricing Power."
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/18\/if-recession-coming-history-no-brainer-etf-buy\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "Motley Fool",
+            "title" : "If a Recession Is Coming, History Says This 1 No-Brainer ETF Is the Smartest Buy Right Now"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/www.fool.com\/investing\/2026\/09\/18\/jensen-huang-calls-nvidia-the-worlds-first-and-onl\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "Motley Fool",
+            "title" : "Jensen Huang Calls Nvidia the \"World's First and Only Growth Value Stock,\" Pointing to Its 70% Revenue Growth Forecast Next Year. Here's Why That Framing Matters for How Investors Price NVDA."
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/247wallst.com\/investing\/2026\/09\/18\/lumentum-climbs-3-as-optics-buying-extends-coherent-rises-5-corning-jumps-3\/?.tsrc=rss",
+            "score" : 8,
+            "source" : "247wallst.com",
+            "title" : "Lumentum Climbs 3% as Optics Buying Extends; Coherent Rises 5%, Corning Jumps 3%"
+          },
+          {
+            "date" : "2026-09-18",
+            "link" : "https:\/\/finance.yahoo.com\/m\/dcd0f202-0845-3945-921f-f151203b3bfe\/intel%2C-netflix%2C-berkshire.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "Intel, Netflix, Berkshire Hathaway, and More Stocks That Explain Today’s Market"
           }
         ]
       },
@@ -20615,7 +20643,7 @@
         "daysRequired" : 1,
         "digest" : "A major investment disclosure lifted NBIS [+11.53%] as interest surged in optical networking for AI infrastructure, giving Rick [+7.36%] a standout performer. Rocket Lab’s stock stumbled after a competitor’s launch failure rippled through the space sector, weighing on RKLB [+5.52%]. Rick should monitor COHR [+12.33%]’s progress as photonics advances reshape connectivity in AI systems.",
         "digestTemplate" : "A major investment disclosure lifted NBIS {{NBIS}} as interest surged in optical networking for AI infrastructure, giving Rick {{user:rick}} a standout performer. Rocket Lab’s stock stumbled after a competitor’s launch failure rippled through the space sector, weighing on RKLB {{RKLB}}. Rick should monitor COHR {{COHR}}’s progress as photonics advances reshape connectivity in AI systems.",
-        "generatedAt" : "2026-09-22T17:00:26.055Z",
+        "generatedAt" : "2026-09-22T17:10:10.326Z",
         "sources" : [
           {
             "date" : "2026-05-29",
@@ -20683,24 +20711,10 @@
           "from" : "2026-09-14",
           "to" : "2026-09-16"
         },
-        "daysOfData" : 134,
+        "daysOfData" : 135,
         "daysRequired" : 7,
-        "generatedAt" : "2026-09-21T17:10:06.734Z",
+        "generatedAt" : "2026-09-22T17:10:06.437Z",
         "sources" : [
-          {
-            "date" : "2026-09-14",
-            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/aaois-optical-networking-demand-rise-143900911.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "AAOI's Optical Networking Demand Rise: Can It Beat LITE and COHR?"
-          },
-          {
-            "date" : "2026-09-14",
-            "link" : "https:\/\/finance.yahoo.com\/m\/d4ea1271-0473-33c5-ada7-61a6c104a9a4\/hpe-stock-is-downgraded-after.html?.tsrc=rss",
-            "score" : 8,
-            "source" : "Yahoo Finance",
-            "title" : "HPE Stock Is Downgraded After Rising 159% This Year. Why?"
-          },
           {
             "date" : "2026-09-14",
             "link" : "https:\/\/finance.yahoo.com\/technology\/ai\/articles\/oracles-ai-cloud-growth-lifts-211041374.html?.tsrc=rss",
@@ -20714,6 +20728,20 @@
             "score" : 8,
             "source" : "blockspace.media",
             "title" : "Nebius CEO Volozh estimates $250 billion in capex spend by 2030"
+          },
+          {
+            "date" : "2026-09-14",
+            "link" : "https:\/\/finance.yahoo.com\/technology\/articles\/aaois-optical-networking-demand-rise-143900911.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "AAOI's Optical Networking Demand Rise: Can It Beat LITE and COHR?"
+          },
+          {
+            "date" : "2026-09-14",
+            "link" : "https:\/\/finance.yahoo.com\/m\/d4ea1271-0473-33c5-ada7-61a6c104a9a4\/hpe-stock-is-downgraded-after.html?.tsrc=rss",
+            "score" : 8,
+            "source" : "Yahoo Finance",
+            "title" : "HPE Stock Is Downgraded After Rising 159% This Year. Why?"
           },
           {
             "date" : "2026-09-15",
