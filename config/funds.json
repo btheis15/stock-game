@@ -168,6 +168,21 @@
           "weight": 1
         }
       ]
+    },
+    {
+      "id": "tesla-tgcj7",
+      "name": "Tesla",
+      "creator": "Dr. Fauchi",
+      "color": "#3B82F6",
+      "createdAt": "2026-10-05T23:55:54.826Z",
+      "updatedAt": "2026-10-05T23:55:54.826Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "TSLA",
+          "weight": 1
+        }
+      ]
     }
   ]
 }
