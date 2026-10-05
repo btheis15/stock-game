@@ -153,6 +153,21 @@
           "weight": 1
         }
       ]
+    },
+    {
+      "id": "spacex-f5tck",
+      "name": "SpaceX",
+      "creator": "Dr. Fauchi",
+      "color": "#F43F5E",
+      "createdAt": "2026-10-05T20:13:46.256Z",
+      "updatedAt": "2026-10-05T20:13:46.256Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "SPCX",
+          "weight": 1
+        }
+      ]
     }
   ]
 }
