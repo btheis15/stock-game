@@ -183,6 +183,29 @@
           "weight": 1
         }
       ]
+    },
+    {
+      "id": "cellular-communication-x2rsz",
+      "name": "Cellular communication",
+      "creator": "Dr. Fauchi",
+      "color": "#EC4899",
+      "createdAt": "2026-10-09T13:54:24.532Z",
+      "updatedAt": "2026-10-09T13:54:24.532Z",
+      "deletedAt": null,
+      "holdings": [
+        {
+          "ticker": "T",
+          "weight": 0.334
+        },
+        {
+          "ticker": "VZ",
+          "weight": 0.333
+        },
+        {
+          "ticker": "TMUS",
+          "weight": 0.333
+        }
+      ]
     }
   ]
 }
