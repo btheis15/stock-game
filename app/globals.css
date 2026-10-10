@@ -304,6 +304,141 @@ html {
   animation: confettiFall 2.4s cubic-bezier(0.3, 0, 0.8, 1) both;
 }
 
+/* Launch splash — see components/Splash.tsx. Always pure #000 + the
+   brand line colors (it continues the dark iOS launch image, whatever the
+   session theme), so it's styled here instead of with semantic tokens.
+   The mark is sized and centered exactly like the startup PNG (32vw,
+   capped for desktop), and the copy is positioned BELOW it so the mark
+   itself never moves at the hand-off. */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  pointer-events: none;
+  /* Failsafe: if JS never dismisses it, it still gets out of the way. */
+  animation: splashFailsafe 0.3s ease 8s forwards;
+}
+
+:root[data-splash="skip"] .splash {
+  display: none;
+}
+
+.splash.is-leaving {
+  animation: splashOut 420ms var(--ease-out-ios) forwards;
+}
+
+.splash-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(32vw, 160px);
+  height: min(32vw, 160px);
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.splash.is-leaving .splash-mark {
+  animation: splashMarkOut 420ms var(--ease-out-ios) forwards;
+}
+
+.splash-glint {
+  stroke: #fff;
+  stroke-opacity: 0.75;
+  stroke-dasharray: 0.12 1.2;
+  stroke-dashoffset: 0.12;
+  animation: splashGlint 1.3s var(--ease-ios) 120ms infinite;
+}
+
+.splash-glint-2 {
+  animation-delay: 220ms;
+}
+
+.splash-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: splashDotIn 420ms var(--ease-out-ios) 160ms backwards;
+}
+
+.splash-dot-2 {
+  animation-delay: 260ms;
+}
+
+.splash-ring {
+  animation: livePulseRing 1.6s var(--ease-out-ios) 500ms infinite backwards;
+}
+
+.splash-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + min(16vw, 80px) + 18px);
+  text-align: center;
+}
+
+.splash-word {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  animation: riseIn var(--dur-enter) var(--ease-out-ios) 220ms backwards;
+}
+
+.splash-tag {
+  margin-top: 4px;
+  color: #71717a;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  animation: riseIn var(--dur-enter) var(--ease-out-ios) 340ms backwards;
+}
+
+.splash.is-leaving .splash-copy {
+  transition: opacity 200ms var(--ease-out-ios), transform 200ms var(--ease-out-ios);
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@keyframes splashGlint {
+  0% { stroke-dashoffset: 0.12; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { stroke-dashoffset: -1; opacity: 0; }
+}
+
+@keyframes splashDotIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+@keyframes splashOut {
+  0% { opacity: 1; }
+  30% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes splashMarkOut {
+  to { transform: translate(-50%, -50%) scale(1.18); opacity: 0; }
+}
+
+@keyframes splashFailsafe {
+  to { opacity: 0; visibility: hidden; }
+}
+
+/* Pull-to-refresh: the indicator gives a small "armed" bump when the pull
+   crosses the trigger threshold (keyed in PullToRefresh so it replays). */
+@keyframes ptrArmed {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+.ptr-armed {
+  animation: ptrArmed calc(var(--dur-press) * 2) var(--ease-out-ios);
+}
+
 /* Press feedback — a subtle iOS tap-shrink. Applies to native interactive
    elements (a, button), which receive :active during touch on iOS. Uses
    transition longhands (not the shorthand) and keeps color/background in the

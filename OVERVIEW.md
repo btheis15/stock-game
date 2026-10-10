@@ -439,7 +439,9 @@ is about a thousand lines of code.
 
 PWA install on iPhone: open `stock-game-gamma.vercel.app` in Safari → Share
 button → Add to Home Screen → it installs full-screen with the icon and
-launches like a native app.
+launches like a native app. On each fresh open, a short animated splash
+(the app's two-line chart mark tracing itself, then "Stock Game") plays
+while the latest numbers load behind it; it only shows once per session.
 
 ---
 

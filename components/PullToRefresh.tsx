@@ -172,7 +172,15 @@ export function PullToRefresh() {
           : "none",
       }}
     >
-      <div className="w-10 h-10 rounded-full bg-card-95 border border-hairline flex items-center justify-center shadow-2xl backdrop-blur-md">
+      {/* Keyed by armed state so the bump replays each time the pull
+          crosses the threshold — the "let go now" cue iOS gives with a
+          haptic tick. */}
+      <div
+        key={ready || refreshing ? "armed" : "idle"}
+        className={`w-10 h-10 rounded-full bg-card-95 border border-hairline flex items-center justify-center shadow-2xl backdrop-blur-md${
+          ready && !refreshing ? " ptr-armed" : ""
+        }`}
+      >
         {refreshing ? (
           <Spinner />
         ) : (
@@ -182,7 +190,7 @@ export function PullToRefresh() {
             className="w-5 h-5 transition-transform"
             style={{
               transform: `rotate(${arrowRotation}deg)`,
-              color: ready ? "var(--gain)" : "#a1a1aa",
+              color: ready ? "var(--gain)" : "var(--ink-muted)",
             }}
           >
             <path
@@ -201,11 +209,13 @@ export function PullToRefresh() {
 
 function Spinner() {
   return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5 animate-spin" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.15)" strokeWidth="2.5" />
+    <svg viewBox="0 0 24 24" className="w-5 h-5 animate-spin text-ink" fill="none">
+      {/* currentColor (theme ink) — the old hardcoded white spinner was
+          invisible on the light theme's white card. */}
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.15" strokeWidth="2.5" />
       <path
         d="M12 3a9 9 0 019 9"
-        stroke="#fff"
+        stroke="currentColor"
         strokeWidth="2.5"
         strokeLinecap="round"
       />

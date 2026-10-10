@@ -709,6 +709,31 @@ content entrances, all CSS on the shared tokens (`--dur-enter: 360ms`):
 - `.press` now also covers leaderboard rows, holdings rows, stocks-list
   rows, and the digest card.
 
+### Launch splash (added 2026-10-10)
+
+`components/Splash.tsx` — shown once per session on a cold open. Frame 0
+matches the iOS `apple-touch-startup-image` exactly (same icon geometry as
+`scripts/make-icons.py`, 32vw, centered on #000), so the OS launch image
+hands off to live HTML without the mark moving; then a glint traces the two
+lines, the endpoint dots pop with the live-pulse ring, and the wordmark
+rises in. It leaves on window `load` once ≥1.4s has passed since navigation
+start (4s cap; CSS failsafe at 8s if JS never runs). An inline `<head>`
+script in `app/layout.tsx` sets `<html data-splash="skip">` pre-paint when
+sessionStorage says this session already saw it, so reloads don't replay
+it. To let the splash actually paint while the server works, the layout no
+longer awaits `loadPriceData()` (the Footer streams in its own
+`<Suspense>`) and `app/loading.tsx` gives the tab routes a Suspense
+boundary. If you change the icon art in make-icons.py, update the
+polylines in Splash.tsx to match. Splash CSS is raw colors on purpose
+(always dark, continues the dark launch image) and lives in globals.css
+class rules, outside the check-theme utility guard.
+
+Smaller feel fixes shipped alongside: tap the active tab to scroll to top;
+HeaderBack falls back to the owning tab on a cold deep link
+(`lib/nav-history.ts`) instead of a dead `router.back()`; RangeTabs pills
+get `.press`; the pull-to-refresh indicator bumps when armed and its
+spinner/arrow use theme ink.
+
 ### Global reduced-motion guard (`app/globals.css`)
 
 A single `@media (prefers-reduced-motion: reduce)` block neutralizes all

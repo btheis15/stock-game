@@ -31,7 +31,7 @@ export function RangeTabs({
               aria-selected={active}
               onClick={() => onChange(r)}
               className={clsx(
-                "relative px-3 py-1.5 rounded-full text-[13px] font-semibold tracking-wide transition-colors",
+                "press relative px-3 py-1.5 rounded-full text-[13px] font-semibold tracking-wide transition-colors",
                 active ? "text-black" : "text-ink-muted hover:text-ink-2"
               )}
             >

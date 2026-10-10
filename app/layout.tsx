@@ -7,7 +7,10 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { ThemeController } from "@/components/ThemeController";
 import { MotionProvider } from "@/components/MotionProvider";
+import { Splash } from "@/components/Splash";
+import { SPLASH_SEEN_KEY } from "@/lib/splash";
 import { loadPriceData } from "@/lib/data";
+import { Suspense } from "react";
 
 function siteUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
@@ -83,14 +86,31 @@ const SPLASH_SCREENS = [
   { w: 440, h: 956, r: 3 },
 ];
 
-export default async function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+// The footer is the only thing in the layout that needs price data. Loading
+// it inside its own Suspense boundary (instead of awaiting in RootLayout)
+// lets the shell — and the launch splash — stream to the phone immediately
+// rather than waiting on the GitHub data read first.
+async function DataFooter() {
   const data = await loadPriceData();
   const lastDate = data.tradingDates[data.tradingDates.length - 1];
+  return <Footer lastDate={lastDate} generatedAt={data.generatedAt} />;
+}
+
+// Runs before first paint: once this session has seen the splash, hide it
+// so reloads don't replay it (see components/Splash.tsx).
+const SPLASH_SKIP_SCRIPT = `try{if(sessionStorage.getItem(${JSON.stringify(
+  SPLASH_SEEN_KEY
+)}))document.documentElement.dataset.splash="skip"}catch(e){}`;
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="h-full">
+    // suppressHydrationWarning: the inline splash script may set
+    // data-splash on <html> before React hydrates.
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_SKIP_SCRIPT }} />
         {SPLASH_SCREENS.map(({ w, h, r }) => (
           <link
             key={`${w}x${h}@${r}`}
@@ -101,6 +121,7 @@ export default async function RootLayout({
         ))}
       </head>
       <body className="min-h-full bg-page text-ink antialiased">
+        <Splash />
         <ThemeController />
         <ServiceWorkerRegistrar />
         <InstallHint />
@@ -111,7 +132,9 @@ export default async function RootLayout({
             style={{ paddingTop: "env(safe-area-inset-top)" }}
           >
             {children}
-            <Footer lastDate={lastDate} generatedAt={data.generatedAt} />
+            <Suspense fallback={null}>
+              <DataFooter />
+            </Suspense>
           </main>
         </MotionProvider>
         <TabBar />
