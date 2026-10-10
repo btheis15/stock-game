@@ -1,9 +1,21 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { hasInAppHistory } from "@/lib/nav-history";
+
+// Where Back lands when there's no in-app history to pop (cold deep link):
+// the tab that owns the detail page.
+function fallbackFor(pathname: string): string {
+  return pathname.startsWith("/stock/") ? "/stocks" : "/";
+}
 
 export function HeaderBack({ title }: { title?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const goBack = () => {
+    if (hasInAppHistory()) router.back();
+    else router.push(fallbackFor(pathname));
+  };
   // <main> in app/layout.tsx applies `paddingTop: env(safe-area-inset-top)`
   // so pages with no header (Compare, Stocks, Tee Times) start their content
   // cleanly below the iOS status bar. For pages that DO have a header
@@ -28,7 +40,7 @@ export function HeaderBack({ title }: { title?: string }) {
       }}
     >
       <button
-        onClick={() => router.back()}
+        onClick={goBack}
         aria-label="Back"
         className="press w-9 h-9 -ml-2 rounded-full flex items-center justify-center bg-card hover:bg-raised active:bg-strong"
       >

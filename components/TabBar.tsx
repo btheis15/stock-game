@@ -78,6 +78,16 @@ export function TabBar() {
               key={t.href}
               href={t.href}
               prefetch
+              aria-current={active ? "page" : undefined}
+              onClick={(e) => {
+                // iOS convention: tapping the tab you're already on scrolls
+                // it back to the top. (Tapping it from a drill-in under that
+                // tab still navigates — that's the "pop to root" half.)
+                if (pathname === t.href) {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
               className={clsx(
                 "press relative flex flex-col items-center gap-1 transition-colors flex-1",
                 active ? "text-ink" : "text-ink-faint"

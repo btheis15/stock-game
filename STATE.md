@@ -260,8 +260,13 @@ Routes that read `config/funds.json` (`/`, `/portfolio/[user]`, `/fund/[id]`, `/
 
 ```
 app/layout.tsx        Root: <html>, metadata, dynamic SITE_URL from VERCEL_PROJECT_PRODUCTION_URL,
-                      OG card, viewport, loads PriceData server-side to render Footer with
-                      "data through" timestamp, mounts <PullToRefresh /> + <InstallHint /> + <TabBar />
+                      OG card, viewport. Renders the Footer ("data through" timestamp) via an
+                      async <DataFooter> inside its own <Suspense> so the layout itself never
+                      awaits PriceData — the shell + launch <Splash /> stream immediately.
+                      An inline <head> script sets <html data-splash="skip"> pre-paint once the
+                      session has seen the splash (sessionStorage `stockgame.splash.seen`;
+                      key in lib/splash.ts) — hence `suppressHydrationWarning` on <html>.
+                      Mounts <PullToRefresh /> + <InstallHint /> + <TabBar />
                       + <ThemeController /> (calendar-driven: flips <html> between dark,
                       `data-theme="twilight"` for pre-market/after-hours, and
                       `data-theme="light"` during regular hours).
@@ -277,7 +282,13 @@ app/template.tsx      Route-transition wrapper (a `template.tsx` re-mounts on ev
                       `animation-fill-mode: backwards` so NO transform lingers at rest — that's
                       DELIBERATE: several pages render position:fixed modals inline and a
                       lingering transform would re-root them. Honors prefers-reduced-motion via
-                      the global guard in globals.css.
+                      the global guard in globals.css. Also marks lib/nav-history.ts on every
+                      in-app route change (HeaderBack's "is there anything to go back to?").
+
+app/loading.tsx       Root Suspense fallback (tab-route skeleton). Lets the shell + splash stream
+                      before force-dynamic page data resolves on a cold open; doubles as the
+                      instant response on an un-prefetched tab switch. Detail routes keep their
+                      own DetailSkeleton loading.tsx.
 
 components/
   ScrubChart.tsx      Pointer-driven scrub chart. Props:
@@ -309,10 +320,22 @@ components/
                       (tick text). All flip with `data-theme` on `<html>`.
   RangeTabs.tsx       1D / 1W / 1M / 3M / 1YR / ALL. 1D is the leftmost.
   TabBar.tsx          Bottom nav, fixed. Three tabs: Compare, Stocks, Tee Times. Each tab uses
-                      flex-1 so they distribute evenly. Tee Times icon is a golf ball on a tee.
+                      flex-1 so they distribute evenly. Tapping the tab you're already on
+                      smooth-scrolls to top (iOS convention); from a drill-in it navigates to
+                      the tab root. Tee Times icon is a golf ball on a tee.
                       (Per-user tabs were removed when Rick + Lee landed; jump into a portfolio
                       via the Compare leaderboard.)
-  HeaderBack.tsx      Sticky top bar with "< Compare" back button (router.back).
+  HeaderBack.tsx      Sticky top bar with "< Compare" back button. router.back() when this tab
+                      has in-app history (lib/nav-history.ts); on a COLD deep link (shared URL,
+                      PWA relaunch onto a detail page) it router.push()es the owning tab instead
+                      (/stock/* → /stocks, else /) — router.back() there did nothing / left the app.
+  Splash.tsx          Launch splash, once per session. Frame 0 is pixel-matched to the iOS
+                      apple-touch-startup-image (make-icons.py geometry, 32vw centered on #000)
+                      so the OS→HTML hand-off is seamless; then a glint traces the lines, the
+                      endpoint dots pop with the live-pulse ring, the wordmark rises in. Leaves
+                      on window `load` after ≥1.4s from navigation start (4s cap); CSS failsafe
+                      hides it at 8s even without JS. Styled in globals.css (.splash*), always
+                      dark regardless of theme.
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
@@ -347,7 +370,9 @@ components/
                         (a) Pull at scrollY=0, drag past 70px, release → location.reload()
                         (b) Visibility change: if hidden > 60s and becomes visible → reload
                       Touches that start inside an <svg> or [data-no-ptr] element are ignored
-                      so chart scrubbing isn't hijacked.
+                      so chart scrubbing isn't hijacked. The indicator bumps (.ptr-armed) when
+                      the pull crosses the trigger; arrow + spinner use theme ink (the old
+                      hardcoded white spinner was invisible in light mode).
   MarketStateBadge.tsx  Four-state badge driven by `getMarketSessionState()`: "● Market open"
                         (green, pulsing), "● Pre-market" / "● After hours" (indigo, pulsing),
                         or "● Market closed" (zinc). Renders "Last updated HH:MM" inline
@@ -908,7 +933,7 @@ Doesn't affect the app — IPv4 is fine for everything we touch.
 - **`startClose` is sacred.** Do not recompute on incremental fetches. Share counts depend on it.
 - **Visx peer-dep mismatch.** React 19, but visx peers `^16 || ^17 || ^18`. `.npmrc` has `legacy-peer-deps=true` so Vercel installs cleanly.
 - **`touchAction: none` on the chart SVG.** Required for clean scrub. If you ever change this, vertical scroll-finger-drift will release the gesture mid-swipe. Unchanged by the motion layer — the chart scrub is still pointer-driven with a 16ms-per-frame budget and NO React/JS-driven per-frame animation.
-- **Motion layer is CSS-only, transforms/opacity, and must degrade.** The iOS motion (route transitions in `app/template.tsx`, the `<Sheet>` slide, `.press`) is implemented as CSS keyframes/transitions in `globals.css` (tokens: `--ease-ios`, `--ease-out-ios`, `--dur-press:140ms`, `--dur-fade:220ms`, `--dur-slide:320ms`) — no JS animation library was added for it. A GLOBAL `@media (prefers-reduced-motion: reduce)` guard in `globals.css` neutralizes transitions/animations/smooth-scroll (the repo had NO reduced-motion handling before this); any NEW motion must inherit or restate that degrade. Route keyframes use `animation-fill-mode: backwards` ON PURPOSE so no transform lingers at rest — a lingering transform re-roots the inline position:fixed modal (ManageFundsSheet; the other modals now portal to body via `<Sheet>`). `.press` uses transition longhands (incl. color) so it doesn't clobber Tailwind's `transition-colors`. `.press` tap feedback is wired to TabBar links, HeaderBack, FilterToolbar buttons, and the WhatsNew bell/close.
+- **Motion layer is CSS-only, transforms/opacity, and must degrade.** The iOS motion (route transitions in `app/template.tsx`, the `<Sheet>` slide, `.press`) is implemented as CSS keyframes/transitions in `globals.css` (tokens: `--ease-ios`, `--ease-out-ios`, `--dur-press:140ms`, `--dur-fade:220ms`, `--dur-slide:320ms`) — no JS animation library was added for it. A GLOBAL `@media (prefers-reduced-motion: reduce)` guard in `globals.css` neutralizes transitions/animations/smooth-scroll (the repo had NO reduced-motion handling before this); any NEW motion must inherit or restate that degrade. Route keyframes use `animation-fill-mode: backwards` ON PURPOSE so no transform lingers at rest — a lingering transform re-roots the inline position:fixed modal (ManageFundsSheet; the other modals now portal to body via `<Sheet>`). `.press` uses transition longhands (incl. color) so it doesn't clobber Tailwind's `transition-colors`. `.press` tap feedback is wired to TabBar links, HeaderBack, RangeTabs pills, FilterToolbar buttons, and the WhatsNew bell/close.
 - **Don't use modal SHEETS for NAVIGATION.** Drilling into a detail page is a real route change (now animated as a push/pop) — NOT a sheet. Sheets/modals (`<Sheet>` + the remaining hand-rolled ManageFundsSheet shell) are for forms, filters, info, and destructive actions only. Tab navigation is a route change too (now a cross-fade), not a slide-up.
 - **Motion doctrine (superseded + still-true).** The old "the app is mostly static; only the live pulse / holding flash / pull-to-refresh / scrub crosshair animate; tab nav is a plain route change with no slide; don't animate card mount/unmount" rule is SUPERSEDED for navigation + overlays only: the app now has deliberate, purposeful iOS-style transitions (tab fade, drill push/pop) and animated sheets. Animation is now for liveness, feedback, AND purposeful iOS-style transitions — all done in CSS within the perf budget. Still true: card mount/unmount itself is not animated, and the chart scrub stays JS-per-frame-free.
 - **`<Sheet>` has NO drag-to-dismiss.** Close is backdrop tap / Done / Escape. Shared-element / cross-route morph (View Transitions API) was intentionally SKIPPED for older-device compatibility — do not claim it exists. framer-motion was NOT removed from the app (BreakdownDonut / PortfolioComposition / PortfolioThesis still use it); only WhatsNew moved off it.

@@ -22,6 +22,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { markInAppNavigation } from "@/lib/nav-history";
 
 // Persists across navigations because the module stays loaded even as the
 // template subtree re-mounts. Holds the path we came FROM so we can pick a
@@ -44,6 +45,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
   const dir = directionClass(pathname, prevPath);
 
   useEffect(() => {
+    if (prevPath !== null && prevPath !== pathname) markInAppNavigation();
     prevPath = pathname;
   }, [pathname]);
 
