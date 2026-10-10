@@ -333,8 +333,9 @@ components/
                       apple-touch-startup-image (make-icons.py geometry, 32vw centered on #000)
                       so the OS→HTML hand-off is seamless; then a glint traces the lines, the
                       endpoint dots pop with the live-pulse ring, the wordmark rises in. Leaves
-                      on window `load` after ≥1.4s from navigation start (4s cap); CSS failsafe
-                      hides it at 8s even without JS. Styled in globals.css (.splash*), always
+                      on window `load` after ≥2.6s from the splash's first paint (FCP, not
+                      nav start — iOS's launch image used to eat the budget; 5s cap, 640ms
+                      fade); CSS failsafe hides it at 9s even without JS. Styled in globals.css (.splash*), always
                       dark regardless of theme.
   PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.

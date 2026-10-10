@@ -716,8 +716,11 @@ matches the iOS `apple-touch-startup-image` exactly (same icon geometry as
 `scripts/make-icons.py`, 32vw, centered on #000), so the OS launch image
 hands off to live HTML without the mark moving; then a glint traces the two
 lines, the endpoint dots pop with the live-pulse ring, and the wordmark
-rises in. It leaves on window `load` once ≥1.4s has passed since navigation
-start (4s cap; CSS failsafe at 8s if JS never runs). An inline `<head>`
+rises in. It leaves on window `load` once ≥2.6s has passed since the splash's
+first paint (FCP — NOT navigation start: on a cold PWA launch iOS's static
+launch image eats most of a nav-start clock, so it used to flash by before
+the wordmark was readable), with a 5s cap and a 640ms fade-out; CSS failsafe
+at 9s if JS never runs. An inline `<head>`
 script in `app/layout.tsx` sets `<html data-splash="skip">` pre-paint when
 sessionStorage says this session already saw it, so reloads don't replay
 it. To let the splash actually paint while the server works, the layout no
