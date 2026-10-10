@@ -317,7 +317,7 @@ html {
   background: #000;
   pointer-events: none;
   /* Failsafe: if JS never dismisses it, it still gets out of the way. */
-  animation: splashFailsafe 0.3s ease 8s forwards;
+  animation: splashFailsafe 0.3s ease 9s forwards;
 }
 
 :root[data-splash="skip"] .splash {
@@ -325,7 +325,7 @@ html {
 }
 
 .splash.is-leaving {
-  animation: splashOut 420ms var(--ease-out-ios) forwards;
+  animation: splashOut 640ms var(--ease-out-ios) forwards;
 }
 
 .splash-mark {
@@ -339,7 +339,7 @@ html {
 }
 
 .splash.is-leaving .splash-mark {
-  animation: splashMarkOut 420ms var(--ease-out-ios) forwards;
+  animation: splashMarkOut 640ms var(--ease-out-ios) forwards;
 }
 
 .splash-glint {
@@ -395,7 +395,7 @@ html {
 }
 
 .splash.is-leaving .splash-copy {
-  transition: opacity 200ms var(--ease-out-ios), transform 200ms var(--ease-out-ios);
+  transition: opacity 320ms var(--ease-out-ios), transform 320ms var(--ease-out-ios);
   opacity: 0;
   transform: translateY(-6px);
 }

@@ -14,6 +14,11 @@ import { SPLASH_SEEN_KEY } from "@/lib/splash";
 // ring, and the wordmark rises in underneath. It leaves once the document
 // has fully loaded (streamed page included) AND a short minimum has elapsed,
 // so the animation always reads as intentional rather than a flash.
+// The minimum is counted from the splash's first PAINT, not navigation
+// start: on a cold PWA launch iOS keeps its static launch image up for much
+// of the load, so a nav-start clock spent most of the budget before the
+// animated splash was even visible — it flashed by before the wordmark could
+// be read.
 //
 // Skip logic lives in an inline <head> script in app/layout.tsx: it sets
 // <html data-splash="skip"> before first paint when sessionStorage says this
@@ -22,8 +27,17 @@ import { SPLASH_SEEN_KEY } from "@/lib/splash";
 // never runs. All motion is CSS and degrades through the global
 // reduced-motion guard.
 
-const MIN_VISIBLE_MS = 1400; // measured from navigation start
-const MAX_WAIT_MS = 4000; // never hold the app hostage to a slow asset
+const MIN_VISIBLE_MS = 2600; // after first paint: one full read of the wordmark
+const MAX_WAIT_MS = 5000; // after first paint: never hold the app hostage to a slow asset
+
+// When the splash first hit the screen (first-contentful-paint, which IS the
+// splash on a cold open), falling back to "now" if paint timing is missing.
+function paintedAt(): number {
+  const fcp = performance
+    .getEntriesByType("paint")
+    .find((e) => e.name === "first-contentful-paint");
+  return fcp ? fcp.startTime : performance.now();
+}
 
 // Same geometry as make_icon() in scripts/make-icons.py, on a 0–100 canvas
 // (18% margin → 64-unit plot area).
@@ -43,16 +57,20 @@ export function Splash() {
       window.sessionStorage.setItem(SPLASH_SEEN_KEY, "1");
     } catch {}
 
+    const shownAt = paintedAt();
     let done = false;
     const leave = () => {
       if (done) return;
       done = true;
-      const wait = Math.max(0, MIN_VISIBLE_MS - performance.now());
+      const wait = Math.max(0, shownAt + MIN_VISIBLE_MS - performance.now());
       window.setTimeout(() => setPhase("leaving"), wait);
     };
     if (document.readyState === "complete") leave();
     else window.addEventListener("load", leave, { once: true });
-    const cap = window.setTimeout(leave, MAX_WAIT_MS);
+    const cap = window.setTimeout(
+      leave,
+      Math.max(0, shownAt + MAX_WAIT_MS - performance.now())
+    );
     return () => {
       window.removeEventListener("load", leave);
       window.clearTimeout(cap);
