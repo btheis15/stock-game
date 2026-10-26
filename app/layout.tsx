@@ -10,6 +10,7 @@ import { MotionProvider } from "@/components/MotionProvider";
 import { Splash } from "@/components/Splash";
 import { SPLASH_SEEN_KEY } from "@/lib/splash";
 import { loadPriceData } from "@/lib/data";
+import { getMarketSessionState } from "@/lib/portfolio";
 import { Suspense } from "react";
 
 function siteUrl(): string {
@@ -102,15 +103,29 @@ const SPLASH_SKIP_SCRIPT = `try{if(sessionStorage.getItem(${JSON.stringify(
   SPLASH_SEEN_KEY
 )}))document.documentElement.dataset.splash="skip"}catch(e){}`;
 
+// Theme before first paint. ThemeController only runs after hydration, so
+// without this the page painted dark and then cross-faded to the light /
+// twilight palette — the launch "flicker". The server renders the theme for
+// the current market session (every page is force-dynamic), and this script
+// applies any pinned ?theme override from localStorage before paint.
+const THEME_SCRIPT = `try{var p=new URLSearchParams(location.search).get("theme"),o=p&&p!=="auto"?p:p==="auto"?null:localStorage.getItem("theme-override"),r=document.documentElement;if(o==="light"||o==="twilight")r.dataset.theme=o;else if(o==="dark")delete r.dataset.theme}catch(e){}`;
+
+function serverTheme(): string | undefined {
+  const state = getMarketSessionState();
+  if (state === "open") return "light";
+  if (state === "premarket" || state === "afterhours") return "twilight";
+  return undefined;
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     // suppressHydrationWarning: the inline splash script may set
     // data-splash on <html> before React hydrates.
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html lang="en" className="h-full" data-theme={serverTheme()} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: SPLASH_SKIP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_SKIP_SCRIPT + THEME_SCRIPT }} />
         {SPLASH_SCREENS.map(({ w, h, r }) => (
           <link
             key={`${w}x${h}@${r}`}

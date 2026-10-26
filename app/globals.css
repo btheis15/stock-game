@@ -415,8 +415,21 @@ html {
 
 @keyframes splashOut {
   0% { opacity: 1; }
-  30% { opacity: 1; }
+  12% { opacity: 1; }
   100% { opacity: 0; visibility: hidden; }
+}
+
+/* Hand-off: the app was animating in unseen behind the opaque splash, so
+   the reveal looked like a hard cut. Instead the page rises in as the
+   splash dissolves (finishes inside the 640ms splashOut — the selector stops
+   matching once the splash unmounts). */
+.splash.is-leaving ~ main {
+  animation: splashReveal 480ms var(--ease-out-ios) 100ms backwards;
+}
+
+@keyframes splashReveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes splashMarkOut {
