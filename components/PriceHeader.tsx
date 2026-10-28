@@ -81,7 +81,7 @@ export function PriceHeader({
   const positive = delta >= 0;
   const color = positive ? "var(--gain)" : "var(--loss)";
   return (
-    <div className="px-4 pt-1 pb-3">
+    <div data-price-header className="px-4 pt-1 pb-3">
       {(label || ticker) && (
         <div className="flex items-center gap-2 mb-1 text-[11px] font-bold tracking-[0.12em] uppercase text-ink-muted">
           {ticker && <span>{ticker}</span>}

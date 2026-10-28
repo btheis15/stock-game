@@ -692,7 +692,39 @@ body {
    cross-fade, press) and turn off smooth scroll. The whole motion layer is
    CSS-only, so this global guard degrades it without any per-component JS
    check. */
+/* Compact header title: fades in once the PriceHeader (data-price-header)
+   scrolls out under the sticky HeaderBack. Scroll-driven, compositor-only;
+   browsers without support keep the plain header. Reduced motion: hidden. */
+.hb-compact { display: none; }
+@supports (animation-timeline: view()) {
+  main:has([data-price-header]) { timeline-scope: --price-hdr; }
+  [data-price-header] { view-timeline: --price-hdr block; }
+  .hb-compact,
+  .hb-label {
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: --price-hdr;
+    animation-range: exit 40% exit 100%;
+  }
+  .hb-compact {
+    display: block;
+    animation-name: hb-compact-in;
+  }
+  .hb-label { animation-name: hb-compact-out; }
+}
+@keyframes hb-compact-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hb-compact-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .hb-compact { display: none !important; }
+  .hb-label { animation: none !important; }
+
   *,
   *::before,
   *::after {

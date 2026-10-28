@@ -82,7 +82,7 @@ export default async function Page({
   const thesis = await getThesis(userId);
   return (
     <>
-      <HeaderBack title="Compare" />
+      <HeaderBack title="Compare" compactTitle={`${USER_LIST.find((u) => u.id === userId)?.name ?? ""}'s portfolio`} />
       <PortfolioView
         userId={userId}
         series={series}

@@ -64,7 +64,7 @@ export default async function Page({
 
   return (
     <>
-      <HeaderBack />
+      <HeaderBack compactTitle={series.ticker} />
       <StockView
         series={displaySeries}
         intradayDate={data.intradayDate ?? data.tradingDates[data.tradingDates.length - 1]}
