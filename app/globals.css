@@ -1,18 +1,10 @@
 @import "tailwindcss";
 
-/* Top safe area. iOS 26.1+ Home Screen apps report env(safe-area-inset-top)
-   as 0 while the system draws its own status bar whose soft bottom fade
-   overlaps the first ~24px of the page (WebKit bug 301994). In standalone
-   mode keep at least 28px of clearance so headings start below the fade;
-   where iOS reports a real inset (older iOS, or once fixed) that wins.
-   Use var(--safe-top) everywhere instead of env(safe-area-inset-top). */
+/* Top safe area. Use var(--safe-top) instead of env(safe-area-inset-top)
+   so the top inset is tunable in one place. The iOS 26 top "scroll edge"
+   fade is handled by the solid status-bar band in app/layout.tsx. */
 :root {
   --safe-top: env(safe-area-inset-top);
-}
-@media (display-mode: standalone) {
-  :root {
-    --safe-top: max(env(safe-area-inset-top), 28px);
-  }
 }
 
 :root {
