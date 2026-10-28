@@ -9,7 +9,15 @@ function fallbackFor(pathname: string): string {
   return pathname.startsWith("/stock/") ? "/stocks" : "/";
 }
 
-export function HeaderBack({ title }: { title?: string }) {
+export function HeaderBack({
+  title,
+  compactTitle,
+}: {
+  title?: string;
+  // Fades in once the page's PriceHeader scrolls away (see .hb-compact in
+  // globals.css); the static `title`, if any, fades out in its place.
+  compactTitle?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const goBack = () => {
@@ -54,7 +62,20 @@ export function HeaderBack({ title }: { title?: string }) {
           />
         </svg>
       </button>
-      {title && <span className="text-sm font-medium text-ink-3">{title}</span>}
+      {(title || compactTitle) && (
+        <span className="grid min-w-0 text-sm font-medium text-ink-3">
+          {title && (
+            <span className={`col-start-1 row-start-1 ${compactTitle ? "hb-label" : ""}`}>
+              {title}
+            </span>
+          )}
+          {compactTitle && (
+            <span className="hb-compact col-start-1 row-start-1 truncate text-ink font-semibold">
+              {compactTitle}
+            </span>
+          )}
+        </span>
+      )}
     </div>
   );
 }
