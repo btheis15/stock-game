@@ -190,7 +190,7 @@ export function DigestPanel({ digest, loading, range }: Props) {
             </div>
             <p
               ref={proseRef}
-              className={`mt-1.5 text-[13px] leading-[1.55] text-ink-2 ${
+              className={`digest-prose mt-1.5 text-[13px] leading-[1.55] text-ink-2 ${
                 expanded ? "" : "line-clamp-3"
               }`}
             >

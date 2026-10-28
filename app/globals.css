@@ -143,6 +143,11 @@ html {
   animation: skeletonPulse 1.4s var(--ease-out-ios) infinite;
 }
 
+/* Typography polish: avoid orphan last lines in briefing prose, balance
+   multi-line card headings. */
+.digest-prose { text-wrap: pretty; }
+h2, h3 { text-wrap: balance; }
+
 /* Route transitions — driven by app/template.tsx, which sets one of these
    classes per navigation. animation-fill-mode is `backwards`, so once the
    entrance finishes the element reverts to NO transform; that keeps inline

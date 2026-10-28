@@ -112,7 +112,7 @@ export function PortfolioView({
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const { isOn, setOn } = useFundsFilter(PORTFOLIO_FILTER_KEY);
-  const { loading: digestsLoading, getPortfolioDigest } = useDigests();
+  const { loading: digestsLoading, getPortfolioDigest, getDigest } = useDigests();
 
   const isIntraday = range === "1D";
   const hasBaseline = baselineDaily != null;
@@ -322,6 +322,13 @@ export function PortfolioView({
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
             const rangeDollars = stat?.dollars ?? 0;
+            // "Why it moved": big 1D movers show the first sentence of the
+            // ticker's already-loaded 1D digest. No digest → nothing.
+            const dayPct = h.rangeStats["1D"]?.pct ?? 0;
+            const whyMoved =
+              Math.abs(dayPct) >= 0.02
+                ? (getDigest(h.ticker, "1D")?.digest ?? "").trim().split(/(?<=[.!?])\s/)[0]
+                : "";
             // Anchor id + scroll-margin live on the WRAPPER, not the Link.
             // When iOS Safari focuses a tapped link, any scroll-margin-top
             // on that link can offset the page before navigation completes
@@ -369,6 +376,11 @@ export function PortfolioView({
                     </div>
                   </div>
                 </Link>
+                {whyMoved && (
+                  <div className="pr-4 pb-2.5 -mt-1.5 pl-[64px] text-[11px] text-ink-muted truncate">
+                    {whyMoved}
+                  </div>
+                )}
               </div>
               </AnimatedRow>
             );
