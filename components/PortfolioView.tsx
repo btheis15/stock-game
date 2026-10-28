@@ -22,7 +22,7 @@ import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
 import { accentFor, useP3 } from "@/lib/color";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
-import { useDigests } from "@/lib/digests";
+import { useDigests, type WindowDigest } from "@/lib/digests";
 import { PortfolioComposition } from "./PortfolioComposition";
 import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
 import { PortfolioThesis } from "./PortfolioThesis";
@@ -72,6 +72,15 @@ interface Props {
   composition: PortfolioCompositionData;
   /** The player's own "why these picks" reasoning. Null → section is hidden. */
   thesis: Thesis | null;
+}
+
+function whyItMoved(d: WindowDigest | null): string {
+  const prose = d?.digest?.trim().split(/(?<=[.!?])\s/)[0];
+  if (prose) return prose;
+  const top = [...(d?.sources ?? [])].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.score - a.score
+  )[0];
+  return top?.title ?? "";
 }
 
 export function PortfolioView({
@@ -323,12 +332,12 @@ export function PortfolioView({
             const rangePct = stat?.pct ?? 0;
             const rangeDollars = stat?.dollars ?? 0;
             // "Why it moved": big 1D movers show the first sentence of the
-            // ticker's already-loaded 1D digest. No digest → nothing.
+            // ticker's already-loaded 1D digest, else its most recent
+            // top-scored headline (holding 1D windows usually ship sources
+            // but no prose). Neither → nothing.
             const dayPct = h.rangeStats["1D"]?.pct ?? 0;
             const whyMoved =
-              Math.abs(dayPct) >= 0.02
-                ? (getDigest(h.ticker, "1D")?.digest ?? "").trim().split(/(?<=[.!?])\s/)[0]
-                : "";
+              Math.abs(dayPct) >= 0.02 ? whyItMoved(getDigest(h.ticker, "1D")) : "";
             // Anchor id + scroll-margin live on the WRAPPER, not the Link.
             // When iOS Safari focuses a tapped link, any scroll-margin-top
             // on that link can offset the page before navigation completes
