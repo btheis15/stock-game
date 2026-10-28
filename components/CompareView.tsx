@@ -28,6 +28,7 @@ import { AnimatedRow } from "./AnimatedList";
 import { Sparkline } from "./Sparkline";
 import { GolfCountdown } from "./GolfCountdown";
 import { LeadTape } from "./LeadTape";
+import { pctAtPriorClose, rankChangesSincePriorClose } from "@/lib/rank-history";
 import { Celebration } from "./Celebration";
 import { HeadToHead } from "./HeadToHead";
 import { ShareStandings } from "./ShareStandings";
@@ -318,6 +319,23 @@ export function CompareView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ranged, baselineRanged, fundRanged, visibleFunds, scrub, intraday, baselineIntraday, fundIntraday, fundPending, isIntraday, isOn, p3]);
 
+  // Places gained/lost vs the previous session close for the active range.
+  // Close-to-close (daily series), so intraday flicker never moves it.
+  const rankChanges = useMemo(() => {
+    const prior = new Map<string, number>();
+    for (const s of stats) {
+      const daily =
+        s.id === BASELINE.id
+          ? baselineDaily
+          : s.id in series
+            ? series[s.id as UserId]
+            : fundSeries[s.id];
+      const p = pctAtPriorClose(daily, intradayDate, range);
+      if (p != null) prior.set(s.id, p);
+    }
+    return rankChangesSincePriorClose(stats, prior);
+  }, [stats, series, baselineDaily, fundSeries, intradayDate, range]);
+
   // Empty-state guard: if every chip is toggled off, stats is empty and
   // leader/second below would crash. Use safe defaults so the page still
   // renders (headline collapses to "Nothing visible" + a hint), then the
@@ -559,6 +577,7 @@ export function CompareView({
                   pct={s.pct}
                   gap={gap}
                   place={i + 1}
+                  placeChange={scrub == null ? rankChanges.get(s.id) ?? 0 : 0}
                   href={s.href}
                   pendingTickers={s.pendingTickers}
                   animateNumbers={scrub == null}
@@ -664,6 +683,7 @@ function UserRow({
   pct,
   gap,
   place,
+  placeChange = 0,
   href,
   pendingTickers,
   animateNumbers = true,
@@ -675,6 +695,8 @@ function UserRow({
   pct: number;
   gap: number; // $ behind the leader in this range's gain; 0 when place === 1
   place: number;
+  /** Places gained (+) / lost (-) vs the previous close; 0 hides the chip. */
+  placeChange?: number;
   /** False while a scrub drives the values — they render raw, not eased. */
   animateNumbers?: boolean;
   /** Downsampled range curve for the row's mini trend line. */
@@ -702,8 +724,23 @@ function UserRow({
     : undefined;
   const inner = (
     <>
-      <div className="w-6 text-center text-[14px] font-semibold text-ink-faint tabular-nums shrink-0">
-        {place}
+      <div className="w-6 text-center shrink-0">
+        <div className="text-[14px] font-semibold text-ink-faint tabular-nums">
+          {place}
+        </div>
+        {placeChange !== 0 && (
+          <div
+            role="img"
+            className="text-[9px] font-semibold tabular-nums leading-none"
+            style={{ color: placeChange > 0 ? "var(--gain)" : "var(--loss)" }}
+            aria-label={`${placeChange > 0 ? "up" : "down"} ${Math.abs(placeChange)} ${
+              Math.abs(placeChange) === 1 ? "place" : "places"
+            } since yesterday's close`}
+          >
+            {placeChange > 0 ? "▲" : "▼"}
+            {Math.abs(placeChange)}
+          </div>
+        )}
       </div>
       <div
         className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -737,6 +774,9 @@ function UserRow({
           className="text-[12px] font-medium tabular-nums mt-0.5"
           style={{ color: deltaColor }}
         >
+          <span aria-hidden="true" className="text-[8px] mr-0.5 align-[1px]">
+            {positive ? "▲" : "▼"}
+          </span>
           <AnimatedNumber value={pct} format={fmtPct} animate={animateNumbers} />
         </div>
       </div>
