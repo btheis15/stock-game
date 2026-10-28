@@ -36,6 +36,32 @@ export interface ChangelogEntry {
 // reverse-chronological order makes the file easy to scan.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "rank-change-arrows",
+    date: "2026-10-27",
+    category: "New",
+    icon: "📈",
+    title: "See who's climbing",
+    summary:
+      "The leaderboard now shows a little ▲ or ▼ next to each place, so you can tell at a glance who moved up or slipped since yesterday.",
+    details: [
+      "Under each person's place number on the Compare screen, a small green ▲1 means they passed someone since yesterday's close, and a red ▼1 means they got passed. No arrow means nobody's spot changed.",
+      "It compares against yesterday's closing standings, not every tick during the day, so the arrows don't flicker back and forth while the market's open. Switch between 1W, 1M, 3M and the rest to see who's gaining ground in each race.",
+    ],
+  },
+  {
+    id: "why-it-moved",
+    date: "2026-10-27",
+    category: "New",
+    icon: "📰",
+    title: "Why your stocks moved",
+    summary:
+      "When one of your stocks has a big day, a one-line news headline now shows right under it in your portfolio.",
+    details: [
+      "Open anyone's portfolio, and any stock that's up or down 2% or more today gets a short line underneath with the latest news about it, so you can see why it jumped or dropped without digging.",
+      "Tap the stock to read the full story and the rest of the news. Quiet days and stocks without fresh news just don't show a line.",
+    ],
+  },
+  {
     id: "snappier-navigation",
     date: "2026-07-21",
     category: "Improved",
