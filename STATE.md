@@ -340,7 +340,7 @@ components/
                       nav start — iOS's launch image used to eat the budget; 5s cap, 640ms
                       fade); CSS failsafe hides it at 9s even without JS. Styled in globals.css (.splash*), always
                       dark regardless of theme.
-  PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date. Optional `dataAt` (ISO) drives a muted sub-line: "At close · Tue, Oct 27" when the market is closed; "Prices as of 2:15 PM ET" when open and data is >30 min old (client-only, refreshed each minute, hidden while scrubbing). Root carries `data-price-header`, the scroll-timeline anchor for HeaderBack's compact title.
+  PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date. A muted sub-line reads "At close · Tue, Oct 27" whenever the market is closed; optional `dataAt` (ISO) adds "Prices as of 2:15 PM ET" when open and data is >30 min old (client-only, refreshed each minute, hidden while scrubbing). Root carries `data-price-header`, the scroll-timeline anchor for HeaderBack's compact title.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
   Sheet.tsx           Reusable iOS bottom-sheet primitive (the shared replacement for the
