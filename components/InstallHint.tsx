@@ -37,7 +37,7 @@ export function InstallHint() {
   return (
     <div
       className="fixed top-0 left-0 right-0 z-40 bg-card-95 backdrop-blur-md border-b border-hairline"
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
+      style={{ paddingTop: "var(--safe-top)" }}
     >
       <div className="max-w-md mx-auto flex items-center gap-3 px-4 py-2.5">
         <div className="text-[12px] leading-snug flex-1 text-ink-2">

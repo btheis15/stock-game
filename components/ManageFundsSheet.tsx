@@ -106,7 +106,7 @@ export function ManageFundsSheet({ open, funds, onClose, onChanged, onEdit }: Pr
       >
         <header
           className="flex items-center justify-between px-5 py-4 border-b border-hairline"
-          style={{ paddingTop: "max(env(safe-area-inset-top), 1rem)" }}
+          style={{ paddingTop: "max(var(--safe-top), 1rem)" }}
         >
           <div>
             <div className="text-[10px] font-bold tracking-[0.16em] uppercase text-ink-faint">

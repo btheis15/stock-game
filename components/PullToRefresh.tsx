@@ -162,7 +162,7 @@ export function PullToRefresh() {
       className="fixed left-0 right-0 z-40 flex justify-center pointer-events-none"
       style={{
         top: 0,
-        paddingTop: `calc(env(safe-area-inset-top) + 8px)`,
+        paddingTop: `calc(var(--safe-top) + 8px)`,
         transform: `translateY(${visible ? pull * 0.5 : -50}px)`,
         opacity: visible ? opacity : 0,
         transition: refreshing

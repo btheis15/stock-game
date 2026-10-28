@@ -24,7 +24,7 @@ export function HeaderBack({
     if (hasInAppHistory()) router.back();
     else router.push(fallbackFor(pathname));
   };
-  // <main> in app/layout.tsx applies `paddingTop: env(safe-area-inset-top)`
+  // <main> in app/layout.tsx applies `paddingTop: var(--safe-top)`
   // so pages with no header (Compare, Stocks, Tee Times) start their content
   // cleanly below the iOS status bar. For pages that DO have a header
   // (HeaderBack), main's padding would double up with the header's own
@@ -43,8 +43,8 @@ export function HeaderBack({
     <div
       className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-2 bg-chrome-soft backdrop-blur-md"
       style={{
-        marginTop: "calc(-1 * env(safe-area-inset-top))",
-        paddingTop: "max(env(safe-area-inset-top), 12px)",
+        marginTop: "calc(-1 * var(--safe-top))",
+        paddingTop: "max(var(--safe-top), 12px)",
       }}
     >
       <button
