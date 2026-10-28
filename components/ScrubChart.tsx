@@ -7,6 +7,7 @@ import { LinearGradient } from "@visx/gradient";
 import { curveMonotoneX } from "@visx/curve";
 import { ParentSize } from "@visx/responsive";
 import { bisector } from "d3-array";
+import { fmtDateShort, fmtDateTimeET, fmtPct, fmtUSD } from "@/lib/portfolio";
 
 export interface ChartSeries {
   id: string;
@@ -37,6 +38,10 @@ interface Props {
    */
   compactX?: boolean;
 }
+
+// Intraday points carry full ISO timestamps; daily points are YYYY-MM-DD.
+const fmtPointDate = (d: string) =>
+  d.length > 10 ? fmtDateTimeET(d) : fmtDateShort(d);
 
 export function ScrubChart({
   series,
@@ -173,6 +178,46 @@ function ScrubChartInner({
   }, [series, baseline, height]);
 
   const [scrubIdx, setScrubIdx] = useState<number | null>(null);
+  // Screen-reader output. `lastIdxRef` is a plain ref write on the scrub hot
+  // path (no alloc, no setState); `announce` is set once, on pointerup only.
+  const lastIdxRef = useRef<number | null>(null);
+  const [announce, setAnnounce] = useState("");
+
+  // Normalized charts (Compare) plot fractions around baseline 0, so values
+  // read as percentages; otherwise they're dollars.
+  const pctMode = baseline === 0;
+  const fmtVal = useCallback(
+    (v: number) => (pctMode ? fmtPct(v) : fmtUSD(v, 0)),
+    [pctMode]
+  );
+
+  const summary = useMemo(() => {
+    const data = series[0]?.data;
+    if (!data || data.length === 0) return "Price chart, no data";
+    let hi = data[0];
+    let lo = data[0];
+    for (const d of data) {
+      if (d.value > hi.value) hi = d;
+      if (d.value < lo.value) lo = d;
+    }
+    const first = data[0].value;
+    const last = data[data.length - 1].value;
+    let move: string;
+    if (pctMode) {
+      const diff = last - first;
+      move = `${diff >= 0 ? "Up" : "Down"} ${(Math.abs(diff) * 100).toFixed(1)}%`;
+    } else if (first !== 0) {
+      const pct = (last - first) / first;
+      move = `${pct >= 0 ? "Up" : "Down"} ${(Math.abs(pct) * 100).toFixed(1)}%`;
+    } else {
+      move = "Change unavailable";
+    }
+    const more =
+      series.length > 1
+        ? ` Showing ${series[0].id}, ${series.length} lines total.`
+        : "";
+    return `${move} over this range. High ${fmtVal(hi.value)} on ${fmtPointDate(hi.date)}, low ${fmtVal(lo.value)} on ${fmtPointDate(lo.date)}.${more}`;
+  }, [series, pctMode, fmtVal]);
   const containerRef = useRef<SVGSVGElement>(null);
 
   const dateBisect = useMemo(() => bisector<Date, Date>((d) => d).left, []);
@@ -182,6 +227,7 @@ function ScrubChartInner({
   onScrubRef.current = onScrub;
 
   const reportScrub = useCallback((idx: number | null) => {
+    if (idx != null) lastIdxRef.current = idx;
     setScrubIdx(idx);
     const cb = onScrubRef.current;
     if (!cb) return;
@@ -248,12 +294,13 @@ function ScrubChartInner({
     : computeXTicksTime(timeScale!, width, dates);
 
   return (
+    <>
     <svg
       ref={containerRef}
       width={width}
       height={height}
       role="img"
-      aria-label={`Price chart, ${series.length} ${series.length === 1 ? "line" : "lines"}, ${dates.length} points`}
+      aria-label={summary}
       style={{ touchAction: "none", overflow: "visible" }}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -268,7 +315,13 @@ function ScrubChartInner({
           handlePointer(e.clientX);
         }
       }}
-      onPointerUp={() => reportScrub(null)}
+      onPointerUp={() => {
+        const i = lastIdxRef.current;
+        const pt = i == null ? undefined : series[0]?.data[i];
+        if (pt) setAnnounce(`${fmtPointDate(pt.date)}, ${fmtVal(pt.value)}`);
+        lastIdxRef.current = null;
+        reportScrub(null);
+      }}
       onPointerCancel={() => reportScrub(null)}
       onPointerLeave={() => reportScrub(null)}
       onMouseLeave={() => reportScrub(null)}
@@ -421,6 +474,10 @@ function ScrubChartInner({
         </g>
       )}
     </svg>
+    <span aria-live="polite" className="sr-only">
+      {announce}
+    </span>
+    </>
   );
 }
 
