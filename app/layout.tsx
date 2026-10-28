@@ -153,14 +153,16 @@ export default function RootLayout({
           </main>
         </MotionProvider>
         <TabBar />
-        {/* Status-bar backdrop. With black-translucent the page draws under
-            the clock, so on the tab routes (no sticky HeaderBack) scrolled
-            content collided with the status bar. Same frosted chrome as
-            HeaderBack, which sits above this (z-30) on detail routes.
-            Zero-height wherever there's no top inset. */}
+        {/* Status-bar backdrop. iOS 26 Home Screen apps draw a system
+            "scroll edge" fade over the top of the page (dimming the first
+            ~25-40pt of content) unless WebKit finds a fixed, full-width,
+            SOLID-colour box >10px tall at the top edge — a translucent or
+            pointer-events:none box doesn't count. So: opaque page colour,
+            hit-testable, above HeaderBack (z-30) so detail routes qualify
+            too. Zero-height wherever there's no top inset. */}
         <div
           aria-hidden
-          className="fixed top-0 inset-x-0 z-20 bg-chrome-soft backdrop-blur-md pointer-events-none"
+          className="fixed top-0 inset-x-0 z-[35] bg-page"
           style={{ height: "var(--safe-top)" }}
         />
       </body>
