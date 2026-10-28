@@ -260,6 +260,7 @@ export function PortfolioView({
   return (
     <div className="pb-24" style={{ "--accent": accent } as CSSProperties}>
       <PriceHeader
+        dataAt={isIntraday ? undefined : generatedAt}
         ticker={user.name.toUpperCase()}
         title={`${user.name}'s portfolio`}
         value={value}

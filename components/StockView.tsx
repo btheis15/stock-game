@@ -102,6 +102,7 @@ export function StockView({ series, intradayDate, generatedAt, fundamentals, own
   return (
     <div className="pb-24" style={{ "--accent": accentColor } as CSSProperties}>
       <PriceHeader
+        dataAt={isIntraday ? undefined : generatedAt}
         ticker={series.ticker}
         title={series.name}
         value={price}
