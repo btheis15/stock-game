@@ -237,6 +237,7 @@ Functions exported:
 | `getMarketSessionState(now?)` | `"premarket" \| "open" \| "afterhours" \| "closed"` (DST-aware via IANA `America/New_York`; **holiday-aware** via `lib/market-calendar.ts` — full-closure holidays report `"closed"` all day, early-close half days use the 1:00 PM ET close). Drives theme + badge. |
 | `isUsMarketOpen(now?)` | Backward-compat wrapper = `getMarketSessionState() === "open"`. |
 | `marketHolidayName(now?)` / `marketEarlyCloseName(now?)` (in `lib/market-calendar.ts`) | Computed NYSE calendar. Return the holiday name on a full-closure day / the occasion name on a scheduled 1:00 PM ET half day, else `null`. Observance-aware (Sat→Fri, Sun→Mon), Good Friday via Easter, Juneteenth, day-after-Thanksgiving / Christmas Eve / July-3 early closes. Drives the `MarketStateBadge` callout. |
+| `nextMarketOpen(now?)` / `nextOpenLabel(now?)` / `lastMarketCloseDate(now?)` (in `lib/market-calendar.ts`) | Next 9:30 AM ET regular open strictly after `now` (skips weekends + holidays, DST-safe). `nextOpenLabel` formats it as "Opens in 14h 20m" (<24h) or "Opens Mon 9:30 AM ET". `lastMarketCloseDate` = calendar date of the most recent session whose close has passed (UTC-noon Date; format with timeZone UTC). Feed the `MarketStateBadge` next-open copy and `PriceHeader`'s "At close" line. |
 | `fmtUSD / fmtSignedUSD / fmtPct / fmtDateLong / fmtDateShort / fmtTimeOfDay` | Formatters. |
 
 `STARTING_PORTFOLIO_DOLLARS = 100_000`.
@@ -300,6 +301,7 @@ components/
                         onScrub?: (state | null) => void
                       `touch-action: none` on the SVG so vertical drift doesn't kill the gesture.
                       Reports scrub via parent-stable refs (no useEffect loop).
+                      `aria-label` is a computed summary (move %, high/low with dates; normalized Compare charts read as %). On pointerup a visually hidden `aria-live="polite"` span announces the released point, never per frame (hot path only writes `lastIdxRef`).
                       Two x-scale modes:
                         • time (default): `scaleTime` over the data's date range. Used by 1D
                           (with xDomain forcing the full session) and by daily-close ranges
@@ -329,6 +331,7 @@ components/
                       has in-app history (lib/nav-history.ts); on a COLD deep link (shared URL,
                       PWA relaunch onto a detail page) it router.push()es the owning tab instead
                       (/stock/* → /stocks, else /) — router.back() there did nothing / left the app.
+                      New optional `compactTitle`: a title that fades into the bar as the page's PriceHeader scrolls away (scroll-driven `.hb-compact` in globals.css under `@supports (animation-timeline: view())`, Safari 26+; the static `title` fades out in its place; hidden under reduced motion).
   Splash.tsx          Launch splash, once per session. Frame 0 is pixel-matched to the iOS
                       apple-touch-startup-image (make-icons.py geometry, 32vw centered on #000)
                       so the OS→HTML hand-off is seamless; then a glint traces the lines, the
@@ -337,7 +340,7 @@ components/
                       nav start — iOS's launch image used to eat the budget; 5s cap, 640ms
                       fade); CSS failsafe hides it at 9s even without JS. Styled in globals.css (.splash*), always
                       dark regardless of theme.
-  PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date.
+  PriceHeader.tsx     Big number + signed delta + % vs baseline; optional ticker label and scrub date. A muted sub-line reads "At close · Tue, Oct 27" whenever the market is closed; optional `dataAt` (ISO) adds "Prices as of 2:15 PM ET" when open and data is >30 min old (client-only, refreshed each minute, hidden while scrubbing). Root carries `data-price-header`, the scroll-timeline anchor for HeaderBack's compact title.
   Footer.tsx          "Data through {date}" + "Snapshot generated {ts}". Pulled from PriceData.
   InstallHint.tsx     iOS-Safari-only top banner: "Add to Home Screen". localStorage dismiss.
   Sheet.tsx           Reusable iOS bottom-sheet primitive (the shared replacement for the
@@ -381,7 +384,7 @@ components/
                         scheduled 1:00 PM ET half day, also renders an amber callout line below
                         ("Markets closed today for Juneteenth …" / "Half day — markets close
                         early at 1:00 PM ET …"), driven by `marketHolidayName` /
-                        `marketEarlyCloseName`. Polls every 60s. Only shown on the 1D view
+                        `marketEarlyCloseName`. When closed it also shows the next-open line ("Opens in 14h 20m" / "Opens Mon 9:30 AM ET", from `nextOpenLabel()`), folded into the holiday notice or weekend line. Polls every 60s. Only shown on the 1D view
                         (rendered alongside `isIntraday`).
   ThemeController.tsx   Client-only. Sets `<html data-theme="light">` during regular hours,
                         `data-theme="twilight"` during pre-market / after-hours, and clears the
@@ -451,6 +454,7 @@ components/
                       the view falls back to daily closes for 1W so all lines share the same
                       x-axis treatment (compactX is only enabled when every line has weekly
                       data, baseline included).
+                      Rank-change chip: UserRow's `placeChange` (▲n/▼n places vs the previous session close; daily closes only) sits under the place number, with a ▲/▼ glyph before each row's pct. Hidden on 1D and while scrubbing. Computed by `pctAtPriorClose` + `rankChangesSincePriorClose` (lib/rank-history.ts); players without a prior-close value get no chip and don't shift anyone else's rank.
                       The synthetic Combined Players fund rides through the same fund
                       machinery as user funds (default-OFF chip / chart line / leaderboard
                       row). Below InsightsCard the page renders <PortfolioComposition /> a
@@ -461,6 +465,7 @@ components/
   PortfolioView.tsx   Per-user. Defaults to 1D. PriceHeader + ScrubChart + RangeTabs +
                       DigestPanel (portfolio-rollup digest, between RangeTabs and Holdings)
                       + Holdings list.
+                      Holdings rows with a ±2%+ 1D move show a muted one-line "why it moved" (`whyItMoved`: first sentence of the ticker's 1D digest, else its newest top-scored source headline; holding 1D windows often have sources but no prose).
                       Each holding row has id={ticker} so /portfolio/X#TICKER deep-links.
                       In 1D mode: chart is intraday $, baseline = previousClose, xDomain = session.
                       In 1W mode: chart is weekly hourly $; compactX=true collapses overnight

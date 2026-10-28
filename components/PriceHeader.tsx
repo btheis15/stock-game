@@ -2,7 +2,36 @@
 
 import { AnimatedNumber } from "./AnimatedNumber";
 import clsx from "clsx";
-import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/portfolio";
+import { useEffect, useState } from "react";
+import { fmtPct, fmtSignedUSD, fmtUSD, getMarketSessionState } from "@/lib/portfolio";
+import { lastMarketCloseDate } from "@/lib/market-calendar";
+
+const STALE_MS = 30 * 60_000;
+
+/** Muted data-freshness line, or null when nothing needs saying. */
+function freshnessLine(dataAt?: string): string | null {
+  const now = new Date();
+  const state = getMarketSessionState(now);
+  if (state === "closed") {
+    const d = lastMarketCloseDate(now).toLocaleDateString("en-US", {
+      timeZone: "UTC",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    return `At close · ${d}`;
+  }
+  const t = dataAt ? new Date(dataAt) : null;
+  if (state === "open" && t && !isNaN(+t) && now.getTime() - t.getTime() > STALE_MS) {
+    const time = t.toLocaleTimeString("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    return `Prices as of ${time} ET`;
+  }
+  return null;
+}
 
 interface Props {
   label?: string;
@@ -24,6 +53,8 @@ interface Props {
    * an empty row.
    */
   compareTo?: { label: string; pct: number; color: string } | null;
+  /** ISO timestamp of the latest price data; enables the "Prices as of" stale note. */
+  dataAt?: string;
 }
 
 export function PriceHeader({
@@ -36,13 +67,21 @@ export function PriceHeader({
   accent,
   fractionDigits = 2,
   compareTo,
+  dataAt,
 }: Props) {
+  // Client-only (after mount) so SSR markup never disagrees with the clock.
+  const [freshness, setFreshness] = useState<string | null>(null);
+  useEffect(() => {
+    setFreshness(freshnessLine(dataAt));
+    const id = window.setInterval(() => setFreshness(freshnessLine(dataAt)), 60_000);
+    return () => window.clearInterval(id);
+  }, [dataAt]);
   const delta = value - baseline;
   const pct = baseline === 0 ? 0 : delta / baseline;
   const positive = delta >= 0;
   const color = positive ? "var(--gain)" : "var(--loss)";
   return (
-    <div className="px-4 pt-1 pb-3">
+    <div data-price-header className="px-4 pt-1 pb-3">
       {(label || ticker) && (
         <div className="flex items-center gap-2 mb-1 text-[11px] font-bold tracking-[0.12em] uppercase text-ink-muted">
           {ticker && <span>{ticker}</span>}
@@ -68,6 +107,9 @@ export function PriceHeader({
           • {scrubDate}
         </span>
       </div>
+      {freshness && scrubDate == null && (
+        <div className="mt-0.5 text-[11px] font-medium text-ink-faint">{freshness}</div>
+      )}
       {compareTo && (
         <div className="flex items-center gap-2 mt-1 text-[12px] font-medium text-ink-muted">
           <div

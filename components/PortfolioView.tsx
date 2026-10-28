@@ -22,7 +22,7 @@ import { BASELINE, TICKER_NAMES, USERS, type UserId } from "@/lib/picks";
 import { accentFor, useP3 } from "@/lib/color";
 import { MarketStateBadge } from "./MarketStateBadge";
 import { DigestPanel } from "./DigestPanel";
-import { useDigests } from "@/lib/digests";
+import { useDigests, type WindowDigest } from "@/lib/digests";
 import { PortfolioComposition } from "./PortfolioComposition";
 import type { PortfolioComposition as PortfolioCompositionData } from "@/lib/portfolio-composition";
 import { PortfolioThesis } from "./PortfolioThesis";
@@ -74,6 +74,15 @@ interface Props {
   thesis: Thesis | null;
 }
 
+function whyItMoved(d: WindowDigest | null): string {
+  const prose = d?.digest?.trim().split(/(?<=[.!?])\s/)[0];
+  if (prose) return prose;
+  const top = [...(d?.sources ?? [])].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.score - a.score
+  )[0];
+  return top?.title ?? "";
+}
+
 export function PortfolioView({
   userId,
   series,
@@ -112,7 +121,7 @@ export function PortfolioView({
   const [scrub, setScrub] = useState<ScrubState | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const { isOn, setOn } = useFundsFilter(PORTFOLIO_FILTER_KEY);
-  const { loading: digestsLoading, getPortfolioDigest } = useDigests();
+  const { loading: digestsLoading, getPortfolioDigest, getDigest } = useDigests();
 
   const isIntraday = range === "1D";
   const hasBaseline = baselineDaily != null;
@@ -260,6 +269,7 @@ export function PortfolioView({
   return (
     <div className="pb-24" style={{ "--accent": accent } as CSSProperties}>
       <PriceHeader
+        dataAt={isIntraday ? undefined : generatedAt}
         ticker={user.name.toUpperCase()}
         title={`${user.name}'s portfolio`}
         value={value}
@@ -322,6 +332,13 @@ export function PortfolioView({
             const stat = h.rangeStats[range];
             const rangePct = stat?.pct ?? 0;
             const rangeDollars = stat?.dollars ?? 0;
+            // "Why it moved": big 1D movers show the first sentence of the
+            // ticker's already-loaded 1D digest, else its most recent
+            // top-scored headline (holding 1D windows usually ship sources
+            // but no prose). Neither → nothing.
+            const dayPct = h.rangeStats["1D"]?.pct ?? 0;
+            const whyMoved =
+              Math.abs(dayPct) >= 0.02 ? whyItMoved(getDigest(h.ticker, "1D")) : "";
             // Anchor id + scroll-margin live on the WRAPPER, not the Link.
             // When iOS Safari focuses a tapped link, any scroll-margin-top
             // on that link can offset the page before navigation completes
@@ -369,6 +386,11 @@ export function PortfolioView({
                     </div>
                   </div>
                 </Link>
+                {whyMoved && (
+                  <div className="pr-4 pb-2.5 -mt-1.5 pl-[64px] text-[11px] text-ink-muted truncate">
+                    {whyMoved}
+                  </div>
+                )}
               </div>
               </AnimatedRow>
             );

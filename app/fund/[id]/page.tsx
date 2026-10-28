@@ -82,7 +82,7 @@ export default async function Page({
 
   return (
     <>
-      <HeaderBack title="Compare" />
+      <HeaderBack title="Compare" compactTitle={fund.name} />
       <FundView
         fundId={fund.id}
         name={fund.name}

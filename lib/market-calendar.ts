@@ -182,3 +182,79 @@ export function marketEarlyCloseName(now: Date = new Date()): string | null {
   const { y, m, d } = etDate(now);
   return earlyCloseMap(y).get(`${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`) ?? null;
 }
+
+function isTradingDay(o: YMD): boolean {
+  const dow = dowOf(o.y, o.m, o.d);
+  if (dow === 0 || dow === 6) return false;
+  return !closureMap(o.y).has(key(o)!);
+}
+
+/** Minutes since midnight ET for `now`. */
+function etMinutes(now: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? "0", 10);
+  return (get("hour") % 24) * 60 + get("minute");
+}
+
+/** UTC instant for a wall-clock time (h:mm) on an ET calendar date (DST-safe). */
+function etWallToDate(o: YMD, h: number, min: number): Date {
+  const target = h * 60 + min;
+  for (const offsetHours of [4, 5]) {
+    const guess = new Date(Date.UTC(o.y, o.m - 1, o.d, h + offsetHours, min));
+    if (etMinutes(guess) === target && etDate(guess).d === o.d) return guess;
+  }
+  return new Date(Date.UTC(o.y, o.m - 1, o.d, h + 5, min));
+}
+
+/**
+ * Next regular-session open (9:30 AM ET) strictly after `now`, skipping
+ * weekends and full-closure holidays.
+ */
+export function nextMarketOpen(now: Date = new Date()): Date {
+  let day = etDate(now);
+  for (let i = 0; i < 14; i++) {
+    if (isTradingDay(day)) {
+      const open = etWallToDate(day, 9, 30);
+      if (open.getTime() > now.getTime()) return open;
+    }
+    day = shiftDate(day.y, day.m, day.d, 1);
+  }
+  return now;
+}
+
+/**
+ * Calendar date (as a UTC-noon Date, format with timeZone "UTC") of the most
+ * recent regular session whose close has already passed.
+ */
+export function lastMarketCloseDate(now: Date = new Date()): Date {
+  let day = etDate(now);
+  const closeMin = (marketEarlyCloseName(now) ? EARLY_CLOSE_HOUR_ET : 16) * 60;
+  if (!(isTradingDay(day) && etMinutes(now) >= closeMin)) {
+    day = shiftDate(day.y, day.m, day.d, -1);
+    for (let i = 0; i < 14 && !isTradingDay(day); i++) {
+      day = shiftDate(day.y, day.m, day.d, -1);
+    }
+  }
+  return new Date(Date.UTC(day.y, day.m - 1, day.d, 12));
+}
+
+/** Concrete next-open copy: "Opens in 14h 20m" (< 24h) else "Opens Mon 9:30 AM ET". */
+export function nextOpenLabel(now: Date = new Date()): string {
+  const open = nextMarketOpen(now);
+  const mins = Math.max(1, Math.round((open.getTime() - now.getTime()) / 60_000));
+  if (mins < 24 * 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `Opens in ${h > 0 ? `${h}h ` : ""}${m}m`;
+  }
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  }).format(open);
+  return `Opens ${day} 9:30 AM ET`;
+}
