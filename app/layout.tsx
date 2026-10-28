@@ -153,6 +153,16 @@ export default function RootLayout({
           </main>
         </MotionProvider>
         <TabBar />
+        {/* Status-bar backdrop. With black-translucent the page draws under
+            the clock, so on the tab routes (no sticky HeaderBack) scrolled
+            content collided with the status bar. Same frosted chrome as
+            HeaderBack, which sits above this (z-30) on detail routes.
+            Zero-height wherever there's no top inset. */}
+        <div
+          aria-hidden
+          className="fixed top-0 inset-x-0 z-20 bg-chrome-soft backdrop-blur-md pointer-events-none"
+          style={{ height: "env(safe-area-inset-top)" }}
+        />
       </body>
     </html>
   );
