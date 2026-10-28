@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getMarketSessionState, type MarketSessionState } from "@/lib/portfolio";
-import { marketEarlyCloseName, marketHolidayName } from "@/lib/market-calendar";
+import { marketEarlyCloseName, marketHolidayName, nextOpenLabel } from "@/lib/market-calendar";
 import { RelativeTime } from "@/components/RelativeTime";
 
 interface StateStyle {
@@ -35,14 +35,19 @@ interface MarketSchedule {
   earlyClose: string | null;
   /** "Markets are closed today — Saturday, July 12…" on weekends, else null. */
   weekend: string | null;
+  /** Concrete next-open text ("Opens in 14h 20m"), or null while trading. */
+  nextOpen: string | null;
 }
 
 function readSchedule(): MarketSchedule {
+  const state = getMarketSessionState();
+  const nextOpen = state === "closed" ? nextOpenLabel() : null;
   return {
-    state: getMarketSessionState(),
+    state,
+    nextOpen,
     holiday: marketHolidayName(),
     earlyClose: marketEarlyCloseName(),
-    weekend: weekendLine(),
+    weekend: weekendLine(nextOpen),
   };
 }
 
@@ -52,7 +57,7 @@ function readSchedule(): MarketSchedule {
  */
 function noticeFor(schedule: MarketSchedule): string | null {
   if (schedule.holiday) {
-    return `Markets closed today for ${schedule.holiday} — no new prices until the next session.`;
+    return `Markets closed today for ${schedule.holiday}.${schedule.nextOpen ? ` ${schedule.nextOpen}.` : ""}`;
   }
   if (schedule.earlyClose) {
     return schedule.state === "open" || schedule.state === "premarket"
@@ -68,7 +73,7 @@ function noticeFor(schedule: MarketSchedule): string | null {
  * frozen-since-Friday chart is self-explanatory. Weekdays return null — the
  * session dot + holiday notice cover those.
  */
-function weekendLine(): string | null {
+function weekendLine(nextOpen: string | null): string | null {
   const now = new Date();
   const day = now.getDay();
   if (day !== 0 && day !== 6) return null;
@@ -77,7 +82,7 @@ function weekendLine(): string | null {
     month: "long",
     day: "numeric",
   });
-  return `Markets are closed today — ${dateLabel}. Prices resume Monday morning.`;
+  return `Markets are closed today — ${dateLabel}. ${nextOpen ?? "Prices resume Monday morning"}.`;
 }
 
 export function MarketStateBadge({
@@ -85,7 +90,7 @@ export function MarketStateBadge({
 }: {
   generatedAt?: string;
 }) {
-  // Self-managed: poll the calendar every 60s so the badge flips at session
+  // Self-managed: poll the calendar every 60s (also refreshes the next-open countdown) so the badge flips at session
   // boundaries (7:00 / 9:30 AM and 1:00 / 4:00 / 6:00 PM ET) and at the
   // midnight holiday rollover without a page reload.
   const [schedule, setSchedule] = useState<MarketSchedule>(readSchedule);
@@ -133,6 +138,11 @@ export function MarketStateBadge({
             ●
           </span>
           <span>{notice}</span>
+        </div>
+      )}
+      {!notice && schedule.nextOpen && !schedule.weekend && (
+        <div className="mt-1.5 text-[11px] font-medium leading-snug text-ink-faint">
+          {schedule.nextOpen}
         </div>
       )}
       {!notice && schedule.weekend && (

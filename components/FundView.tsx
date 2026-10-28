@@ -215,6 +215,7 @@ export function FundView({
   return (
     <div className="pb-24" style={{ "--accent": color } as CSSProperties}>
       <PriceHeader
+        dataAt={isIntraday ? undefined : generatedAt}
         ticker={creator ? `FUND · BY ${creator.toUpperCase()}` : "COMPARISON FUND"}
         title={name}
         value={value}
