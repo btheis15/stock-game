@@ -321,7 +321,10 @@ export function CompareView({
 
   // Places gained/lost vs the previous session close for the active range.
   // Close-to-close (daily series), so intraday flicker never moves it.
+  // Hidden on 1D: "yesterday's 1D rank" is a different day's race, not a
+  // prior standing in this one.
   const rankChanges = useMemo(() => {
+    if (range === "1D") return new Map<string, number>();
     const prior = new Map<string, number>();
     for (const s of stats) {
       const daily =
