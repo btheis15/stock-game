@@ -639,7 +639,7 @@ via `<Sheet>`), and a lingering transform on the wrapper would re-root
 that fixed descendant and misplace it. Don't switch this to a framer-motion `x`/`y` wrapper for
 the same reason. **Shared-element / cross-route morph (View Transitions
 API) was intentionally skipped** for older-device compatibility — don't
-claim it exists.
+claim it exists. (Note: iOS Safari has supported same-document View Transitions since 18.0; the app still deliberately doesn't use them.)
 
 ### `<Sheet>` primitive — `components/Sheet.tsx`
 
@@ -704,6 +704,7 @@ content entrances, all CSS on the shared tokens (`--dur-enter: 360ms`):
 - **`.reveal` / `.is-open`** — height animation via grid-template-rows
   0fr↔1fr (same technique as WhatsNew); DigestPanel's expanded meta uses it
   with `inert` on the collapsed state so hidden links leave the tab order.
+- **Compact header title (scroll-driven)** — HeaderBack's `.hb-compact` title fades in as the page's PriceHeader (`[data-price-header]`) scrolls out, via CSS `animation-timeline: view()` on a `--price-hdr` view-timeline. `@supports`-gated, so it runs only where supported (Safari 26+); elsewhere the plain header stays. Hidden under reduced motion.
 - **Tab bar**: active icon does a one-shot `tabPop` (keyed by active state)
   and an accent dot fades in under the label; sheet backdrops blur in.
 - `.press` now also covers leaderboard rows, holdings rows, stocks-list

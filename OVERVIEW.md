@@ -30,7 +30,7 @@ Four things, on a phone screen:
    comparison basket). Drag your finger across the chart
    and the header above updates with the gap (in dollars and percent) at
    that exact moment. Below the chart is a sports-standings leaderboard
-   showing 1st through last place with each portfolio's current value. Below that, a **game-wide
+   showing 1st through last place with each portfolio's current value. A small ▲2 or ▼1 beside a place shows how many spots that player gained or lost since the previous market close. Below that, a **game-wide
    AI briefing** scoped to the active range — three sentences explaining
    *why* the standings look the way they do, citing actual percentages
    ("Rick is leading the leaderboard with +10.12% portfolio, driven by
@@ -78,7 +78,7 @@ Four things, on a phone screen:
    range — three sentences referencing their actual tickers, with the same
    "Show more" expand-for-sources affordance as the per-stock digest. Below
    that, a list of every holding they have, sorted by performance for the
-   active range. Scroll past the holdings and there's a **portfolio
+   active range. Any holding that moved 2% or more that day gets a one-line "why it moved" note under it, taken from the day's briefing or its top headline. Scroll past the holdings and there's a **portfolio
    breakdown** donut chart with three views (Sector / Industry / Market
    cap) — tap a slice (or its row) to see exactly which tickers fill that
    bucket. Below the donut sits an **About this portfolio** card with a
@@ -95,7 +95,7 @@ Four things, on a phone screen:
 3. **Per-stock detail.** Tap any holding row, or any individual stock inside
    a "What's driving it" card, and you see that stock's price chart plus —
    directly below the range tabs — a Robinhood-style **news digest** scoped
-   to whichever range tab you're on. The digest shows three sentences of
+   to whichever range tab you're on. On stock, portfolio and fund pages, once you scroll past the big price, the page title slides into the top bar. The digest shows three sentences of
    plain-English summary ("what happened today" for 1D, "the year's most
    important storyline" for 1Y, "the defining arc of the company since 2/5"
    for ALL), with a "Show more" tap target that reveals the full prose,
@@ -145,7 +145,7 @@ The **1D view** is special: the x-axis spans the full trading day
 (9:30 AM – 4:00 PM ET), the line shows what's happened so far, and the
 most-recent point pulses gently while the market is live. A "● Market open"
 or "● Market closed" badge sits just above the chart in 1D so you know
-which state you're in, with a "Last updated" timestamp next to it.
+which state you're in, with a "Last updated" timestamp next to it. When the market is closed, the badge also says when it next opens, like "Opens in 14h 20m" or "Opens Mon 9:30 AM ET".
 
 The **1W view** is special too: it uses 1-hour bars over the past 5
 trading days (~35 points instead of 5) so the line shows real intra-day
