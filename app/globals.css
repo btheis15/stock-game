@@ -687,11 +687,6 @@ body {
   transition: background-color 280ms ease, color 280ms ease, border-color 280ms ease;
 }
 
-/* Honor the OS "Reduce Motion" accessibility setting: neutralize every CSS
-   transition and keyframe (route transitions, sheet slide, live pulse, theme
-   cross-fade, press) and turn off smooth scroll. The whole motion layer is
-   CSS-only, so this global guard degrades it without any per-component JS
-   check. */
 /* Compact header title: fades in once the PriceHeader (data-price-header)
    scrolls out under the sticky HeaderBack. Scroll-driven, compositor-only;
    browsers without support keep the plain header. Reduced motion: hidden. */
@@ -721,6 +716,11 @@ body {
   to { opacity: 0; }
 }
 
+/* Honor the OS "Reduce Motion" accessibility setting: neutralize every CSS
+   transition and keyframe (route transitions, sheet slide, live pulse, theme
+   cross-fade, press) and turn off smooth scroll. The whole motion layer is
+   CSS-only, so this global guard degrades it without any per-component JS
+   check. */
 @media (prefers-reduced-motion: reduce) {
   .hb-compact { display: none !important; }
   .hb-label { animation: none !important; }
