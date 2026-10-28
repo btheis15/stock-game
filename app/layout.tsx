@@ -144,7 +144,7 @@ export default function RootLayout({
         <MotionProvider>
           <main
             className="max-w-md mx-auto pb-20"
-            style={{ paddingTop: "env(safe-area-inset-top)" }}
+            style={{ paddingTop: "var(--safe-top)" }}
           >
             {children}
             <Suspense fallback={null}>
@@ -161,7 +161,7 @@ export default function RootLayout({
         <div
           aria-hidden
           className="fixed top-0 inset-x-0 z-20 bg-chrome-soft backdrop-blur-md pointer-events-none"
-          style={{ height: "env(safe-area-inset-top)" }}
+          style={{ height: "var(--safe-top)" }}
         />
       </body>
     </html>

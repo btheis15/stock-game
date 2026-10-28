@@ -139,7 +139,7 @@ export function Sheet({
           // A full sheet spans 100dvh on mobile, so its top edge sits under
           // the iOS status bar / notch — pad it out of the way. Zero in
           // regular browsers and for the bottom-anchored partial detent.
-          ...(full ? { paddingTop: "env(safe-area-inset-top)" } : null),
+          ...(full ? { paddingTop: "var(--safe-top)" } : null),
         }}
         onClick={(e) => e.stopPropagation()}
         onAnimationEnd={handleAnimationEnd}

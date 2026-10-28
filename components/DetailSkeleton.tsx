@@ -14,8 +14,8 @@ export function DetailSkeleton() {
       <div
         className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-2 bg-chrome-soft backdrop-blur-md"
         style={{
-          marginTop: "calc(-1 * env(safe-area-inset-top))",
-          paddingTop: "max(env(safe-area-inset-top), 12px)",
+          marginTop: "calc(-1 * var(--safe-top))",
+          paddingTop: "max(var(--safe-top), 12px)",
         }}
       >
         <div className="w-9 h-9 -ml-2 rounded-full bg-card shrink-0" />
