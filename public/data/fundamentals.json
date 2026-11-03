@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T13:00:01.359Z",
+  "generatedAt": "2026-11-03T13:00:02.448Z",
   "tickers": {
     "ASTS": {
       "ticker": "ASTS",
@@ -10,14 +10,14 @@
       "website": "https://ast-science.com",
       "employees": 1126,
       "headquarters": "Midland, TX",
-      "marketCap": 15944192000,
+      "marketCap": 14138455040,
       "peRatio": null,
-      "forwardPE": -28.211592,
+      "forwardPE": -25.016527,
       "eps": -2.13,
       "dividendYield": 0,
       "beta": 2.847,
       "fiftyTwoWeekRange": [
-        36.72,
+        36.08,
         133.86
       ],
       "exchange": "NasdaqGS",
@@ -122,9 +122,9 @@
       "website": "https://www.amazon.com",
       "employees": 1638000,
       "headquarters": "Seattle, WA",
-      "marketCap": 2598937821184,
-      "peRatio": 19.430073,
-      "forwardPE": 22.019148,
+      "marketCap": 2656031211520,
+      "peRatio": 19.856913,
+      "forwardPE": 22.502865,
       "eps": 12.37,
       "dividendYield": 0,
       "beta": 1.503,
@@ -234,15 +234,15 @@
       "website": "https://www.uber.com",
       "employees": 36600,
       "headquarters": "San Francisco, CA",
-      "marketCap": 133277048832,
-      "peRatio": 14.309211,
-      "forwardPE": 14.7833805,
+      "marketCap": 136259182592,
+      "peRatio": 14.629386,
+      "forwardPE": 15.135152,
       "eps": 4.56,
       "dividendYield": 0,
       "beta": 1.308,
       "fiftyTwoWeekRange": [
         64.04,
-        100.35
+        95.44
       ],
       "exchange": "NYSE",
       "financials": {
@@ -346,14 +346,14 @@
       "website": "https://www.serverobotics.com",
       "employees": 370,
       "headquarters": "San Carlos, CA",
-      "marketCap": 225439504,
+      "marketCap": 217635840,
       "peRatio": null,
-      "forwardPE": -1.3577024,
+      "forwardPE": -1.310705,
       "eps": -2.47,
       "dividendYield": 0,
       "beta": 2.876,
       "fiftyTwoWeekRange": [
-        2.53,
+        2.43,
         16.08
       ],
       "exchange": "NasdaqCM",
@@ -451,11 +451,11 @@
       "website": "https://www.apple.com",
       "employees": 150000,
       "headquarters": "Cupertino, CA",
-      "marketCap": 5029592301568,
-      "peRatio": 39.52179,
-      "forwardPE": 36.068707,
-      "eps": 8.72,
-      "dividendYield": 0.0031,
+      "marketCap": 4937503211520,
+      "peRatio": 37.674835,
+      "forwardPE": 31.606789,
+      "eps": 8.98,
+      "dividendYield": 0.0032,
       "beta": 1.089,
       "fiftyTwoWeekRange": [
         243.42,
@@ -464,13 +464,6 @@
       "exchange": "NasdaqGS",
       "financials": {
         "quarterly": [
-          {
-            "date": "2025-09-30",
-            "revenue": 102466000000,
-            "grossProfit": 0,
-            "netIncome": 27466000000,
-            "netMargin": 0.2680498897195167
-          },
           {
             "date": "2025-12-31",
             "revenue": 143756000000,
@@ -491,16 +484,16 @@
             "grossProfit": 0,
             "netIncome": 29789000000,
             "netMargin": 0.2722520266503377
+          },
+          {
+            "date": "2026-09-30",
+            "revenue": 114477000000,
+            "grossProfit": 0,
+            "netIncome": 30711000000,
+            "netMargin": 0.2682722293561152
           }
         ],
         "annual": [
-          {
-            "date": "2022-09-30",
-            "revenue": 394328000000,
-            "grossProfit": 0,
-            "netIncome": 99803000000,
-            "netMargin": 0.2530964070519973
-          },
           {
             "date": "2023-09-30",
             "revenue": 383285000000,
@@ -521,17 +514,18 @@
             "grossProfit": 0,
             "netIncome": 112010000000,
             "netMargin": 0.2691506412181824
+          },
+          {
+            "date": "2026-09-30",
+            "revenue": 478834000000,
+            "grossProfit": 0,
+            "netIncome": 132175000000,
+            "netMargin": 0.27603511864236874
           }
         ]
       },
       "earnings": {
         "quarterly": [
-          {
-            "date": "2025-09-30",
-            "epsEstimate": 1.76993,
-            "epsActual": 1.85,
-            "surprise": 0.08007000000000009
-          },
           {
             "date": "2025-12-31",
             "epsEstimate": 2.6708,
@@ -549,6 +543,12 @@
             "epsEstimate": 1.89243,
             "epsActual": 2.02,
             "surprise": 0.12756999999999996
+          },
+          {
+            "date": "2026-09-30",
+            "epsEstimate": 1.98579,
+            "epsActual": 2.1,
+            "surprise": 0.11421000000000014
           }
         ],
         "annual": []
@@ -563,11 +563,11 @@
       "website": "https://www.qualcomm.com",
       "employees": 52000,
       "headquarters": "San Diego, CA",
-      "marketCap": 175969255424,
-      "peRatio": 19.072916,
-      "forwardPE": 16.202265,
+      "marketCap": 173075431424,
+      "peRatio": 18.759258,
+      "forwardPE": 15.952929,
       "eps": 8.64,
-      "dividendYield": 0.0223,
+      "dividendYield": 0.0227,
       "beta": 1.762,
       "fiftyTwoWeekRange": [
         121.99,
@@ -675,9 +675,9 @@
       "website": "https://www.intuitive.com",
       "employees": 17021,
       "headquarters": "Sunnyvale, CA",
-      "marketCap": 152619646976,
-      "peRatio": 52.23821,
-      "forwardPE": 34.69375,
+      "marketCap": 154336575488,
+      "peRatio": 52.825874,
+      "forwardPE": 35.037136,
       "eps": 8.27,
       "dividendYield": 0,
       "beta": 1.439,
@@ -787,33 +787,19 @@
       "website": "https://www.crisprtx.com",
       "employees": null,
       "headquarters": "Zug, Switzerland",
-      "marketCap": 4971936256,
+      "marketCap": 4833666048,
       "peRatio": null,
-      "forwardPE": -14.468001,
+      "forwardPE": -13.666909,
       "eps": -4.74,
       "dividendYield": 0,
       "beta": 1.897,
       "fiftyTwoWeekRange": [
         44.12,
-        64.736
+        63.45
       ],
       "exchange": "NasdaqGM",
       "financials": {
         "quarterly": [
-          {
-            "date": "2025-06-30",
-            "revenue": 892000,
-            "grossProfit": 0,
-            "netIncome": -208549000,
-            "netMargin": -233.7993273542601
-          },
-          {
-            "date": "2025-09-30",
-            "revenue": 889000,
-            "grossProfit": 0,
-            "netIncome": -106441000,
-            "netMargin": -119.73115860517436
-          },
           {
             "date": "2025-12-31",
             "revenue": 864000,
@@ -827,6 +813,20 @@
             "grossProfit": 0,
             "netIncome": -122931000,
             "netMargin": -84.31481481481481
+          },
+          {
+            "date": "2026-06-30",
+            "revenue": 10181000,
+            "grossProfit": 0,
+            "netIncome": -91154000,
+            "netMargin": -8.953344465180237
+          },
+          {
+            "date": "2026-09-30",
+            "revenue": 12669000,
+            "grossProfit": 0,
+            "netIncome": -111437000,
+            "netMargin": -8.796037572026206
           }
         ],
         "annual": [
@@ -863,12 +863,6 @@
       "earnings": {
         "quarterly": [
           {
-            "date": "2025-09-30",
-            "epsEstimate": -1.28895,
-            "epsActual": -1.17,
-            "surprise": 0.11895000000000011
-          },
-          {
             "date": "2025-12-31",
             "epsEstimate": -1.22676,
             "epsActual": -1.37,
@@ -885,6 +879,12 @@
             "epsEstimate": -1.18374,
             "epsActual": -0.94,
             "surprise": 0.24374000000000007
+          },
+          {
+            "date": "2026-09-30",
+            "epsEstimate": -1.05997,
+            "epsActual": -1.15,
+            "surprise": -0.09002999999999983
           }
         ],
         "annual": []
@@ -899,11 +899,11 @@
       "website": "https://www.honeywell.com",
       "employees": 101000,
       "headquarters": "Charlotte, NC",
-      "marketCap": 69197512704,
-      "peRatio": 10.8244915,
-      "forwardPE": 22.157429,
+      "marketCap": 70921666560,
+      "peRatio": 11.094199,
+      "forwardPE": 22.709513,
       "eps": 20.17,
-      "dividendYield": 0.0128,
+      "dividendYield": 0.0125,
       "beta": 0.878,
       "fiftyTwoWeekRange": [
         195.86786,
@@ -1011,15 +1011,15 @@
       "website": "https://www.exodus.com",
       "employees": 215,
       "headquarters": "Omaha, NE",
-      "marketCap": 155546784,
+      "marketCap": 151016288,
       "peRatio": null,
-      "forwardPE": 85.833336,
+      "forwardPE": 83.333336,
       "eps": -2.96,
       "dividendYield": 0,
       "beta": 3.341,
       "fiftyTwoWeekRange": [
         4.57,
-        25.48
+        25.38
       ],
       "exchange": "NYSE American",
       "financials": {
@@ -1116,9 +1116,9 @@
       "website": "https://www.tesla.com",
       "employees": 134785,
       "headquarters": "Austin, TX",
-      "marketCap": 1580341002240,
-      "peRatio": 439.35162,
-      "forwardPE": 185.1641,
+      "marketCap": 1596191539200,
+      "peRatio": 443.75824,
+      "forwardPE": 187.02124,
       "eps": 0.91,
       "dividendYield": 0,
       "beta": 1.743,
@@ -1228,9 +1228,9 @@
       "website": "https://www.nvidia.com",
       "employees": 42000,
       "headquarters": "Santa Clara, CA",
-      "marketCap": 4941441662976,
-      "peRatio": 25.87105,
-      "forwardPE": 12.858633,
+      "marketCap": 4879142617088,
+      "peRatio": 25.54488,
+      "forwardPE": 12.696517,
       "eps": 7.91,
       "dividendYield": 0.0049,
       "beta": 2.247,
@@ -1340,11 +1340,11 @@
       "website": "https://www.broadcom.com",
       "employees": 33000,
       "headquarters": "Palo Alto, CA",
-      "marketCap": 1556585250816,
-      "peRatio": 41.644955,
-      "forwardPE": 16.752058,
+      "marketCap": 1538206859264,
+      "peRatio": 41.15326,
+      "forwardPE": 16.554268,
       "eps": 7.83,
-      "dividendYield": 0.008,
+      "dividendYield": 0.0081,
       "beta": 1.508,
       "fiftyTwoWeekRange": [
         289.96,
@@ -1452,11 +1452,11 @@
       "website": "https://www.marvell.com",
       "employees": 7480,
       "headquarters": "Wilmington, DE",
-      "marketCap": 176505585664,
-      "peRatio": 64.60526,
-      "forwardPE": 26.79992,
+      "marketCap": 154228867072,
+      "peRatio": 56.38487,
+      "forwardPE": 23.29627,
       "eps": 3.04,
-      "dividendYield": 0.0011999999,
+      "dividendYield": 0.0014,
       "beta": 2.327,
       "fiftyTwoWeekRange": [
         70.69,
@@ -1564,9 +1564,9 @@
       "website": "https://credosemi.com",
       "employees": 807,
       "headquarters": "Grand Cayman, Cayman Islands",
-      "marketCap": 28378861568,
-      "peRatio": 53.542557,
-      "forwardPE": 15.546539,
+      "marketCap": 26317029376,
+      "peRatio": 49.652485,
+      "forwardPE": 14.417024,
       "eps": 2.82,
       "dividendYield": 0,
       "beta": 3.292,
@@ -1676,10 +1676,10 @@
       "website": "https://www.palantir.com",
       "employees": 4401,
       "headquarters": "Aventura, FL",
-      "marketCap": 442427080704,
-      "peRatio": 158.71552,
-      "forwardPE": 78.33468,
-      "eps": 1.16,
+      "marketCap": 428561432576,
+      "peRatio": 159.23213,
+      "forwardPE": 75.89033,
+      "eps": 1.12,
       "dividendYield": 0,
       "beta": 1.61,
       "fiftyTwoWeekRange": [
@@ -1689,13 +1689,6 @@
       "exchange": "NasdaqGS",
       "financials": {
         "quarterly": [
-          {
-            "date": "2025-09-30",
-            "revenue": 1181092000,
-            "grossProfit": 0,
-            "netIncome": 475599000,
-            "netMargin": 0.4026773528226421
-          },
           {
             "date": "2025-12-31",
             "revenue": 1406802000,
@@ -1716,6 +1709,13 @@
             "grossProfit": 0,
             "netIncome": 1061890000,
             "netMargin": 0.5486487994610078
+          },
+          {
+            "date": "2026-09-30",
+            "revenue": 2313411000,
+            "grossProfit": 0,
+            "netIncome": 1128012000,
+            "netMargin": 0.4875968861564158
           }
         ],
         "annual": [
@@ -1752,12 +1752,6 @@
       "earnings": {
         "quarterly": [
           {
-            "date": "2025-09-30",
-            "epsEstimate": 0.16738,
-            "epsActual": 0.21,
-            "surprise": 0.04261999999999999
-          },
-          {
             "date": "2025-12-31",
             "epsEstimate": 0.2302,
             "epsActual": 0.25,
@@ -1774,6 +1768,12 @@
             "epsEstimate": 0.34596,
             "epsActual": 0.41,
             "surprise": 0.06403999999999999
+          },
+          {
+            "date": "2026-09-30",
+            "epsEstimate": 0.40705,
+            "epsActual": 0.44,
+            "surprise": 0.03294999999999998
           }
         ],
         "annual": []
@@ -1788,15 +1788,15 @@
       "website": "https://www.oracle.com",
       "employees": 141000,
       "headquarters": "Austin, TX",
-      "marketCap": 396126224384,
-      "peRatio": 20.48119,
-      "forwardPE": 11.837915,
+      "marketCap": 361415573504,
+      "peRatio": 18.68652,
+      "forwardPE": 10.764348,
       "eps": 6.38,
-      "dividendYield": 0.0153,
+      "dividendYield": 0.0168,
       "beta": 1.778,
       "fiftyTwoWeekRange": [
         114.5,
-        265.62
+        255.28
       ],
       "exchange": "NYSE",
       "financials": {
@@ -1900,15 +1900,15 @@
       "website": "https://www.zscaler.com",
       "employees": 8700,
       "headquarters": "San Jose, CA",
-      "marketCap": 38779301888,
+      "marketCap": 36490010624,
       "peRatio": null,
-      "forwardPE": 42.297283,
+      "forwardPE": 39.800312,
       "eps": -0.39,
       "dividendYield": 0,
       "beta": 0.838,
       "fiftyTwoWeekRange": [
         114.625,
-        336.99
+        335.7
       ],
       "exchange": "NasdaqGS",
       "financials": {
@@ -2012,11 +2012,11 @@
       "website": "https://vistracorp.com",
       "employees": 6390,
       "headquarters": "Irving, TX",
-      "marketCap": 46441840640,
-      "peRatio": 23.333895,
-      "forwardPE": 14.516427,
+      "marketCap": 45179854848,
+      "peRatio": 22.699833,
+      "forwardPE": 14.025674,
       "eps": 5.93,
-      "dividendYield": 0.0067000003,
+      "dividendYield": 0.0069,
       "beta": 1.375,
       "fiftyTwoWeekRange": [
         132.66,
@@ -2124,9 +2124,9 @@
       "website": "https://www.vertiv.com",
       "employees": 34000,
       "headquarters": "Westerville, OH",
-      "marketCap": 89526550528,
-      "peRatio": 43.457943,
-      "forwardPE": 23.864634,
+      "marketCap": 86345949184,
+      "peRatio": 41.91402,
+      "forwardPE": 23.016798,
       "eps": 5.35,
       "dividendYield": 0.0011,
       "beta": 2.108,
@@ -2236,9 +2236,9 @@
       "website": "https://www.coherent.com",
       "employees": 51478,
       "headquarters": "Saxonburg, PA",
-      "marketCap": 41418563584,
-      "peRatio": 51.048546,
-      "forwardPE": 15.121983,
+      "marketCap": 39376388096,
+      "peRatio": 48.531555,
+      "forwardPE": 14.310948,
       "eps": 4.12,
       "dividendYield": 0,
       "beta": 2.234,
@@ -2348,14 +2348,14 @@
       "website": "https://www.coreweave.com",
       "employees": 2189,
       "headquarters": "Livingston, NJ",
-      "marketCap": 30262810624,
+      "marketCap": 27659560960,
       "peRatio": null,
-      "forwardPE": -27.875572,
+      "forwardPE": -25.477676,
       "eps": -3.69,
       "dividendYield": 0,
       "beta": null,
       "fiftyTwoWeekRange": [
-        51.24,
+        49.46,
         138.25
       ],
       "exchange": "NasdaqGS",
@@ -2439,9 +2439,9 @@
       "website": "https://gf.com",
       "employees": 14000,
       "headquarters": "Malta, NY",
-      "marketCap": 23355840512,
-      "peRatio": 32.73438,
-      "forwardPE": 15.911051,
+      "marketCap": 23311247360,
+      "peRatio": 32.671875,
+      "forwardPE": 15.8806715,
       "eps": 1.28,
       "dividendYield": 0.0115,
       "beta": 1.849,
@@ -2551,11 +2551,11 @@
       "website": "https://abc.xyz",
       "employees": 204757,
       "headquarters": "Mountain View, CA",
-      "marketCap": 3440352690176,
-      "peRatio": 14.613055,
-      "forwardPE": 18.452505,
+      "marketCap": 3429902843904,
+      "peRatio": 14.568668,
+      "forwardPE": 18.371126,
       "eps": 19.15,
-      "dividendYield": 0.0031,
+      "dividendYield": 0.0032,
       "beta": 1.226,
       "fiftyTwoWeekRange": [
         270.7,
@@ -2663,9 +2663,9 @@
       "website": "https://nebius.com",
       "employees": 1543,
       "headquarters": "Schiphol, Netherlands",
-      "marketCap": 41903763456,
-      "peRatio": 120.421875,
-      "forwardPE": -42.84249,
+      "marketCap": 38437609472,
+      "peRatio": 110.46094,
+      "forwardPE": -39.298687,
       "eps": 1.28,
       "dividendYield": 0,
       "beta": 1.539,
@@ -2775,15 +2775,15 @@
       "website": "https://www.dwavequantum.com",
       "employees": 382,
       "headquarters": "Palo Alto, CA",
-      "marketCap": 4043023360,
+      "marketCap": 3830432768,
       "peRatio": null,
-      "forwardPE": -28.200714,
+      "forwardPE": -26.843674,
       "eps": -0.69,
       "dividendYield": 0,
       "beta": 2.334,
       "fiftyTwoWeekRange": [
-        10.23,
-        37.62
+        10.02,
+        32.53
       ],
       "exchange": "NasdaqGS",
       "financials": {
@@ -2887,9 +2887,9 @@
       "website": "https://rocketlabcorp.com",
       "employees": 2600,
       "headquarters": "Long Beach, CA",
-      "marketCap": 34994962432,
+      "marketCap": 33294131200,
       "peRatio": null,
-      "forwardPE": 951.99164,
+      "forwardPE": 905.7228,
       "eps": -0.27,
       "dividendYield": 0,
       "beta": 3.176,
@@ -2999,9 +2999,9 @@
       "website": "https://www.sentinelone.com",
       "employees": 2800,
       "headquarters": "Mountain View, CA",
-      "marketCap": 8753435648,
+      "marketCap": 8060817408,
       "peRatio": null,
-      "forwardPE": 54.565968,
+      "forwardPE": 50.24842,
       "eps": -1.01,
       "dividendYield": 0,
       "beta": 0.565,
@@ -3111,11 +3111,11 @@
       "website": "https://www.pepsico.com",
       "employees": 306000,
       "headquarters": "Purchase, NY",
-      "marketCap": 187158855680,
-      "peRatio": 17.27547,
-      "forwardPE": 15.898023,
+      "marketCap": 191356108800,
+      "peRatio": 17.662893,
+      "forwardPE": 16.254553,
       "eps": 7.95,
-      "dividendYield": 0.0431,
+      "dividendYield": 0.0422,
       "beta": 0.321,
       "fiftyTwoWeekRange": [
         123.47,
@@ -3223,11 +3223,11 @@
       "website": "https://www.gm.com",
       "employees": 156000,
       "headquarters": "Detroit, MI",
-      "marketCap": 74202603520,
-      "peRatio": 19.124725,
-      "forwardPE": 5.904201,
+      "marketCap": 76359065600,
+      "peRatio": 19.680525,
+      "forwardPE": 6.0757875,
       "eps": 4.57,
-      "dividendYield": 0.0082,
+      "dividendYield": 0.008,
       "beta": 1.418,
       "fiftyTwoWeekRange": [
         66.75,
@@ -3335,11 +3335,11 @@
       "website": "https://www.molsoncoors.com",
       "employees": 16200,
       "headquarters": "Golden, CO",
-      "marketCap": 7480531968,
+      "marketCap": 8060403712,
       "peRatio": null,
-      "forwardPE": 8.37524,
+      "forwardPE": 9.024468,
       "eps": -11.64,
-      "dividendYield": 0.0479,
+      "dividendYield": 0.0444,
       "beta": 0.452,
       "fiftyTwoWeekRange": [
         35.52,
@@ -3447,11 +3447,11 @@
       "website": "https://www.verizon.com",
       "employees": 93300,
       "headquarters": "New York, NY",
-      "marketCap": 185387876352,
-      "peRatio": 11.410714,
-      "forwardPE": 8.433258,
+      "marketCap": 186714144768,
+      "peRatio": 11.492347,
+      "forwardPE": 8.490116,
       "eps": 3.92,
-      "dividendYield": 0.0633,
+      "dividendYield": 0.062800005,
       "beta": 0.26,
       "fiftyTwoWeekRange": [
         38.68,
@@ -3559,11 +3559,11 @@
       "website": "https://www.unilever.com",
       "employees": 93731,
       "headquarters": "London, United Kingdom",
-      "marketCap": 140539969536,
-      "peRatio": 13.18384,
-      "forwardPE": 16.870583,
+      "marketCap": 143081144320,
+      "peRatio": 13.422223,
+      "forwardPE": 17.175629,
       "eps": 4.95,
-      "dividendYield": 0.032,
+      "dividendYield": 0.031400003,
       "beta": 0.467,
       "fiftyTwoWeekRange": [
         54.75,
@@ -3646,11 +3646,11 @@
       "website": "https://www.dickssportinggoods.com",
       "employees": 31600,
       "headquarters": "Coraopolis, PA",
-      "marketCap": 14172059648,
-      "peRatio": 15.617806,
-      "forwardPE": 10.968154,
+      "marketCap": 14014418944,
+      "peRatio": 15.444083,
+      "forwardPE": 10.846151,
       "eps": 9.21,
-      "dividendYield": 0.0348,
+      "dividendYield": 0.0352,
       "beta": 1.095,
       "fiftyTwoWeekRange": [
         120.15,
@@ -3758,11 +3758,11 @@
       "website": "https://www.stock.walmart.com",
       "employees": 2100000,
       "headquarters": "Bentonville, AR",
-      "marketCap": 982902374400,
-      "peRatio": 44.75,
-      "forwardPE": 38.280464,
+      "marketCap": 1016167137280,
+      "peRatio": 46.264492,
+      "forwardPE": 39.576004,
       "eps": 2.76,
-      "dividendYield": 0.008,
+      "dividendYield": 0.0078,
       "beta": 0.526,
       "fiftyTwoWeekRange": [
         98.88,
@@ -3870,15 +3870,15 @@
       "website": "https://www.pfizer.com",
       "employees": 75000,
       "headquarters": "New York, NY",
-      "marketCap": 173954039808,
-      "peRatio": 40.157894,
-      "forwardPE": 10.572186,
+      "marketCap": 174808989696,
+      "peRatio": 40.355263,
+      "forwardPE": 10.624001,
       "eps": 0.76,
-      "dividendYield": 0.056399997,
+      "dividendYield": 0.0561,
       "beta": 0.297,
       "fiftyTwoWeekRange": [
         23.62,
-        30.67
+        31.04
       ],
       "exchange": "NYSE",
       "financials": {
@@ -3982,11 +3982,11 @@
       "website": "https://www.homedepot.com",
       "employees": 470000,
       "headquarters": "Atlanta, GA",
-      "marketCap": 328439431168,
-      "peRatio": 23.03709,
-      "forwardPE": 20.614672,
+      "marketCap": 340361805824,
+      "peRatio": 23.873337,
+      "forwardPE": 21.362986,
       "eps": 14.29,
-      "dividendYield": 0.028299998,
+      "dividendYield": 0.0273,
       "beta": 0.947,
       "fiftyTwoWeekRange": [
         277.15,
@@ -4094,11 +4094,11 @@
       "website": "https://www.asml.com",
       "employees": 44681,
       "headquarters": "Veldhoven, Netherlands",
-      "marketCap": 603525611520,
-      "peRatio": 38.531006,
-      "forwardPE": 24.793715,
+      "marketCap": 588201394176,
+      "peRatio": 37.552658,
+      "forwardPE": 24.164175,
       "eps": 40.64,
-      "dividendYield": 0.0058999998,
+      "dividendYield": 0.0061000003,
       "beta": 1.325,
       "fiftyTwoWeekRange": [
         946.11,
@@ -4206,10 +4206,10 @@
       "website": "https://www.monterosatx.com",
       "employees": 173,
       "headquarters": "Boston, MA",
-      "marketCap": 917972224,
+      "marketCap": 906881472,
       "peRatio": null,
-      "forwardPE": -5.8330216,
-      "eps": -1.75,
+      "forwardPE": -5.762548,
+      "eps": -1.73,
       "dividendYield": 0,
       "beta": 1.382,
       "fiftyTwoWeekRange": [
@@ -4318,14 +4318,14 @@
       "website": "https://www.vivos.com",
       "employees": 268,
       "headquarters": "Littleton, CO",
-      "marketCap": 3824748,
+      "marketCap": 3639897,
       "peRatio": null,
-      "forwardPE": -0.13821918,
+      "forwardPE": -0.131539,
       "eps": -1.88,
       "dividendYield": 0,
       "beta": 6.3,
       "fiftyTwoWeekRange": [
-        0.111,
+        0.108,
         2.72
       ],
       "exchange": "NasdaqCM",
@@ -4430,9 +4430,9 @@
       "website": "https://www.hut8.com",
       "employees": 248,
       "headquarters": "Miami, FL",
-      "marketCap": 7321612800,
+      "marketCap": 6779887616,
       "peRatio": null,
-      "forwardPE": -11.540345,
+      "forwardPE": -10.686476,
       "eps": -5.42,
       "dividendYield": 0,
       "beta": 6.082,
@@ -4535,11 +4535,11 @@
       "website": "https://www.amrize.com",
       "employees": 19000,
       "headquarters": "Zug, Switzerland",
-      "marketCap": 22030356480,
-      "peRatio": 18.556055,
-      "forwardPE": 15.715675,
+      "marketCap": 23057872896,
+      "peRatio": 19.421526,
+      "forwardPE": 16.44867,
       "eps": 2.23,
-      "dividendYield": 0.0106,
+      "dividendYield": 0.010199999,
       "beta": null,
       "fiftyTwoWeekRange": [
         35.785,
@@ -4633,15 +4633,15 @@
       "website": "https://www.nuscalepower.com",
       "employees": 428,
       "headquarters": "Corvallis, OR",
-      "marketCap": 2306389248,
+      "marketCap": 2195584000,
       "peRatio": null,
-      "forwardPE": -8.829397,
+      "forwardPE": -8.592583,
       "eps": -2.92,
       "dividendYield": 0,
       "beta": 2.429,
       "fiftyTwoWeekRange": [
         5.2,
-        43.99
+        40.154
       ],
       "exchange": "NYSE",
       "financials": {
@@ -4745,9 +4745,9 @@
       "website": "https://www.zebra.com",
       "employees": 10700,
       "headquarters": "Lincolnshire, IL",
-      "marketCap": 17091449856,
-      "peRatio": 33.112743,
-      "forwardPE": 16.205153,
+      "marketCap": 17085298688,
+      "peRatio": 33.100826,
+      "forwardPE": 16.199322,
       "eps": 10.91,
       "dividendYield": 0,
       "beta": 1.633,
