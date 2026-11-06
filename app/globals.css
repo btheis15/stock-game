@@ -456,28 +456,10 @@ h2, h3 { text-wrap: balance; }
   100% { opacity: 0; visibility: hidden; }
 }
 
-/* Hand-off: the app was animating in unseen behind the opaque splash, so
-   the reveal looked like a hard cut. Instead the page rises in as the
-   splash dissolves (finishes inside the 640ms splashOut — the selector stops
-   matching once the splash unmounts). */
-.splash.is-leaving ~ main {
-  animation: splashReveal 480ms var(--ease-out-ios) 100ms backwards;
-}
-
-/* The tab bar sits outside <main>; without this it showed at full opacity
-   under the dissolving splash, ahead of the page, as a band at the bottom. */
-.splash.is-leaving ~ nav {
-  animation: splashFadeIn 480ms var(--ease-out-ios) 100ms backwards;
-}
-
-@keyframes splashFadeIn {
-  from { opacity: 0; }
-}
-
-@keyframes splashReveal {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* Hand-off: only the splash animates out — the page underneath stays put,
+   fully rendered. Fading/rising <main> moved the page mid-load, and fading
+   the blurred tab bar made iOS drop its backdrop blur for the duration, so
+   the leaderboard flickered through it at the bottom. */
 
 @keyframes splashMarkOut {
   to { transform: translate(-50%, -50%) scale(1.18); opacity: 0; }
