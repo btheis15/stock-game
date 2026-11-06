@@ -336,6 +336,28 @@ h2, h3 { text-wrap: balance; }
   display: none;
 }
 
+/* Cold-launch bottom strip: for the first ~half second of a Home Screen
+   launch, iOS hands the page a layout viewport ~60pt short of the screen,
+   so `inset: 0` stops above the home indicator and the (light-theme) page
+   + tab bar showed through as a white band that flickered away when the
+   viewport settled. Bleed the black past the bottom edge (a pseudo, so the
+   mark's 50% centering — matched to the launch PNG — doesn't move) and
+   keep the canvas black while the splash is up. */
+.splash::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 200px;
+  background: #000;
+}
+
+:root:not([data-splash="skip"]):has(.splash:not(.is-leaving)),
+:root:not([data-splash="skip"]):has(.splash:not(.is-leaving)) body {
+  background: #000;
+}
+
 .splash.is-leaving {
   animation: splashOut 640ms var(--ease-out-ios) forwards;
 }

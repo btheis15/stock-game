@@ -730,7 +730,11 @@ longer awaits `loadPriceData()` (the Footer streams in its own
 boundary. If you change the icon art in make-icons.py, update the
 polylines in Splash.tsx to match. Splash CSS is raw colors on purpose
 (always dark, continues the dark launch image) and lives in globals.css
-class rules, outside the check-theme utility guard.
+class rules, outside the check-theme utility guard. On a cold Home Screen
+launch iOS briefly gives the page a viewport ~60pt short of the screen, so
+`.splash::after` bleeds black past the bottom edge and the canvas is forced
+to #000 while the splash is up. Without that, a light-theme white strip
+(with the tab bar peeking through) flickered at the bottom.
 
 Smaller feel fixes shipped alongside: tap the active tab to scroll to top;
 HeaderBack falls back to the owning tab on a cold deep link
