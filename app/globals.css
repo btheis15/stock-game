@@ -325,6 +325,9 @@ h2, h3 { text-wrap: balance; }
 .splash {
   position: fixed;
   inset: 0;
+  /* Screen height in Home Screen apps (set pre-paint in app/layout.tsx), so
+     the centered mark doesn't move while iOS grows the launch viewport. */
+  height: var(--splash-h, auto);
   z-index: 100;
   background: #000;
   pointer-events: none;
