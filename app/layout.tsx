@@ -98,10 +98,13 @@ async function DataFooter() {
 }
 
 // Runs before first paint: once this session has seen the splash, hide it
-// so reloads don't replay it (see components/Splash.tsx).
+// so reloads don't replay it (see components/Splash.tsx). In a Home Screen
+// app it also pins the splash to the physical screen height: iOS starts a
+// cold launch with a viewport ~60pt short, then grows it, which made the
+// 50%-centered mark + wordmark jump down mid-animation.
 const SPLASH_SKIP_SCRIPT = `try{if(sessionStorage.getItem(${JSON.stringify(
   SPLASH_SEEN_KEY
-)}))document.documentElement.dataset.splash="skip"}catch(e){}`;
+)}))document.documentElement.dataset.splash="skip";else if(navigator.standalone||matchMedia("(display-mode: standalone)").matches)document.documentElement.style.setProperty("--splash-h",Math.max(screen.width,screen.height)+"px")}catch(e){}`;
 
 // Theme before first paint. ThemeController only runs after hydration, so
 // without this the page painted dark and then cross-faded to the light /
