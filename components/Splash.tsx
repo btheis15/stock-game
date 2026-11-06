@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SPLASH_SEEN_KEY } from "@/lib/splash";
+import { releaseThemeColor } from "@/components/ThemeController";
 
 // Launch splash — shown once per session (cold PWA open / first tab load)
 // while the server streams the first page in behind it.
@@ -76,6 +77,11 @@ export function Splash() {
       window.clearTimeout(cap);
     };
   }, []);
+
+  // The class is now is-leaving, so the held theme-color can apply.
+  useEffect(() => {
+    if (phase !== "show") releaseThemeColor();
+  }, [phase]);
 
   if (phase === "gone") return null;
 

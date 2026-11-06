@@ -23,7 +23,31 @@ const THEME_COLORS: Record<string, string> = {
   dark: "#000000",
 };
 
+// The launch splash (components/Splash.tsx) is always black, but iOS tints
+// the home-indicator strip with theme-color — flipping it to the light
+// palette while the splash was still up flickered a pale band at the bottom.
+// Hold the meta at black until the splash starts leaving, then apply.
+let heldTheme: string | null = null;
+
+function splashUp(): boolean {
+  return (
+    document.documentElement.dataset.splash !== "skip" &&
+    document.querySelector(".splash:not(.is-leaving)") !== null
+  );
+}
+
+export function releaseThemeColor() {
+  if (heldTheme === null) return;
+  const theme = heldTheme;
+  heldTheme = null;
+  syncThemeColorMeta(theme);
+}
+
 function syncThemeColorMeta(theme: string) {
+  if (splashUp()) {
+    heldTheme = theme;
+    return;
+  }
   const color = THEME_COLORS[theme] ?? THEME_COLORS.dark;
   let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (!meta) {

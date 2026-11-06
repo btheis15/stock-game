@@ -464,6 +464,16 @@ h2, h3 { text-wrap: balance; }
   animation: splashReveal 480ms var(--ease-out-ios) 100ms backwards;
 }
 
+/* The tab bar sits outside <main>; without this it showed at full opacity
+   under the dissolving splash, ahead of the page, as a band at the bottom. */
+.splash.is-leaving ~ nav {
+  animation: splashFadeIn 480ms var(--ease-out-ios) 100ms backwards;
+}
+
+@keyframes splashFadeIn {
+  from { opacity: 0; }
+}
+
 @keyframes splashReveal {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
